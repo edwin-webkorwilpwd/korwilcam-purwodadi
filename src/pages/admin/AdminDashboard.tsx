@@ -43,7 +43,13 @@ import {
   Images,
   Star,
   Paperclip,
-  Eye
+  Eye,
+  Crown,
+  Shield,
+  PenTool,
+  Key,
+  Users,
+  Lock
 } from 'lucide-react';
 import { 
   getSupabaseConfig, 
@@ -63,10 +69,13 @@ import {
   GalleryItem, 
   DocumentDownload, 
   Announcement, 
-  ComplaintMessage 
+  ComplaintMessage,
+  AdminUser,
+  AdminRole 
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { getArticleReadingStats } from '../../lib/readingTime';
+import { getGoogleMapsUrl, normalizeToGoogleMapsUrl } from '../../lib/coordinates';
 
 export const AdminDashboard: React.FC = () => {
   const { 
@@ -107,7 +116,12 @@ export const AdminDashboard: React.FC = () => {
     isSupabaseActive,
     syncStatus,
     exportAllToSupabase,
-    refreshFromSupabase
+    refreshFromSupabase,
+    currentUser,
+    adminUsers,
+    addAdminUser,
+    updateAdminUser,
+    deleteAdminUser
   } = useApp();
 
   type AdminSection = 
@@ -118,9 +132,11 @@ export const AdminDashboard: React.FC = () => {
     | 'news-cms' 
     | 'downloads-cms' 
     | 'gallery-cms' 
-    | 'contact-cms';
+    | 'contact-cms'
+    | 'users-cms';
 
   const [currentSection, setCurrentSection] = useState<AdminSection>('overview');
+  const isSuperAdmin = currentUser?.role === 'Super Admin';
 
   // Supabase Modal & Connection State
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
@@ -363,7 +379,9 @@ export const AdminDashboard: React.FC = () => {
     teachersCount: 15,
     phone: '(0292) 421000',
     email: '',
-    image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800'
+    image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800',
+    coordinates: '',
+    titikKoordinat: ''
   });
 
   const handleSaveSchool = (e: React.FormEvent) => {
@@ -373,11 +391,19 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    const rawLink = schoolForm.coordinates || schoolForm.titikKoordinat || '';
+    const normalizedMapsUrl = normalizeToGoogleMapsUrl(rawLink);
+    const preparedSchoolData = {
+      ...schoolForm,
+      coordinates: normalizedMapsUrl,
+      titikKoordinat: normalizedMapsUrl
+    };
+
     if (editingSchoolId) {
-      updateSchool(editingSchoolId, schoolForm);
+      updateSchool(editingSchoolId, preparedSchoolData);
       setEditingSchoolId(null);
     } else {
-      addSchool(schoolForm);
+      addSchool(preparedSchoolData);
     }
 
     setSchoolForm({
@@ -393,7 +419,9 @@ export const AdminDashboard: React.FC = () => {
       teachersCount: 15,
       phone: '(0292) 421000',
       email: '',
-      image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800'
+      image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800',
+      coordinates: '',
+      titikKoordinat: ''
     });
   };
 
@@ -402,16 +430,24 @@ export const AdminDashboard: React.FC = () => {
 
   // News form
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+  const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
   const [newsForm, setNewsForm] = useState({
     title: '',
     category: 'Kedinasan' as NewsCategory,
     summary: '',
     content: '',
-    author: 'Humas Korwilcam Purwodadi',
+    author: activeAuthorName,
     image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
     tags: 'Pendidikan, Purwodadi',
     views: 0
   });
+
+  // Otomatis sinkronkan nama penulis berita dengan akun login aktif (kolom name di admin_users)
+  React.useEffect(() => {
+    if (!editingNewsId && currentUser?.name) {
+      setNewsForm((prev) => ({ ...prev, author: currentUser.name }));
+    }
+  }, [currentUser?.name, editingNewsId]);
 
   // NEWS COVER PHOTO UPLOAD
   const newsPhotoInputRef = useRef<HTMLInputElement | null>(null);
@@ -438,7 +474,9 @@ export const AdminDashboard: React.FC = () => {
     }
 
     const tagsArray = newsForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
-    const parsedViews = Math.max(0, Number(newsForm.views) || 0);
+    const parsedViews = isSuperAdmin
+      ? Math.max(0, Number(newsForm.views) || 0)
+      : (editingNewsId ? (news.find((n) => n.id === editingNewsId)?.views || 0) : 0);
 
     if (editingNewsId) {
       updateNews(editingNewsId, {
@@ -472,7 +510,7 @@ export const AdminDashboard: React.FC = () => {
       category: 'Kedinasan',
       summary: '',
       content: '',
-      author: 'Humas Korwilcam Purwodadi',
+      author: activeAuthorName,
       image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
       tags: 'Pendidikan, Purwodadi',
       views: 0
@@ -856,6 +894,95 @@ export const AdminDashboard: React.FC = () => {
 
   const newComplaintsCount = complaints.filter((c) => c.status === 'Baru').length;
 
+  // --- 8. USERS CMS STATE (Super Admin Only) ---
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userForm, setUserForm] = useState<{
+    name: string;
+    username: string;
+    password: string;
+    role: AdminRole;
+    email: string;
+    status: 'Aktif' | 'Nonaktif';
+  }>({
+    name: '',
+    username: '',
+    password: '',
+    role: 'Admin',
+    email: '',
+    status: 'Aktif'
+  });
+
+  const handleOpenAddUser = () => {
+    setEditingUserId(null);
+    setUserForm({
+      name: '',
+      username: '',
+      password: '',
+      role: 'Admin',
+      email: '',
+      status: 'Aktif'
+    });
+    setShowUserModal(true);
+  };
+
+  const handleOpenEditUser = (user: AdminUser) => {
+    setEditingUserId(user.id);
+    setUserForm({
+      name: user.name,
+      username: user.username,
+      password: '',
+      role: user.role,
+      email: user.email || '',
+      status: user.status
+    });
+    setShowUserModal(true);
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userForm.name.trim() || !userForm.username.trim()) {
+      showToast('Nama lengkap dan username wajib diisi!', 'error');
+      return;
+    }
+
+    if (!editingUserId && !userForm.password.trim()) {
+      showToast('Kata sandi wajib diisi untuk akun baru!', 'error');
+      return;
+    }
+
+    if (editingUserId) {
+      await updateAdminUser(editingUserId, {
+        name: userForm.name.trim(),
+        username: userForm.username.trim().toLowerCase(),
+        ...(userForm.password.trim() ? { password: userForm.password.trim() } : {}),
+        role: userForm.role,
+        email: userForm.email.trim(),
+        status: userForm.status
+      });
+    } else {
+      await addAdminUser({
+        name: userForm.name.trim(),
+        username: userForm.username.trim().toLowerCase(),
+        password: userForm.password.trim(),
+        role: userForm.role,
+        email: userForm.email.trim(),
+        status: userForm.status
+      });
+    }
+    setShowUserModal(false);
+  };
+
+  const handleDeleteUser = async (user: AdminUser) => {
+    if (user.id === currentUser?.id) {
+      showToast('Anda tidak dapat menghapus akun Anda sendiri!', 'error');
+      return;
+    }
+    if (window.confirm(`Yakin ingin menghapus akun pengelola "${user.username}" (${user.name})?`)) {
+      await deleteAdminUser(user.id);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Header Bar */}
@@ -885,31 +1012,58 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowSupabaseModal(true)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm ${
-              isSupabaseActive
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'
-                : 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
-            }`}
-            title="Klik untuk melihat konfigurasi & status auto-save Supabase Cloud"
-          >
-            <span className={`w-2 h-2 rounded-full shrink-0 ${
-              isSupabaseActive 
-                ? (syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : 'bg-emerald-400 animate-pulse') 
-                : 'bg-amber-400'
-            }`} />
-            <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span className="hidden sm:inline">
-              {isSupabaseActive
-                ? (syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 'Auto-Save Cloud: AKTIF')
-                : 'Supabase Offline (Klik Hubungkan)'}
-            </span>
-            <span className="sm:hidden">
-              {isSupabaseActive ? 'Cloud Aktif' : 'Offline'}
-            </span>
-          </button>
+          {isSuperAdmin ? (
+            <button
+              type="button"
+              onClick={() => setShowSupabaseModal(true)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm cursor-pointer ${
+                isSupabaseActive
+                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'
+                  : 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
+              }`}
+              title="Pengaturan & Sinkronisasi Database Cloud (Akses Khusus Super Admin)"
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${
+                isSupabaseActive 
+                  ? (syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : 'bg-emerald-400 animate-pulse') 
+                  : 'bg-amber-400'
+              }`} />
+              <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="hidden sm:inline">
+                {isSupabaseActive
+                  ? (syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 'Auto-Save Cloud: AKTIF')
+                  : 'Supabase Offline (Klik Hubungkan)'}
+              </span>
+              <span className="sm:hidden">
+                {isSupabaseActive ? 'Cloud Aktif' : 'Offline'}
+              </span>
+            </button>
+          ) : (
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm cursor-not-allowed select-none ${
+                isSupabaseActive
+                  ? 'bg-emerald-500/10 text-emerald-400/90 border-emerald-500/30'
+                  : 'bg-slate-800/80 text-slate-400 border-slate-700'
+              }`}
+              title="Status Auto-Save Cloud: AKTIF (Terkunci: Pengaturan database hanya dapat diakses oleh Super Admin)"
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${
+                isSupabaseActive 
+                  ? (syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : 'bg-emerald-400') 
+                  : 'bg-slate-500'
+              }`} />
+              <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="hidden sm:inline">
+                {isSupabaseActive
+                  ? (syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 'Auto-Save Cloud: AKTIF')
+                  : 'Auto-Save Cloud: Nonaktif'}
+              </span>
+              <span className="sm:hidden">
+                {isSupabaseActive ? 'Cloud Aktif' : 'Offline'}
+              </span>
+              <Lock className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
+            </div>
+          )}
 
           <button
             onClick={() => setActiveTab('home')}
@@ -919,6 +1073,39 @@ export const AdminDashboard: React.FC = () => {
             <span className="hidden sm:inline">Lihat Website</span>
             <span className="sm:hidden">Web</span>
           </button>
+
+          {/* Active User Profile & Role Indicator */}
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/80">
+            <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+              currentUser?.role === 'Super Admin'
+                ? 'bg-purple-600 text-white'
+                : currentUser?.role === 'Admin'
+                ? 'bg-blue-600 text-white'
+                : 'bg-emerald-600 text-white'
+            }`}>
+              {currentUser?.role === 'Super Admin' ? (
+                <Crown className="w-3.5 h-3.5" />
+              ) : currentUser?.role === 'Admin' ? (
+                <Shield className="w-3.5 h-3.5" />
+              ) : (
+                <PenTool className="w-3.5 h-3.5" />
+              )}
+            </div>
+            <div className="hidden md:flex flex-col text-left leading-tight">
+              <span className="text-xs font-bold text-white truncate max-w-[120px]">
+                {currentUser?.name || 'Administrator'}
+              </span>
+              <span className={`text-[9px] font-extrabold uppercase mt-0.5 ${
+                currentUser?.role === 'Super Admin'
+                  ? 'text-purple-300'
+                  : currentUser?.role === 'Admin'
+                  ? 'text-blue-300'
+                  : 'text-emerald-300'
+              }`}>
+                {currentUser?.role || 'Admin'}
+              </span>
+            </div>
+          </div>
 
           <button
             onClick={logout}
@@ -1228,28 +1415,93 @@ export const AdminDashboard: React.FC = () => {
             )}
           </button>
 
-          {/* Factory reset button */}
-          <div className="pt-3 mt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Yakin ingin mereset seluruh data kembali ke data bawaan awal pabrik?')) {
-                  resetToDefaultData();
-                }
-              }}
-              className="w-full flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-semibold text-rose-600 bg-rose-50/70 hover:bg-rose-100/80 transition-colors border border-rose-100"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Seluruh Data ke Awal</span>
-            </button>
-          </div>
+          {/* 8. Pengaturan Akun & Hak Akses (Khusus Super Admin) */}
+          {currentUser?.role === 'Super Admin' && (
+            <>
+              <div className="pt-3 pb-1 px-2.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block border-t border-slate-100 pt-2.5">
+                  Hak Akses Khusus:
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentSection('users-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'users-cms'
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'users-cms' ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'
+                  }`}>
+                    <Crown className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'users-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Kelola Akun Pengelola
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'users-cms' ? 'text-purple-100' : 'text-slate-400'
+                    }`}>
+                      Super Admin, Admin, Penulis
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'users-cms' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+                }`}>
+                  {adminUsers.length} Akun
+                </span>
+              </button>
+            </>
+          )}
+
+          {/* Factory reset button (Khusus Super Admin) */}
+          {currentUser?.role === 'Super Admin' && (
+            <div className="pt-3 mt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Yakin ingin mereset seluruh data kembali ke data bawaan awal pabrik?')) {
+                    resetToDefaultData();
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-semibold text-rose-600 bg-rose-50/70 hover:bg-rose-100/80 transition-colors border border-rose-100"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Seluruh Data ke Awal</span>
+              </button>
+            </div>
+          )}
         </aside>
 
         {/* Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          
-          {/* TAB 0: OVERVIEW */}
-          {currentSection === 'overview' && (
+          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' ? (
+            <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis, menyunting, dan menerbitkan artikel pada menu <strong>Warta & Informasi</strong>.
+              </p>
+              <button
+                onClick={() => setCurrentSection('news-cms')}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-all"
+              >
+                Buka Menu Warta & Informasi
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* TAB 0: OVERVIEW */}
+              {currentSection === 'overview' && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
@@ -1333,24 +1585,33 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowSupabaseModal(true)}
-                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
-                  >
-                    <span>Pengaturan Database</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-                  {isSupabaseActive && (
-                    <button
-                      type="button"
-                      disabled={isExporting}
-                      onClick={handleExportToSupabase}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
-                      <span>{isExporting ? 'Menyinkronkan...' : 'Sinkronkan Data'}</span>
-                    </button>
+                  {isSuperAdmin ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowSupabaseModal(true)}
+                        className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                      >
+                        <span>Pengaturan Database</span>
+                        <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
+                      </button>
+                      {isSupabaseActive && (
+                        <button
+                          type="button"
+                          disabled={isExporting}
+                          onClick={handleExportToSupabase}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
+                          <span>{isExporting ? 'Menyinkronkan...' : 'Sinkronkan Data'}</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="px-3 py-2 rounded-xl bg-white/70 text-slate-500 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 select-none cursor-not-allowed" title="Pengaturan database hanya dapat diakses oleh Super Admin">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Pengaturan Database Terkunci</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1966,7 +2227,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700">Kepala Sekolah</label>
                     <input
@@ -1985,6 +2246,26 @@ export const AdminDashboard: React.FC = () => {
                       onChange={(e) => setSchoolForm({ ...schoolForm, address: e.target.value })}
                       className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-rose-500" />
+                        <span>Link Titik Google Maps</span>
+                      </span>
+                      <span className="text-[10px] text-blue-600 font-semibold">Tautan / URL Maps</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: https://maps.app.goo.gl/... atau https://www.google.com/maps?q=-7.086389,110.916111"
+                      value={schoolForm.coordinates || schoolForm.titikKoordinat || ''}
+                      onChange={(e) => setSchoolForm({ ...schoolForm, coordinates: e.target.value, titikKoordinat: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Tempelkan link lokasi dari Google Maps (misal: tautan bagikan <i>maps.app.goo.gl</i> atau koordinat).
+                    </p>
                   </div>
                 </div>
 
@@ -2116,6 +2397,7 @@ export const AdminDashboard: React.FC = () => {
                         <th className="p-3">NPSN</th>
                         <th className="p-3">Akreditasi</th>
                         <th className="p-3">Kepala Sekolah</th>
+                        <th className="p-3">Link Google Maps</th>
                         <th className="p-3 text-right">Aksi</th>
                       </tr>
                     </thead>
@@ -2136,12 +2418,34 @@ export const AdminDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="p-3">{item.headmaster}</td>
+                          <td className="p-3">
+                            {(() => {
+                              const mapsUrl = getGoogleMapsUrl(item);
+                              return (
+                                <a
+                                  href={mapsUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[11px] font-semibold transition-colors group shadow-2xs"
+                                  title={mapsUrl}
+                                >
+                                  <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                  <span className="truncate max-w-[120px]">Buka Link Maps</span>
+                                  <ExternalLink className="w-3 h-3 text-blue-500 group-hover:scale-110 transition-transform" />
+                                </a>
+                              );
+                            })()}
+                          </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
                                   setEditingSchoolId(item.id);
-                                  setSchoolForm({ ...item });
+                                  setSchoolForm({
+                                    ...item,
+                                    coordinates: item.coordinates || item.titikKoordinat || '',
+                                    titikKoordinat: item.titikKoordinat || item.coordinates || ''
+                                  });
                                 }}
                                 className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
                               >
@@ -2297,12 +2601,20 @@ export const AdminDashboard: React.FC = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700">Penulis / Humas</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Penulis / Humas</label>
+                          <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                            <Lock className="w-2.5 h-2.5 text-slate-500" />
+                            <span>Otomatis Akun Login</span>
+                          </span>
+                        </div>
                         <input
                           type="text"
-                          value={newsForm.author}
-                          onChange={(e) => setNewsForm({ ...newsForm, author: e.target.value })}
-                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          readOnly
+                          disabled
+                          value={editingNewsId ? (newsForm.author || activeAuthorName) : activeAuthorName}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 cursor-not-allowed select-none shadow-inner"
+                          title="Penulis otomatis mendeteksi nama dari akun login di database dan tidak dapat diubah"
                         />
                       </div>
 
@@ -2323,25 +2635,45 @@ export const AdminDashboard: React.FC = () => {
                             <Eye className="w-3.5 h-3.5 text-blue-600" />
                             <span>Jumlah Tayangan (Views)</span>
                           </span>
-                          <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                            Sinkron ke Web
-                          </span>
+                          {isSuperAdmin ? (
+                            <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                              Sinkron ke Web
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                              <Lock className="w-2.5 h-2.5 text-slate-500" />
+                              <span>Terkunci (Super Admin)</span>
+                            </span>
+                          )}
                         </label>
                         <div className="relative">
                           <input
                             type="number"
                             min="0"
+                            readOnly={!isSuperAdmin}
+                            disabled={!isSuperAdmin}
                             value={newsForm.views}
-                            onChange={(e) => setNewsForm({ ...newsForm, views: Math.max(0, parseInt(e.target.value) || 0) })}
+                            onChange={(e) => {
+                              if (isSuperAdmin) {
+                                setNewsForm({ ...newsForm, views: Math.max(0, parseInt(e.target.value) || 0) });
+                              }
+                            }}
                             placeholder="0"
-                            className="w-full pl-3.5 pr-20 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            className={`w-full pl-3.5 pr-20 py-2 rounded-xl border border-slate-200 text-xs font-bold ${
+                              isSuperAdmin
+                                ? 'bg-slate-50 text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none'
+                                : 'bg-slate-100 text-slate-600 cursor-not-allowed select-none shadow-inner'
+                            }`}
+                            title={isSuperAdmin ? 'Atur jumlah tayangan manual' : 'Jumlah tayangan dikunci dan hanya dapat diedit oleh Super Admin'}
                           />
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400 pointer-events-none">
                             tayangan
                           </div>
                         </div>
-                        <p className="text-[10px] text-slate-500">
-                          Bisa diatur manual untuk memancing pembaca &amp; akan bertambah otomatis saat dibaca.
+                        <p className={`text-[10px] ${isSuperAdmin ? 'text-slate-500' : 'text-slate-400'}`}>
+                          {isSuperAdmin
+                            ? 'Bisa diatur manual untuk memancing pembaca & akan bertambah otomatis saat dibaca.'
+                            : 'Jumlah tayangan bertambah otomatis saat dibaca pengunjung (Hanya Super Admin yang dapat mengubah manual).'}
                         </p>
                       </div>
                     </div>
@@ -2381,7 +2713,7 @@ export const AdminDashboard: React.FC = () => {
                               category: 'Kedinasan',
                               summary: '',
                               content: '',
-                              author: 'Humas Korwilcam Purwodadi',
+                              author: activeAuthorName,
                               image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
                               tags: 'Pendidikan, Purwodadi',
                               views: 0
@@ -3526,11 +3858,227 @@ export const AdminDashboard: React.FC = () => {
             </div>
           )}
 
+          {/* TAB 8: USERS CMS (Super Admin Only) */}
+          {currentSection === 'users-cms' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                      Kelola Akun Pengelola Website
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                      Khusus Super Admin
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Atur hak akses akun pengelola portal Korwilcam Purwodadi dengan 3 tingkatan wewenang: Super Admin, Admin, dan Penulis.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddUser}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all active:scale-98 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah Akun Pengelola</span>
+                </button>
+              </div>
+
+              {/* 3 Role Level Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-purple-50 to-white p-4 rounded-2xl border border-purple-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                        <Crown className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Super Admin</h4>
+                        <span className="text-[10px] text-purple-700 font-medium">Akses Penuh Tanpa Batas</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                      {adminUsers.filter((u) => u.role === 'Super Admin').length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Wewenang tertinggi: mengelola seluruh konten, direktori sekolah, profil kantor, manajemen user &amp; password, serta reset database.
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-2xl border border-blue-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Admin</h4>
+                        <span className="text-[10px] text-blue-700 font-medium">Pengelolaan Konten</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                      {adminUsers.filter((u) => u.role === 'Admin').length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Wewenang operasional CMS: kelola data sekolah, berita, pengumuman, agenda, arsip dokumen, galeri foto, dan kontak aduan.
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-emerald-50 to-white p-4 rounded-2xl border border-emerald-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                        <PenTool className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Penulis</h4>
+                        <span className="text-[10px] text-emerald-700 font-medium">Warta & Liputan Berita</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      {adminUsers.filter((u) => u.role === 'Penulis').length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Wewenang redaksi: menulis artikel baru, menyunting berita kegiatan sekolah/kedinasan, dan memperbarui warta informasi publik.
+                  </p>
+                </div>
+              </div>
+
+              {/* Users Table */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    <span>Daftar Akun Pengelola ({adminUsers.length})</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-400">
+                    Tersinkronisasi ke tabel Supabase <code>admin_users</code>
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 select-none">
+                      <tr>
+                        <th className="py-3 px-4">Nama Lengkap & Email</th>
+                        <th className="py-3 px-4">Username Akun</th>
+                        <th className="py-3 px-4">Role Akses</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {adminUsers.map((u) => {
+                        const isCurrent = u.id === currentUser?.id;
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  u.role === 'Super Admin'
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : u.role === 'Admin'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                  {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-slate-900 truncate">
+                                      {u.name}
+                                    </span>
+                                    {isCurrent && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-100 text-blue-700 border border-blue-200">
+                                        Anda
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-slate-400 block truncate">
+                                    {u.email || 'Belum ada email'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 font-mono font-bold text-slate-700">
+                              @{u.username}
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                                u.role === 'Super Admin'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                  : u.role === 'Admin'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
+                                {u.role === 'Super Admin' && <Crown className="w-3 h-3 text-purple-600" />}
+                                {u.role === 'Admin' && <Shield className="w-3 h-3 text-blue-600" />}
+                                {u.role === 'Penulis' && <PenTool className="w-3 h-3 text-emerald-600" />}
+                                <span>{u.role}</span>
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                u.status === 'Aktif'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Aktif' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                <span>{u.status || 'Aktif'}</span>
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditUser(u)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                  title="Edit Akun & Password"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isCurrent}
+                                  onClick={() => handleDeleteUser(u)}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    isCurrent
+                                      ? 'opacity-25 cursor-not-allowed text-slate-400'
+                                      : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
+                                  }`}
+                                  title={isCurrent ? 'Tidak dapat menghapus akun sendiri' : 'Hapus Akun'}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+            </>
+          )}
+
         </main>
       </div>
 
       {/* MODAL: PENGATURAN & SINKRONISASI DATABASE SUPABASE */}
-      {showSupabaseModal && (
+      {showSupabaseModal && isSuperAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
             
@@ -3775,6 +4323,135 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TAMBAH / EDIT AKUN PENGELOLA (Super Admin Only) */}
+      {showUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-600/20">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    {editingUserId ? 'Edit Data Akun Pengelola' : 'Tambah Akun Pengelola Baru'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Atur nama, username, password, dan wewenang akun
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUserModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveUser} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Nama Lengkap Pengelola</label>
+                <input
+                  type="text"
+                  required
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  placeholder="Misal: Ahmad Fauzi, S.Pd."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-purple-600 focus:bg-white focus:outline-none font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Username Login</label>
+                  <input
+                    type="text"
+                    required
+                    value={userForm.username}
+                    onChange={(e) => setUserForm({ ...userForm, username: e.target.value.replace(/\s+/g, '') })}
+                    placeholder="Misal: fauzi_admin"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-purple-600 focus:bg-white focus:outline-none font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">
+                    {editingUserId ? 'Ubah Kata Sandi (Opsional)' : 'Kata Sandi (Password)'}
+                  </label>
+                  <input
+                    type="password"
+                    required={!editingUserId}
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    placeholder={editingUserId ? 'Kosongkan jika tetap' : 'Minimal 6 karakter...'}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-purple-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Role & Wewenang</label>
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value as AdminRole })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-purple-600 focus:bg-white focus:outline-none"
+                  >
+                    <option value="Super Admin">Super Admin (Akses Penuh)</option>
+                    <option value="Admin">Admin (Kelola Konten & Data)</option>
+                    <option value="Penulis">Penulis (Hanya Warta & Berita)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Status Akun</label>
+                  <select
+                    value={userForm.status}
+                    onChange={(e) => setUserForm({ ...userForm, status: e.target.value as 'Aktif' | 'Nonaktif' })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-purple-600 focus:bg-white focus:outline-none"
+                  >
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif (Diblokir)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Alamat Email (Opsional)</label>
+                <input
+                  type="email"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  placeholder="fauzi@korwilcampurwodadi.sch.id"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-purple-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{editingUserId ? 'Simpan Perubahan' : 'Buat Akun Sekarang'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

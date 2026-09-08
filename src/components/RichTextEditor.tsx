@@ -20,7 +20,11 @@ import {
   Eraser,
   Heading1,
   Heading2,
-  Type
+  Type,
+  ChevronUp,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -35,11 +39,27 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   placeholder = 'Mulai menulis isi naskah berita lengkap di lembar kerja ini...'
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const inlineImageInputRef = useRef<HTMLInputElement | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
+
+  const scrollToTop = () => {
+    if (canvasContainerRef.current) {
+      canvasContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (canvasContainerRef.current) {
+      canvasContainerRef.current.scrollTo({
+        top: canvasContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   // Synchronize initial or external content changes
   useEffect(() => {
@@ -388,37 +408,111 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <Eraser className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Quick Scroll Canvas Navigation Buttons */}
+        <div className="ml-auto flex items-center gap-1 pl-2 border-l border-slate-300">
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-blue-700 flex items-center gap-1 text-xs font-semibold transition-colors"
+            title="Scroll Dokumen ke Paling Atas"
+          >
+            <ArrowUp className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden xl:inline text-[11px]">Ke Atas</span>
+          </button>
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-blue-700 flex items-center gap-1 text-xs font-semibold transition-colors"
+            title="Scroll Dokumen ke Paling Bawah"
+          >
+            <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden xl:inline text-[11px]">Ke Bawah</span>
+          </button>
+        </div>
       </div>
 
-      {/* Editor Document Canvas / Kertas Lembaran Dokumen Putih (Persis Gambar 2) */}
-      <div className="bg-slate-100/90 p-3 sm:p-6 lg:p-8 flex justify-center min-h-[520px] overflow-x-auto">
+      {/* Editor Document Canvas / Kertas Lembaran Dokumen Putih dengan Scroll Mandiri Up & Down */}
+      <div className="relative group/canvas">
         <div 
-          className="bg-white max-w-3xl w-full min-h-[500px] p-6 sm:p-10 lg:p-12 rounded-xl shadow-lg border border-slate-200/90 text-slate-800 leading-relaxed prose prose-slate focus:ring-0"
-          style={{
-            minHeight: '500px',
-            fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
-          }}
+          ref={canvasContainerRef}
+          className="bg-slate-100/90 p-3 sm:p-6 lg:p-8 flex justify-center h-[520px] sm:h-[580px] overflow-y-auto overflow-x-hidden scroll-smooth"
         >
-          <div
-            ref={editorRef}
-            contentEditable
-            onInput={handleInput}
-            onBlur={handleInput}
-            data-placeholder={placeholder}
-            className="outline-none min-h-[460px] text-sm sm:text-base leading-relaxed text-slate-800"
-          />
+          <div 
+            className="bg-white max-w-3xl w-full min-h-[500px] h-fit p-6 sm:p-10 lg:p-12 rounded-xl shadow-lg border border-slate-200/90 text-slate-800 leading-relaxed prose prose-slate focus:ring-0 mb-8"
+            style={{
+              minHeight: '500px',
+              fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+            }}
+          >
+            <div
+              ref={editorRef}
+              contentEditable
+              onInput={handleInput}
+              onBlur={handleInput}
+              data-placeholder={placeholder}
+              className="outline-none min-h-[460px] text-sm sm:text-base leading-relaxed text-slate-800"
+            />
+          </div>
+        </div>
+
+        {/* Floating Quick Scroll Controls di dalam Canvas */}
+        <div className="absolute right-3 sm:right-5 bottom-4 z-20 flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur shadow-xl border border-slate-200/90 p-1.5 rounded-2xl select-none">
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="p-2 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white text-slate-700 transition-all shadow-sm border border-slate-200 hover:border-blue-600 active:scale-95 group flex items-center justify-center"
+            title="Scroll ke Bagian Paling Atas Naskah"
+          >
+            <ChevronUp className="w-4 h-4 transition-transform group-hover:-translate-y-0.5" />
+          </button>
+          <div className="w-4 h-[1px] bg-slate-200" />
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="p-2 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white text-slate-700 transition-all shadow-sm border border-slate-200 hover:border-blue-600 active:scale-95 group flex items-center justify-center"
+            title="Scroll ke Bagian Paling Bawah Naskah"
+          >
+            <ChevronDown className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
+          </button>
         </div>
       </div>
 
       {/* Document Editor Bottom Status Bar */}
-      <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+      <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <div className="flex items-center gap-3 font-medium">
           <span>{wordCount} Kata</span>
           <span>•</span>
           <span>{charCount} Karakter</span>
         </div>
-        <div className="text-[11px] text-slate-400 font-medium">
-          Lembar Kerja Dokumen Naskah Berita Resmi Korwilcam
+
+        {/* Quick Scroll Actions in Status Bar */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">Navigasi Canvas:</span>
+          <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+            <button
+              type="button"
+              onClick={scrollToTop}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-1 transition-colors"
+              title="Gulir Naskah ke Bagian Paling Atas"
+            >
+              <ArrowUp className="w-3 h-3 text-blue-600" />
+              <span>Ke Atas</span>
+            </button>
+            <div className="h-3 w-[1px] bg-slate-200 my-auto" />
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-1 transition-colors"
+              title="Gulir Naskah ke Bagian Paling Bawah"
+            >
+              <ArrowDown className="w-3 h-3 text-blue-600" />
+              <span>Ke Bawah</span>
+            </button>
+          </div>
+          <span className="text-[11px] text-slate-400 font-medium hidden lg:inline border-l border-slate-200 pl-3">
+            Lembar Kerja Dokumen Naskah Berita Resmi Korwilcam
+          </span>
         </div>
       </div>
     </div>

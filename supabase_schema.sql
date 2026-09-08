@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS schools (
   phone TEXT,
   email TEXT,
   image TEXT,
+  titik_koordinat TEXT,
+  coordinates TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -152,6 +154,20 @@ CREATE TABLE IF NOT EXISTS complaints (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 10. TABEL AKUN PENGELOLA WEB (ADMIN_USERS)
+CREATE TABLE IF NOT EXISTS admin_users (
+  id TEXT PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('Super Admin', 'Admin', 'Penulis')),
+  email TEXT,
+  avatar TEXT,
+  status TEXT DEFAULT 'Aktif' CHECK (status IN ('Aktif', 'Nonaktif')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ==========================================================
 -- PENGATURAN ROW LEVEL SECURITY (RLS)
 -- ==========================================================
@@ -166,6 +182,7 @@ ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gallery ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 
 -- Hak Akses Baca untuk Publik (Anonim & Pengunjung)
 CREATE POLICY "Public read office_profile" ON office_profile FOR SELECT USING (true);
@@ -190,6 +207,17 @@ CREATE POLICY "Allow all on documents" ON documents FOR ALL USING (true);
 CREATE POLICY "Allow all on gallery" ON gallery FOR ALL USING (true);
 CREATE POLICY "Allow all on staff" ON staff FOR ALL USING (true);
 CREATE POLICY "Allow all on complaints" ON complaints FOR ALL USING (true);
+CREATE POLICY "Allow all on admin_users" ON admin_users FOR ALL USING (true);
+
+-- ==========================================================
+-- AKUN AWAL BAWAAN (DEFAULT SEED ACCOUNTS)
+-- ==========================================================
+INSERT INTO admin_users (id, username, password, name, role, email, status)
+VALUES 
+  ('usr-superadmin', 'superadmin', 'superadmin123', 'Super Administrator Korwilcam', 'Super Admin', 'superadmin@korwilcampurwodadi.sch.id', 'Aktif'),
+  ('usr-admin', 'admin', 'admin123', 'Administrator Web Korwilcam', 'Admin', 'admin@korwilcampurwodadi.sch.id', 'Aktif'),
+  ('usr-penulis', 'penulis', 'penulis123', 'Penulis Konten Berita', 'Penulis', 'penulis@korwilcampurwodadi.sch.id', 'Aktif')
+ON CONFLICT (username) DO NOTHING;
 
 -- ==========================================================
 -- REPLIKASI REALTIME (MULTI-USER UPDATE OTOMATIS)
@@ -197,11 +225,88 @@ CREATE POLICY "Allow all on complaints" ON complaints FOR ALL USING (true);
 -- Menjadikan perubahan data di tabel langsung memicu update pada layar pengunjung tanpa refresh
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints;
+  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users;
 EXCEPTION WHEN OTHERS THEN
   -- Abaikan jika tabel sudah terdaftar di publication
   NULL;
 END $$;
 
 -- Selesai! Seluruh tabel siap digunakan oleh website.
+
+-- ==========================================================
+-- MIGRATION: TAMBAH / UPDATE KOLOM LINK GOOGLE MAPS PADA TABEL SCHOOLS
+-- ==========================================================
+-- 1. Tambahkan kolom jika belum ada:
+ALTER TABLE public.schools 
+ADD COLUMN IF NOT EXISTS titik_koordinat TEXT,
+ADD COLUMN IF NOT EXISTS coordinates TEXT;
+
+-- 2. Update otomatis link Google Maps untuk masing-masing sekolah di Purwodadi:
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.086389,110.916111', 
+  coordinates = 'https://www.google.com/maps?q=-7.086389,110.916111' 
+WHERE id = 'sch-01';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.088194,110.919722', 
+  coordinates = 'https://www.google.com/maps?q=-7.088194,110.919722' 
+WHERE id = 'sch-02';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.091389,110.908056', 
+  coordinates = 'https://www.google.com/maps?q=-7.091389,110.908056' 
+WHERE id = 'sch-03';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.102500,110.923889', 
+  coordinates = 'https://www.google.com/maps?q=-7.102500,110.923889' 
+WHERE id = 'sch-04';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.084722,110.913889', 
+  coordinates = 'https://www.google.com/maps?q=-7.084722,110.913889' 
+WHERE id = 'sch-05';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.081944,110.925278', 
+  coordinates = 'https://www.google.com/maps?q=-7.081944,110.925278' 
+WHERE id = 'sch-06';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.089444,110.914722', 
+  coordinates = 'https://www.google.com/maps?q=-7.089444,110.914722' 
+WHERE id = 'sch-07';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.078611,110.927500', 
+  coordinates = 'https://www.google.com/maps?q=-7.078611,110.927500' 
+WHERE id = 'sch-08';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.098333,110.931944', 
+  coordinates = 'https://www.google.com/maps?q=-7.098333,110.931944' 
+WHERE id = 'sch-09';
+
+UPDATE public.schools SET 
+  titik_koordinat = 'https://www.google.com/maps?q=-7.096944,110.934167', 
+  coordinates = 'https://www.google.com/maps?q=-7.096944,110.934167' 
+WHERE id = 'sch-1788412534285' OR name ILIKE '%Kandangan%';
+
+-- 3. Query cerdas: jika ada data koordinat angka biasa, otomatis jadikan link Google Maps:
+UPDATE public.schools 
+SET 
+  titik_koordinat = 'https://www.google.com/maps?q=' || replace(titik_koordinat, ' ', ''),
+  coordinates = 'https://www.google.com/maps?q=' || replace(coordinates, ' ', '')
+WHERE 
+  (titik_koordinat NOT LIKE 'http%' AND titik_koordinat IS NOT NULL AND titik_koordinat <> '')
+  OR (coordinates NOT LIKE 'http%' AND coordinates IS NOT NULL AND coordinates <> '');
+
+-- ==========================================================
+-- MIGRATION: TAMBAH KOLOM IMAGES PADA TABEL GALLERY (MULTI-FOTO ALBUM)
+-- ==========================================================
+ALTER TABLE public.gallery 
+ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+
+
+
 

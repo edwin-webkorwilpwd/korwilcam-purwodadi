@@ -9,7 +9,9 @@ import {
   GalleryItem, 
   StaffProfile, 
   OfficeProfile,
-  ComplaintMessage 
+  ComplaintMessage,
+  AdminUser,
+  AdminRole 
 } from '../types';
 import { 
   initialSchools, 
@@ -24,6 +26,39 @@ import {
 } from '../data/initialData';
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
+import { resolveNewsCandidates } from '../lib/shortLink';
+import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
+import { getGallerySlug } from '../lib/galleryHelper';
+
+export const initialAdminUsers: AdminUser[] = [
+  {
+    id: 'usr-superadmin',
+    username: 'superadmin',
+    name: 'Super Administrator Korwilcam',
+    role: 'Super Admin',
+    email: 'superadmin@korwilcampurwodadi.sch.id',
+    status: 'Aktif',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'usr-admin',
+    username: 'admin',
+    name: 'Administrator Web Korwilcam',
+    role: 'Admin',
+    email: 'admin@korwilcampurwodadi.sch.id',
+    status: 'Aktif',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'usr-penulis',
+    username: 'penulis',
+    name: 'Penulis Berita & Warta',
+    role: 'Penulis',
+    email: 'penulis@korwilcampurwodadi.sch.id',
+    status: 'Aktif',
+    createdAt: new Date().toISOString()
+  }
+];
 
 interface Toast {
   id: string;
@@ -54,11 +89,18 @@ interface AppContextType {
   setSelectedAnnouncement: (ann: Announcement | null, customPath?: string) => void;
   selectedSchool: School | null;
   setSelectedSchool: (school: School | null) => void;
+  selectedGallery: GalleryItem | null;
+  setSelectedGallery: (gallery: GalleryItem | null) => void;
   
-  // Auth
+  // Auth & Roles
   isAuthenticated: boolean;
-  login: (user: string, pass: string) => boolean;
+  currentUser: AdminUser | null;
+  adminUsers: AdminUser[];
+  login: (user: string, pass: string) => Promise<boolean>;
   logout: () => void;
+  addAdminUser: (userData: Omit<AdminUser, 'id'>) => Promise<boolean>;
+  updateAdminUser: (id: string, userData: Partial<AdminUser>) => Promise<boolean>;
+  deleteAdminUser: (id: string) => Promise<boolean>;
 
   // Supabase status & operations
   isSupabaseActive: boolean;
@@ -196,9 +238,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedNews, setSelectedNewsState] = useState<NewsArticle | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncementState] = useState<Announcement | null>(null);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedGallery, setSelectedGalleryState] = useState<GalleryItem | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_current_user');
+      if (saved) return JSON.parse(saved);
+      return null;
+    } catch {
+      return null;
+    }
+  });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('korwilcam_admin_auth') === 'true';
+    const hasAuth = localStorage.getItem('korwilcam_admin_auth') === 'true';
+    const hasUser = Boolean(localStorage.getItem('korwilcam_current_user'));
+    return hasAuth && hasUser;
+  });
+
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_admin_users');
+      return saved ? JSON.parse(saved) : initialAdminUsers;
+    } catch {
+      return initialAdminUsers;
+    }
   });
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -210,6 +274,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [syncStatus, setSyncStatus] = useState<'connected' | 'offline' | 'syncing'>(() => {
     return getSupabaseConfig().isConfigured ? 'connected' : 'offline';
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('korwilcam_admin_users', JSON.stringify(adminUsers));
+    } catch {
+      // ignore
+    }
+  }, [adminUsers]);
+
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem('korwilcam_current_user', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('korwilcam_current_user');
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser]);
 
   // Sync to local storage for local resilience
   useEffect(() => {
@@ -277,7 +361,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           teachersCount: s.teachers_count || 0,
           phone: s.phone || '',
           email: s.email || '',
-          image: s.image || ''
+          image: s.image || '',
+          coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || ''),
+          titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || '')
         })));
       }
 
@@ -357,7 +443,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           title: g.title,
           category: g.category,
           image: g.image,
-          images: Array.isArray(g.images) && g.images.length > 0 ? g.images : (g.image ? [g.image] : []),
+          images: (() => {
+            if (Array.isArray(g.images) && g.images.length > 0) return g.images;
+            if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
+              try {
+                const parsed = JSON.parse(g.images);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+              } catch (_) {}
+            }
+            return g.image ? [g.image] : [];
+          })(),
           description: g.description,
           date: g.date
         })));
@@ -415,6 +510,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           date: c.date,
           status: c.status
         })));
+      }
+
+      // Fetch admin_users
+      try {
+        const { data: dbUsers, error: usersErr } = await client.from('admin_users').select('*');
+        if (!usersErr && dbUsers && dbUsers.length > 0) {
+          setAdminUsers(dbUsers.map((u: any) => ({
+            id: u.id,
+            username: u.username,
+            password: u.password,
+            name: u.name,
+            role: u.role as AdminRole,
+            email: u.email || '',
+            avatar: u.avatar || '',
+            status: (u.status || 'Aktif') as 'Aktif' | 'Nonaktif',
+            createdAt: u.created_at,
+            updatedAt: u.updated_at
+          })));
+        }
+      } catch (errUsers) {
+        console.warn('Tabel admin_users belum terbaca:', errUsers);
       }
 
       setSyncStatus('connected');
@@ -477,9 +593,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         teachers_count: s.teachersCount,
         phone: s.phone,
         email: s.email,
-        image: s.image
+        image: s.image,
+        titik_koordinat: normalizeToGoogleMapsUrl(s.titikKoordinat || s.coordinates || ''),
+        coordinates: normalizeToGoogleMapsUrl(s.coordinates || s.titikKoordinat || '')
       }));
-      await client.from('schools').upsert(schoolPayload);
+      let { error: schoolErr } = await client.from('schools').upsert(schoolPayload);
+      if (schoolErr && schoolErr.message?.toLowerCase().includes('column')) {
+        const safeSchools = schoolPayload.map(({ titik_koordinat, coordinates, ...rest }: any) => rest);
+        await client.from('schools').upsert(safeSchools);
+      }
 
       // 3. News
       const newsPayload = news.map((n) => ({
@@ -549,7 +671,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: g.description,
         date: g.date
       }));
-      await client.from('gallery').upsert(galPayload);
+      let { error: galErr } = await client.from('gallery').upsert(galPayload);
+      if (galErr && galErr.message?.toLowerCase().includes('column')) {
+        const safeGal = galPayload.map(({ images, ...rest }: any) => rest);
+        await client.from('gallery').upsert(safeGal);
+      }
 
       // 8. Staff
       const staffPayload = staff.map((st) => ({
@@ -574,6 +700,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: c.status
       }));
       await client.from('complaints').upsert(compPayload);
+
+      // 10. Admin Users
+      try {
+        const usersPayload = adminUsers.map((u) => ({
+          id: u.id,
+          username: u.username,
+          password: u.password || 'admin123',
+          name: u.name,
+          role: u.role,
+          email: u.email || '',
+          avatar: u.avatar || '',
+          status: u.status || 'Aktif'
+        }));
+        await client.from('admin_users').upsert(usersPayload);
+      } catch (uErr) {
+        console.warn('Gagal ekspor tabel admin_users:', uErr);
+      }
 
       setSyncStatus('connected');
       setIsSupabaseActive(true);
@@ -626,7 +769,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               teachersCount: Number(s.teachers_count) || 0,
               phone: s.phone || '',
               email: s.email || '',
-              image: s.image || ''
+              image: s.image || '',
+              coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || ''),
+              titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || '')
             })));
           }
         }
@@ -680,6 +825,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           refreshFromSupabase();
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'admin_users' },
+        async () => {
+          const { data: dbUsers } = await client.from('admin_users').select('*');
+          if (dbUsers) {
+            setAdminUsers(dbUsers.map((u: any) => ({
+              id: u.id,
+              username: u.username,
+              password: u.password,
+              name: u.name,
+              role: u.role as AdminRole,
+              email: u.email || '',
+              avatar: u.avatar || '',
+              status: (u.status || 'Aktif') as 'Aktif' | 'Nonaktif',
+              createdAt: u.created_at,
+              updatedAt: u.updated_at
+            })));
+          }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -710,6 +876,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selectedAnnouncement) {
       setSelectedAnnouncementState(null);
     }
+    if (selectedGallery) {
+      setSelectedGalleryState(null);
+    }
 
     const route = TAB_ROUTES[tab];
     const targetPath = customPath || (route ? route.path : `/${tab}`);
@@ -736,9 +905,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedNewsState(article);
     if (article) {
       setSelectedAnnouncementState(null);
+      setSelectedGalleryState(null);
       const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const newPath = `/berita/${encodeURIComponent(slug)}`;
-      if (window.location.pathname !== newPath) {
+      const targetBase = `/berita/${encodeURIComponent(slug)}`;
+      const currentParam = new URLSearchParams(window.location.search).get('page');
+      const pageQuery = currentParam ? `?page=${currentParam}` : '?page=1';
+      const newPath = `${targetBase}${pageQuery}`;
+      if (window.location.pathname !== targetBase || !window.location.search.includes('page=')) {
         window.history.pushState({ newsSlug: slug, path: newPath }, '', newPath);
       }
       document.title = `${article.title} - Korwilcam Purwodadi`;
@@ -756,6 +929,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedAnnouncementState(ann);
     if (ann) {
       setSelectedNewsState(null);
+      setSelectedGalleryState(null);
       const slug = ann.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const newPath = customPath || `/berita/pengumuman/${encodeURIComponent(slug)}`;
       if (window.location.pathname !== newPath) {
@@ -769,6 +943,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.history.pushState({}, '', returnPath);
       }
       document.title = 'Pengumuman & Surat Edaran - Korwilcam Purwodadi';
+    }
+  };
+
+  const setSelectedGallery = (item: GalleryItem | null) => {
+    setSelectedGalleryState(item);
+    if (item) {
+      setSelectedNewsState(null);
+      setSelectedAnnouncementState(null);
+      setActiveTabState('gallery');
+      const slug = getGallerySlug(item);
+      const newPath = `/galeri/${encodeURIComponent(slug)}`;
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({ gallerySlug: slug, path: newPath }, '', newPath);
+      }
+      document.title = `${item.title} - Galeri Korwilcam Purwodadi`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const returnPath = '/galeri';
+      if (window.location.pathname !== returnPath) {
+        window.history.pushState({}, '', returnPath);
+      }
+      document.title = 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi';
     }
   };
 
@@ -817,13 +1013,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 2. Support /berita/:slug (excluding subtabs)
       if (rawPath.startsWith('/berita/') && !rawPath.startsWith('/berita/pengumuman') && rawPath !== '/berita/agenda' && rawPath !== '/berita/liputan') {
-        const slug = rawPath.replace(/^\/berita\//, '');
+        const slug = decodeURIComponent(rawPath.replace(/^\/berita\//, ''));
         setActiveTabState('news');
         if (news.length > 0) {
           const found = news.find((n) => 
             n.slug === slug || 
             n.id === slug || 
             n.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug
+          );
+          if (found) {
+            setSelectedNewsState(found);
+            setSelectedAnnouncementState(null);
+            document.title = `${found.title} - Korwilcam Purwodadi`;
+            return;
+          }
+        }
+      }
+
+      // 3. Support short URL /b/:code (e.g. /b/mtl64v7w or /b/news-01)
+      if (rawPath.startsWith('/b/')) {
+        const code = decodeURIComponent(rawPath.replace(/^\/b\//, ''));
+        const candidates = resolveNewsCandidates(code);
+        setActiveTabState('news');
+        if (news.length > 0) {
+          const found = news.find((n) => 
+            candidates.includes(n.id) ||
+            candidates.includes(n.slug) ||
+            candidates.some((c) => n.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === c)
           );
           if (found) {
             setSelectedNewsState(found);
@@ -851,9 +1067,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Clear selectedNews and selectedAnnouncement if not viewing detail
+      // 4. Support /galeri/:slug
+      if (rawPath.startsWith('/galeri/') && rawPath !== '/galeri') {
+        const slug = decodeURIComponent(rawPath.replace(/^\/galeri\//, ''));
+        setActiveTabState('gallery');
+        if (gallery.length > 0) {
+          const found = gallery.find((g) => 
+            g.id === slug || 
+            (g.slug && g.slug === slug) ||
+            getGallerySlug(g) === slug
+          );
+          if (found) {
+            setSelectedGalleryState(found);
+            setSelectedNewsState(null);
+            setSelectedAnnouncementState(null);
+            document.title = `${found.title} - Galeri Korwilcam Purwodadi`;
+            return;
+          }
+        }
+      }
+
+      // Query param fallback ?galeri=slug
+      const queryGaleri = searchParams.get('galeri');
+      if (queryGaleri && gallery.length > 0) {
+        const found = gallery.find((g) => 
+          g.id === queryGaleri || 
+          (g.slug && g.slug === queryGaleri) ||
+          getGallerySlug(g) === queryGaleri
+        );
+        if (found) {
+          setActiveTabState('gallery');
+          setSelectedGalleryState(found);
+          setSelectedNewsState(null);
+          setSelectedAnnouncementState(null);
+          document.title = `${found.title} - Galeri Korwilcam Purwodadi`;
+          return;
+        }
+      }
+
+      // Clear selectedNews, selectedAnnouncement, and selectedGallery if not viewing detail
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
+      setSelectedGalleryState(null);
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
@@ -908,7 +1163,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements]);
+  }, [news, announcements, gallery]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -922,22 +1177,189 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const login = (user: string, pass: string): boolean => {
-    if ((user === 'admin' && pass === 'admin123') || (user === 'korwil' && pass === 'purwodadi2026')) {
-      setIsAuthenticated(true);
-      localStorage.setItem('korwilcam_admin_auth', 'true');
-      showToast('Login berhasil! Selamat datang di Panel Admin.', 'success');
-      return true;
+  const login = async (user: string, pass: string): Promise<boolean> => {
+    const trimmedUser = (user || '').trim();
+    const trimmedPass = (pass || '').trim();
+
+    if (!trimmedUser || !trimmedPass) {
+      showToast('Harap masukkan username dan kata sandi!', 'error');
+      return false;
     }
-    showToast('Username atau password salah!', 'error');
+
+    // Wajib verifikasi langsung ke tabel admin_users di Supabase
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from('admin_users')
+          .select('*')
+          .ilike('username', trimmedUser)
+          .eq('password', trimmedPass)
+          .limit(1);
+
+        if (error) {
+          console.error('Supabase query error saat login admin_users:', error);
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          localStorage.removeItem('korwilcam_admin_auth');
+          localStorage.removeItem('korwilcam_current_user');
+          showToast('Terjadi gangguan saat memverifikasi akun ke Supabase: ' + error.message, 'error');
+          return false;
+        }
+
+        if (data && data.length > 0) {
+          const u = data[0];
+          if (u.status === 'Nonaktif') {
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            localStorage.removeItem('korwilcam_admin_auth');
+            localStorage.removeItem('korwilcam_current_user');
+            showToast('Akun ini dinonaktifkan. Silakan hubungi Super Admin.', 'error');
+            return false;
+          }
+          const matched: AdminUser = {
+            id: u.id,
+            username: u.username,
+            name: u.name,
+            role: u.role as AdminRole,
+            email: u.email || '',
+            avatar: u.avatar || '',
+            status: u.status || 'Aktif',
+            createdAt: u.created_at,
+            updatedAt: u.updated_at
+          };
+          setCurrentUser(matched);
+          setIsAuthenticated(true);
+          localStorage.setItem('korwilcam_admin_auth', 'true');
+          localStorage.setItem('korwilcam_current_user', JSON.stringify(matched));
+          showToast(`Login berhasil! Selamat datang, ${matched.name} (${matched.role}).`, 'success');
+          return true;
+        } else {
+          // Username atau password tidak cocok dengan tabel admin_users Supabase
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          localStorage.removeItem('korwilcam_admin_auth');
+          localStorage.removeItem('korwilcam_current_user');
+          showToast('Username atau kata sandi salah! Pastikan sesuai dengan tabel admin_users di Supabase.', 'error');
+          return false;
+        }
+      } catch (err: any) {
+        console.error('Koneksi ke Supabase admin_users gagal:', err);
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        localStorage.removeItem('korwilcam_admin_auth');
+        localStorage.removeItem('korwilcam_current_user');
+        showToast('Gagal menghubungi database Supabase: ' + (err?.message || 'Koneksi terputus'), 'error');
+        return false;
+      }
+    }
+
+    // Jika client Supabase tidak aktif
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    localStorage.removeItem('korwilcam_admin_auth');
+    localStorage.removeItem('korwilcam_current_user');
+    showToast('Database Supabase belum terkonfigurasi!', 'error');
     return false;
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    setCurrentUser(null);
     localStorage.removeItem('korwilcam_admin_auth');
+    localStorage.removeItem('korwilcam_current_user');
     setActiveTab('home');
-    showToast('Anda telah keluar dari sesi Admin.', 'info');
+    showToast('Anda telah keluar dari sesi pengelola.', 'info');
+  };
+
+  // ADMIN USERS CRUD (Super Admin Only)
+  const addAdminUser = async (userData: Omit<AdminUser, 'id'>): Promise<boolean> => {
+    const existing = adminUsers.find(
+      (u) => u.username.toLowerCase() === userData.username.trim().toLowerCase()
+    );
+    if (existing) {
+      showToast(`Username "${userData.username}" sudah digunakan!`, 'error');
+      return false;
+    }
+
+    const newId = `usr-${Date.now()}`;
+    const newUser: AdminUser = {
+      ...userData,
+      id: newId,
+      username: userData.username.trim().toLowerCase(),
+      status: userData.status || 'Aktif',
+      createdAt: new Date().toISOString()
+    };
+
+    setAdminUsers((prev) => [newUser, ...prev]);
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('admin_users').insert({
+          id: newId,
+          username: newUser.username,
+          password: newUser.password,
+          name: newUser.name,
+          role: newUser.role,
+          email: newUser.email || '',
+          avatar: newUser.avatar || '',
+          status: newUser.status
+        });
+      } catch (err: any) {
+        console.error('Failed to insert admin_user in Supabase:', err);
+      }
+    }
+    showToast(`Akun ${newUser.username} (${newUser.role}) berhasil ditambahkan!`, 'success');
+    return true;
+  };
+
+  const updateAdminUser = async (id: string, userData: Partial<AdminUser>): Promise<boolean> => {
+    setAdminUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, ...userData, updatedAt: new Date().toISOString() } : u))
+    );
+
+    if (currentUser?.id === id) {
+      setCurrentUser((prev) => (prev ? { ...prev, ...userData } : null));
+    }
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const payload: any = { ...userData };
+        if (!userData.password) {
+          delete payload.password;
+        }
+        await client.from('admin_users').update(payload).eq('id', id);
+      } catch (err: any) {
+        console.error('Failed to update admin_user in Supabase:', err);
+      }
+    }
+    showToast('Data akun berhasil diperbarui!', 'success');
+    return true;
+  };
+
+  const deleteAdminUser = async (id: string): Promise<boolean> => {
+    const target = adminUsers.find((u) => u.id === id);
+    if (!target) return false;
+
+    if (currentUser?.id === id) {
+      showToast('Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif!', 'error');
+      return false;
+    }
+
+    setAdminUsers((prev) => prev.filter((u) => u.id !== id));
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('admin_users').delete().eq('id', id);
+      } catch (err: any) {
+        console.error('Failed to delete admin_user in Supabase:', err);
+      }
+    }
+    showToast(`Akun ${target.username} berhasil dihapus.`, 'info');
+    return true;
   };
 
   // SCHOOLS CRUD (Auto-save to Supabase & local state)
@@ -952,7 +1374,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
-        const { error } = await client.from('schools').upsert({
+        const payload: any = {
           id: newSchool.id,
           name: newSchool.name,
           level: newSchool.level,
@@ -966,8 +1388,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           teachers_count: newSchool.teachersCount,
           phone: newSchool.phone,
           email: newSchool.email,
-          image: newSchool.image
-        });
+          image: newSchool.image,
+          titik_koordinat: normalizeToGoogleMapsUrl(newSchool.titikKoordinat || newSchool.coordinates || ''),
+          coordinates: normalizeToGoogleMapsUrl(newSchool.coordinates || newSchool.titikKoordinat || '')
+        };
+
+        let { error } = await client.from('schools').upsert(payload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const { titik_koordinat, coordinates, ...safePayload } = payload;
+          const retry = await client.from('schools').upsert(safePayload);
+          error = retry.error;
+        }
+
         if (error) {
           console.error('Supabase addSchool error:', error);
           showToast(`Sekolah ditambahkan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
@@ -1001,7 +1433,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       try {
         const s = mergedSchool as School;
-        const { error } = await client.from('schools').upsert({
+        const payload: any = {
           id: s.id,
           name: s.name,
           level: s.level,
@@ -1015,8 +1447,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           teachers_count: s.teachersCount,
           phone: s.phone,
           email: s.email,
-          image: s.image
-        });
+          image: s.image,
+          titik_koordinat: normalizeToGoogleMapsUrl(s.titikKoordinat || s.coordinates || ''),
+          coordinates: normalizeToGoogleMapsUrl(s.coordinates || s.titikKoordinat || '')
+        };
+
+        let { error } = await client.from('schools').upsert(payload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const { titik_koordinat, coordinates, ...safePayload } = payload;
+          const retry = await client.from('schools').upsert(safePayload);
+          error = retry.error;
+        }
+
         if (error) {
           console.error('Supabase updateSchool error:', error);
           showToast(`Data sekolah diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
@@ -1637,7 +2079,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
-        const { error } = await client.from('gallery').upsert({
+        let { error } = await client.from('gallery').upsert({
           id: newItem.id,
           title: newItem.title,
           category: newItem.category,
@@ -1646,6 +2088,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: newItem.description,
           date: newItem.date
         });
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const retry = await client.from('gallery').upsert({
+            id: newItem.id,
+            title: newItem.title,
+            category: newItem.category,
+            image: newItem.image,
+            description: newItem.description,
+            date: newItem.date
+          });
+          error = retry.error;
+        }
         if (error) {
           console.error('Supabase addGallery error:', error);
           showToast(`Galeri disimpan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
@@ -1682,7 +2135,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       try {
         const g = mergedGallery as GalleryItem;
-        const { error } = await client.from('gallery').upsert({
+        let { error } = await client.from('gallery').upsert({
           id: g.id,
           title: g.title,
           category: g.category,
@@ -1691,6 +2144,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: g.description,
           date: g.date
         });
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const retry = await client.from('gallery').upsert({
+            id: g.id,
+            title: g.title,
+            category: g.category,
+            image: g.image,
+            description: g.description,
+            date: g.date
+          });
+          error = retry.error;
+        }
         if (error) {
           showToast(`Galeri diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
         } else {
@@ -1973,9 +2437,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedAnnouncement,
         selectedSchool,
         setSelectedSchool,
+        selectedGallery,
+        setSelectedGallery,
         isAuthenticated,
+        currentUser,
+        adminUsers,
         login,
         logout,
+        addAdminUser,
+        updateAdminUser,
+        deleteAdminUser,
         isSupabaseActive,
         syncStatus,
         exportAllToSupabase,

@@ -1,6 +1,21 @@
 {
   "rewrites": [
     {
+      "source": "/b/:id*",
+      "destination": "/api/share?id=:id*"
+    },
+    {
+      "source": "/berita/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -16,6 +16,7 @@ const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m 
 const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
 const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
+const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 const WebViewPage = React.lazy(() => import('./pages/WebViewPage').then(m => ({ default: m.WebViewPage })));
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
@@ -29,7 +30,7 @@ const PageLoadingFallback: React.FC = () => (
 );
 
 const MainContent: React.FC = () => {
-  const { activeTab, setActiveTab, isAuthenticated, selectedNews, selectedAnnouncement } = useApp();
+  const { activeTab, setActiveTab, isAuthenticated, selectedNews, selectedAnnouncement, selectedGallery } = useApp();
 
   // Shortcut Keyboard Rahasia (Ctrl + Shift + A atau Alt + A)
   useEffect(() => {
@@ -81,11 +82,13 @@ const MainContent: React.FC = () => {
       {/* Main Routed Page Content */}
       <main className={`flex-1 ${isWebView ? 'w-full h-[calc(100vh-74px)] overflow-hidden flex flex-col' : ''}`}>
         <Suspense fallback={<PageLoadingFallback />}>
-          {/* Full Page News Detail atau Announcement Detail jika dipilih */}
+          {/* Full Page News Detail, Announcement Detail, atau Gallery Detail jika dipilih */}
           {selectedNews ? (
             <NewsDetailPage />
           ) : selectedAnnouncement ? (
             <AnnouncementDetailPage />
+          ) : selectedGallery ? (
+            <GalleryDetailPage />
           ) : (
             <>
               {activeTab === 'home' && <HomePage />}

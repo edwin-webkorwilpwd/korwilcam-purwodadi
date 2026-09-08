@@ -28,9 +28,14 @@ export const AnnouncementDetailPage: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
 
+  // Scroll ke paling atas HANYA SEKALI saat pertama kali membuka surat edaran / pengumuman baru
+  const lastScrolledAnnouncementIdRef = React.useRef<string | null>(null);
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedAnnouncement]);
+    if (selectedAnnouncement?.id && lastScrolledAnnouncementIdRef.current !== selectedAnnouncement.id) {
+      lastScrolledAnnouncementIdRef.current = selectedAnnouncement.id;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [selectedAnnouncement?.id]);
 
   if (!selectedAnnouncement) {
     return (

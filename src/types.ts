@@ -17,6 +17,8 @@ export interface School {
   phone: string;
   email: string;
   image: string;
+  coordinates?: string;
+  titikKoordinat?: string;
   featured?: boolean;
 }
 
@@ -92,6 +94,7 @@ export interface DocumentDownload {
 export interface GalleryItem {
   id: string;
   title: string;
+  slug?: string;
   category: 'Kegiatan Belajar' | 'Lomba & Prestasi' | 'Rakor & Pelatihan' | 'Upacara';
   date: string;
   image: string;
@@ -138,5 +141,20 @@ export interface ComplaintMessage {
   message: string;
   date: string;
   status: 'Baru' | 'Dibaca' | 'Selesai';
+}
+
+export type AdminRole = 'Super Admin' | 'Admin' | 'Penulis';
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  password?: string;
+  name: string;
+  role: AdminRole;
+  email?: string;
+  avatar?: string;
+  status: 'Aktif' | 'Nonaktif';
+  createdAt?: string;
+  updatedAt?: string;
 }
 

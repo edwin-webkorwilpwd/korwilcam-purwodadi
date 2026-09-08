@@ -13,6 +13,7 @@ import {
   Share2, 
   ExternalLink 
 } from 'lucide-react';
+import { getGoogleMapsUrl } from '../lib/coordinates';
 
 export const ModalDetailSchool: React.FC = () => {
   const { selectedSchool, setSelectedSchool, showToast } = useApp();
@@ -133,7 +134,7 @@ export const ModalDetailSchool: React.FC = () => {
 
             <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-100 flex items-start gap-3">
               <MapPin className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <span className="text-xs font-bold text-blue-900 block">Alamat Lengkap:</span>
                 <p className="text-xs text-slate-700 mt-0.5">{selectedSchool.address}, Kecamatan Purwodadi, Kabupaten Grobogan, Jawa Tengah.</p>
               </div>
@@ -151,12 +152,13 @@ export const ModalDetailSchool: React.FC = () => {
                 <span>Salin Info</span>
               </button>
               <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(selectedSchool.name + ' Purwodadi Grobogan')}`}
+                href={getGoogleMapsUrl(selectedSchool)}
                 target="_blank"
                 rel="noreferrer"
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm group"
+                title="Buka titik lokasi sekolah di Google Maps"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                 <span>Buka Google Maps</span>
               </a>
             </div>

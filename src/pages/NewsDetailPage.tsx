@@ -12,12 +12,15 @@ import {
   MessageCircle, 
   Sparkles, 
   BookOpen, 
-  Clock, 
-  Bookmark, 
-  ChevronRight 
+  Clock,
+  ChevronRight,
+  ChevronLeft,
+  FileText
 } from 'lucide-react';
 import { NewsCard } from '../components/NewsCard';
 import { getArticleReadingStats } from '../lib/readingTime';
+import { paginateArticleContent } from '../lib/articlePaginator';
+import { getNewsShortUrl, getNewsShortCode } from '../lib/shortLink';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -36,7 +39,24 @@ export const NewsDetailPage: React.FC = () => {
     recordNewsReadingTime 
   } = useApp();
   const [copied, setCopied] = React.useState(false);
-  const trackedViewsMap = React.useRef<Record<string, number>>({});
+
+  // Article Pagination State (Mode pembacaan per halaman: 600 kata per halaman)
+  const [currentPage, setCurrentPage] = React.useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const p = parseInt(params.get('page') || params.get('halaman') || '1', 10);
+      return isNaN(p) || p < 1 ? 1 : p;
+    }
+    return 1;
+  });
+  const [showAllPages, setShowAllPages] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('page') === 'all';
+    }
+    return false;
+  });
+  const articleBodyRef = React.useRef<HTMLDivElement>(null);
 
   // Active reading duration tracker state & refs
   const activeReadingSecondsRef = React.useRef(0);
@@ -44,22 +64,45 @@ export const NewsDetailPage: React.FC = () => {
   const lastActiveTimestampRef = React.useRef(Date.now());
   const recordedSecondsRef = React.useRef(0);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedNews]);
+  // Stable references to context functions
+  const incrementNewsViewsRef = React.useRef(incrementNewsViews);
+  incrementNewsViewsRef.current = incrementNewsViews;
 
-  // Track & hitung jumlah tayangan berita secara real-time
+  const recordNewsReadingTimeRef = React.useRef(recordNewsReadingTime);
+  recordNewsReadingTimeRef.current = recordNewsReadingTime;
+
+  // 1. Scroll ke paling atas HANYA SEKALI saat pertama kali membuka artikel baru
+  const lastScrolledArticleIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedNews?.id && lastScrolledArticleIdRef.current !== selectedNews.id) {
+      lastScrolledArticleIdRef.current = selectedNews.id;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [selectedNews?.id]);
+
+  // 2. Track & hitung jumlah tayangan berita: HANYA 1 KALI saat artikel dibuka per sesi
+  const trackedArticleIdRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (!selectedNews?.id) return;
-    const now = Date.now();
-    const lastTime = trackedViewsMap.current[selectedNews.id] || 0;
-    if (now - lastTime > 1500) {
-      trackedViewsMap.current[selectedNews.id] = now;
-      incrementNewsViews(selectedNews.id);
-    }
-  }, [selectedNews?.id, incrementNewsViews]);
+    const newsId = selectedNews.id;
 
-  // Deteksi durasi aktif membaca dan akumulasi rata-rata membaca secara keseluruhan
+    // Cegah eksekusi berulang jika ID artikel sama
+    if (trackedArticleIdRef.current === newsId) return;
+    trackedArticleIdRef.current = newsId;
+
+    // Cegah penambahan berulang dalam satu sesi browser
+    const sessionKey = `viewed_news_${newsId}`;
+    try {
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, '1');
+        incrementNewsViewsRef.current(newsId);
+      }
+    } catch {
+      incrementNewsViewsRef.current(newsId);
+    }
+  }, [selectedNews?.id]);
+
+  // 3. Deteksi durasi aktif membaca dan akumulasi rata-rata membaca secara riil
   useEffect(() => {
     if (!selectedNews?.id) return;
     const newsId = selectedNews.id;
@@ -80,7 +123,7 @@ export const NewsDetailPage: React.FC = () => {
       if (activeTotal >= 5 && delta > 0) {
         const isFirstRecord = alreadyRecorded === 0;
         recordedSecondsRef.current = activeTotal;
-        recordNewsReadingTime(newsId, delta, isFirstRecord);
+        recordNewsReadingTimeRef.current(newsId, delta, isFirstRecord);
       }
     };
 
@@ -140,7 +183,7 @@ export const NewsDetailPage: React.FC = () => {
       // Flush saat komponen unmount / tombol kembali diklik
       flushReadingTime();
     };
-  }, [selectedNews?.id, recordNewsReadingTime]);
+  }, [selectedNews?.id]);
 
   if (!selectedNews) {
     return (
@@ -161,22 +204,26 @@ export const NewsDetailPage: React.FC = () => {
     );
   }
 
-  const currentUrl = window.location.href;
+  const shortUrl = selectedNews ? getNewsShortUrl(selectedNews) : '';
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(currentUrl);
+    const linkToCopy = shortUrl || window.location.href;
+    navigator.clipboard.writeText(linkToCopy);
     setCopied(true);
-    showToast('Tautan berita berhasil disalin ke clipboard!', 'success');
+    showToast('Tautan ringkas berita berhasil disalin ke clipboard!', 'success');
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleShareWhatsApp = () => {
-    const text = encodeURIComponent(`*${selectedNews.title}*\n\nBaca selengkapnya di Portal Resmi Korwilcam Purwodadi:\n${currentUrl}`);
+    const linkToShare = shortUrl || window.location.href;
+    const pageLabel = isPaginated && currentPage > 1 ? ` (Hal. ${currentPage})` : '';
+    const text = encodeURIComponent(`*${selectedNews.title}*${pageLabel}\n\nBaca selengkapnya di Portal Resmi Korwilcam Purwodadi:\n${linkToShare}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
   const handleShareFacebook = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank');
+    const linkToShare = shortUrl || window.location.href;
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(linkToShare)}`, '_blank');
   };
 
   // 3 Berita Lainnya sebagai rekomendasi pembaca
@@ -186,6 +233,108 @@ export const NewsDetailPage: React.FC = () => {
 
   // Perhitungan durasi membaca & rata-rata riil dari seluruh pembaca
   const readStats = getArticleReadingStats(selectedNews);
+
+  // Fungsi pembantu untuk sinkronisasi query parameter ?page=... di URL address bar
+  const updateUrlPageParam = React.useCallback((page: number | 'all', replace: boolean = false) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('page', String(page));
+      if (replace) {
+        window.history.replaceState({ page }, '', url.toString());
+      } else {
+        window.history.pushState({ page }, '', url.toString());
+      }
+    } catch (e) {
+      console.warn('Gagal memperbarui URL page:', e);
+    }
+  }, []);
+
+  // Baca URL query parameter saat berita dimuat atau berpindah
+  useEffect(() => {
+    if (!selectedNews?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = params.get('page') || params.get('halaman');
+    if (pageParam === 'all') {
+      setShowAllPages(true);
+    } else {
+      const p = parseInt(pageParam || '1', 10);
+      const targetP = isNaN(p) || p < 1 ? 1 : p;
+      setCurrentPage(targetP);
+      setShowAllPages(false);
+      // Pastikan URL selalu memiliki parameter ?page=... (misal ?page=1)
+      updateUrlPageParam(targetP, true);
+    }
+  }, [selectedNews?.id, updateUrlPageParam]);
+
+  // Tangani navigasi tombol Back/Forward browser
+  useEffect(() => {
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const pageParam = params.get('page') || params.get('halaman');
+      if (pageParam === 'all') {
+        setShowAllPages(true);
+      } else {
+        const p = parseInt(pageParam || '1', 10);
+        const targetP = isNaN(p) || p < 1 ? 1 : p;
+        setCurrentPage(targetP);
+        setShowAllPages(false);
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const WORDS_PER_PAGE = 600;
+  const paginationData = React.useMemo(() => {
+    if (!selectedNews?.content) {
+      return { pages: [], totalWords: 0, totalPages: 0 };
+    }
+    return paginateArticleContent(selectedNews.content, WORDS_PER_PAGE);
+  }, [selectedNews?.content]);
+
+  // Pastikan currentPage tidak melebihi totalPages jika URL query param di luar batas
+  useEffect(() => {
+    if (paginationData.totalPages > 0 && currentPage > paginationData.totalPages) {
+      setCurrentPage(paginationData.totalPages);
+      updateUrlPageParam(paginationData.totalPages, true);
+    }
+  }, [paginationData.totalPages, currentPage, updateUrlPageParam]);
+
+  const isPaginated = paginationData.totalPages > 1 && !showAllPages;
+  const activePageData = isPaginated
+    ? paginationData.pages[currentPage - 1] || paginationData.pages[0]
+    : null;
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > paginationData.totalPages) return;
+    setCurrentPage(newPage);
+    setShowAllPages(false);
+    updateUrlPageParam(newPage, false);
+
+    if (articleBodyRef.current) {
+      const yOffset = -90;
+      const y = articleBodyRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  const handleToggleAllPages = () => {
+    const nextShowAll = !showAllPages;
+    setShowAllPages(nextShowAll);
+    if (nextShowAll) {
+      updateUrlPageParam('all', false);
+    } else {
+      updateUrlPageParam(currentPage, false);
+    }
+
+    if (articleBodyRef.current) {
+      const yOffset = -90;
+      const y = articleBodyRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
 
   return (
     <article className="min-h-screen bg-slate-50/60 pb-24 animate-in fade-in duration-200">
@@ -325,7 +474,7 @@ export const NewsDetailPage: React.FC = () => {
         )}
 
         {/* Main Article Body Container */}
-        <div className="bg-white rounded-3xl p-6 sm:p-12 border border-slate-200/80 shadow-sm space-y-8">
+        <div ref={articleBodyRef} className="bg-white rounded-3xl p-6 sm:p-12 border border-slate-200/80 shadow-sm space-y-8 scroll-mt-28">
           
           {/* Summary Quote */}
           {selectedNews.summary && (
@@ -334,9 +483,44 @@ export const NewsDetailPage: React.FC = () => {
             </div>
           )}
 
+          {/* Top Pagination Mini Bar (jika artikel memiliki lebih dari 1 halaman) */}
+          {paginationData.totalPages > 1 && (
+            <div className="flex items-center justify-between flex-wrap gap-3 p-3 sm:px-4 sm:py-3 rounded-2xl bg-slate-50 border border-slate-200/90 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] shadow-xs">
+                  {showAllPages ? 'Semua Halaman' : `Halaman ${currentPage} dari ${paginationData.totalPages}`}
+                </span>
+                <span className="text-slate-600 font-medium">
+                  {showAllPages 
+                    ? `Total ${paginationData.totalWords} kata` 
+                    : `~${activePageData?.wordCount || WORDS_PER_PAGE} kata (Halaman ${currentPage})`}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleAllPages}
+                className="px-3 py-1 rounded-lg text-xs font-bold text-blue-700 hover:text-blue-900 hover:bg-blue-100/60 transition-colors"
+              >
+                {showAllPages ? 'Mode Per Halaman (600 Kata)' : 'Tampilkan Semua Halaman'}
+              </button>
+            </div>
+          )}
+
           {/* Article Text */}
-          <div className="article-body">
-            {selectedNews.content.includes('<') ? (
+          <div className="article-body min-h-[140px]">
+            {isPaginated && activePageData ? (
+              activePageData.isHtml ? (
+                <div 
+                  className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:rounded-2xl max-w-none text-base sm:text-lg"
+                  dangerouslySetInnerHTML={{ __html: activePageData.content }}
+                />
+              ) : (
+                <div className="text-slate-700 text-base sm:text-lg leading-relaxed whitespace-pre-line font-normal space-y-4">
+                  {activePageData.content}
+                </div>
+              )
+            ) : selectedNews.content.includes('<') ? (
               <div 
                 className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:rounded-2xl max-w-none text-base sm:text-lg"
                 dangerouslySetInnerHTML={{ __html: selectedNews.content }}
@@ -347,6 +531,74 @@ export const NewsDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Navigasi Pagination Nomor Halaman Lengkap */}
+          {paginationData.totalPages > 1 && (
+            <div className="pt-6 border-t border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                {/* Status Teks */}
+                <div className="text-xs text-slate-500 font-medium text-center sm:text-left">
+                  {showAllPages ? (
+                    <span>Menampilkan <strong>seluruh artikel</strong> ({paginationData.totalWords} kata)</span>
+                  ) : (
+                    <span>
+                      Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari <strong>{paginationData.totalPages}</strong> (Total {paginationData.totalWords} kata)
+                    </span>
+                  )}
+                </div>
+
+                {/* Kontrol Tombol Halaman */}
+                {!showAllPages && (
+                  <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Sebelumnya</span>
+                    </button>
+
+                    {paginationData.pages.map((p) => (
+                      <button
+                        type="button"
+                        key={p.pageNumber}
+                        onClick={() => handlePageChange(p.pageNumber)}
+                        className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
+                          currentPage === p.pageNumber
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-500/20'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+                        }`}
+                        title={`Halaman ${p.pageNumber}`}
+                      >
+                        {p.pageNumber}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= paginationData.totalPages}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs"
+                    >
+                      <span className="hidden sm:inline">Selanjutnya</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Tombol Lihat Semua */}
+                <button
+                  type="button"
+                  onClick={handleToggleAllPages}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 text-xs font-bold transition-colors shrink-0"
+                >
+                  {showAllPages ? 'Mode Halaman' : 'Lihat Semua'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Tags */}
           {selectedNews.tags && selectedNews.tags.length > 0 && (
@@ -364,8 +616,16 @@ export const NewsDetailPage: React.FC = () => {
           {/* Social Sharing Footer Box */}
           <div className="pt-8 border-t border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-12 -mb-6 sm:-mb-12 p-6 sm:p-10 rounded-b-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h4 className="font-bold text-slate-900 text-sm">Bagikan Informasi Ini</h4>
+              <h4 className="font-bold text-slate-900 text-sm">Bagikan Berita Ini</h4>
               <p className="text-xs text-slate-500">Bantu sebarkan kabar pendidikan bermanfaat ke rekan pendidik & masyarakat.</p>
+              {shortUrl && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-medium text-slate-400">Tautan Ringkas:</span>
+                  <span className="text-xs font-mono font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100 select-all">
+                    {shortUrl}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
