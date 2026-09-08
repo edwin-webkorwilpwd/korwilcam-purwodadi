@@ -52,3 +52,21 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* Modern Performance: Defer offscreen rendering for silky-smooth 60fps scrolling */
+.content-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 550px;
+}
+
+.card-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 380px;
+}
+
+/* GPU hardware acceleration layer */
+.gpu-layer {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+

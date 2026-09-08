@@ -28,16 +28,18 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
   };
 
   return (
-    <article className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1">
+    <article className="card-deferred bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1">
       {/* Cover Image */}
       <div className="relative h-48 w-full overflow-hidden bg-slate-100 cursor-pointer" onClick={() => setSelectedNews(article)}>
         <img
           src={article.image}
           alt={article.title}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm backdrop-blur-md ${getCategoryBadge(article.category)}`}>
+          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${getCategoryBadge(article.category)}`}>
             {article.category}
           </span>
         </div>

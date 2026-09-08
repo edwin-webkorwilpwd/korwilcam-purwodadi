@@ -30,7 +30,7 @@ export const HeroSection: React.FC = () => {
             
             <div className="space-y-6">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-900/50 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide">
                 <Sparkles className="w-3.5 h-3.5 text-blue-400" />
                 <span>{officeProfile.heroBadge || "Portal Resmi Pendidikan Kecamatan Purwodadi"}</span>
               </div>
@@ -39,44 +39,35 @@ export const HeroSection: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-snug">
                 {officeProfile.heroTitle && officeProfile.heroTitle.includes('SD, TK, & PAUD') ? (
                   <>
-                    {officeProfile.heroTitle.split('SD, TK, & PAUD')[0]}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-sky-300 to-indigo-200">
-                      SD, TK, & PAUD
+                    <span>Sinergi Membangun Generasi Cerdas & Berkarakter</span>
+                    <span className="block mt-1 sm:mt-1.5 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-sky-200 to-indigo-200">
+                      SD, TK, & PAUD Kecamatan Purwodadi
                     </span>
-                    {officeProfile.heroTitle.split('SD, TK, & PAUD')[1]}
                   </>
                 ) : (
-                  officeProfile.heroTitle || (
-                    <>
-                      Mewujudkan Fondasi Generasi Emas{' '}
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-sky-300 to-indigo-200">
-                        SD, TK, & PAUD
-                      </span>{' '}
-                      di Purwodadi
-                    </>
-                  )
+                  officeProfile.heroTitle || "Sinergi Membangun Generasi Cerdas & Berkarakter SD, TK, & PAUD Purwodadi"
                 )}
               </h1>
 
-              {/* Subtitle */}
-              <p className="text-slate-300 text-sm sm:text-base lg:text-lg leading-relaxed max-w-2xl font-normal">
-                {officeProfile.heroSubtitle || "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi. Kami hadir mendampingi seluruh satuan pendidikan dasar dan anak usia dini demi terciptanya proses belajar yang merdeka, aman, berkarakter, dan berprestasi."}
+              {/* Sub-headline / Deskripsi */}
+              <p className="text-slate-300 text-xs sm:text-sm lg:text-sm leading-relaxed max-w-xl font-normal">
+                {officeProfile.heroSubtitle || "Pusat informasi kedinasan, agenda kegiatan wilayah, direktori sekolah, regulasi kurikulum, dan sarana aspirasi terpadu bagi seluruh insan pendidik di Kecamatan Purwodadi, Kabupaten Grobogan."}
               </p>
 
-              {/* CTA Buttons */}
-              <div className="pt-2 flex flex-wrap items-center gap-3.5">
+              {/* Action Buttons */}
+              <div className="pt-1 flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => setActiveTab('schools')}
-                  className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-200"
+                  className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <Search className="w-4 h-4" />
-                  <span>Cari Data Sekolah (SD/TK/PAUD)</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Jelajahi Sekolah</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
                 </button>
 
                 <button
                   onClick={() => setActiveTab('downloads')}
-                  className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-semibold text-sm backdrop-blur-md hover:-translate-y-0.5 transition-all duration-200"
+                  className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <Download className="w-4 h-4 text-blue-400" />
                   <span>Pusat Unduhan & Blanko</span>
@@ -100,7 +91,7 @@ export const HeroSection: React.FC = () => {
 
           {/* Korwilcam Profile Highlight Card (Right column: lg:col-span-5) - Ukuran disamakan dengan tinggi blok tulisan kiri */}
           <div className="lg:col-span-5 flex flex-col">
-            <div className="relative rounded-3xl bg-gradient-to-b from-slate-900/95 via-slate-900/98 to-slate-950 p-6 sm:p-7 border border-blue-700/40 shadow-2xl shadow-blue-950/80 backdrop-blur-2xl h-full flex flex-col justify-between">
+            <div className="relative rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 p-6 sm:p-7 border border-blue-700/40 shadow-2xl shadow-blue-950/80 h-full flex flex-col justify-between">
               
               {/* Card Header Tag */}
               <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
@@ -128,6 +119,8 @@ export const HeroSection: React.FC = () => {
                       <img
                         src={officeProfile.korwilPhoto}
                         alt={officeProfile.korwilName}
+                        decoding="async"
+                        fetchPriority="high"
                         className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-300"
                       />
                     </div>

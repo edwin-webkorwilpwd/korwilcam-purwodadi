@@ -30,12 +30,14 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1">
+    <div className="card-deferred bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1">
       {/* Image & Badges */}
       <div className="relative h-48 w-full overflow-hidden bg-slate-100">
         <img
           src={school.image}
           alt={school.name}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
@@ -45,21 +47,21 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
           <span className={`px-2.5 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wide shadow-md ${getLevelBadge(school.level)}`}>
             {school.level}
           </span>
-          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white/90 text-slate-800 backdrop-blur-md shadow-md">
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white/95 text-slate-800 shadow-md border border-white/40">
             {school.status}
           </span>
         </div>
 
         {/* Accreditation */}
         <div className="absolute top-3 right-3">
-          <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-md backdrop-blur-md ${getAkreditasiColor(school.akreditasi)}`}>
+          <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-md bg-white/95 ${getAkreditasiColor(school.akreditasi)}`}>
             <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
             <span>Akreditasi {school.akreditasi}</span>
           </span>
         </div>
 
         {/* NPSN bottom badge */}
-        <div className="absolute bottom-3 left-3 text-[11px] font-mono font-medium text-white/90 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
+        <div className="absolute bottom-3 left-3 text-[11px] font-mono font-medium text-white/90 bg-black/60 px-2 py-0.5 rounded">
           NPSN: {school.npsn}
         </div>
       </div>

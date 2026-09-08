@@ -145,19 +145,21 @@ export const GalleryPage: React.FC = () => {
                 <div className="absolute inset-x-2 top-1.5 bottom-1.5 bg-amber-200/60 rounded-2xl -rotate-1 group-hover:rotate-0 transition-transform duration-300"></div>
 
                 {/* Main Card */}
-                <div className="relative rounded-2xl overflow-hidden bg-white border border-slate-200/90 shadow-md group-hover:shadow-2xl group-hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full">
+                <div className="card-deferred relative rounded-2xl overflow-hidden bg-white border border-slate-200/90 shadow-md group-hover:shadow-2xl group-hover:-translate-y-1.5 transition-all duration-300 flex flex-col h-full">
                   {/* Cover Photo Stage */}
                   <div className="relative h-56 bg-slate-950 overflow-hidden">
                     <img
                       src={item.image || photoList[0]}
                       alt={item.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent"></div>
 
                     {/* Category Badge */}
                     <div className="absolute top-3 left-3">
-                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-blue-600/90 text-white shadow backdrop-blur-md">
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-blue-600 text-white shadow">
                         {item.category}
                       </span>
                     </div>

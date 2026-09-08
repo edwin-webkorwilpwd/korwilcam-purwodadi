@@ -234,7 +234,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Main Navbar - Compact Blue Gradient Box */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 text-white border-b border-blue-700/40 shadow-xl backdrop-blur-md">
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 text-white border-b border-blue-700/40 shadow-xl">
         <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
           <div className="flex items-center justify-between h-16 sm:h-18 py-1.5 gap-3 xl:gap-6">
             
@@ -302,7 +302,7 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-slate-900/98 backdrop-blur-md rounded-xl shadow-2xl border border-blue-800/60 p-1.5 space-y-1">
+                    <div className="relative bg-slate-900 rounded-xl shadow-2xl border border-blue-800/60 p-1.5 space-y-1">
                       <button
                         onClick={() => handleNavClick('profile', '/profil/sambutan')}
                         className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-lg flex items-center gap-2.5 transition-colors"
@@ -383,7 +383,7 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-slate-900/98 backdrop-blur-md rounded-2xl shadow-2xl border border-blue-800/60 p-2 space-y-1">
+                    <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-blue-800/60 p-2 space-y-1">
                       <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-blue-300/80">
                         Pusat Layanan Terpadu Korwilcam
                       </div>
@@ -539,7 +539,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-slate-900/95 backdrop-blur-md border-b border-blue-800/50 px-4 pt-2 pb-6 space-y-1.5 shadow-2xl animate-in fade-in slide-in-from-top-4 text-slate-200">
+        <div className="lg:hidden bg-slate-900 border-b border-blue-800/50 px-4 pt-2 pb-6 space-y-1.5 shadow-2xl animate-in fade-in slide-in-from-top-4 text-slate-200">
           <button
             onClick={() => handleNavClick('home', '/beranda')}
             className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${

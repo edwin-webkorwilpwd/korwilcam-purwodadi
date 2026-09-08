@@ -317,6 +317,8 @@ export const NewsDetailPage: React.FC = () => {
             <img
               src={selectedNews.image}
               alt={selectedNews.title}
+              decoding="async"
+              fetchPriority="high"
               className="w-full max-h-[560px] object-cover"
             />
           </div>

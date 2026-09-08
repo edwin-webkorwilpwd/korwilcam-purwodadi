@@ -39,7 +39,7 @@ export const HomePage: React.FC = () => {
       <StatsCounter />
 
       {/* Agenda Kegiatan & Pengumuman Stacked Section */}
-      <section className="bg-slate-100/70 py-16 border-y border-slate-200/60">
+      <section className="content-deferred bg-slate-100/70 py-16 border-y border-slate-200/60">
         <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-16">
           
           {/* 1. Bagian Atas: Agenda Kegiatan */}
@@ -328,7 +328,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Latest News Section */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div className="space-y-1">
             <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
@@ -359,7 +359,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Featured Schools Section */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div className="space-y-1">
             <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
@@ -390,7 +390,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Banner Sinergi Pendidikan / CTA Aduan */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16">
         <div className="rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 p-8 sm:p-12 text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
 

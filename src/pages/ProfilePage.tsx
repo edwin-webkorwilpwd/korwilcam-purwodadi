@@ -75,6 +75,8 @@ export const ProfilePage: React.FC = () => {
               <img
                 src={officeProfile.korwilPhoto}
                 alt={officeProfile.korwilName}
+                loading="lazy"
+                decoding="async"
                 className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20"
               />
               <div className="absolute -bottom-3 -right-3 p-2 rounded-xl bg-blue-600 text-white shadow-lg">
@@ -215,11 +217,13 @@ export const ProfilePage: React.FC = () => {
           {filteredStaff.map((person) => (
             <div
               key={person.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
+              className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
             >
               <img
                 src={person.photo}
                 alt={person.name}
+                loading="lazy"
+                decoding="async"
                 className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0"
               />
               <div className="space-y-1 min-w-0">
