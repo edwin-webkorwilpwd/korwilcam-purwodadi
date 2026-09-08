@@ -426,18 +426,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch announcements
       const { data: dbAnnouncements } = await client.from('announcements').select('*').order('created_at', { ascending: false });
       if (dbAnnouncements && dbAnnouncements.length > 0) {
-        setAnnouncements(dbAnnouncements.map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          date: a.date,
-          urgency: a.urgency,
-          target: a.target,
-          fileSize: a.file_size || a.fileSize || '',
-          fileUrl: a.file_url || a.fileUrl || '',
-          fileName: a.file_name || a.fileName || '',
-          fileType: a.file_type || a.fileType || '',
-          summary: a.summary
-        })));
+        setAnnouncements(dbAnnouncements.map((a: any) => {
+          let fileSize = a.file_size || a.fileSize || '';
+          let fileName = a.file_name || a.fileName || '';
+          let fileType = a.file_type || a.fileType || '';
+          let fileUrl = a.file_url || a.fileUrl || '';
+
+          if (fileSize && fileSize.includes('|')) {
+            const parts = fileSize.split('|');
+            fileSize = parts[0] || '';
+            fileName = parts[1] || fileName;
+            fileType = parts[2] || fileType;
+            fileUrl = parts[3] || fileUrl;
+          }
+
+          return {
+            id: a.id,
+            title: a.title,
+            date: a.date,
+            urgency: a.urgency,
+            target: a.target,
+            fileSize,
+            fileUrl,
+            fileName,
+            fileType,
+            summary: a.summary
+          };
+        }));
       }
 
       // Fetch agenda
@@ -674,10 +689,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         date: a.date,
         urgency: a.urgency,
         target: a.target,
-        file_size: a.fileSize || '',
-        file_url: a.fileUrl || '',
-        file_name: a.fileName || '',
-        file_type: a.fileType || '',
+        file_size: [a.fileSize || '', a.fileName || '', a.fileType || '', a.fileUrl || ''].join('|'),
         summary: a.summary
       }));
       await client.from('announcements').upsert(annPayload);
@@ -1589,17 +1601,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           date: newArticle.date,
           image: newArticle.image,
           views: newArticle.views,
-          total_read_seconds: newArticle.totalReadSeconds || 0,
-          read_count: newArticle.readCount || 0,
           tags: newArticle.tags
         };
 
-        let { error } = await client.from('news').upsert(payload);
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const { total_read_seconds, read_count, ...safePayload } = payload;
-          const retry = await client.from('news').upsert(safePayload);
-          error = retry.error;
-        }
+        const { error } = await client.from('news').upsert(payload);
 
         if (error) {
           console.error('Supabase addNews error:', error);
@@ -1645,17 +1650,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           date: n.date,
           image: n.image,
           views: n.views,
-          total_read_seconds: n.totalReadSeconds || 0,
-          read_count: n.readCount || 0,
           tags: n.tags
         };
 
-        let { error } = await client.from('news').upsert(payload);
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const { total_read_seconds, read_count, ...safePayload } = payload;
-          const retry = await client.from('news').upsert(safePayload);
-          error = retry.error;
-        }
+        const { error } = await client.from('news').upsert(payload);
 
         if (error) {
           console.error('Supabase updateNews error:', error);
@@ -1836,16 +1834,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
+        const packedFileSize = [
+          newAnn.fileSize || '',
+          newAnn.fileName || '',
+          newAnn.fileType || '',
+          newAnn.fileUrl || ''
+        ].join('|');
+
         const { error } = await client.from('announcements').upsert({
           id: newAnn.id,
           title: newAnn.title,
           date: newAnn.date,
           urgency: newAnn.urgency,
           target: newAnn.target,
-          file_size: newAnn.fileSize || '',
-          file_url: newAnn.fileUrl || '',
-          file_name: newAnn.fileName || '',
-          file_type: newAnn.fileType || '',
+          file_size: packedFileSize,
           summary: newAnn.summary
         });
         if (error) {
@@ -1881,16 +1883,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       try {
         const target = mergedAnn as Announcement;
+        const packedFileSize = [
+          target.fileSize || '',
+          target.fileName || '',
+          target.fileType || '',
+          target.fileUrl || ''
+        ].join('|');
+
         const { error } = await client.from('announcements').upsert({
           id: target.id,
           title: target.title,
           date: target.date,
           urgency: target.urgency,
           target: target.target,
-          file_size: target.fileSize || '',
-          file_url: target.fileUrl || '',
-          file_name: target.fileName || '',
-          file_type: target.fileType || '',
+          file_size: packedFileSize,
           summary: target.summary
         });
         if (error) {

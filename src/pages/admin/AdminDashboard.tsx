@@ -206,9 +206,9 @@ export const AdminDashboard: React.FC = () => {
     korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak..."
   });
 
-  const handleSaveHomeCMS = (e: React.FormEvent) => {
+  const handleSaveHomeCMS = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateOfficeProfile(homeForm);
+    await updateOfficeProfile(homeForm);
   };
 
   // Helper to compress image and convert to lightweight Base64 string for database storage
@@ -432,7 +432,7 @@ export const AdminDashboard: React.FC = () => {
     titikKoordinat: ''
   });
 
-  const handleSaveSchool = (e: React.FormEvent) => {
+  const handleSaveSchool = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolForm.name || !schoolForm.npsn) {
       showToast('Nama sekolah dan NPSN wajib diisi!', 'error');
@@ -448,10 +448,10 @@ export const AdminDashboard: React.FC = () => {
     };
 
     if (editingSchoolId) {
-      updateSchool(editingSchoolId, preparedSchoolData);
+      await updateSchool(editingSchoolId, preparedSchoolData);
       setEditingSchoolId(null);
     } else {
-      addSchool(preparedSchoolData);
+      await addSchool(preparedSchoolData);
     }
 
     setSchoolForm({
@@ -514,7 +514,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleSaveNews = (e: React.FormEvent) => {
+  const handleSaveNews = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsForm.title || !newsForm.content) {
       showToast('Judul dan isi berita wajib diisi!', 'error');
@@ -527,7 +527,7 @@ export const AdminDashboard: React.FC = () => {
       : (editingNewsId ? (news.find((n) => n.id === editingNewsId)?.views || 0) : 0);
 
     if (editingNewsId) {
-      updateNews(editingNewsId, {
+      await updateNews(editingNewsId, {
         title: newsForm.title,
         category: newsForm.category,
         summary: newsForm.summary || newsForm.content.slice(0, 150) + '...',
@@ -539,7 +539,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setEditingNewsId(null);
     } else {
-      addNews({
+      await addNews({
         title: newsForm.title,
         slug: newsForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         category: newsForm.category,
@@ -660,7 +660,7 @@ export const AdminDashboard: React.FC = () => {
     showToast('Berkas lampiran pengumuman dilepas.', 'info');
   };
 
-  const handleSaveAnnouncement = (e: React.FormEvent) => {
+  const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!annForm.title || !annForm.summary) {
       showToast('Judul dan ringkasan pengumuman wajib diisi!', 'error');
@@ -668,10 +668,10 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (editingAnnId) {
-      updateAnnouncement(editingAnnId, annForm);
+      await updateAnnouncement(editingAnnId, annForm);
       setEditingAnnId(null);
     } else {
-      addAnnouncement({
+      await addAnnouncement({
         ...annForm,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
       });
@@ -790,7 +790,7 @@ export const AdminDashboard: React.FC = () => {
     showToast('File lampiran unduhan dihapus.', 'info');
   };
 
-  const handleSaveDocument = (e: React.FormEvent) => {
+  const handleSaveDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docForm.title || !docForm.description) {
       showToast('Judul dan deskripsi dokumen wajib diisi!', 'error');
@@ -798,10 +798,10 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (editingDocId) {
-      updateDocument(editingDocId, docForm);
+      await updateDocument(editingDocId, docForm);
       setEditingDocId(null);
     } else {
-      addDocument({
+      await addDocument({
         ...docForm,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
       });
@@ -882,7 +882,7 @@ export const AdminDashboard: React.FC = () => {
     showToast('Foto sampul folder album berhasil diatur.', 'info');
   };
 
-  const handleSaveGallery = (e: React.FormEvent) => {
+  const handleSaveGallery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!galleryForm.title) {
       showToast('Judul album kegiatan wajib diisi!', 'error');
@@ -897,7 +897,7 @@ export const AdminDashboard: React.FC = () => {
     const imagesList = galleryForm.images.length > 0 ? galleryForm.images : [primaryCover];
 
     if (editingGalleryId) {
-      updateGalleryItem(editingGalleryId, {
+      await updateGalleryItem(editingGalleryId, {
         title: galleryForm.title,
         category: galleryForm.category,
         image: primaryCover,
@@ -906,7 +906,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setEditingGalleryId(null);
     } else {
-      addGalleryItem({
+      await addGalleryItem({
         title: galleryForm.title,
         category: galleryForm.category,
         image: primaryCover,
@@ -935,9 +935,9 @@ export const AdminDashboard: React.FC = () => {
     workingHours: officeProfile.workingHours
   });
 
-  const handleSaveContact = (e: React.FormEvent) => {
+  const handleSaveContact = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateOfficeProfile(contactForm);
+    await updateOfficeProfile(contactForm);
   };
 
   const newComplaintsCount = complaints.filter((c) => c.status === 'Baru').length;
