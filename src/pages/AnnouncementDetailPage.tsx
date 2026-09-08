@@ -7,14 +7,15 @@ import {
   Check, 
   Copy, 
   Download, 
-  Printer, 
   Share2, 
   Building, 
   ChevronRight, 
   FileText,
   AlertCircle,
-  ArrowUpRight
+  ArrowUpRight,
+  Image as ImageIcon
 } from 'lucide-react';
+import { getAnnouncementShortUrl } from '../lib/shortLink';
 
 export const AnnouncementDetailPage: React.FC = () => {
   const { 
@@ -26,8 +27,6 @@ export const AnnouncementDetailPage: React.FC = () => {
     showToast 
   } = useApp();
 
-  const [copied, setCopied] = useState(false);
-
   // Scroll ke paling atas HANYA SEKALI saat pertama kali membuka surat edaran / pengumuman baru
   const lastScrolledAnnouncementIdRef = React.useRef<string | null>(null);
   useEffect(() => {
@@ -36,6 +35,9 @@ export const AnnouncementDetailPage: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [selectedAnnouncement?.id]);
+
+  const [copied, setCopied] = useState(false);
+  const [sharingImage, setSharingImage] = useState(false);
 
   if (!selectedAnnouncement) {
     return (
@@ -61,32 +63,76 @@ export const AnnouncementDetailPage: React.FC = () => {
     );
   }
 
-  const currentUrl = window.location.href;
+  // URL yang akan dibagikan (prioritaskan shortlink /p/:id yang ringkas)
+  const shareUrl = getAnnouncementShortUrl(selectedAnnouncement) || window.location.href;
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(currentUrl);
+    navigator.clipboard.writeText(shareUrl);
     setCopied(true);
-    showToast('Tautan pengumuman berhasil disalin! Siap disebarkan.', 'success');
+    showToast('Tautan pengumuman berhasil disalin! Siap disebarkan ke media sosial.', 'success');
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
       `*PENGUMUMAN RESMI KORWILCAM PURWODADI*\n\n` +
-      `*${selectedAnnouncement.title}*\n` +
-      `Sasaran: ${selectedAnnouncement.target} | Tingkat: ${selectedAnnouncement.urgency}\n\n` +
-      `Ringkasan:\n${selectedAnnouncement.summary}\n\n` +
-      `Baca isi lengkap & unduh dokumen resminya pada tautan berikut:\n${currentUrl}`
+      `*${selectedAnnouncement?.title}*\n\n` +
+      `📋 *Sasaran:* ${selectedAnnouncement?.target}\n` +
+      `⚡ *Tingkat:* ${selectedAnnouncement?.urgency}\n` +
+      `📅 *Diterbitkan:* ${selectedAnnouncement?.date}\n\n` +
+      `*Ringkasan Surat Edaran:*\n${selectedAnnouncement?.summary}\n\n` +
+      `🔗 *Buka & Unduh Lembar Dokumen Resmi:*\n${shareUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleShareImage = async () => {
+    if (!selectedAnnouncement) return;
+    try {
+      setSharingImage(true);
+      showToast('Sedang menyiapkan gambar surat resmi pengumuman...', 'info');
+      const imageUrl = `/api/announcement-image?id=${encodeURIComponent(selectedAnnouncement.id)}`;
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error('Gagal memuat gambar lembar pengumuman');
+      const blob = await response.blob();
+      const filename = `Pengumuman-Korwilcam-${selectedAnnouncement.id}.png`;
+      const file = new File([blob], filename, { type: 'image/png' });
+
+      // Jika browser mendukung Web Share API berkas (terutama di Android / iPhone untuk langsung kirim ke WA)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: selectedAnnouncement.title,
+          text: `*PENGUMUMAN RESMI KORWILCAM PURWODADI*\n\n*${selectedAnnouncement.title}*\n\nRingkasan:\n${selectedAnnouncement.summary}\n\n🔗 Dokumen Resmi:\n${shareUrl}`
+        });
+        showToast('Gambar surat pengumuman berhasil dibagikan!', 'success');
+      } else {
+        // Fallback untuk desktop: unduh gambar dan salin teks link ke clipboard
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        const shareMsg = `*PENGUMUMAN RESMI KORWILCAM PURWODADI*\n\n*${selectedAnnouncement.title}*\n\nRingkasan:\n${selectedAnnouncement.summary}\n\n🔗 Dokumen Resmi:\n${shareUrl}`;
+        await navigator.clipboard.writeText(shareMsg);
+
+        showToast('Gambar lembar surat berhasil diunduh dan teks tautan disalin untuk WhatsApp!', 'success');
+      }
+    } catch (err: any) {
+      console.error('handleShareImage error:', err);
+      if (err.name !== 'AbortError') {
+        showToast('Mengunduh gambar surat pengumuman langsung...', 'info');
+        window.open(`/api/announcement-image?id=${encodeURIComponent(selectedAnnouncement.id)}`, '_blank');
+      }
+    } finally {
+      setSharingImage(false);
+    }
   };
 
   const handleDownloadFile = () => {
-    if (selectedAnnouncement.fileUrl && selectedAnnouncement.fileUrl !== '#') {
+    if (selectedAnnouncement?.fileUrl && selectedAnnouncement.fileUrl !== '#') {
       const link = document.createElement('a');
       link.href = selectedAnnouncement.fileUrl;
       link.download = selectedAnnouncement.fileName || `${selectedAnnouncement.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(selectedAnnouncement.fileType || 'pdf').toLowerCase()}`;
@@ -141,20 +187,22 @@ export const AnnouncementDetailPage: React.FC = () => {
             </button>
 
             <button
+              onClick={handleShareImage}
+              disabled={sharingImage}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
+              title="Unduh atau bagikan berkas gambar surat resmi pengumuman"
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+              <span>{sharingImage ? 'Menyiapkan...' : 'Gambar Surat'}</span>
+            </button>
+
+            <button
               onClick={handleShareWhatsApp}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
               title="Bagikan ke WhatsApp"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>Kirim ke WA</span>
-            </button>
-
-            <button
-              onClick={handlePrint}
-              className="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors"
-              title="Cetak Surat Edaran"
-            >
-              <Printer className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -167,25 +215,43 @@ export const AnnouncementDetailPage: React.FC = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/90 shadow-lg space-y-8 print:border-none print:shadow-none print:p-0">
           
           {/* Official Letterhead (Kop Surat) */}
-          <div className="border-b-4 border-double border-slate-900 pb-5 text-center relative">
-            <div className="flex flex-col items-center space-y-1">
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-700">
-                Pemerintah Kabupaten Grobogan
-              </span>
-              <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-slate-900">
-                Dinas Pendidikan
-              </h2>
-              <h1 className="text-base sm:text-xl font-black uppercase tracking-tight text-blue-950">
-                Koordinator Wilayah Kecamatan Bidang Pendidikan
-              </h1>
-              <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-blue-900">
-                Kecamatan Purwodadi
-              </h3>
-              <p className="text-[11px] sm:text-xs text-slate-600 max-w-xl mx-auto pt-1 leading-relaxed">
-                {officeProfile.address || 'Jl. Gajah Mada No. 12, Purwodadi, Kabupaten Grobogan, Jawa Tengah 58111'}
-                <br />
-                Pos-el: {officeProfile.email || 'korwilcampurwodadi.pendidikan@gmail.com'} • Kontak: {officeProfile.phone || '085161717170'}
-              </p>
+          <div className="border-b-4 border-double border-slate-900 pb-5 relative">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+              {/* Logo Resmi Daerah di sebelah kiri kop surat */}
+              <div className="shrink-0 flex items-center justify-center">
+                <img
+                  src="/logo_kop.png"
+                  alt="Logo Kabupaten Grobogan"
+                  className="w-20 h-24 sm:w-24 sm:h-28 md:w-28 md:h-32 object-contain drop-shadow-xs"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/logo.png';
+                  }}
+                />
+              </div>
+
+              {/* Teks Identitas Lembaga Kop Surat (Center) */}
+              <div className="flex-1 text-center space-y-1">
+                <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-700 block">
+                  Pemerintah Kabupaten Grobogan
+                </span>
+                <h2 className="text-sm sm:text-base md:text-lg font-extrabold uppercase tracking-wider text-slate-900">
+                  Dinas Pendidikan
+                </h2>
+                <h1 className="text-base sm:text-xl md:text-2xl font-black uppercase tracking-tight text-blue-950">
+                  Koordinator Wilayah Kecamatan Bidang Pendidikan
+                </h1>
+                <h3 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-wider text-blue-900">
+                  Kecamatan Purwodadi
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-600 max-w-2xl mx-auto pt-1 leading-relaxed">
+                  {officeProfile.address || 'Jl. Gajah Mada No. 12, Purwodadi, Kabupaten Grobogan, Jawa Tengah 58111'}
+                  <br />
+                  Pos-el: {officeProfile.email || 'korwilcampurwodadi.pendidikan@gmail.com'} • Kontak: {officeProfile.phone || '085161717170'}
+                </p>
+              </div>
+
+              {/* Penyeimbang simetris kanan agar teks kop tetap presisi di tengah halaman */}
+              <div className="w-20 sm:w-24 md:w-28 hidden sm:block shrink-0" aria-hidden="true" />
             </div>
           </div>
 
@@ -296,46 +362,6 @@ export const AnnouncementDetailPage: React.FC = () => {
 
         </div>
 
-        {/* Share Section (Social Links & Share to WhatsApp) (Hidden when printing) */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-4 print:hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                <Share2 className="w-4 h-4 text-blue-600" />
-                <span>Sebarkan Informasi Pengumuman Ini</span>
-              </h3>
-              <p className="text-xs text-slate-500">
-                Tautan resmi ini dapat disebarkan ke grup WhatsApp Kepala Sekolah, Guru, atau GTK.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleShareWhatsApp}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Bagikan ke WhatsApp</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200">
-            <input
-              type="text"
-              readOnly
-              value={currentUrl}
-              className="flex-1 bg-transparent px-3 py-1.5 text-xs text-slate-600 font-mono focus:outline-none truncate"
-            />
-            <button
-              onClick={handleCopyLink}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shrink-0 flex items-center gap-1.5 shadow-sm"
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Tersalin' : 'Salin Tautan'}</span>
-            </button>
-          </div>
-        </div>
 
         {/* Other Announcements Recommendation (Hidden when printing) */}
         {otherAnnouncements.length > 0 && (

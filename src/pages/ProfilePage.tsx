@@ -36,9 +36,23 @@ export const ProfilePage: React.FC = () => {
     }
   }, []);
 
+  const divisionOrder: Record<string, number> = {
+    'Pimpinan': 1,
+    'Pengawas SD': 2,
+    'Penilik PAUD/TK': 3,
+    'Tata Usaha': 4
+  };
+
+  const sortedStaff = [...staff].sort((a, b) => {
+    const orderA = divisionOrder[a.division] || 99;
+    const orderB = divisionOrder[b.division] || 99;
+    if (orderA !== orderB) return orderA - orderB;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
   const filteredStaff = selectedDivision === 'ALL'
-    ? staff
-    : staff.filter((s) => s.division === selectedDivision);
+    ? sortedStaff
+    : sortedStaff.filter((s) => s.division === selectedDivision);
 
   const divisions = [
     { id: 'ALL', label: 'Semua Pejabat & Staf' },
@@ -73,11 +87,14 @@ export const ProfilePage: React.FC = () => {
           <div className="lg:col-span-4 flex flex-col items-center text-center space-y-4">
             <div className="relative">
               <img
-                src={officeProfile.korwilPhoto}
+                src={officeProfile.korwilPhoto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600'}
                 alt={officeProfile.korwilName}
                 loading="lazy"
                 decoding="async"
-                className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600';
+                }}
+                className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-slate-100"
               />
               <div className="absolute -bottom-3 -right-3 p-2 rounded-xl bg-blue-600 text-white shadow-lg">
                 <ShieldCheck className="w-6 h-6" />
@@ -214,34 +231,57 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         <div id="pegawai" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 scroll-mt-24">
-          {filteredStaff.map((person) => (
-            <div
-              key={person.id}
-              className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
-            >
-              <img
-                src={person.photo}
-                alt={person.name}
-                loading="lazy"
-                decoding="async"
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0"
-              />
-              <div className="space-y-1 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700">
-                  {person.division}
-                </span>
-                <h4 className="font-bold text-slate-900 text-sm leading-snug group-hover:text-blue-600 transition-colors truncate">
-                  {person.name}
-                </h4>
-                <p className="text-xs text-slate-600 font-medium">
-                  {person.role}
-                </p>
-                <p className="text-[11px] font-mono text-slate-400">
-                  NIP. {person.nip}
-                </p>
-              </div>
+          {filteredStaff.length === 0 ? (
+            <div className="col-span-full py-12 px-6 text-center bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm space-y-3">
+              <Users className="w-12 h-12 text-slate-300 mx-auto" />
+              <h4 className="text-base font-bold text-slate-700">Belum Ada Data Pejabat / Staf</h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                {selectedDivision === 'ALL'
+                  ? 'Data jajaran pengawas, penilik, dan staf kantor belum ditambahkan di database.'
+                  : `Belum ada data staf pada kategori "${selectedDivision}". Silakan pilih kategori lain atau kembali ke Semua.`}
+              </p>
             </div>
-          ))}
+          ) : (
+            filteredStaff.map((person) => (
+              <div
+                key={person.id}
+                className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
+              >
+                <img
+                  src={person.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600'}
+                  alt={person.name}
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600';
+                  }}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0 bg-slate-100"
+                />
+                <div className="space-y-1 min-w-0">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                    person.division === 'Pimpinan'
+                      ? 'bg-purple-50 text-purple-700 border-purple-200'
+                      : person.division === 'Pengawas SD'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : person.division === 'Penilik PAUD/TK'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
+                    {person.division}
+                  </span>
+                  <h4 className="font-bold text-slate-900 text-sm leading-snug group-hover:text-blue-600 transition-colors truncate">
+                    {person.name}
+                  </h4>
+                  <p className="text-xs text-slate-600 font-medium truncate">
+                    {person.role}
+                  </p>
+                  <p className="text-[11px] font-mono text-slate-400">
+                    {person.nip ? `NIP. ${person.nip}` : 'NIP. -'}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 

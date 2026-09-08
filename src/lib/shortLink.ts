@@ -51,3 +51,34 @@ export const resolveNewsCandidates = (code: string): string[] => {
 
   return Array.from(new Set(list));
 };
+
+export const getAnnouncementShortCode = (announcement: { id?: string; title?: string } | null | undefined): string => {
+  if (!announcement) return '';
+  const id = announcement.id || '';
+  if (id.startsWith('ann-')) {
+    return id.replace(/^ann-/, '');
+  }
+  return id;
+};
+
+export const getAnnouncementShortUrl = (announcement: { id?: string; title?: string } | null | undefined): string => {
+  if (!announcement) return '';
+  const origin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://korwilcampurwodadi-grobogan.vercel.app';
+  const shortCode = getAnnouncementShortCode(announcement);
+  return `${origin}/p/${encodeURIComponent(shortCode)}`;
+};
+
+export const resolveAnnouncementCandidates = (code: string): string[] => {
+  if (!code) return [];
+  const decoded = decodeURIComponent(code).trim();
+  const list: string[] = [decoded];
+  if (!decoded.startsWith('ann-')) {
+    list.push(`ann-${decoded}`);
+    list.push(`ann-${decoded.padStart(2, '0')}`);
+  } else {
+    list.push(decoded.replace(/^ann-/, ''));
+  }
+  return Array.from(new Set(list));
+};

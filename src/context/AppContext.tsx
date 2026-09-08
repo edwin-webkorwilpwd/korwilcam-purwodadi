@@ -26,7 +26,7 @@ import {
 } from '../data/initialData';
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
-import { resolveNewsCandidates } from '../lib/shortLink';
+import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug } from '../lib/galleryHelper';
 
@@ -135,15 +135,15 @@ interface AppContextType {
   updateGalleryItem: (id: string, item: Partial<GalleryItem>) => void;
   deleteGalleryItem: (id: string) => void;
 
-  addStaff: (staffItem: Omit<StaffProfile, 'id'>) => void;
-  updateStaff: (id: string, staffItem: Partial<StaffProfile>) => void;
-  deleteStaff: (id: string) => void;
+  addStaff: (staffItem: Omit<StaffProfile, 'id'>) => Promise<boolean>;
+  updateStaff: (id: string, staffItem: Partial<StaffProfile>) => Promise<boolean>;
+  deleteStaff: (id: string) => Promise<boolean>;
 
   addComplaint: (comp: Omit<ComplaintMessage, 'id' | 'status' | 'date'>) => void;
   deleteComplaint: (id: string) => void;
   updateComplaintStatus: (id: string, status: 'Baru' | 'Dibaca' | 'Selesai') => void;
 
-  updateOfficeProfile: (profile: Partial<OfficeProfile>) => void;
+  updateOfficeProfile: (profile: Partial<OfficeProfile>) => Promise<boolean>;
   resetToDefaultData: () => void;
 
   // Toast notifications
@@ -295,41 +295,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  // Sync to local storage for local resilience
+  // Sync to local storage for local resilience with quota protection
   useEffect(() => {
-    localStorage.setItem('korwilcam_schools', JSON.stringify(schools));
+    try {
+      localStorage.setItem('korwilcam_schools', JSON.stringify(schools));
+    } catch (e) {
+      console.warn('localStorage save schools quota warning:', e);
+    }
   }, [schools]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_news', JSON.stringify(news));
+    try {
+      localStorage.setItem('korwilcam_news', JSON.stringify(news));
+    } catch (e) {
+      console.warn('localStorage save news quota warning:', e);
+    }
   }, [news]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_announcements', JSON.stringify(announcements));
+    try {
+      localStorage.setItem('korwilcam_announcements', JSON.stringify(announcements));
+    } catch (e) {
+      console.warn('localStorage save announcements quota warning:', e);
+    }
   }, [announcements]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_agenda', JSON.stringify(agenda));
+    try {
+      localStorage.setItem('korwilcam_agenda', JSON.stringify(agenda));
+    } catch (e) {
+      console.warn('localStorage save agenda quota warning:', e);
+    }
   }, [agenda]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_documents', JSON.stringify(documents));
+    try {
+      localStorage.setItem('korwilcam_documents', JSON.stringify(documents));
+    } catch (e) {
+      console.warn('localStorage save documents quota warning:', e);
+    }
   }, [documents]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_gallery', JSON.stringify(gallery));
+    try {
+      localStorage.setItem('korwilcam_gallery', JSON.stringify(gallery));
+    } catch (e) {
+      console.warn('localStorage save gallery quota warning:', e);
+    }
   }, [gallery]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_office_profile', JSON.stringify(officeProfile));
+    try {
+      localStorage.setItem('korwilcam_office_profile', JSON.stringify(officeProfile));
+    } catch (e) {
+      console.warn('localStorage save office_profile quota warning:', e);
+    }
   }, [officeProfile]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_staff', JSON.stringify(staff));
+    try {
+      localStorage.setItem('korwilcam_staff', JSON.stringify(staff));
+    } catch (e) {
+      console.warn('localStorage save staff quota warning:', e);
+    }
   }, [staff]);
 
   useEffect(() => {
-    localStorage.setItem('korwilcam_complaints', JSON.stringify(complaints));
+    try {
+      localStorage.setItem('korwilcam_complaints', JSON.stringify(complaints));
+    } catch (e) {
+      console.warn('localStorage save complaints quota warning:', e);
+    }
   }, [complaints]);
 
   // Initial fetch from Supabase if connected
@@ -458,17 +494,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
-      // Fetch staff
-      const { data: dbStaff } = await client.from('staff').select('*');
-      if (dbStaff && dbStaff.length > 0) {
-        setStaff(dbStaff.map((st: any) => ({
-          id: st.id,
-          name: st.name,
-          role: st.role,
-          nip: st.nip,
-          photo: st.photo,
-          division: st.division
-        })));
+      // Fetch staff from Supabase (sorted by created_at)
+      try {
+        const { data: dbStaff, error: staffErr } = await client
+          .from('staff')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (!staffErr && dbStaff) {
+          if (dbStaff.length > 0) {
+            setStaff(dbStaff.map((st: any) => ({
+              id: st.id,
+              name: st.name || '',
+              role: st.role || '',
+              nip: st.nip || '',
+              photo: st.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+              division: st.division || 'Pengawas SD'
+            })));
+          } else {
+            setStaff([]);
+          }
+        }
+      } catch (stErr) {
+        console.warn('Supabase fetch staff warning:', stErr);
       }
 
       // Fetch office profile
@@ -985,6 +1033,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const found = announcements.find((a) => 
             a.id === slug || 
             a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug
+          );
+          if (found) {
+            setSelectedAnnouncementState(found);
+            setSelectedNewsState(null);
+            document.title = `${found.title} - Pengumuman Korwilcam Purwodadi`;
+            return;
+          }
+        }
+      }
+
+      // 1b. Support short URL /p/:code (e.g. /p/03 or /p/ann-03)
+      if (rawPath.startsWith('/p/')) {
+        const code = decodeURIComponent(rawPath.replace(/^\/p\//, '')).trim();
+        const candidates = resolveAnnouncementCandidates(code);
+        setActiveTabState('news');
+        if (announcements.length > 0) {
+          const found = announcements.find((a) => 
+            candidates.includes(a.id) ||
+            candidates.some((c) => a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === c)
           );
           if (found) {
             setSelectedAnnouncementState(found);
@@ -2194,9 +2261,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // STAFF CRUD (Auto-save to Supabase & local state)
-  const addStaff = async (staffData: Omit<StaffProfile, 'id'>) => {
+  const addStaff = async (staffData: Omit<StaffProfile, 'id'>): Promise<boolean> => {
     const newStaff: StaffProfile = {
       ...staffData,
+      name: staffData.name.trim(),
+      role: staffData.role.trim(),
+      nip: (staffData.nip || '').trim(),
+      photo: staffData.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+      division: staffData.division || 'Pengawas SD',
       id: `st-${Date.now()}`
     };
     setStaff((prev) => [...prev, newStaff]);
@@ -2214,26 +2286,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           division: newStaff.division
         });
         if (error) {
-          showToast(`Data staf disimpan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
+          showToast(`Data staf tersimpan lokal. Supabase: ${error.message}`, 'error');
+          return false;
         } else {
-          showToast(`Pejabat/Staf ${newStaff.name} berhasil disimpan otomatis ke Supabase Cloud!`, 'success');
+          showToast(`Pejabat/Staf "${newStaff.name}" dan pas foto berhasil tersimpan otomatis di Supabase Cloud!`, 'success');
+          return true;
         }
       } catch (err: any) {
-        showToast(`Staf disimpan lokal.`, 'info');
+        showToast(`Staf disimpan di penyimpanan lokal.`, 'info');
+        return false;
       } finally {
         setSyncStatus('connected');
       }
     } else {
       showToast(`Pejabat/Staf ${newStaff.name} berhasil ditambahkan ke penyimpanan lokal!`, 'success');
+      return true;
     }
   };
 
-  const updateStaff = async (id: string, updatedData: Partial<StaffProfile>) => {
+  const updateStaff = async (id: string, updatedData: Partial<StaffProfile>): Promise<boolean> => {
     let mergedStaff: StaffProfile | null = null;
     setStaff((prev) =>
       prev.map((s) => {
         if (s.id === id) {
-          mergedStaff = { ...s, ...updatedData };
+          mergedStaff = {
+            ...s,
+            ...updatedData,
+            name: updatedData.name ? updatedData.name.trim() : s.name,
+            role: updatedData.role ? updatedData.role.trim() : s.role,
+            nip: updatedData.nip !== undefined ? updatedData.nip.trim() : s.nip,
+            photo: updatedData.photo ? updatedData.photo : s.photo,
+            division: updatedData.division || s.division
+          };
           return mergedStaff;
         }
         return s;
@@ -2254,21 +2338,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           division: st.division
         });
         if (error) {
-          showToast(`Data staf diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
+          showToast(`Data staf diperbarui lokal. Supabase: ${error.message}`, 'error');
+          return false;
         } else {
-          showToast('Data pejabat/staf berhasil diperbarui di database Supabase Cloud!', 'success');
+          showToast(`Data "${st.name}" dan foto berhasil diperbarui di database Supabase Cloud!`, 'success');
+          return true;
         }
       } catch (err: any) {
         showToast(`Data staf diperbarui lokal.`, 'info');
+        return false;
       } finally {
         setSyncStatus('connected');
       }
     } else {
       showToast('Data pejabat/staf berhasil diperbarui.', 'success');
+      return true;
     }
   };
 
-  const deleteStaff = async (id: string) => {
+  const deleteStaff = async (id: string): Promise<boolean> => {
     setStaff((prev) => prev.filter((s) => s.id !== id));
 
     const client = getSupabaseClient();
@@ -2278,16 +2366,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const { error } = await client.from('staff').delete().eq('id', id);
         if (error) {
           showToast(`Gagal hapus dari Supabase: ${error.message}`, 'error');
+          return false;
         } else {
           showToast('Data pejabat/staf berhasil dihapus dari database Supabase.', 'info');
+          return true;
         }
       } catch (err: any) {
         showToast('Data staf dihapus lokal.', 'info');
+        return false;
       } finally {
         setSyncStatus('connected');
       }
     } else {
       showToast('Data pejabat/staf berhasil dihapus.', 'info');
+      return true;
     }
   };
 
@@ -2356,7 +2448,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // OFFICE PROFILE (Auto-save to Supabase & local state)
-  const updateOfficeProfile = async (profileData: Partial<OfficeProfile>) => {
+  const updateOfficeProfile = async (profileData: Partial<OfficeProfile>): Promise<boolean> => {
     const updated = { ...officeProfile, ...profileData };
     setOfficeProfile(updated);
 
@@ -2387,16 +2479,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         if (error) {
           showToast(`Profil diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
+          return false;
         } else {
-          showToast('Profil kantor dan tampilan berhasil diperbarui & tersimpan di Supabase Cloud!', 'success');
+          showToast('Profil kantor dan pimpinan berhasil diperbarui & tersimpan di Supabase Cloud!', 'success');
+          return true;
         }
       } catch (err: any) {
         showToast(`Profil diperbarui lokal.`, 'info');
+        return false;
       } finally {
         setSyncStatus('connected');
       }
     } else {
       showToast('Profil kantor dan tampilan berhasil diperbarui di penyimpanan lokal.', 'success');
+      return true;
     }
   };
 
