@@ -1,8 +1,23 @@
-{
+﻿{
   "rewrites": [
     {
       "source": "/b/:id*",
       "destination": "/api/share?id=:id*"
+    },
+    {
+      "source": "/p/:id*",
+      "destination": "/api/share?id=:id*&type=announcement"
+    },
+    {
+      "source": "/pengumuman/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*&type=announcement"
     },
     {
       "source": "/berita/:slug*",
