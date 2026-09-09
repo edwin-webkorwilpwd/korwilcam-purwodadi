@@ -118,33 +118,6 @@ export const SOPPage: React.FC = () => {
                 </p>
               </div>
             </div>
-
-            {sopImageUrl && (
-              <div className="flex items-center gap-2 self-end sm:self-auto">
-                {isGdrive && driveViewUrl && (
-                  <a
-                    href={driveViewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  >
-                    <span>Buka di Google Drive</span>
-                    <ExternalLink className="w-3 h-3 text-slate-500" />
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLightboxOpen(true);
-                    setZoomLevel(1);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                >
-                  <Maximize2 className="w-3 h-3" />
-                  <span>Perbesar</span>
-                </button>
-              </div>
-            )}
           </div>
 
           {/* SOP Image Viewer (Gambar Utuh) */}
