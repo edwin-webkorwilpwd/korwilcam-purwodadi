@@ -262,6 +262,8 @@ export const AdminDashboard: React.FC = () => {
   // Refs for file inputs
   const korwilPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const staffPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const quickStaffPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const [quickUploadStaffId, setQuickUploadStaffId] = useState<string | null>(null);
 
   const handleKorwilPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -277,6 +279,8 @@ export const AdminDashboard: React.FC = () => {
       showToast('Foto resmi pimpinan berhasil diunggah & otomatis tersimpan ke Database Supabase!', 'success');
     } catch (err) {
       showToast('Gagal memproses foto pimpinan!', 'error');
+    } finally {
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -289,9 +293,35 @@ export const AdminDashboard: React.FC = () => {
       // Kompresi pas foto ~30-45KB agar cepat dimuat oleh semua pengunjung web
       const dataUrl = await compressImage(file, 500, 0.78);
       setStaffForm((prev) => ({ ...prev, photo: dataUrl }));
-      showToast('Pas foto pegawai berhasil diproses & siap disimpan ke database!', 'success');
+      
+      // Jika sedang edit pegawai yang sudah ada, langsung simpan foto ke Supabase Cloud seketika
+      if (editingStaffId) {
+        await updateStaff(editingStaffId, { photo: dataUrl });
+        showToast('Pas foto pegawai berhasil diperbarui dan disimpan ke Supabase Cloud!', 'success');
+      } else {
+        showToast('Pas foto pegawai berhasil diproses & siap disimpan bersama data pegawai!', 'success');
+      }
     } catch (err) {
       showToast('Gagal memproses pas foto pegawai!', 'error');
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleQuickStaffPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !quickUploadStaffId) return;
+
+    try {
+      showToast('Memproses pas foto pegawai...', 'info');
+      const dataUrl = await compressImage(file, 500, 0.78);
+      await updateStaff(quickUploadStaffId, { photo: dataUrl });
+      showToast('Pas foto pegawai berhasil diunggah dan disimpan langsung ke Supabase Cloud!', 'success');
+    } catch (err) {
+      showToast('Gagal mengunggah pas foto pegawai!', 'error');
+    } finally {
+      setQuickUploadStaffId(null);
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -367,7 +397,7 @@ export const AdminDashboard: React.FC = () => {
     name: '',
     role: '',
     nip: '',
-    photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+    photo: '',
     division: 'Pengawas SD' as 'Pimpinan' | 'Pengawas SD' | 'Penilik PAUD/TK' | 'Tata Usaha'
   });
 
@@ -391,7 +421,7 @@ export const AdminDashboard: React.FC = () => {
         name: '',
         role: '',
         nip: '',
-        photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+        photo: '',
         division: 'Pengawas SD'
       });
     } finally {
@@ -1848,12 +1878,19 @@ export const AdminDashboard: React.FC = () => {
 
                   <div className="flex flex-col sm:flex-row items-center gap-4">
                     {/* Preview Avatar */}
-                    <div className="relative group shrink-0">
-                      <img
-                        src={profileForm.korwilPhoto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600'}
-                        alt="Foto Pimpinan"
-                        className="w-20 h-24 sm:w-24 sm:h-28 object-cover rounded-2xl border-2 border-white shadow-md"
-                      />
+                    <div className="relative group shrink-0 w-20 h-24 sm:w-24 sm:h-28 rounded-2xl border-2 border-white shadow-md overflow-hidden bg-slate-100 flex items-center justify-center">
+                      {profileForm.korwilPhoto && !profileForm.korwilPhoto.includes('unsplash.com') ? (
+                        <img
+                          src={profileForm.korwilPhoto}
+                          alt="Foto Pimpinan"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
+                          <User className="w-8 h-8 text-slate-400" />
+                          <span className="text-[9px] font-bold mt-1 text-slate-500">Pimpinan</span>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => korwilPhotoInputRef.current?.click()}
@@ -2093,16 +2130,23 @@ export const AdminDashboard: React.FC = () => {
 
                     <div className="flex flex-col sm:flex-row items-center gap-3.5">
                       {/* Preview Avatar */}
-                      <div className="relative group shrink-0">
-                        <img
-                          src={staffForm.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600'}
-                          alt="Foto Pegawai"
-                          className="w-16 h-20 object-cover rounded-xl border-2 border-slate-200 shadow-sm"
-                        />
+                      <div className="relative group shrink-0 w-16 h-20 rounded-xl border-2 border-slate-200 shadow-sm overflow-hidden bg-slate-100 flex items-center justify-center">
+                        {staffForm.photo && !staffForm.photo.includes('unsplash.com') ? (
+                          <img
+                            src={staffForm.photo}
+                            alt="Foto Pegawai"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 gap-0.5">
+                            <User className="w-6 h-6 text-slate-400" />
+                            <span className="text-[8px] font-semibold text-slate-400">Pas Foto</span>
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => staffPhotoInputRef.current?.click()}
-                          className="absolute inset-0 bg-black/40 text-white rounded-xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-1"
+                          className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-1"
                         >
                           <Camera className="w-3.5 h-3.5" />
                           <span>Ganti</span>
@@ -2136,6 +2180,13 @@ export const AdminDashboard: React.FC = () => {
                           onChange={handleStaffPhotoUpload}
                           className="hidden"
                         />
+                        <input
+                          ref={quickStaffPhotoInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleQuickStaffPhotoUpload}
+                          className="hidden"
+                        />
                       </div>
                     </div>
                   </div>
@@ -2167,7 +2218,7 @@ export const AdminDashboard: React.FC = () => {
                             name: '',
                             role: '',
                             nip: '',
-                            photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+                            photo: '',
                             division: 'Pengawas SD'
                           });
                         }}
@@ -2205,14 +2256,23 @@ export const AdminDashboard: React.FC = () => {
                         staff.map((st) => (
                           <tr key={st.id} className="hover:bg-slate-50 transition-colors">
                             <td className="p-3 flex items-center gap-2.5">
-                              <img
-                                src={st.photo}
-                                alt={st.name}
-                                className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600';
-                                }}
-                              />
+                              <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center relative">
+                                {st.photo && !st.photo.includes('unsplash.com') ? (
+                                  <img
+                                    src={st.photo}
+                                    alt={st.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      const sibling = e.currentTarget.nextElementSibling;
+                                      if (sibling) (sibling as HTMLElement).classList.remove('hidden');
+                                    }}
+                                  />
+                                ) : null}
+                                <div className={`w-full h-full flex items-center justify-center bg-slate-100 text-slate-400 ${st.photo && !st.photo.includes('unsplash.com') ? 'hidden' : 'flex'}`}>
+                                  <User className="w-4 h-4 text-slate-400" />
+                                </div>
+                              </div>
                               <span className="font-bold text-slate-900">{st.name}</span>
                             </td>
                             <td className="p-3">{st.role}</td>
@@ -2238,6 +2298,18 @@ export const AdminDashboard: React.FC = () => {
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setQuickUploadStaffId(st.id);
+                                    quickStaffPhotoInputRef.current?.click();
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-1 font-bold text-[11px]"
+                                  title={`Upload / Ganti pas foto untuk ${st.name} langsung ke Supabase`}
+                                >
+                                  <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Foto</span>
+                                </button>
                                 <button
                                   onClick={() => {
                                     setEditingStaffId(st.id);

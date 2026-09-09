@@ -537,14 +537,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .order('created_at', { ascending: true });
 
         if (!staffErr && dbStaff) {
-          setStaff(dbStaff.map((st: any) => ({
-            id: String(st.id || `st-${Date.now()}`),
-            name: String(st.name || st.nama || '').trim(),
-            role: String(st.role || st.jabatan || 'Staf').trim(),
-            nip: String(st.nip || '').trim(),
-            photo: st.photo || st.foto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
-            division: st.division || st.divisi || 'Tata Usaha'
-          })));
+          setStaff(dbStaff.map((st: any) => {
+            const rawPhoto = String(st.photo || st.foto || '').trim();
+            const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
+            return {
+              id: String(st.id || `st-${Date.now()}`),
+              name: String(st.name || st.nama || '').trim(),
+              role: String(st.role || st.jabatan || 'Staf').trim(),
+              nip: String(st.nip || '').trim(),
+              photo: cleanPhoto,
+              division: st.division || st.divisi || 'Tata Usaha'
+            };
+          }));
         }
       } catch (stErr) {
         console.warn('Supabase fetch staff warning:', stErr);
@@ -554,6 +558,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { data: dbProfile } = await client.from('office_profile').select('*').limit(1);
       if (dbProfile && dbProfile.length > 0) {
         const p = dbProfile[0];
+        const rawKorwilPhoto = String(p.korwil_photo || '').trim();
+        const cleanKorwilPhoto = (rawKorwilPhoto.includes('unsplash.com') || rawKorwilPhoto.includes('photo-1560250097')) ? '' : rawKorwilPhoto;
         setOfficeProfile({
           name: p.name || initialOfficeProfile.name,
           tagline: p.tagline || initialOfficeProfile.tagline,
@@ -564,7 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           workingHours: p.working_hours || initialOfficeProfile.workingHours,
           korwilName: p.korwil_name || initialOfficeProfile.korwilName,
           korwilNip: p.korwil_nip || initialOfficeProfile.korwilNip,
-          korwilPhoto: p.korwil_photo || initialOfficeProfile.korwilPhoto,
+          korwilPhoto: cleanKorwilPhoto,
           greetingTitle: p.greeting_title || initialOfficeProfile.greetingTitle,
           greetingText: p.greeting_text || initialOfficeProfile.greetingText,
           vision: p.vision || initialOfficeProfile.vision,
@@ -2264,12 +2270,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // STAFF CRUD (Auto-save to Supabase & local state)
   const addStaff = async (staffData: Omit<StaffProfile, 'id'>): Promise<boolean> => {
+    const rawPhoto = String(staffData.photo || '').trim();
+    const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
     const newStaff: StaffProfile = {
       ...staffData,
       name: staffData.name.trim(),
       role: staffData.role.trim(),
       nip: (staffData.nip || '').trim(),
-      photo: staffData.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+      photo: cleanPhoto,
       division: staffData.division || 'Pengawas SD',
       id: `st-${Date.now()}`
     };
@@ -2311,13 +2319,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStaff((prev) =>
       prev.map((s) => {
         if (s.id === id) {
+          const rawPhoto = updatedData.photo !== undefined ? String(updatedData.photo).trim() : String(s.photo || '').trim();
+          const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
           mergedStaff = {
             ...s,
             ...updatedData,
             name: updatedData.name ? updatedData.name.trim() : s.name,
             role: updatedData.role ? updatedData.role.trim() : s.role,
             nip: updatedData.nip !== undefined ? updatedData.nip.trim() : s.nip,
-            photo: updatedData.photo ? updatedData.photo : s.photo,
+            photo: cleanPhoto,
             division: updatedData.division || s.division
           };
           return mergedStaff;

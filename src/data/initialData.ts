@@ -20,7 +20,7 @@ export const initialOfficeProfile: OfficeProfile = {
   workingHours: "Senin - Kamis: 07.30 - 16.00 WIB | Jumat: 07.30 - 15.00 WIB",
   korwilName: "Drs. H. Bambang Sujarwo, M.Pd.",
   korwilNip: "19710815 199603 1 004",
-  korwilPhoto: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600",
+  korwilPhoto: "",
   greetingTitle: "Selamat Datang di Portal Resmi Korwilcam Bidang Pendidikan Purwodadi",
   greetingText: "Assalamu’alaikum Warahmatullahi Wabarakatuh, Salam Sejahtera, Om Swastiastu, Namo Buddhaya, Salam Kebajikan, Rahayu. Puji syukur kita panjatkan ke hadirat Tuhan Yang Maha Esa. Melalui kehadiran website ini, kami berkomitmen menghadirkan layanan informasi yang transparan, akuntabel, dan ramah masyarakat. Korwilcam Purwodadi terus berikhtiar mendampingi sekolah jenjang SD, TK, dan PAUD untuk melahirkan generasi penerus bangsa yang berakhlak mulia, cerdas, berwawasan global, dan berakar pada nilai-nilai luhur Pancasila. Mari kita bersinergi demi kemajuan pendidikan anak-anak kita.",
   vision: "Terwujudnya Generasi Purwodadi yang Berkarakter Pancasila, Unggul dalam Prestasi, Mandiri, dan Berbudaya melalui Layanan Pendidikan SD, TK, dan PAUD yang Inklusif dan Berkualitas.",
@@ -472,7 +472,7 @@ export const initialStaff: StaffProfile[] = [
     name: "Drs. H. Bambang Sujarwo, M.Pd.",
     role: "Koordinator Wilayah Kecamatan",
     nip: "19710815 199603 1 004",
-    photo: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600",
+    photo: "",
     division: "Pimpinan"
   },
   {
@@ -480,7 +480,7 @@ export const initialStaff: StaffProfile[] = [
     name: "Drs. Sutrisno, M.Pd.",
     role: "Pengawas Sekolah Dasar Madya",
     nip: "19690312 199308 1 002",
-    photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600",
+    photo: "",
     division: "Pengawas SD"
   },
   {
@@ -488,7 +488,7 @@ export const initialStaff: StaffProfile[] = [
     name: "Hj. Endang Tri Wahyuni, M.Pd.",
     role: "Pengawas Sekolah Dasar Madya",
     nip: "19721104 199702 2 003",
-    photo: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600",
+    photo: "",
     division: "Pengawas SD"
   },
   {
@@ -496,7 +496,7 @@ export const initialStaff: StaffProfile[] = [
     name: "Siti Khotimah, S.Pd.AUD",
     role: "Penilik PAUD / PNF Ahli Muda",
     nip: "19760519 200312 2 006",
-    photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=600",
+    photo: "",
     division: "Penilik PAUD/TK"
   },
   {
@@ -504,7 +504,7 @@ export const initialStaff: StaffProfile[] = [
     name: "Agus Prasetyo, S.AP.",
     role: "Kepala Sub Bagian Tata Usaha",
     nip: "19830214 200801 1 009",
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=600",
+    photo: "",
     division: "Tata Usaha"
   },
   {
@@ -512,7 +512,7 @@ export const initialStaff: StaffProfile[] = [
     name: "Budi Santoso, S.Kom.",
     role: "Pengelola Sistem Informasi & Dapodik",
     nip: "19900921 201503 1 003",
-    photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600",
+    photo: "",
     division: "Tata Usaha"
   }
 ];

@@ -9,7 +9,8 @@ import {
   CheckCircle2, 
   BookOpen, 
   ShieldCheck,
-  GraduationCap
+  GraduationCap,
+  User
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -86,16 +87,24 @@ export const ProfilePage: React.FC = () => {
           
           <div className="lg:col-span-4 flex flex-col items-center text-center space-y-4">
             <div className="relative">
-              <img
-                src={officeProfile.korwilPhoto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600'}
-                alt={officeProfile.korwilName}
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600';
-                }}
-                className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-slate-100"
-              />
+              {officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? (
+                <img
+                  src={officeProfile.korwilPhoto}
+                  alt={officeProfile.korwilName}
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextElementSibling;
+                    if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+                  }}
+                  className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-slate-100"
+                />
+              ) : null}
+              <div className={`w-48 h-56 sm:w-56 sm:h-64 rounded-2xl ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-gradient-to-b from-slate-100 to-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 ${officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? 'hidden' : 'flex'}`}>
+                <User className="w-20 h-20 text-slate-400 stroke-1" />
+                <span className="text-xs font-bold text-slate-500">Foto Resmi Pimpinan</span>
+              </div>
               <div className="absolute -bottom-3 -right-3 p-2 rounded-xl bg-blue-600 text-white shadow-lg">
                 <ShieldCheck className="w-6 h-6" />
               </div>
@@ -242,21 +251,38 @@ export const ProfilePage: React.FC = () => {
               </p>
             </div>
           ) : (
-            filteredStaff.map((person) => (
-              <div
-                key={person.id}
-                className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
-              >
-                <img
-                  src={person.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600'}
-                  alt={person.name}
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600';
-                  }}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0 bg-slate-100"
-                />
+            filteredStaff.map((person) => {
+              const hasValidPhoto = Boolean(
+                person.photo && 
+                !person.photo.includes('unsplash.com') && 
+                !person.photo.includes('photo-1560250097') && 
+                person.photo.trim().length > 0
+              );
+              return (
+                <div
+                  key={person.id}
+                  className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
+                >
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0 overflow-hidden relative bg-slate-100 flex items-center justify-center">
+                    {hasValidPhoto ? (
+                      <img
+                        src={person.photo}
+                        alt={person.name}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const fallback = e.currentTarget.nextElementSibling;
+                          if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : null}
+                    <div className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 text-slate-400 ${hasValidPhoto ? 'hidden' : 'flex'}`}>
+                      <User className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" />
+                      <span className="text-[9px] font-bold text-slate-400 mt-0.5">ASN</span>
+                    </div>
+                  </div>
                 <div className="space-y-1 min-w-0">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
                     person.division === 'Pimpinan'
@@ -280,7 +306,8 @@ export const ProfilePage: React.FC = () => {
                   </p>
                 </div>
               </div>
-            ))
+            );
+          })
           )}
         </div>
       </section>
