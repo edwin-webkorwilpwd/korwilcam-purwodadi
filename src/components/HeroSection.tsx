@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Sparkles, 
@@ -9,11 +9,13 @@ import {
   BookOpen, 
   Quote,
   MapPin,
-  ShieldCheck
+  ShieldCheck,
+  User
 } from 'lucide-react';
 
 export const HeroSection: React.FC = () => {
   const { officeProfile, setActiveTab } = useApp();
+  const [photoError, setPhotoError] = useState(false);
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-16 lg:py-24 border-b border-blue-900/40">
@@ -116,13 +118,21 @@ export const HeroSection: React.FC = () => {
                   <div className="relative group w-full">
                     <div className="absolute -inset-1 bg-gradient-to-tr from-blue-600 via-sky-500 to-indigo-600 rounded-2xl blur-sm opacity-40 group-hover:opacity-75 transition duration-300"></div>
                     <div className="relative overflow-hidden rounded-2xl ring-2 ring-blue-500/40 shadow-xl bg-slate-800 h-52 sm:h-60 w-full">
-                      <img
-                        src={officeProfile.korwilPhoto}
-                        alt={officeProfile.korwilName}
-                        decoding="async"
-                        fetchPriority="high"
-                        className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-300"
-                      />
+                      {officeProfile.korwilPhoto && !photoError ? (
+                        <img
+                          src={officeProfile.korwilPhoto}
+                          alt={officeProfile.korwilName}
+                          decoding="async"
+                          fetchPriority="high"
+                          onError={() => setPhotoError(true)}
+                          className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-800 to-slate-900 text-slate-400 gap-2">
+                          <User className="w-16 h-16 text-slate-400 stroke-1" />
+                          <span className="text-[11px] font-bold text-slate-400">Foto Resmi Pimpinan</span>
+                        </div>
+                      )}
                     </div>
                     <div className="absolute -bottom-1.5 -right-1.5 p-1.5 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow border border-blue-300/30">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />

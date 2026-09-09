@@ -225,13 +225,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [officeProfile, setOfficeProfile] = useState<OfficeProfile>(() => {
-    const saved = localStorage.getItem('korwilcam_office_profile');
-    return saved ? JSON.parse(saved) : initialOfficeProfile;
+    try {
+      const saved = localStorage.getItem('korwilcam_office_profile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          parsed &&
+          parsed.korwilName &&
+          !parsed.korwilName.includes('Bambang Sujarwo') &&
+          parsed.korwilPhoto &&
+          !parsed.korwilPhoto.includes('unsplash.com')
+        ) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return initialOfficeProfile;
   });
 
   const [staff, setStaff] = useState<StaffProfile[]>(() => {
-    const saved = localStorage.getItem('korwilcam_staff');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialStaff);
+    try {
+      const saved = localStorage.getItem('korwilcam_staff');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          !JSON.stringify(parsed).includes('Bambang Sujarwo')
+        ) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return initialStaff;
   });
 
   const [complaints, setComplaints] = useState<ComplaintMessage[]>(() => {
@@ -389,6 +419,75 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       setSyncStatus('syncing');
       
+      // 1. Fetch office_profile FIRST (Prioritas Utama untuk header & hero pimpinan instansi)
+      try {
+        const { data: dbProfile } = await client.from('office_profile').select('*').limit(1);
+        if (dbProfile && dbProfile.length > 0) {
+          const p = dbProfile[0];
+          const rawKorwilPhoto = String(p.korwil_photo || '').trim();
+          const cleanKorwilPhoto = (rawKorwilPhoto.includes('unsplash.com') || rawKorwilPhoto.includes('photo-1560250097')) ? '' : rawKorwilPhoto;
+          const updatedProfile: OfficeProfile = {
+            name: p.name || initialOfficeProfile.name,
+            tagline: p.tagline || initialOfficeProfile.tagline,
+            address: p.address || initialOfficeProfile.address,
+            phone: p.phone || initialOfficeProfile.phone,
+            whatsapp: p.whatsapp || initialOfficeProfile.whatsapp,
+            email: p.email || initialOfficeProfile.email,
+            workingHours: p.working_hours || initialOfficeProfile.workingHours,
+            korwilName: p.korwil_name || initialOfficeProfile.korwilName,
+            korwilNip: p.korwil_nip || initialOfficeProfile.korwilNip,
+            korwilPhoto: cleanKorwilPhoto || initialOfficeProfile.korwilPhoto,
+            greetingTitle: p.greeting_title || initialOfficeProfile.greetingTitle,
+            greetingText: p.greeting_text || initialOfficeProfile.greetingText,
+            vision: p.vision || initialOfficeProfile.vision,
+            missions: Array.isArray(p.missions) ? p.missions : initialOfficeProfile.missions,
+            heroTitle: p.hero_title || initialOfficeProfile.heroTitle,
+            heroSubtitle: p.hero_subtitle || initialOfficeProfile.heroSubtitle,
+            heroBadge: p.hero_badge || initialOfficeProfile.heroBadge,
+            korwilQuote: p.korwil_quote || initialOfficeProfile.korwilQuote
+          };
+          setOfficeProfile(updatedProfile);
+          try {
+            localStorage.setItem('korwilcam_office_profile', JSON.stringify(updatedProfile));
+          } catch {
+            // ignore
+          }
+        }
+      } catch (profErr) {
+        console.warn('Supabase fetch office_profile priority warning:', profErr);
+      }
+
+      // 2. Fetch staff (Pegawai & Pejabat)
+      try {
+        const { data: dbStaff, error: staffErr } = await client
+          .from('staff')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (!staffErr && dbStaff && dbStaff.length > 0) {
+          const mappedStaff = dbStaff.map((st: any) => {
+            const rawPhoto = String(st.photo || st.foto || '').trim();
+            const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
+            return {
+              id: String(st.id || `st-${Date.now()}`),
+              name: String(st.name || st.nama || '').trim(),
+              role: String(st.role || st.jabatan || 'Staf').trim(),
+              nip: String(st.nip || '').trim(),
+              photo: cleanPhoto,
+              division: st.division || st.divisi || 'Tata Usaha'
+            };
+          });
+          setStaff(mappedStaff);
+          try {
+            localStorage.setItem('korwilcam_staff', JSON.stringify(mappedStaff));
+          } catch {
+            // ignore
+          }
+        }
+      } catch (stErr) {
+        console.warn('Supabase fetch staff priority warning:', stErr);
+      }
+
       // Fetch schools
       const { data: dbSchools, error: schErr } = await client.from('schools').select('*');
       if (!schErr && dbSchools) {
@@ -557,59 +656,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: g.description || g.deskripsi || '',
           date: g.date || g.tanggal || ''
         })));
-      }
-
-      // Fetch staff from Supabase (sorted by created_at)
-      try {
-        const { data: dbStaff, error: staffErr } = await client
-          .from('staff')
-          .select('*')
-          .order('created_at', { ascending: true });
-
-        if (!staffErr && dbStaff) {
-          setStaff(dbStaff.map((st: any) => {
-            const rawPhoto = String(st.photo || st.foto || '').trim();
-            const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
-            return {
-              id: String(st.id || `st-${Date.now()}`),
-              name: String(st.name || st.nama || '').trim(),
-              role: String(st.role || st.jabatan || 'Staf').trim(),
-              nip: String(st.nip || '').trim(),
-              photo: cleanPhoto,
-              division: st.division || st.divisi || 'Tata Usaha'
-            };
-          }));
-        }
-      } catch (stErr) {
-        console.warn('Supabase fetch staff warning:', stErr);
-      }
-
-      // Fetch office profile
-      const { data: dbProfile } = await client.from('office_profile').select('*').limit(1);
-      if (dbProfile && dbProfile.length > 0) {
-        const p = dbProfile[0];
-        const rawKorwilPhoto = String(p.korwil_photo || '').trim();
-        const cleanKorwilPhoto = (rawKorwilPhoto.includes('unsplash.com') || rawKorwilPhoto.includes('photo-1560250097')) ? '' : rawKorwilPhoto;
-        setOfficeProfile({
-          name: p.name || initialOfficeProfile.name,
-          tagline: p.tagline || initialOfficeProfile.tagline,
-          address: p.address || initialOfficeProfile.address,
-          phone: p.phone || initialOfficeProfile.phone,
-          whatsapp: p.whatsapp || initialOfficeProfile.whatsapp,
-          email: p.email || initialOfficeProfile.email,
-          workingHours: p.working_hours || initialOfficeProfile.workingHours,
-          korwilName: p.korwil_name || initialOfficeProfile.korwilName,
-          korwilNip: p.korwil_nip || initialOfficeProfile.korwilNip,
-          korwilPhoto: cleanKorwilPhoto,
-          greetingTitle: p.greeting_title || initialOfficeProfile.greetingTitle,
-          greetingText: p.greeting_text || initialOfficeProfile.greetingText,
-          vision: p.vision || initialOfficeProfile.vision,
-          missions: Array.isArray(p.missions) ? p.missions : initialOfficeProfile.missions,
-          heroTitle: p.hero_title,
-          heroSubtitle: p.hero_subtitle,
-          heroBadge: p.hero_badge,
-          korwilQuote: p.korwil_quote
-        });
       }
 
       // Fetch complaints
