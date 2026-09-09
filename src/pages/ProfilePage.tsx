@@ -332,18 +332,54 @@ export const ProfilePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
-            {[
-              'Kel. Purwodadi', 'Kel. Kuripan', 'Kel. Kalongan', 'Kel. Danyang',
-              'Desa Candisari', 'Desa Genuksuran', 'Desa Karanganyar', 'Desa Kedungrejo',
-              'Desa Nambuhan', 'Desa Ngembak', 'Desa Nglobar', 'Desa Ngraji',
-              'Desa Pulorejo', 'Desa Putat', 'Desa Warukaranganyar', 'Desa Cingkrong', 'Desa Karangpaing'
-            ].map((desa, i) => (
-              <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-300 font-medium">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="truncate">{desa}</span>
+          <div className="space-y-6">
+            {/* Kelompok Kelurahan */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-blue-300 uppercase tracking-wider bg-blue-500/20 px-3 py-1 rounded-full border border-blue-400/30">
+                  Daftar Kelurahan (4)
+                </span>
               </div>
-            ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                {['Kel. Danyang', 'Kel. Kalongan', 'Kel. Kuripan', 'Kel. Purwodadi'].map((kel, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/50 text-blue-100 font-medium hover:border-blue-400/50 transition-colors">
+                    <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span className="truncate">{kel}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Kelompok Desa */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
+                  Daftar Desa (13)
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 text-xs">
+                {[
+                  'Desa Candisari',
+                  'Desa Cingkrong',
+                  'Desa Genuksuran',
+                  'Desa Kandangan',
+                  'Desa Karanganyar',
+                  'Desa Kedungrejo',
+                  'Desa Nambuhan',
+                  'Desa Ngembak',
+                  'Desa Nglobar',
+                  'Desa Ngraji',
+                  'Desa Pulorejo',
+                  'Desa Putat',
+                  'Desa Warukaranganyar'
+                ].map((desa, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-300 font-medium hover:border-slate-600 transition-colors">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{desa}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
