@@ -29,6 +29,7 @@ import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDes
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug } from '../lib/galleryHelper';
+import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -78,6 +79,7 @@ interface AppContextType {
   gallery: GalleryItem[];
   staff: StaffProfile[];
   officeProfile: OfficeProfile;
+  sopImageUrl: string;
   complaints: ComplaintMessage[];
   
   // Navigation & modals
@@ -144,6 +146,7 @@ interface AppContextType {
   updateComplaintStatus: (id: string, status: 'Baru' | 'Dibaca' | 'Selesai') => void;
 
   updateOfficeProfile: (profile: Partial<OfficeProfile>) => Promise<boolean>;
+  updateSOPImageUrl: (url: string) => Promise<boolean>;
   resetToDefaultData: () => void;
 
   // Toast notifications
@@ -234,6 +237,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [complaints, setComplaints] = useState<ComplaintMessage[]>(() => {
     const saved = localStorage.getItem('korwilcam_complaints');
     return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialComplaints);
+  });
+
+  const [sopImageUrl, setSopImageUrl] = useState<string>(() => {
+    return localStorage.getItem('korwilcam_sop_image_url') || '';
   });
 
   const [activeTab, setActiveTabState] = useState<string>('home');
@@ -490,10 +497,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
+      // Fetch sop_pelayanan table
+      try {
+        const { data: dbSop, error: sopErr } = await client.from('sop_pelayanan').select('*').limit(1);
+        if (!sopErr && dbSop && dbSop.length > 0) {
+          const loadedUrl = dbSop[0].image_url || dbSop[0].imageUrl || dbSop[0].foto || '';
+          if (loadedUrl) {
+            setSopImageUrl(loadedUrl);
+            localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
+          }
+        }
+      } catch (_) {
+        // Fallback jika tabel sop_pelayanan belum dibuat
+      }
+
       // Fetch documents
       const { data: dbDocs, error: docErr } = await client.from('documents').select('*');
       if (!docErr && dbDocs) {
-        setDocuments(dbDocs.map((d: any) => ({
+        const sopDoc = dbDocs.find((d: any) => d.id === 'sop-main' || d.category === 'SOP Pelayanan');
+        if (sopDoc && (sopDoc.download_url || sopDoc.downloadUrl)) {
+          const loadedUrl = sopDoc.download_url || sopDoc.downloadUrl;
+          setSopImageUrl((prev) => prev || loadedUrl);
+          if (!localStorage.getItem('korwilcam_sop_image_url')) {
+            localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
+          }
+        }
+
+        setDocuments(dbDocs.filter((d: any) => d.id !== 'sop-main').map((d: any) => ({
           id: String(d.id || `doc-${Date.now()}`),
           title: String(d.title || d.judul || '').trim(),
           category: d.category || d.kategori || 'Surat Edaran',
@@ -730,7 +760,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await client.from('agenda').upsert(agPayload);
 
       // 6. Documents
-      const docPayload = documents.map((d) => ({
+      const docPayload: any[] = documents.map((d) => ({
         id: d.id,
         title: d.title,
         category: d.category,
@@ -741,6 +771,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: d.description,
         download_url: d.downloadUrl
       }));
+      if (sopImageUrl) {
+        docPayload.push({
+          id: 'sop-main',
+          title: 'Bagan SOP Pelayanan',
+          category: 'SOP Pelayanan',
+          file_type: 'IMAGE',
+          file_size: '1 MB',
+          download_count: 0,
+          date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+          description: 'Bagan Alur Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
+          download_url: sopImageUrl
+        });
+
+        try {
+          await client.from('sop_pelayanan').upsert({
+            id: 'main',
+            title: 'Bagan Alur SOP Pelayanan',
+            image_url: sopImageUrl,
+            description: 'Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
+            updated_at: new Date().toISOString()
+          });
+        } catch (_) {}
+      }
       await client.from('documents').upsert(docPayload);
 
       // 7. Gallery
@@ -889,6 +942,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'sop_pelayanan' },
+        () => {
+          refreshFromSupabase();
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'admin_users' },
         async () => {
           const { data: dbUsers } = await client.from('admin_users').select('*');
@@ -918,6 +978,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const TAB_ROUTES: Record<string, { path: string; title: string }> = {
     'home': { path: '/beranda', title: 'Beranda - Portal Resmi Korwilcam Bidang Pendidikan Purwodadi' },
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
+    'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
     'schools': { path: '/direktori-sekolah', title: 'Direktori Sekolah SD/TK/PAUD - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
@@ -956,8 +1017,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const hash = customPath.split('#')[1];
       setTimeout(() => {
         const el = document.getElementById(hash);
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 150);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    } else if (customPath && (customPath.includes('struktur') || customPath.includes('pegawai') || customPath.includes('pengawas'))) {
+      setTimeout(() => {
+        const el = document.getElementById('struktur');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    } else if (customPath && (customPath.includes('sambutan') || customPath.includes('visi'))) {
+      setTimeout(() => {
+        const el = document.getElementById('sambutan') || document.getElementById('visi-misi');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1198,6 +1269,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (rawPath.startsWith('/profil')) {
         setActiveTabState('profile');
         document.title = TAB_ROUTES['profile'].title;
+      } else if (rawPath.startsWith('/sop') || rawPath.startsWith('/sop-pelayanan')) {
+        setActiveTabState('sop-pelayanan');
+        document.title = TAB_ROUTES['sop-pelayanan']?.title || 'SOP Pelayanan - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/direktori-sekolah') || rawPath.startsWith('/sekolah')) {
         setActiveTabState('schools');
         document.title = TAB_ROUTES['schools'].title;
@@ -2508,6 +2582,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // SOP PELAYANAN (Auto-save to Supabase sop_pelayanan table & local state)
+  const updateSOPImageUrl = async (url: string): Promise<boolean> => {
+    const formatted = formatGoogleDriveImageUrl(url);
+    setSopImageUrl(formatted);
+    localStorage.setItem('korwilcam_sop_image_url', formatted);
+
+    const client = getSupabaseClient();
+    if (client) {
+      setSyncStatus('syncing');
+      try {
+        if (formatted) {
+          // 1. Simpan ke tabel dedicated sop_pelayanan
+          let savedToSopTable = false;
+          try {
+            const { error: sopTableErr } = await client.from('sop_pelayanan').upsert({
+              id: 'main',
+              title: 'Bagan Alur SOP Pelayanan',
+              image_url: formatted,
+              description: 'Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
+              updated_at: new Date().toISOString()
+            });
+            if (!sopTableErr) {
+              savedToSopTable = true;
+            }
+          } catch (_) {}
+
+          // 2. Simpan juga ke tabel documents sebagai cadangan
+          const { error: docErr } = await client.from('documents').upsert({
+            id: 'sop-main',
+            title: 'Bagan SOP Pelayanan',
+            category: 'SOP Pelayanan',
+            file_type: 'IMAGE',
+            file_size: '1 MB',
+            download_count: 0,
+            date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+            description: 'Bagan Alur Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
+            download_url: formatted
+          });
+
+          if (savedToSopTable || !docErr) {
+            showToast('Tautan bagan SOP Pelayanan berhasil disimpan ke Supabase Cloud!', 'success');
+            return true;
+          } else {
+            showToast(`Tautan SOP tersimpan lokal. Supabase: ${docErr?.message || 'Error'}`, 'error');
+            return false;
+          }
+        } else {
+          try { await client.from('sop_pelayanan').delete().eq('id', 'main'); } catch (_) {}
+          try { await client.from('documents').delete().eq('id', 'sop-main'); } catch (_) {}
+          showToast('Tautan bagan SOP Pelayanan berhasil dihapus.', 'info');
+          return true;
+        }
+      } catch (err: any) {
+        showToast('Tautan SOP disimpan lokal.', 'info');
+        return false;
+      } finally {
+        setSyncStatus('connected');
+      }
+    } else {
+      showToast('Tautan gambar bagan SOP Pelayanan berhasil disimpan di penyimpanan lokal.', 'success');
+      return true;
+    }
+  };
+
   const resetToDefaultData = () => {
     setSchools(initialSchools);
     setNews(initialNews);
@@ -2586,6 +2724,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteComplaint,
         updateComplaintStatus,
         updateOfficeProfile,
+        sopImageUrl,
+        updateSOPImageUrl,
         resetToDefaultData,
         toasts,
         showToast,

@@ -10,6 +10,7 @@ import { HomePage } from './pages/HomePage';
 
 // Lazy loaded secondary & admin pages for optimal performance & tiny initial bundle
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const SOPPage = React.lazy(() => import('./pages/SOPPage').then(m => ({ default: m.SOPPage })));
 const SchoolsPage = React.lazy(() => import('./pages/SchoolsPage').then(m => ({ default: m.SchoolsPage })));
 const NewsPage = React.lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m => ({ default: m.NewsDetailPage })));
@@ -93,6 +94,7 @@ const MainContent: React.FC = () => {
             <>
               {activeTab === 'home' && <HomePage />}
               {activeTab === 'profile' && <ProfilePage />}
+              {activeTab === 'sop-pelayanan' && <SOPPage />}
               {activeTab === 'schools' && <SchoolsPage />}
               {activeTab === 'news' && <NewsPage />}
               {activeTab === 'downloads' && <DownloadsPage />}

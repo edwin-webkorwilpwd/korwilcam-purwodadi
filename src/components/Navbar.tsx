@@ -304,30 +304,34 @@ export const Navbar: React.FC = () => {
 
                     <div className="relative bg-slate-900 rounded-xl shadow-2xl border border-blue-800/60 p-1.5 space-y-1">
                       <button
-                        onClick={() => handleNavClick('profile', '/profil/sambutan')}
+                        onClick={() => handleNavClick('profile', '/profil#sambutan')}
                         className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-lg flex items-center gap-2.5 transition-colors"
                       >
                         <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
                         <span>Sambutan & Visi Misi</span>
                       </button>
                       <button
-                        onClick={() => handleNavClick('profile', '/profil/struktur')}
+                        onClick={() => handleNavClick('profile', '/profil#struktur')}
                         className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-lg flex items-center gap-2.5 transition-colors"
                       >
                         <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
                         <span>Struktur Organisasi</span>
                       </button>
-                      <button
-                        onClick={() => handleNavClick('profile', '/profil/pegawai')}
-                        className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-lg flex items-center gap-2.5 transition-colors"
-                      >
-                        <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span>Pengawas SD & Penilik PAUD</span>
-                      </button>
                     </div>
                   </div>
                 )}
               </div>
+
+              <button
+                onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
+                className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'sop-pelayanan' 
+                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
+                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                SOP Pelayanan
+              </button>
 
               <button
                 onClick={() => handleNavClick('schools', '/direktori-sekolah')}
@@ -558,6 +562,16 @@ export const Navbar: React.FC = () => {
           >
             <Building2 className="w-4 h-4 text-blue-400" />
             <span>Profil & Struktur Organisasi</span>
+          </button>
+
+          <button
+            onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
+            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              activeTab === 'sop-pelayanan' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+            }`}
+          >
+            <FileCheck className="w-4 h-4 text-blue-400" />
+            <span>SOP Pelayanan</span>
           </button>
 
           <button

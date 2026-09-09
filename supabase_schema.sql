@@ -168,6 +168,15 @@ CREATE TABLE IF NOT EXISTS admin_users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 11. TABEL SOP PELAYANAN
+CREATE TABLE IF NOT EXISTS sop_pelayanan (
+  id TEXT PRIMARY KEY DEFAULT 'main',
+  title TEXT NOT NULL DEFAULT 'Bagan Alur SOP Pelayanan',
+  image_url TEXT NOT NULL,
+  description TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ==========================================================
 -- PENGATURAN ROW LEVEL SECURITY (RLS)
 -- ==========================================================
@@ -183,6 +192,7 @@ ALTER TABLE gallery ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sop_pelayanan ENABLE ROW LEVEL SECURITY;
 
 -- Hak Akses Baca untuk Publik (Anonim & Pengunjung)
 CREATE POLICY "Public read office_profile" ON office_profile FOR SELECT USING (true);
@@ -193,6 +203,7 @@ CREATE POLICY "Public read agenda" ON agenda FOR SELECT USING (true);
 CREATE POLICY "Public read documents" ON documents FOR SELECT USING (true);
 CREATE POLICY "Public read gallery" ON gallery FOR SELECT USING (true);
 CREATE POLICY "Public read staff" ON staff FOR SELECT USING (true);
+CREATE POLICY "Public read sop_pelayanan" ON sop_pelayanan FOR SELECT USING (true);
 
 -- Pengunjung boleh kirim aspirasi / aduan
 CREATE POLICY "Public insert complaints" ON complaints FOR INSERT WITH CHECK (true);
@@ -208,6 +219,7 @@ CREATE POLICY "Allow all on gallery" ON gallery FOR ALL USING (true);
 CREATE POLICY "Allow all on staff" ON staff FOR ALL USING (true);
 CREATE POLICY "Allow all on complaints" ON complaints FOR ALL USING (true);
 CREATE POLICY "Allow all on admin_users" ON admin_users FOR ALL USING (true);
+CREATE POLICY "Allow all on sop_pelayanan" ON sop_pelayanan FOR ALL USING (true);
 
 -- ==========================================================
 -- AKUN AWAL BAWAAN (DEFAULT SEED ACCOUNTS)
@@ -225,7 +237,7 @@ ON CONFLICT (username) DO NOTHING;
 -- Menjadikan perubahan data di tabel langsung memicu update pada layar pengunjung tanpa refresh
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users;
+  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan;
 EXCEPTION WHEN OTHERS THEN
   -- Abaikan jika tabel sudah terdaftar di publication
   NULL;

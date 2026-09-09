@@ -18,23 +18,28 @@ export const ProfilePage: React.FC = () => {
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
 
   React.useEffect(() => {
-    const path = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase().replace('#', '');
-    let target = hash;
-    if (!target) {
-      if (path.includes('sambutan') || path.includes('visi')) target = 'sambutan';
-      else if (path.includes('struktur')) target = 'struktur';
-      else if (path.includes('pegawai') || path.includes('staf') || path.includes('pengawas')) target = 'pegawai';
-    }
+    const scrollToTarget = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase().replace('#', '');
+      let target = hash;
+      if (!target) {
+        if (path.includes('sambutan') || path.includes('visi')) target = 'sambutan';
+        else if (path.includes('struktur') || path.includes('pegawai') || path.includes('pengawas')) target = 'struktur';
+      }
 
-    if (target) {
-      setTimeout(() => {
-        const el = document.getElementById(target);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 150);
-    }
+      if (target) {
+        setTimeout(() => {
+          const el = document.getElementById(target);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 120);
+      }
+    };
+
+    scrollToTarget();
+    window.addEventListener('hashchange', scrollToTarget);
+    return () => window.removeEventListener('hashchange', scrollToTarget);
   }, []);
 
   const divisionOrder: Record<string, number> = {

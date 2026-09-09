@@ -50,8 +50,15 @@ import {
   Key,
   Users,
   Lock,
-  Loader2
+  Loader2,
+  FileCheck2,
+  Maximize2
 } from 'lucide-react';
+import { 
+  isGoogleDriveUrl, 
+  formatGoogleDriveImageUrl, 
+  getGoogleDriveViewUrl 
+} from '../../lib/driveHelper';
 import { 
   getSupabaseConfig, 
   setCustomSupabaseConfig, 
@@ -110,6 +117,8 @@ export const AdminDashboard: React.FC = () => {
     deleteStaff,
     deleteComplaint,
     updateComplaintStatus,
+    sopImageUrl,
+    updateSOPImageUrl,
     resetToDefaultData,
     logout,
     setActiveTab,
@@ -129,6 +138,7 @@ export const AdminDashboard: React.FC = () => {
     | 'overview' 
     | 'home-cms' 
     | 'profile-cms' 
+    | 'sop-cms'
     | 'schools-cms' 
     | 'news-cms' 
     | 'downloads-cms' 
@@ -362,6 +372,37 @@ export const AdminDashboard: React.FC = () => {
       korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak...",
     });
   }, [officeProfile]);
+
+  // --- SOP CMS STATE ---
+  const [sopInputUrl, setSopInputUrl] = useState(sopImageUrl || '');
+  const [isSavingSop, setIsSavingSop] = useState(false);
+  const [sopPreviewError, setSopPreviewError] = useState(false);
+
+  React.useEffect(() => {
+    setSopInputUrl(sopImageUrl || '');
+  }, [sopImageUrl]);
+
+  const handleSaveSopCMS = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSop(true);
+    try {
+      await updateSOPImageUrl(sopInputUrl.trim());
+    } finally {
+      setIsSavingSop(false);
+    }
+  };
+
+  const handleClearSop = async () => {
+    if (window.confirm('Yakin ingin menghapus tautan bagan SOP Pelayanan?')) {
+      setIsSavingSop(true);
+      try {
+        await updateSOPImageUrl('');
+        setSopInputUrl('');
+      } finally {
+        setIsSavingSop(false);
+      }
+    }
+  };
 
   const [newMissionText, setNewMissionText] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -1318,6 +1359,50 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
+          {/* 2.5 SOP Pelayanan */}
+          <button
+            type="button"
+            onClick={() => setCurrentSection('sop-cms')}
+            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              currentSection === 'sop-cms'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+              }`}>
+                <FileCheck2 className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className={`text-xs font-bold truncate leading-tight ${
+                  currentSection === 'sop-cms' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  SOP Pelayanan
+                </span>
+                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                  currentSection === 'sop-cms' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  Bagan Alur Google Drive
+                </span>
+              </div>
+            </div>
+            {sopImageUrl ? (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+              }`}>
+                Aktif
+              </span>
+            ) : (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+              }`}>
+                Kosong
+              </span>
+            )}
+          </button>
+
           {/* 3. Direktori Sekolah */}
           <button
             type="button"
@@ -1721,6 +1806,7 @@ export const AdminDashboard: React.FC = () => {
                   {[
                     { id: 'home-cms', title: 'Halaman Beranda', desc: 'Ubah teks headline, subtitle hero, foto, dan kutipan sambutan', icon: Home, color: 'text-blue-600 bg-blue-50' },
                     { id: 'profile-cms', title: 'Halaman Profil', desc: 'Ubah visi misi, sambutan korwil, dan daftar pengawas/penilik', icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
+                    { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file Google Drive', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
                     { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, PAUD, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
@@ -2352,6 +2438,253 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* TAB 2.5: KELOLA SOP PELAYANAN */}
+          {currentSection === 'sop-cms' && (
+            <div className="space-y-6 max-w-5xl">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2.5">
+                    <FileCheck2 className="w-6 h-6 text-blue-600" />
+                    <span>Kelola SOP Pelayanan & Bagan Alur</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Simpan tautan bagan gambar Standar Operasional Prosedur (SOP) Pelayanan. Mendukung tautan gambar langsung dan file dari Google Drive.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('sop-pelayanan', '/sop-pelayanan')}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5"
+                    title="Buka halaman SOP Pelayanan di website publik"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Lihat di Web Depan</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Panduan Google Drive Card */}
+              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-white rounded-2xl p-5 border border-blue-200/80 shadow-sm space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                      Panduan Menggunakan Tautan Gambar dari Google Drive:
+                    </h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Sistem kami sudah dilengkapi <strong>fitur auto-converter cerdas</strong>. Anda cukup menyalin tautan berbagi (*share link*) dari Google Drive, dan sistem otomatis mengubahnya menjadi tampilan gambar bagan utuh beresolusi tinggi di website.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-[11px] text-slate-600 border-t border-blue-100">
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                    <span>Upload foto/diagram bagan SOP ke <strong>Google Drive</strong> Anda.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+                    <span>Klik <strong>Bagikan (Share)</strong>, ubah Akses Umum menjadi <strong className="text-blue-700">"Siapa saja yang memiliki link"</strong> (Viewer).</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                    <span>Salin link tersebut (*Copy link*), lalu tempelkan pada kolom formulir di bawah ini.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Simpan Tautan SOP */}
+              <form onSubmit={handleSaveSopCMS} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Tautan Gambar Bagan SOP (Google Drive / Web URL) *</span>
+                    </label>
+                    {sopInputUrl && isGoogleDriveUrl(sopInputUrl) && (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Tautan Google Drive Terdeteksi</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="url"
+                      required
+                      value={sopInputUrl}
+                      onChange={(e) => {
+                        setSopInputUrl(e.target.value);
+                        setSopPreviewError(false);
+                      }}
+                      placeholder="Contoh: https://drive.google.com/file/d/1a2b3c4d5e6f7g8h9/view?usp=sharing"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none transition-all pr-10"
+                    />
+                    {sopInputUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSopInputUrl('');
+                          setSopPreviewError(false);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                        title="Kosongkan input"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-2 pt-1">
+                    <span>
+                      {sopInputUrl && isGoogleDriveUrl(sopInputUrl)
+                        ? 'URL Google Drive otomatis dikonversi ke gambar beresolusi tinggi.'
+                        : 'Mendukung format tautan Google Drive, link file gambar langsung (JPG, PNG, WebP), maupun Base64.'}
+                    </span>
+                    {isGoogleDriveUrl(sopInputUrl) && (
+                      <a
+                        href={getGoogleDriveViewUrl(sopInputUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>Uji Buka File Asli</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Form Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingSop || !sopInputUrl.trim()}
+                      className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSavingSop ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      <span>{isSavingSop ? 'Menyimpan...' : 'Simpan SOP Pelayanan ke Database'}</span>
+                    </button>
+
+                    {sopImageUrl && (
+                      <button
+                        type="button"
+                        disabled={isSavingSop}
+                        onClick={handleClearSop}
+                        className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors flex items-center gap-1.5"
+                        title="Hapus tautan SOP yang tersimpan"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Hapus SOP</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {sopImageUrl && (
+                    <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Tersinkron di Supabase Cloud</span>
+                    </span>
+                  )}
+                </div>
+              </form>
+
+              {/* TAMPILAN PREVIEW GAMBAR (Di bawah Form) */}
+              <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-blue-600" />
+                      <span>Tampilan Preview Gambar SOP (Pratinjau Langsung)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Pratinjau ini merepresentasikan tampilan gambar utuh yang akan dilihat oleh masyarakat di halaman depan website.
+                    </p>
+                  </div>
+
+                  {sopInputUrl && (
+                    <span className="text-[11px] font-semibold text-slate-500 self-start sm:self-auto bg-slate-100 px-2.5 py-1 rounded-lg">
+                      Mode: Gambar Utuh (Object Contain)
+                    </span>
+                  )}
+                </div>
+
+                {/* Container Gambar Pratinjau */}
+                {sopInputUrl ? (
+                  <div className="space-y-3">
+                    <div className="relative bg-slate-950/5 rounded-2xl border-2 border-dashed border-slate-300/80 p-3 sm:p-6 flex items-center justify-center min-h-[350px] overflow-hidden group">
+                      {sopPreviewError ? (
+                        <div className="py-10 px-4 text-center max-w-md space-y-3">
+                          <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+                          <h4 className="text-sm font-bold text-slate-800">
+                            Pratinjau Gambar Tidak Dapat Dimuat
+                          </h4>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Pastikan tautan dapat diakses publik. Jika menggunakan Google Drive, periksa menu <strong>Bagikan &gt; Akses Umum &gt; Siapa saja yang memiliki link (Anyone with the link)</strong>.
+                          </p>
+                          {isGoogleDriveUrl(sopInputUrl) && (
+                            <a
+                              href={getGoogleDriveViewUrl(sopInputUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
+                            >
+                              <span>Buka File di Google Drive</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <img
+                          src={formatGoogleDriveImageUrl(sopInputUrl)}
+                          alt="Pratinjau Bagan SOP Pelayanan"
+                          className="max-h-[550px] w-auto max-w-full object-contain rounded-xl shadow-md transition-all"
+                          onError={() => setSopPreviewError(true)}
+                          onLoad={() => setSopPreviewError(false)}
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2 px-1">
+                      <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Gambar utuh berhasil dimuat dengan resolusi tinggi</span>
+                      </span>
+                      <span>
+                        Format Embed: <code className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{formatGoogleDriveImageUrl(sopInputUrl).substring(0, 45)}...</code>
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-16 px-4 text-center max-w-md mx-auto space-y-3 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center mx-auto">
+                      <ImageIcon className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-800">
+                        Belum Ada Link Gambar SOP
+                      </h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Masukkan tautan Google Drive atau URL gambar bagan SOP Anda pada formulir di atas untuk melihat pratinjau langsung di sini.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
