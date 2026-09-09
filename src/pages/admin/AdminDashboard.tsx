@@ -186,6 +186,10 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleExportToSupabase = async () => {
+    const confirm = window.confirm(
+      'PERINGATAN: Tindakan ini akan menyalin seluruh data lokal browser ke database Supabase Cloud. Jika Anda sudah menghapus data tertentu di Supabase, data lama dari browser ini akan terunggah kembali.\n\nApakah Anda yakin ingin melanjutkan ekspor data lokal?'
+    );
+    if (!confirm) return;
     setIsExporting(true);
     await exportAllToSupabase();
     setIsExporting(false);
@@ -1647,11 +1651,21 @@ export const AdminDashboard: React.FC = () => {
                         <button
                           type="button"
                           disabled={isExporting}
-                          onClick={handleExportToSupabase}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                          onClick={async () => {
+                            setIsExporting(true);
+                            const success = await refreshFromSupabase();
+                            setIsExporting(false);
+                            if (success) {
+                              showToast('Data terbaru dari database Supabase Cloud berhasil dimuat!', 'success');
+                            } else {
+                              showToast('Gagal menarik data dari Supabase.', 'error');
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                          title="Tarik dan perbarui data tampilan web langsung dari database Supabase Cloud"
                         >
                           <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
-                          <span>{isExporting ? 'Menyinkronkan...' : 'Sinkronkan Data'}</span>
+                          <span>{isExporting ? 'Memuat...' : 'Muat dari Supabase'}</span>
                         </button>
                       )}
                     </>
@@ -4407,33 +4421,36 @@ export const AdminDashboard: React.FC = () => {
                   </h3>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Gunakan tombol di bawah ini <strong>hanya saat pertama kali setup</strong> jika database Anda masih kosong dan ingin menyalin 10 sekolah contoh, 8 berita bawaan, dan dokumen standar ke Supabase. Untuk penginputan dokumen atau pengumuman baru sehari-hari, data <strong>sudah otomatis tersimpan</strong> tanpa perlu menekan tombol ini.
+                  Gunakan tombol <strong>"Tarik Data Terbaru dari Supabase"</strong> di bawah ini kapan saja Anda menambahkan, mengedit, atau mengunggah data secara manual ke database Supabase (seperti via <em>Import CSV</em>, <em>SQL Editor</em>, atau <em>Table Editor</em>). Sekali klik, seluruh data terbaru di database akan langsung ditarik dan tampil di website.
                 </p>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     type="button"
                     disabled={isExporting}
-                    onClick={handleExportToSupabase}
-                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2"
+                    onClick={async () => {
+                      setIsExporting(true);
+                      const success = await refreshFromSupabase();
+                      setIsExporting(false);
+                      if (success) {
+                        showToast('Berhasil menarik seluruh data terbaru dari Supabase Cloud! Website Anda kini 100% tersinkronisasi.', 'success');
+                      } else {
+                        showToast('Gagal menarik data dari Supabase. Pastikan URL dan Key Supabase sudah benar.', 'error');
+                      }
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all flex items-center gap-2"
                   >
                     <RefreshCw className={`w-4 h-4 ${isExporting ? 'animate-spin' : ''}`} />
-                    <span>{isExporting ? 'Sedang Menyalin Data...' : 'Salin Semua Data Bawaan ke Supabase'}</span>
+                    <span>{isExporting ? 'Sedang Menarik Data...' : 'Tarik Data Terbaru dari Supabase'}</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={async () => {
-                      const success = await refreshFromSupabase();
-                      if (success) {
-                        showToast('Berhasil memuat data terbaru dari Supabase!', 'success');
-                      } else {
-                        showToast('Gagal menarik data dari Supabase.', 'error');
-                      }
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs transition-colors flex items-center gap-1.5"
+                    disabled={isExporting}
+                    onClick={handleExportToSupabase}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold text-xs transition-colors flex items-center gap-2"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Tarik Data Terbaru dari Supabase</span>
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Salin Data Lokal ke Supabase (Opsional)</span>
                   </button>
                 </div>
               </div>

@@ -155,24 +155,26 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isDbConfigured = getSupabaseConfig().isConfigured;
+
   const [schools, setSchools] = useState<School[]>(() => {
     const saved = localStorage.getItem('korwilcam_schools');
-    return saved ? JSON.parse(saved) : initialSchools;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialSchools);
   });
 
   const [news, setNews] = useState<NewsArticle[]>(() => {
     const saved = localStorage.getItem('korwilcam_news');
-    return saved ? JSON.parse(saved) : initialNews;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialNews);
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
     const saved = localStorage.getItem('korwilcam_announcements');
-    return saved ? JSON.parse(saved) : initialAnnouncements;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialAnnouncements);
   });
 
   const [agenda, setAgenda] = useState<AgendaEvent[]>(() => {
     const saved = localStorage.getItem('korwilcam_agenda');
-    return saved ? JSON.parse(saved) : initialAgenda;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialAgenda);
   });
 
   const [aulaBookings, setAulaBookings] = useState<AulaAgendaBooking[]>(() => {
@@ -211,12 +213,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [documents, setDocuments] = useState<DocumentDownload[]>(() => {
     const saved = localStorage.getItem('korwilcam_documents');
-    return saved ? JSON.parse(saved) : initialDocuments;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialDocuments);
   });
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
     const saved = localStorage.getItem('korwilcam_gallery');
-    return saved ? JSON.parse(saved) : initialGallery;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialGallery);
   });
 
   const [officeProfile, setOfficeProfile] = useState<OfficeProfile>(() => {
@@ -226,12 +228,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [staff, setStaff] = useState<StaffProfile[]>(() => {
     const saved = localStorage.getItem('korwilcam_staff');
-    return saved ? JSON.parse(saved) : initialStaff;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialStaff);
   });
 
   const [complaints, setComplaints] = useState<ComplaintMessage[]>(() => {
     const saved = localStorage.getItem('korwilcam_complaints');
-    return saved ? JSON.parse(saved) : initialComplaints;
+    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialComplaints);
   });
 
   const [activeTab, setActiveTabState] = useState<string>('home');
@@ -381,51 +383,68 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       
       // Fetch schools
-      const { data: dbSchools } = await client.from('schools').select('*');
-      if (dbSchools && dbSchools.length > 0) {
+      const { data: dbSchools, error: schErr } = await client.from('schools').select('*');
+      if (!schErr && dbSchools) {
         setSchools(dbSchools.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          level: s.level,
-          status: s.status,
-          npsn: s.npsn,
-          akreditasi: s.akreditasi,
-          headmaster: s.headmaster || '',
-          address: s.address || '',
-          desa: s.desa || '',
-          studentsCount: s.students_count || 0,
-          teachersCount: s.teachers_count || 0,
-          phone: s.phone || '',
-          email: s.email || '',
-          image: s.image || '',
-          coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || ''),
-          titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || '')
+          id: String(s.id || s.npsn || `sch-${Date.now()}`),
+          name: String(s.name || s.nama || s.nama_sekolah || '').trim(),
+          level: (s.level || s.jenjang || 'SD') as any,
+          status: (s.status || 'Negeri') as any,
+          npsn: String(s.npsn || '').trim(),
+          akreditasi: (s.akreditasi || 'Belum Terakreditasi') as any,
+          headmaster: s.headmaster || s.kepala_sekolah || s.ks || '',
+          address: s.address || s.alamat || '',
+          desa: s.desa || s.kelurahan || '',
+          studentsCount: Number(s.students_count ?? s.studentsCount ?? s.jumlah_siswa ?? 0),
+          teachersCount: Number(s.teachers_count ?? s.teachersCount ?? s.jumlah_guru ?? 0),
+          phone: String(s.phone || s.telepon || s.no_hp || ''),
+          email: String(s.email || ''),
+          image: s.image || s.foto || s.gambar || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800',
+          coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
+          titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
+          featured: Boolean(s.featured)
         })));
       }
 
       // Fetch news
-      const { data: dbNews } = await client.from('news').select('*').order('created_at', { ascending: false });
-      if (dbNews && dbNews.length > 0) {
-        setNews(dbNews.map((n: any) => ({
-          id: n.id,
-          title: n.title,
-          slug: n.slug,
-          category: n.category,
-          summary: n.summary,
-          content: n.content,
-          author: n.author,
-          date: n.date,
-          image: n.image,
-          views: n.views || 0,
-          totalReadSeconds: Number(n.total_read_seconds) || 0,
-          readCount: Number(n.read_count) || 0,
-          tags: Array.isArray(n.tags) ? n.tags : []
-        })));
+      const { data: dbNews, error: newsErr } = await client.from('news').select('*').order('created_at', { ascending: false });
+      if (!newsErr && dbNews) {
+        setNews(dbNews.map((n: any) => {
+          const title = String(n.title || n.judul || '').trim();
+          const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
+          let parsedTags: string[] = [];
+          if (Array.isArray(n.tags)) {
+            parsedTags = n.tags;
+          } else if (typeof n.tags === 'string') {
+            try {
+              const p = JSON.parse(n.tags);
+              if (Array.isArray(p)) parsedTags = p;
+              else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            } catch {
+              parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            }
+          }
+          return {
+            id: String(n.id || `news-${Date.now()}`),
+            title,
+            slug,
+            category: n.category || n.kategori || 'Kedinasan',
+            summary: n.summary || n.ringkasan || (n.content ? String(n.content).substring(0, 150) : ''),
+            content: n.content || n.isi || n.konten || '',
+            author: n.author || n.penulis || 'Humas Korwilcam',
+            date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
+            image: n.image || n.gambar || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+            views: Number(n.views || 0),
+            totalReadSeconds: Number(n.total_read_seconds) || 0,
+            readCount: Number(n.read_count) || 0,
+            tags: parsedTags
+          };
+        }));
       }
 
       // Fetch announcements
-      const { data: dbAnnouncements } = await client.from('announcements').select('*').order('created_at', { ascending: false });
-      if (dbAnnouncements && dbAnnouncements.length > 0) {
+      const { data: dbAnnouncements, error: annErr } = await client.from('announcements').select('*').order('created_at', { ascending: false });
+      if (!annErr && dbAnnouncements) {
         setAnnouncements(dbAnnouncements.map((a: any) => {
           let fileSize = a.file_size || a.fileSize || '';
           let fileName = a.file_name || a.fileName || '';
@@ -440,60 +459,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             fileUrl = parts[3] || fileUrl;
           }
 
+          const title = String(a.title || a.judul || '').trim();
           return {
-            id: a.id,
-            title: a.title,
-            date: a.date,
-            urgency: a.urgency,
-            target: a.target,
-            fileSize,
-            fileUrl,
-            fileName,
-            fileType,
-            summary: a.summary
+            id: String(a.id || `ann-${Date.now()}`),
+            title,
+            date: a.date || a.tanggal || (a.created_at ? new Date(a.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
+            urgency: a.urgency || a.prioritas || 'Biasa',
+            target: a.target || a.sasaran || 'Semua Satuan',
+            fileSize: fileSize || '1 MB',
+            fileUrl: fileUrl || '#',
+            fileName: fileName || 'lampiran.pdf',
+            fileType: fileType || 'PDF',
+            summary: a.summary || a.ringkasan || title || ''
           };
         }));
       }
 
       // Fetch agenda
-      const { data: dbAgenda } = await client.from('agenda').select('*');
-      if (dbAgenda && dbAgenda.length > 0) {
+      const { data: dbAgenda, error: agErr } = await client.from('agenda').select('*');
+      if (!agErr && dbAgenda) {
         setAgenda(dbAgenda.map((ag: any) => ({
-          id: ag.id,
-          title: ag.title,
-          date: ag.date,
-          time: ag.time,
-          location: ag.location,
-          organizer: ag.organizer,
-          targetAudience: ag.target_audience,
-          status: ag.status
+          id: String(ag.id || `agd-${Date.now()}`),
+          title: String(ag.title || ag.judul || '').trim(),
+          date: ag.date || ag.tanggal || '',
+          time: ag.time || ag.waktu || '08.00 WIB - Selesai',
+          location: ag.location || ag.lokasi || ag.tempat || 'Kantor Korwilcam Purwodadi',
+          organizer: ag.organizer || ag.penyelenggara || 'Korwilcam Purwodadi',
+          targetAudience: ag.target_audience || ag.peserta || 'Semua Satuan',
+          status: ag.status || 'Akan Datang'
         })));
       }
 
       // Fetch documents
-      const { data: dbDocs } = await client.from('documents').select('*');
-      if (dbDocs && dbDocs.length > 0) {
+      const { data: dbDocs, error: docErr } = await client.from('documents').select('*');
+      if (!docErr && dbDocs) {
         setDocuments(dbDocs.map((d: any) => ({
-          id: d.id,
-          title: d.title,
-          category: d.category,
-          fileType: d.file_type,
-          fileSize: d.file_size,
-          downloadCount: d.download_count || 0,
-          date: d.date,
-          description: d.description,
-          downloadUrl: d.download_url
+          id: String(d.id || `doc-${Date.now()}`),
+          title: String(d.title || d.judul || '').trim(),
+          category: d.category || d.kategori || 'Surat Edaran',
+          fileType: d.file_type || d.fileType || 'PDF',
+          fileSize: d.file_size || d.fileSize || '500 KB',
+          downloadCount: Number(d.download_count || d.downloadCount || 0),
+          date: d.date || d.tanggal || '',
+          description: d.description || d.deskripsi || '',
+          downloadUrl: d.download_url || d.downloadUrl || '#'
         })));
       }
 
       // Fetch gallery
-      const { data: dbGallery } = await client.from('gallery').select('*');
-      if (dbGallery && dbGallery.length > 0) {
+      const { data: dbGallery, error: galErr } = await client.from('gallery').select('*');
+      if (!galErr && dbGallery) {
         setGallery(dbGallery.map((g: any) => ({
-          id: g.id,
-          title: g.title,
-          category: g.category,
-          image: g.image,
+          id: String(g.id || `gal-${Date.now()}`),
+          title: String(g.title || g.judul || '').trim(),
+          category: g.category || g.kategori || 'Dokumentasi',
+          image: g.image || g.gambar || '',
           images: (() => {
             if (Array.isArray(g.images) && g.images.length > 0) return g.images;
             if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
@@ -504,8 +524,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             return g.image ? [g.image] : [];
           })(),
-          description: g.description,
-          date: g.date
+          description: g.description || g.deskripsi || '',
+          date: g.date || g.tanggal || ''
         })));
       }
 
@@ -517,18 +537,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .order('created_at', { ascending: true });
 
         if (!staffErr && dbStaff) {
-          if (dbStaff.length > 0) {
-            setStaff(dbStaff.map((st: any) => ({
-              id: st.id,
-              name: st.name || '',
-              role: st.role || '',
-              nip: st.nip || '',
-              photo: st.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
-              division: st.division || 'Pengawas SD'
-            })));
-          } else {
-            setStaff([]);
-          }
+          setStaff(dbStaff.map((st: any) => ({
+            id: String(st.id || `st-${Date.now()}`),
+            name: String(st.name || st.nama || '').trim(),
+            role: String(st.role || st.jabatan || 'Staf').trim(),
+            nip: String(st.nip || '').trim(),
+            photo: st.photo || st.foto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+            division: st.division || st.divisi || 'Tata Usaha'
+          })));
         }
       } catch (stErr) {
         console.warn('Supabase fetch staff warning:', stErr);
@@ -561,8 +577,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Fetch complaints
-      const { data: dbComplaints } = await client.from('complaints').select('*').order('created_at', { ascending: false });
-      if (dbComplaints && dbComplaints.length > 0) {
+      const { data: dbComplaints, error: compErr } = await client.from('complaints').select('*').order('created_at', { ascending: false });
+      if (!compErr && dbComplaints) {
         setComplaints(dbComplaints.map((c: any) => ({
           id: c.id,
           name: c.name,
@@ -812,28 +828,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'schools' },
-        async () => {
-          const { data: dbSchools } = await client.from('schools').select('*');
-          if (dbSchools) {
-            setSchools(dbSchools.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              level: s.level,
-              status: s.status,
-              npsn: s.npsn,
-              akreditasi: s.akreditasi,
-              headmaster: s.headmaster || '',
-              address: s.address || '',
-              desa: s.desa || '',
-              studentsCount: Number(s.students_count) || 0,
-              teachersCount: Number(s.teachers_count) || 0,
-              phone: s.phone || '',
-              email: s.email || '',
-              image: s.image || '',
-              coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || ''),
-              titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || '')
-            })));
-          }
+        () => {
+          refreshFromSupabase();
         }
       )
       .on(
