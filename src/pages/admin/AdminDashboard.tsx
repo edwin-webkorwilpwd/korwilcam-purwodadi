@@ -263,6 +263,7 @@ export const AdminDashboard: React.FC = () => {
   const korwilPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const staffPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const quickStaffPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const quickUploadStaffIdRef = useRef<string | null>(null);
   const [quickUploadStaffId, setQuickUploadStaffId] = useState<string | null>(null);
 
   const handleKorwilPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,16 +311,18 @@ export const AdminDashboard: React.FC = () => {
 
   const handleQuickStaffPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !quickUploadStaffId) return;
+    const targetId = quickUploadStaffIdRef.current || quickUploadStaffId;
+    if (!file || !targetId) return;
 
     try {
       showToast('Memproses pas foto pegawai...', 'info');
       const dataUrl = await compressImage(file, 500, 0.78);
-      await updateStaff(quickUploadStaffId, { photo: dataUrl });
+      await updateStaff(targetId, { photo: dataUrl });
       showToast('Pas foto pegawai berhasil diunggah dan disimpan langsung ke Supabase Cloud!', 'success');
     } catch (err) {
       showToast('Gagal mengunggah pas foto pegawai!', 'error');
     } finally {
+      quickUploadStaffIdRef.current = null;
       setQuickUploadStaffId(null);
       if (e.target) e.target.value = '';
     }
@@ -2301,6 +2304,7 @@ export const AdminDashboard: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    quickUploadStaffIdRef.current = st.id;
                                     setQuickUploadStaffId(st.id);
                                     quickStaffPhotoInputRef.current?.click();
                                   }}
