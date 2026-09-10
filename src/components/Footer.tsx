@@ -59,7 +59,7 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Kolom 2: Navigasi Halaman 2 Sisi: Kiri & Kanan */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-3">
             <h4 className="text-white font-bold text-[11px] sm:text-xs tracking-wider uppercase mb-2 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
               Navigasi Halaman
@@ -165,36 +165,93 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Kolom 3: Tautan Portal Resmi Terkait */}
-          <div className="lg:col-span-2">
+          {/* Kolom 3: Tautan Portal Resmi Terkait (2 Sisi: Kiri & Kanan) */}
+          <div className="lg:col-span-3">
             <h4 className="text-white font-bold text-[11px] sm:text-xs tracking-wider uppercase mb-2 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
               Portal Terkait
             </h4>
-            <ul className="space-y-1.5 text-[11px]">
-              <li>
-                <a 
-                  href="https://kwarran04pwd.blogspot.com/" 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
-                >
-                  <span className="leading-snug">Kwarran 04 Purwodadi</span>
-                  <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://disdik.grobogan.go.id/" 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
-                >
-                  <span className="leading-snug">Disdik Kab. Grobogan</span>
-                  <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
-                </a>
-              </li>
-            </ul>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+              {/* Sisi Kiri */}
+              <ul className="space-y-1">
+                <li>
+                  <a 
+                    href="https://kwarran04pwd.blogspot.com/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
+                    title="Kwarran 04 Purwodadi"
+                  >
+                    <span className="truncate">Kwarran 04 Purwodadi</span>
+                    <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://disdik.grobogan.go.id/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
+                    title="Disdik Kab. Grobogan"
+                  >
+                    <span className="truncate">Disdik Grobogan</span>
+                    <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://simpelgan.grobogan.go.id/web/login" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
+                    title="Simpel-Gan"
+                  >
+                    <span className="truncate">Simpel-Gan</span>
+                    <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
+                  </a>
+                </li>
+              </ul>
+
+              {/* Sisi Kanan */}
+              <ul className="space-y-1">
+                <li>
+                  <a 
+                    href="https://cuti.disdik.grobogan.go.id/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
+                    title="Cuti Disdik"
+                  >
+                    <span className="truncate">Cuti Disdik</span>
+                    <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://kgb.grobogankab.web.id/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
+                    title="KGB"
+                  >
+                    <span className="truncate">KGB</span>
+                    <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://sippasn.grobogan.go.id/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="hover:text-blue-400 transition-colors flex items-center justify-between group py-0.5"
+                    title="SIPPASN"
+                  >
+                    <span className="truncate">SIPPASN</span>
+                    <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0 ml-1" />
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
 
           {/* Kolom 4: Jam Pelayanan Kantor */}
@@ -204,20 +261,56 @@ export const Footer: React.FC = () => {
               Jam Pelayanan
             </h4>
             <div className="bg-slate-900/90 rounded-lg p-2.5 border border-slate-800 space-y-1.5 text-[11px]">
-              <div className="flex items-center justify-between text-slate-300">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-blue-400 shrink-0" />
-                  <span className="font-semibold text-white">Senin - Kamis</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">07.30 - 16.00 WIB</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-300">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-blue-400 shrink-0" />
-                  <span className="font-semibold text-white">Jumat</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">07.30 - 15.00 WIB</span>
-              </div>
+              {(() => {
+                const parts = (officeProfile.workingHours || '')
+                  .split(/[\n|]/)
+                  .map((p) => p.trim())
+                  .filter(Boolean);
+
+                if (parts.length > 0) {
+                  return parts.map((part, idx) => {
+                    const colonIdx = part.indexOf(':');
+                    if (colonIdx !== -1) {
+                      const label = part.slice(0, colonIdx).trim();
+                      const time = part.slice(colonIdx + 1).trim();
+                      return (
+                        <div key={idx} className="flex items-center justify-between text-slate-300">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                            <span className="font-semibold text-white">{label}</span>
+                          </div>
+                          <span className="text-slate-400 font-mono text-[10px]">{time}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={idx} className="flex items-center gap-1.5 text-slate-300">
+                        <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                        <span className="text-white">{part}</span>
+                      </div>
+                    );
+                  });
+                }
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between text-slate-300">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                        <span className="font-semibold text-white">Senin - Kamis</span>
+                      </div>
+                      <span className="text-slate-400 font-mono text-[10px]">07.30 - 14.30 WIB</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-300">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                        <span className="font-semibold text-white">Jumat</span>
+                      </div>
+                      <span className="text-slate-400 font-mono text-[10px]">07.30 - 13.00 WIB</span>
+                    </div>
+                  </>
+                );
+              })()}
               <p className="text-[10px] text-amber-400/90 pt-1 border-t border-slate-800 leading-tight">
                 *Sabtu, Minggu & Libur Nasional tutup.
               </p>

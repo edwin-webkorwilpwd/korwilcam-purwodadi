@@ -122,7 +122,15 @@ export const ContactPage: React.FC = () => {
                   </div>
                   <div>
                     <h5 className="font-bold text-slate-900">Jam Operasional Pelayanan</h5>
-                    <p className="text-xs text-slate-600 mt-0.5">{officeProfile.workingHours}</p>
+                    <div className="text-xs text-slate-600 mt-0.5 space-y-0.5">
+                      {(officeProfile.workingHours || '')
+                        .split(/[\n|]/)
+                        .map((p) => p.trim())
+                        .filter(Boolean)
+                        .map((line, idx) => (
+                          <div key={idx}>{line}</div>
+                        ))}
+                    </div>
                   </div>
                 </div>
               </div>

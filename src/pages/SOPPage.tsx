@@ -18,7 +18,7 @@ import {
 import { isGoogleDriveUrl, getGoogleDriveViewUrl } from '../lib/driveHelper';
 
 export const SOPPage: React.FC = () => {
-  const { sopImageUrl, setActiveTab, showToast } = useApp();
+  const { sopImageUrl, setActiveTab, showToast, officeProfile } = useApp();
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [imageError, setImageError] = useState(false);
@@ -225,11 +225,16 @@ export const SOPPage: React.FC = () => {
                 <Clock className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-bold text-slate-900">Jam Layanan Kantor</h4>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Senin - Kamis: 07.30 - 15.30 WIB<br />
-                Jumat: 07.30 - 14.00 WIB<br />
-                Sabtu, Minggu & Libur Nasional: Tutup
-              </p>
+              <div className="text-[11px] text-slate-600 leading-relaxed space-y-0.5">
+                {(officeProfile.workingHours || '')
+                  .split(/[\n|]/)
+                  .map((p) => p.trim())
+                  .filter(Boolean)
+                  .map((line, idx) => (
+                    <div key={idx}>{line}</div>
+                  ))}
+                <div className="text-[10px] text-slate-500 italic pt-0.5">Sabtu, Minggu & Libur Nasional: Tutup</div>
+              </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">

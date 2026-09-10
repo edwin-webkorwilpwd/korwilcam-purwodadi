@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface WebViewPageProps {
   title: string;
@@ -9,12 +9,37 @@ interface WebViewPageProps {
   cropTop?: number;
 }
 
+// Menyimpan daftar URL yang sudah selesai dimuat dalam sesi tab browser saat ini
+const loadedUrlsSession = new Set<string>();
+
 export const WebViewPage: React.FC<WebViewPageProps> = ({
   title,
   url,
   cropTop = 0
 }) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Jika URL ini sudah pernah selesai dimuat dalam sesi tab browser ini, jangan tampilkan loading lagi
+  const [isLoading, setIsLoading] = useState<boolean>(() => !loadedUrlsSession.has(url));
+
+  useEffect(() => {
+    if (loadedUrlsSession.has(url)) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Safety fallback timer: jika koneksi eksternal lambat atau sinyal onLoad tertahan skrip pihak ketiga,
+    // tetap hilangkan spinner setelah beberapa detik agar tampilan langsung bisa diakses pengguna
+    const timer = setTimeout(() => {
+      loadedUrlsSession.add(url);
+      setIsLoading(false);
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [url]);
+
+  const handleIframeLoad = () => {
+    loadedUrlsSession.add(url);
+    setIsLoading(false);
+  };
 
   return (
     <div className="w-full h-full flex-1 relative overflow-hidden bg-white flex flex-col">
@@ -33,7 +58,7 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
         <iframe
           src={url}
           title={title}
-          onLoad={() => setIsLoading(false)}
+          onLoad={handleIframeLoad}
           style={
             cropTop > 0
               ? {

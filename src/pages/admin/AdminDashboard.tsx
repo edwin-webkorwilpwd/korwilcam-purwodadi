@@ -1092,6 +1092,16 @@ export const AdminDashboard: React.FC = () => {
     workingHours: officeProfile.workingHours
   });
 
+  React.useEffect(() => {
+    setContactForm({
+      address: officeProfile.address,
+      phone: officeProfile.phone,
+      whatsapp: officeProfile.whatsapp,
+      email: officeProfile.email,
+      workingHours: officeProfile.workingHours
+    });
+  }, [officeProfile]);
+
   const handleSaveContact = async (e: React.FormEvent) => {
     e.preventDefault();
     await updateOfficeProfile(contactForm);

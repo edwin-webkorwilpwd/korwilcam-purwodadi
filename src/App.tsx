@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -20,9 +20,30 @@ const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage')
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
-const WebViewPage = React.lazy(() => import('./pages/WebViewPage').then(m => ({ default: m.WebViewPage })));
+import { WebViewPage } from './pages/WebViewPage';
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+
+const WEBVIEW_SERVICES = [
+  {
+    id: 'service-aula',
+    title: 'Peminjaman Aula Korwilcam Purwodadi',
+    url: 'https://peminjamanaulakorwilpwd.blogspot.com/',
+    cropTop: 56
+  },
+  {
+    id: 'service-cuti',
+    title: 'Layanan Surat Cuti GTK Online',
+    url: 'https://www.cutikorwilpwd.online/',
+    cropTop: 0
+  },
+  {
+    id: 'service-survey',
+    title: 'Survey Kepuasan Pelayanan Terpadu',
+    url: 'https://pelayananterpadupwd.blogspot.com/',
+    cropTop: 95
+  }
+];
 
 const PageLoadingFallback: React.FC = () => (
   <div className="min-h-[60vh] flex flex-col items-center justify-center py-20 px-4 space-y-3">
@@ -48,6 +69,40 @@ const MainContent: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAuthenticated, setActiveTab]);
+
+  // Melacak webview mana saja yang sudah pernah dimount agar tetap hidup di memori (keep-alive)
+  const [visitedWebViews, setVisitedWebViews] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    if (activeTab.startsWith('service-')) {
+      initial[activeTab] = true;
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    if (activeTab.startsWith('service-')) {
+      setVisitedWebViews((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Otomatis preload semua webview layanan di latar belakang setelah halaman utama siap
+    const preloadAll = () => {
+      setVisitedWebViews({
+        'service-aula': true,
+        'service-cuti': true,
+        'service-survey': true,
+      });
+    };
+
+    const timer = setTimeout(preloadAll, 1200);
+    window.addEventListener('preload-webviews', preloadAll);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('preload-webviews', preloadAll);
+    };
+  }, []);
 
   // Admin routing
   if (activeTab === 'admin-login') {
@@ -84,7 +139,7 @@ const MainContent: React.FC = () => {
       {/* Main Routed Page Content */}
       <main className={`flex-1 ${isWebView ? 'w-full h-[calc(100vh-74px)] overflow-hidden flex flex-col' : ''}`}>
         <Suspense fallback={<PageLoadingFallback />}>
-          {/* Full Page News Detail, Announcement Detail, Gallery Detail, atau Document Detail jika dipilih */}
+          {/* Halaman Standar (Beranda, Profil, SOP, Direktori Sekolah, Berita, Unduhan, Galeri, Kontak) */}
           {selectedNews ? (
             <NewsDetailPage />
           ) : selectedAnnouncement ? (
@@ -93,7 +148,7 @@ const MainContent: React.FC = () => {
             <GalleryDetailPage />
           ) : selectedDocument ? (
             <DocumentDetailPage />
-          ) : (
+          ) : !isWebView ? (
             <>
               {activeTab === 'home' && <HomePage />}
               {activeTab === 'profile' && <ProfilePage />}
@@ -103,30 +158,39 @@ const MainContent: React.FC = () => {
               {activeTab === 'downloads' && <DownloadsPage />}
               {activeTab === 'gallery' && <GalleryPage />}
               {activeTab === 'contact' && <ContactPage />}
-
-              {/* Layanan Terpadu WebViews (Pure View) */}
-              {activeTab === 'service-aula' && (
-                <WebViewPage 
-                  title="Peminjaman Aula Korwilcam Purwodadi"
-                  url="https://peminjamanaulakorwilpwd.blogspot.com/"
-                  cropTop={56}
-                />
-              )}
-              {activeTab === 'service-cuti' && (
-                <WebViewPage 
-                  title="Layanan Surat Cuti GTK Online"
-                  url="https://www.cutikorwilpwd.online/"
-                />
-              )}
-              {activeTab === 'service-survey' && (
-                <WebViewPage 
-                  title="Survey Kepuasan Pelayanan Terpadu"
-                  url="https://pelayananterpadupwd.blogspot.com/"
-                  cropTop={95}
-                />
-              )}
             </>
-          )}
+          ) : null}
+
+          {/* Layanan Terpadu WebViews (Keep-Alive: Tetap hidup di memori DOM tanpa unmount atau reload ulang) */}
+          {WEBVIEW_SERVICES.map((service) => {
+            const isMounted = visitedWebViews[service.id];
+            if (!isMounted) return null;
+
+            const isCurrentActive =
+              activeTab === service.id &&
+              !selectedNews &&
+              !selectedAnnouncement &&
+              !selectedGallery &&
+              !selectedDocument;
+
+            return (
+              <div
+                key={service.id}
+                className={
+                  isCurrentActive
+                    ? 'w-full h-full flex-1 flex flex-col relative z-10'
+                    : 'fixed -top-[99999px] -left-[99999px] w-[100vw] h-[100vh] opacity-0 pointer-events-none -z-50'
+                }
+                aria-hidden={!isCurrentActive}
+              >
+                <WebViewPage 
+                  title={service.title}
+                  url={service.url}
+                  cropTop={service.cropTop}
+                />
+              </div>
+            );
+          })}
         </Suspense>
       </main>
 

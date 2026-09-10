@@ -40,6 +40,9 @@ export const Navbar: React.FC = () => {
       servicesTimeoutRef.current = null;
     }
     setServicesDropdownOpen(true);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('preload-webviews'));
+    }
   };
 
   const handleServicesLeave = () => {
@@ -216,9 +219,9 @@ export const Navbar: React.FC = () => {
               <Mail className="w-3.5 h-3.5 text-blue-400" />
               <span>{officeProfile.email}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <Clock className="w-3.5 h-3.5 text-blue-400" />
-              <span>Senin - Jumat: 07.30 - 16.00 WIB</span>
+            <div className="flex items-center gap-1.5 text-slate-400" title={officeProfile.workingHours}>
+              <Clock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate max-w-[360px] 2xl:max-w-none">{officeProfile.workingHours || 'Senin - Kamis: 07.30 - 14.30 WIB | Jumat: 07.30 - 13.00 WIB'}</span>
             </div>
             {/* Tombol Akses Petugas Tersembunyi (Ikon Gembok Mikro Samar) */}
             <button
