@@ -66,7 +66,7 @@ export const SchoolsPage: React.FC = () => {
             <span>Pangkalan Data Satuan Pendidikan</span>
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
-            Direktori Sekolah SD, TK & PAUD
+            Daftar Sekolah SD, TK & PAUD
           </h1>
           <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
             Temukan data resmi, NPSN, akreditasi, nama kepala sekolah, dan kontak satuan pendidikan di bawah naungan Korwilcam Purwodadi.

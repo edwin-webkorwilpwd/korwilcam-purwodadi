@@ -2748,6 +2748,7 @@ export const AdminDashboard: React.FC = () => {
                       ) : (
                         <img
                           src={formatGoogleDriveImageUrl(sopInputUrl)}
+                          referrerPolicy="no-referrer"
                           alt="Pratinjau Bagan SOP Pelayanan"
                           className="max-h-[550px] w-auto max-w-full object-contain rounded-xl shadow-md transition-all"
                           onError={() => setSopPreviewError(true)}

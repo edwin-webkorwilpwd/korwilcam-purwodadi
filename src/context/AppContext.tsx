@@ -1185,7 +1185,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'home': { path: '/beranda', title: 'Beranda - Portal Resmi Korwilcam Bidang Pendidikan Purwodadi' },
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
-    'schools': { path: '/direktori-sekolah', title: 'Direktori Sekolah SD/TK/PAUD - Korwilcam Purwodadi' },
+    'schools': { path: '/direktori-sekolah', title: 'Daftar Sekolah SD/TK/PAUD - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },

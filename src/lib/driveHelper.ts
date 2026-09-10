@@ -64,3 +64,30 @@ export function getGoogleDriveViewUrl(url: string): string {
   }
   return trimmed;
 }
+
+/**
+ * Mendapatkan URL thumbnail Google Drive resolusi tinggi
+ */
+export function getGoogleDriveThumbnailUrl(url: string, width = 2500): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const driveId = extractGoogleDriveId(trimmed);
+  if (driveId) {
+    return `https://drive.google.com/thumbnail?id=${driveId}&sz=w${width}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Mendapatkan URL preview iframe Google Drive
+ */
+export function getGoogleDrivePreviewUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const driveId = extractGoogleDriveId(trimmed);
+  if (driveId) {
+    return `https://drive.google.com/file/d/${driveId}/preview`;
+  }
+  return trimmed;
+}
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileCheck2, 
@@ -13,18 +13,65 @@ import {
   HelpCircle, 
   CheckCircle2,
   Share2,
-  Info
+  Info,
+  Eye
 } from 'lucide-react';
-import { isGoogleDriveUrl, getGoogleDriveViewUrl } from '../lib/driveHelper';
+import { 
+  isGoogleDriveUrl, 
+  getGoogleDriveViewUrl, 
+  extractGoogleDriveId,
+  getGoogleDrivePreviewUrl
+} from '../lib/driveHelper';
 
 export const SOPPage: React.FC = () => {
   const { sopImageUrl, setActiveTab, showToast, officeProfile } = useApp();
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [imageError, setImageError] = useState(false);
+  const [useIframeMode, setUseIframeMode] = useState(false);
 
-  const isGdrive = isGoogleDriveUrl(sopImageUrl);
+  const driveId = extractGoogleDriveId(sopImageUrl);
+  const isGdrive = isGoogleDriveUrl(sopImageUrl) || !!driveId;
   const driveViewUrl = isGdrive ? getGoogleDriveViewUrl(sopImageUrl) : sopImageUrl;
+  const drivePreviewUrl = driveId ? getGoogleDrivePreviewUrl(sopImageUrl) : '';
+
+  // Multi-tier fallback URLs untuk gambar Google Drive
+  const candidateUrls = useMemo(() => {
+    if (!sopImageUrl) return [];
+    if (!driveId) return [sopImageUrl];
+
+    return [
+      `https://lh3.googleusercontent.com/d/${driveId}`,
+      `https://drive.google.com/thumbnail?id=${driveId}&sz=w2500`,
+      `https://drive.google.com/uc?export=view&id=${driveId}`,
+      sopImageUrl
+    ].filter((v, i, a) => a.indexOf(v) === i);
+  }, [sopImageUrl, driveId]);
+
+  const [urlIndex, setUrlIndex] = useState(0);
+
+  // Reset state jika URL SOP berubah
+  useEffect(() => {
+    setUrlIndex(0);
+    setImageError(false);
+    setUseIframeMode(false);
+  }, [sopImageUrl]);
+
+  const handleImageError = () => {
+    if (urlIndex < candidateUrls.length - 1) {
+      // Coba link alternatif Google Drive berikutnya
+      setUrlIndex((prev) => prev + 1);
+    } else if (driveId) {
+      // Jika semua link gambar langsung gagal (misal file aslinya PDF atau hotlink diblokir),
+      // otomatis beralih ke penampil resmi Google Drive Document Preview (Iframe)
+      setUseIframeMode(true);
+      setImageError(false);
+    } else {
+      setImageError(true);
+    }
+  };
+
+  const activeSrc = candidateUrls[urlIndex] || sopImageUrl;
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 3));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.5));
@@ -68,33 +115,6 @@ export const SOPPage: React.FC = () => {
                 Pedoman resmi mekanisme alur pelayanan prima, administrasi kepegawaian, serta konsultasi pendidikan di lingkungan Kantor Korwilcam Bidang Pendidikan Kecamatan Purwodadi.
               </p>
             </div>
-
-            {/* Quick Action Button */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleShare}
-                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
-                title="Bagikan tautan SOP ini"
-              >
-                <Share2 className="w-3.5 h-3.5 text-blue-300" />
-                <span>Bagikan</span>
-              </button>
-
-              {sopImageUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLightboxOpen(true);
-                    setZoomLevel(1);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all cursor-pointer"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Lihat Ukuran Penuh</span>
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </section>
@@ -124,7 +144,14 @@ export const SOPPage: React.FC = () => {
           {sopImageUrl ? (
             <div className="space-y-4 w-full">
               <div className="relative group bg-slate-900/5 rounded-2xl border border-slate-200 p-2 sm:p-4 flex items-center justify-center overflow-hidden min-h-[300px] w-full">
-                {imageError ? (
+                {useIframeMode && drivePreviewUrl ? (
+                  <iframe
+                    src={drivePreviewUrl}
+                    title="Bagan Alur SOP Pelayanan Korwilcam Purwodadi"
+                    className="w-full h-[650px] sm:h-[800px] border-0 rounded-xl shadow-sm bg-white"
+                    allow="autoplay"
+                  />
+                ) : imageError ? (
                   <div className="py-12 px-4 text-center max-w-md space-y-3">
                     <Info className="w-10 h-10 text-amber-500 mx-auto" />
                     <h3 className="text-sm font-bold text-slate-800">
@@ -134,28 +161,43 @@ export const SOPPage: React.FC = () => {
                       Tautan Google Drive mungkin belum diatur untuk publik atau format file tidak sesuai. Pastikan akses file di Google Drive diset menjadi <strong className="text-slate-700">"Siapa saja yang memiliki link"</strong> (Anyone with link).
                     </p>
                     {isGdrive && driveViewUrl && (
-                      <a
-                        href={driveViewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors mt-2"
-                      >
-                        <span>Buka Langsung di Google Drive</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                        {drivePreviewUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setUseIframeMode(true)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-900 transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-blue-400" />
+                            <span>Buka dengan Google Viewer</span>
+                          </button>
+                        )}
+                        <a
+                          href={driveViewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
+                        >
+                          <span>Buka Langsung di Google Drive</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
                     )}
                   </div>
                 ) : (
                   <>
                     <img
-                      src={sopImageUrl}
+                      key={activeSrc}
+                      src={activeSrc}
+                      referrerPolicy="no-referrer"
                       alt="Bagan Alur SOP Pelayanan Korwilcam Purwodadi"
                       className="w-full h-auto object-contain rounded-xl shadow-sm transition-transform duration-200 cursor-zoom-in"
                       onClick={() => {
                         setIsLightboxOpen(true);
                         setZoomLevel(1);
                       }}
-                      onError={() => setImageError(true)}
+                      onError={handleImageError}
+                      onLoad={() => setImageError(false)}
                     />
                     
                     {/* Hover Overlay Helper */}
@@ -178,10 +220,14 @@ export const SOPPage: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2 px-1">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Gambar ditampilkan utuh sesuai dokumen bagan resmi</span>
+                  <span>
+                    {useIframeMode 
+                      ? 'Menampilkan dokumen resmi via Google Drive Viewer' 
+                      : 'Gambar ditampilkan utuh sesuai dokumen bagan resmi'}
+                  </span>
                 </span>
                 <span>
-                  Tip: Klik gambar untuk membaca teks kecil dengan jelas
+                  {!useIframeMode && 'Tip: Klik gambar untuk memperbesar tampilan'}
                 </span>
               </div>
             </div>
@@ -275,38 +321,40 @@ export const SOPPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Zoom Controls */}
-              <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 border border-white/15">
-                <button
-                  type="button"
-                  onClick={handleZoomOut}
-                  disabled={zoomLevel <= 0.5}
-                  className="p-1.5 rounded-lg hover:bg-white/20 text-white disabled:opacity-40 transition-colors"
-                  title="Perkecil"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <span className="text-[11px] font-mono px-2 font-bold min-w-[3rem] text-center">
-                  {Math.round(zoomLevel * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={handleZoomIn}
-                  disabled={zoomLevel >= 3}
-                  className="p-1.5 rounded-lg hover:bg-white/20 text-white disabled:opacity-40 transition-colors"
-                  title="Perbesar"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetZoom}
-                  className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors ml-1"
-                  title="Reset Ukuran (100%)"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {/* Zoom Controls (Hanya jika mode gambar) */}
+              {!useIframeMode && (
+                <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 border border-white/15">
+                  <button
+                    type="button"
+                    onClick={handleZoomOut}
+                    disabled={zoomLevel <= 0.5}
+                    className="p-1.5 rounded-lg hover:bg-white/20 text-white disabled:opacity-40 transition-colors"
+                    title="Perkecil"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <span className="text-[11px] font-mono px-2 font-bold min-w-[3rem] text-center">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleZoomIn}
+                    disabled={zoomLevel >= 3}
+                    className="p-1.5 rounded-lg hover:bg-white/20 text-white disabled:opacity-40 transition-colors"
+                    title="Perbesar"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetZoom}
+                    className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors ml-1"
+                    title="Reset Ukuran (100%)"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Close Button */}
               <button
@@ -322,17 +370,30 @@ export const SOPPage: React.FC = () => {
 
           {/* Center Image Container */}
           <div className="flex-1 w-full max-w-6xl flex items-center justify-center overflow-auto p-2">
-            <img
-              src={sopImageUrl}
-              alt="Bagan SOP Pelayanan Penuh"
-              style={{ transform: `scale(${zoomLevel})` }}
-              className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl transition-transform duration-150 select-none"
-            />
+            {useIframeMode && drivePreviewUrl ? (
+              <iframe
+                src={drivePreviewUrl}
+                title="Bagan SOP Pelayanan Penuh"
+                className="w-full h-[80vh] border-0 rounded-xl shadow-2xl bg-white"
+                allow="autoplay"
+              />
+            ) : (
+              <img
+                src={activeSrc}
+                referrerPolicy="no-referrer"
+                alt="Bagan SOP Pelayanan Penuh"
+                style={{ transform: `scale(${zoomLevel})` }}
+                className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl transition-transform duration-150 select-none"
+                onError={handleImageError}
+              />
+            )}
           </div>
 
           {/* Bottom Hint */}
           <div className="text-center pt-2 text-slate-400 text-xs">
-            Gunakan kontrol di atas untuk memperbesar diagram alur agar tulisan terbaca jelas.
+            {!useIframeMode 
+              ? 'Gunakan kontrol di atas untuk memperbesar diagram alur agar tulisan terbaca jelas.'
+              : 'Gunakan penampil Google Drive untuk melihat dan menggulir seluruh isi dokumen.'}
           </div>
         </div>
       )}

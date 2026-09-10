@@ -344,10 +344,7 @@ export const Navbar: React.FC = () => {
                     : 'text-blue-100/90 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <span>Direktori Sekolah</span>
-                <span className="hidden xl:inline-block ml-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30">
-                  SD/TK/PAUD
-                </span>
+                <span>Sekolah</span>
               </button>
 
               <button
@@ -579,17 +576,12 @@ export const Navbar: React.FC = () => {
 
           <button
             onClick={() => handleNavClick('schools', '/direktori-sekolah')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-between ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
               activeTab === 'schools' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
             }`}
           >
-            <div className="flex items-center gap-2.5">
-              <GraduationCap className="w-4 h-4 text-blue-400" />
-              <span>Direktori Sekolah</span>
-            </div>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/30 text-blue-200">
-              SD / TK / PAUD
-            </span>
+            <GraduationCap className="w-4 h-4 text-blue-400" />
+            <span>Sekolah</span>
           </button>
 
           <button

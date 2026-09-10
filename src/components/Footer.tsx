@@ -91,7 +91,7 @@ export const Footer: React.FC = () => {
                     className="hover:text-blue-400 transition-colors flex items-center gap-1 text-left group w-full"
                   >
                     <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0" />
-                    <span className="truncate">Direktori Sekolah</span>
+                    <span className="truncate">Sekolah</span>
                   </button>
                 </li>
                 <li>
