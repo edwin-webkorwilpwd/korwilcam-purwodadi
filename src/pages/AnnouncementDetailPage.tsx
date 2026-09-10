@@ -16,6 +16,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { getAnnouncementShortUrl } from '../lib/shortLink';
+import { downloadAnnouncementJpeg, shareAnnouncementWhatsApp } from '../lib/announcementCanvas';
 
 export const AnnouncementDetailPage: React.FC = () => {
   const { 
@@ -38,6 +39,7 @@ export const AnnouncementDetailPage: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
   const [sharingImage, setSharingImage] = useState(false);
+  const [sharingWhatsApp, setSharingWhatsApp] = useState(false);
 
   if (!selectedAnnouncement) {
     return (
@@ -73,59 +75,38 @@ export const AnnouncementDetailPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleShareWhatsApp = () => {
-    const text = encodeURIComponent(
-      `*PENGUMUMAN RESMI KORWILCAM PURWODADI*\n\n` +
-      `*${selectedAnnouncement?.title}*\n\n` +
-      `📋 *Sasaran:* ${selectedAnnouncement?.target}\n` +
-      `⚡ *Tingkat:* ${selectedAnnouncement?.urgency}\n` +
-      `📅 *Diterbitkan:* ${selectedAnnouncement?.date}\n\n` +
-      `*Ringkasan Surat Edaran:*\n${selectedAnnouncement?.summary}\n\n` +
-      `🔗 *Buka & Unduh Lembar Dokumen Resmi:*\n${shareUrl}`
-    );
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  const handleShareWhatsApp = async () => {
+    if (!selectedAnnouncement) return;
+    try {
+      setSharingWhatsApp(true);
+      await shareAnnouncementWhatsApp(
+        selectedAnnouncement,
+        officeProfile,
+        shareUrl,
+        showToast
+      );
+    } catch (err: any) {
+      console.error('handleShareWhatsApp error:', err);
+      showToast('Terjadi kendala saat memproses gambar pengumuman untuk WhatsApp', 'error');
+    } finally {
+      setSharingWhatsApp(false);
+    }
   };
 
   const handleShareImage = async () => {
     if (!selectedAnnouncement) return;
     try {
       setSharingImage(true);
-      showToast('Sedang menyiapkan gambar surat resmi pengumuman...', 'info');
-      const imageUrl = `/api/announcement-image?id=${encodeURIComponent(selectedAnnouncement.id)}`;
-      const response = await fetch(imageUrl);
-      if (!response.ok) throw new Error('Gagal memuat gambar lembar pengumuman');
-      const blob = await response.blob();
-      const filename = `Pengumuman-Korwilcam-${selectedAnnouncement.id}.png`;
-      const file = new File([blob], filename, { type: 'image/png' });
-
-      // Jika browser mendukung Web Share API berkas (terutama di Android / iPhone untuk langsung kirim ke WA)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: selectedAnnouncement.title,
-          text: `*PENGUMUMAN RESMI KORWILCAM PURWODADI*\n\n*${selectedAnnouncement.title}*\n\nRingkasan:\n${selectedAnnouncement.summary}\n\n🔗 Dokumen Resmi:\n${shareUrl}`
-        });
-        showToast('Gambar surat pengumuman berhasil dibagikan!', 'success');
-      } else {
-        // Fallback untuk desktop: unduh gambar dan salin teks link ke clipboard
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        const shareMsg = `*PENGUMUMAN RESMI KORWILCAM PURWODADI*\n\n*${selectedAnnouncement.title}*\n\nRingkasan:\n${selectedAnnouncement.summary}\n\n🔗 Dokumen Resmi:\n${shareUrl}`;
-        await navigator.clipboard.writeText(shareMsg);
-
-        showToast('Gambar lembar surat berhasil diunduh dan teks tautan disalin untuk WhatsApp!', 'success');
-      }
+      showToast('Sedang menyiapkan gambar surat resmi pengumuman (JPEG)...', 'info');
+      await downloadAnnouncementJpeg(
+        selectedAnnouncement,
+        officeProfile,
+        shareUrl
+      );
+      showToast('Berkas gambar surat resmi (JPEG) berhasil diunduh dengan tulisan lengkap!', 'success');
     } catch (err: any) {
       console.error('handleShareImage error:', err);
-      if (err.name !== 'AbortError') {
-        showToast('Mengunduh gambar surat pengumuman langsung...', 'info');
-        window.open(`/api/announcement-image?id=${encodeURIComponent(selectedAnnouncement.id)}`, '_blank');
-      }
+      showToast('Gagal mengunduh gambar surat pengumuman', 'error');
     } finally {
       setSharingImage(false);
     }
@@ -188,21 +169,22 @@ export const AnnouncementDetailPage: React.FC = () => {
 
             <button
               onClick={handleShareImage}
-              disabled={sharingImage}
+              disabled={sharingImage || sharingWhatsApp}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
-              title="Unduh atau bagikan berkas gambar surat resmi pengumuman"
+              title="Unduh berkas gambar surat resmi pengumuman (JPEG)"
             >
               <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-              <span>{sharingImage ? 'Menyiapkan...' : 'Gambar Surat'}</span>
+              <span>{sharingImage ? 'Menyiapkan...' : 'Gambar Surat (JPEG)'}</span>
             </button>
 
             <button
               onClick={handleShareWhatsApp}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
-              title="Bagikan ke WhatsApp"
+              disabled={sharingWhatsApp || sharingImage}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
+              title="Bagikan gambar pengumuman JPEG beserta ringkasan isi ke WhatsApp"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>Kirim ke WA</span>
+              <span>{sharingWhatsApp ? 'Mengonversi...' : 'Kirim ke WA'}</span>
             </button>
           </div>
         </div>
