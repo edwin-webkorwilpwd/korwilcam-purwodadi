@@ -85,25 +85,6 @@ const MainContent: React.FC = () => {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    // Otomatis preload semua webview layanan di latar belakang setelah halaman utama siap
-    const preloadAll = () => {
-      setVisitedWebViews({
-        'service-aula': true,
-        'service-cuti': true,
-        'service-survey': true,
-      });
-    };
-
-    const timer = setTimeout(preloadAll, 1200);
-    window.addEventListener('preload-webviews', preloadAll);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('preload-webviews', preloadAll);
-    };
-  }, []);
-
   // Admin routing
   if (activeTab === 'admin-login') {
     return (
@@ -179,7 +160,7 @@ const MainContent: React.FC = () => {
                 className={
                   isCurrentActive
                     ? 'w-full h-full flex-1 flex flex-col relative z-10'
-                    : 'fixed -top-[99999px] -left-[99999px] w-[100vw] h-[100vh] opacity-0 pointer-events-none -z-50'
+                    : 'invisible absolute inset-0 -z-10 pointer-events-none'
                 }
                 aria-hidden={!isCurrentActive}
               >

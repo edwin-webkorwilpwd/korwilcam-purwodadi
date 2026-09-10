@@ -47,14 +47,14 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
       {isLoading && (
         <div className="absolute inset-0 z-10 bg-white flex flex-col items-center justify-center gap-3 text-slate-800">
           <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className="text-xs sm:text-sm text-slate-600 font-semibold">
+          <p className="text-xs sm:text-sm text-slate-700 font-semibold">
             Memuat {title}...
           </p>
         </div>
       )}
 
       {/* Embedded Iframe Container */}
-      <div className="w-full h-full flex-1 relative overflow-hidden">
+      <div className="w-full h-full flex-1 relative overflow-hidden bg-white">
         <iframe
           src={url}
           title={title}
@@ -81,8 +81,8 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
                 }
           }
           className="w-full h-full border-0 bg-white"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
+          allow="accelerometer; autoplay; clipboard-read; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+          referrerPolicy="no-referrer-when-downgrade"
         />
       </div>
     </div>
