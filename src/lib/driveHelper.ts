@@ -53,6 +53,22 @@ export function formatGoogleDriveImageUrl(url: string): string {
 }
 
 /**
+ * Mendapatkan daftar kandidat URL Google Drive langsung (multi-tier fallback)
+ */
+export function getGoogleDriveCandidates(url: string): string[] {
+  if (!url || typeof url !== 'string') return [];
+  const trimmed = url.trim();
+  const driveId = extractGoogleDriveId(trimmed);
+  if (!driveId) return [trimmed];
+  return [
+    `https://lh3.googleusercontent.com/d/${driveId}`,
+    `https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`,
+    `https://drive.google.com/uc?export=view&id=${driveId}`,
+    `https://lh3.googleusercontent.com/u/0/d/${driveId}`
+  ];
+}
+
+/**
  * Mendapatkan URL Google Drive asli untuk tombol "Buka di Google Drive"
  */
 export function getGoogleDriveViewUrl(url: string): string {

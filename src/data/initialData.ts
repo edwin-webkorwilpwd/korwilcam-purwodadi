@@ -52,7 +52,7 @@ export const initialSchools: School[] = [
     teachersCount: 22,
     phone: "(0292) 421101",
     email: "sdn1purwodadi@sekolah.sch.id",
-    image: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800",
+    image: "",
     featured: true
   },
   {

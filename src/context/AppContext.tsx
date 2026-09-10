@@ -29,7 +29,7 @@ import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDes
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug } from '../lib/galleryHelper';
-import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 
 export const initialAdminUsers: AdminUser[] = [
@@ -94,7 +94,7 @@ interface AppContextType {
   selectedAnnouncement: Announcement | null;
   setSelectedAnnouncement: (ann: Announcement | null, customPath?: string) => void;
   selectedSchool: School | null;
-  setSelectedSchool: (school: School | null) => void;
+  setSelectedSchool: (school: School | null, customPath?: string) => void;
   selectedGallery: GalleryItem | null;
   setSelectedGallery: (gallery: GalleryItem | null) => void;
   selectedDocument: DocumentDownload | null;
@@ -167,12 +167,46 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+export const isDummySchoolImage = (url?: string): boolean => {
+  if (!url || typeof url !== 'string') return true;
+  const trimmed = url.trim().toLowerCase();
+  if (!trimmed) return true;
+  if (trimmed.includes('photo-1580582932707-520aed937b7b')) return true;
+  if (
+    trimmed.includes('images.unsplash.com/photo-1509062522246') ||
+    trimmed.includes('images.unsplash.com/photo-1577896851231') ||
+    trimmed.includes('images.unsplash.com/photo-1497633762265') ||
+    trimmed.includes('images.unsplash.com/photo-1587654780291') ||
+    trimmed.includes('images.unsplash.com/photo-1544717305')
+  ) {
+    return true;
+  }
+  return false;
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDbConfigured = getSupabaseConfig().isConfigured;
 
   const [schools, setSchools] = useState<School[]>(() => {
     const saved = localStorage.getItem('korwilcam_schools');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialSchools);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((s: School) => {
+            let img = isDummySchoolImage(s.image) ? '' : s.image;
+            if (img && isGoogleDriveUrl(img)) {
+              img = formatGoogleDriveImageUrl(img);
+            }
+            return {
+              ...s,
+              image: img
+            };
+          });
+        }
+      } catch {}
+    }
+    return isDbConfigured ? [] : initialSchools;
   });
 
   const [news, setNews] = useState<NewsArticle[]>(() => {
@@ -319,7 +353,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTabState] = useState<string>('home');
   const [selectedNews, setSelectedNewsState] = useState<NewsArticle | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncementState] = useState<Announcement | null>(null);
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedSchool, setSelectedSchoolState] = useState<School | null>(null);
   const [selectedGallery, setSelectedGalleryState] = useState<GalleryItem | null>(null);
   const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
 
@@ -540,25 +574,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch schools
       const { data: dbSchools, error: schErr } = await client.from('schools').select('*');
       if (!schErr && dbSchools) {
-        setSchools(dbSchools.map((s: any) => ({
-          id: String(s.id || s.npsn || `sch-${Date.now()}`),
-          name: String(s.name || s.nama || s.nama_sekolah || '').trim(),
-          level: (s.level || s.jenjang || 'SD') as any,
-          status: (s.status || 'Negeri') as any,
-          npsn: String(s.npsn || '').trim(),
-          akreditasi: (s.akreditasi || 'Belum Terakreditasi') as any,
-          headmaster: s.headmaster || s.kepala_sekolah || s.ks || '',
-          address: s.address || s.alamat || '',
-          desa: s.desa || s.kelurahan || '',
-          studentsCount: Number(s.students_count ?? s.studentsCount ?? s.jumlah_siswa ?? 0),
-          teachersCount: Number(s.teachers_count ?? s.teachersCount ?? s.jumlah_guru ?? 0),
-          phone: String(s.phone || s.telepon || s.no_hp || ''),
-          email: String(s.email || ''),
-          image: s.image || s.foto || s.gambar || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=800',
-          coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
-          titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
-          featured: Boolean(s.featured)
-        })));
+        setSchools(dbSchools.map((s: any) => {
+          const rawImage = String(s.image || s.foto || s.gambar || '').trim();
+          let cleanImage = isDummySchoolImage(rawImage) ? '' : rawImage;
+          if (cleanImage && isGoogleDriveUrl(cleanImage)) {
+            cleanImage = formatGoogleDriveImageUrl(cleanImage);
+          }
+          return {
+            id: String(s.id || s.npsn || `sch-${Date.now()}`),
+            name: String(s.name || s.nama || s.nama_sekolah || '').trim(),
+            level: (s.level || s.jenjang || 'SD') as any,
+            status: (s.status || 'Negeri') as any,
+            npsn: String(s.npsn || '').trim(),
+            akreditasi: (s.akreditasi || 'Belum Terakreditasi') as any,
+            headmaster: s.headmaster || s.kepala_sekolah || s.ks || '',
+            address: s.address || s.alamat || '',
+            desa: s.desa || s.kelurahan || '',
+            studentsCount: Number(s.students_count ?? s.studentsCount ?? s.jumlah_siswa ?? 0),
+            teachersCount: Number(s.teachers_count ?? s.teachersCount ?? s.jumlah_guru ?? 0),
+            phone: String(s.phone || s.telepon || s.no_hp || ''),
+            email: String(s.email || ''),
+            image: cleanImage,
+            coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
+            titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
+            featured: Boolean(s.featured)
+          };
+        }));
       }
 
       // Fetch news
@@ -1185,7 +1226,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'home': { path: '/beranda', title: 'Beranda - Portal Resmi Korwilcam Bidang Pendidikan Purwodadi' },
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
-    'schools': { path: '/direktori-sekolah', title: 'Daftar Sekolah SD/TK/PAUD - Korwilcam Purwodadi' },
+    'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & PAUD - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
@@ -1210,6 +1251,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (selectedDocument) {
       setSelectedDocumentState(null);
+    }
+    if (selectedSchool) {
+      setSelectedSchoolState(null);
     }
 
     const route = TAB_ROUTES[tab];
@@ -1333,6 +1377,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.history.pushState({}, '', returnPath);
       }
       document.title = TAB_ROUTES['downloads'].title;
+    }
+  };
+
+  const setSelectedSchool = (school: School | null, customPath?: string) => {
+    setSelectedSchoolState(school);
+    if (school) {
+      setSelectedNewsState(null);
+      setSelectedAnnouncementState(null);
+      setSelectedGalleryState(null);
+      setSelectedDocumentState(null);
+
+      const currentPath = window.location.pathname;
+      const isDirektori = currentPath.startsWith('/direktori-sekolah');
+      const basePath = isDirektori ? '/direktori-sekolah' : '/sekolah';
+      const npsnCode = encodeURIComponent((school.npsn || school.id).trim());
+      const targetUrl = customPath || `${basePath}?npsn=${npsnCode}`;
+
+      if (window.location.pathname + window.location.search !== targetUrl) {
+        window.history.pushState({ schoolNpsn: school.npsn, path: targetUrl }, '', targetUrl);
+      }
+      document.title = `${school.name} (NPSN: ${school.npsn}) - Korwilcam Purwodadi`;
+    } else {
+      const currentParams = new URLSearchParams(window.location.search);
+      currentParams.delete('npsn');
+      const searchStr = currentParams.toString();
+
+      let returnPath = window.location.pathname;
+      if (returnPath.startsWith('/sekolah/') || returnPath.startsWith('/direktori-sekolah/')) {
+        returnPath = returnPath.startsWith('/direktori-sekolah') ? '/direktori-sekolah' : '/sekolah';
+      } else if (returnPath === '/' || returnPath === '/beranda') {
+        returnPath = '/beranda';
+      } else if (!returnPath.startsWith('/sekolah') && !returnPath.startsWith('/direktori-sekolah')) {
+        returnPath = window.location.pathname;
+      }
+
+      const finalUrl = searchStr ? `${returnPath}?${searchStr}` : returnPath;
+
+      if (window.location.pathname + window.location.search !== finalUrl) {
+        window.history.pushState({}, '', finalUrl);
+      }
+      document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & PAUD - Korwilcam Purwodadi';
     }
   };
 
@@ -1545,11 +1630,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Clear selectedNews, selectedAnnouncement, selectedGallery, and selectedDocument if not viewing detail
+      // 6. Support school detection via ?npsn=... or path /sekolah/:npsn or /direktori-sekolah/:npsn
+      const queryNpsn = searchParams.get('npsn')?.trim();
+      let pathNpsn = '';
+      if (
+        (rawPath.startsWith('/sekolah/') && rawPath !== '/sekolah') ||
+        (rawPath.startsWith('/direktori-sekolah/') && rawPath !== '/direktori-sekolah')
+      ) {
+        pathNpsn = decodeURIComponent(
+          rawPath.replace(/^\/sekolah\//, '').replace(/^\/direktori-sekolah\//, '')
+        ).trim();
+      }
+
+      const targetNpsn = queryNpsn || pathNpsn;
+      if (targetNpsn) {
+        setActiveTabState('schools');
+        if (schools.length > 0) {
+          const found = schools.find((s) => 
+            (s.npsn && s.npsn.trim().toLowerCase() === targetNpsn.toLowerCase()) ||
+            (s.id && s.id.trim().toLowerCase() === targetNpsn.toLowerCase()) ||
+            (s.name && s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === targetNpsn.toLowerCase())
+          );
+          if (found) {
+            setSelectedSchoolState(found);
+            setSelectedNewsState(null);
+            setSelectedAnnouncementState(null);
+            setSelectedGalleryState(null);
+            setSelectedDocumentState(null);
+            document.title = `${found.name} (NPSN: ${found.npsn}) - Korwilcam Purwodadi`;
+            return;
+          }
+        }
+      }
+
+      // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, and selectedSchool if not viewing detail
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
       setSelectedDocumentState(null);
+      setSelectedSchoolState(null);
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
@@ -1607,7 +1726,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements, gallery, documents]);
+  }, [news, announcements, gallery, documents, schools]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -1808,8 +1927,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // SCHOOLS CRUD (Auto-save to Supabase & local state)
   const addSchool = async (schoolData: Omit<School, 'id'>) => {
+    const rawImg = schoolData.image?.trim() || '';
+    const formattedImg = isGoogleDriveUrl(rawImg) ? formatGoogleDriveImageUrl(rawImg) : rawImg;
     const newSchool: School = {
       ...schoolData,
+      image: formattedImg,
       id: `sch-${Date.now()}`
     };
     setSchools((prev) => [newSchool, ...prev]);
@@ -1861,11 +1983,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateSchool = async (id: string, updatedData: Partial<School>) => {
+    const cleanUpdatedData = { ...updatedData };
+    if (cleanUpdatedData.image && isGoogleDriveUrl(cleanUpdatedData.image)) {
+      cleanUpdatedData.image = formatGoogleDriveImageUrl(cleanUpdatedData.image);
+    }
     let mergedSchool: School | null = null;
     setSchools((prev) =>
       prev.map((s) => {
         if (s.id === id) {
-          mergedSchool = { ...s, ...updatedData };
+          mergedSchool = { ...s, ...cleanUpdatedData };
           return mergedSchool;
         }
         return s;

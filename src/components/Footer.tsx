@@ -6,8 +6,7 @@ import {
   Mail, 
   Clock, 
   ExternalLink, 
-  ChevronRight, 
-  Lock 
+  ChevronRight 
 } from 'lucide-react';
 
 export const Footer: React.FC = () => {
@@ -44,7 +43,15 @@ export const Footer: React.FC = () => {
 
             <div className="pt-0.5 space-y-1 text-[10px] text-slate-300">
               <div className="flex items-start gap-1.5">
-                <MapPin className="w-3 h-3 text-blue-400 shrink-0 mt-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(isAuthenticated ? 'admin-dashboard' : 'admin-login')}
+                  className="text-blue-400 hover:text-blue-300 transition-colors shrink-0 mt-0.5 cursor-pointer p-0.5 -m-0.5 rounded focus:outline-none"
+                  title="Akses Petugas"
+                  aria-label="Akses Petugas"
+                >
+                  <MapPin className="w-3 h-3" />
+                </button>
                 <span className="leading-tight">{officeProfile.address}</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -321,19 +328,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom copyright & attribution */}
         <div className="pt-2.5 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-1.5">
-          <div className="flex items-center gap-1 flex-wrap">
-            <p>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</p>
-            {/* Tombol Rahasia Login Admin (Tersamar sebagai Ikon Gembok Keamanan Web) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab(isAuthenticated ? 'admin-dashboard' : 'admin-login')}
-              className="text-slate-600 hover:text-slate-400 transition-colors p-0.5 rounded cursor-pointer opacity-30 hover:opacity-100 inline-flex items-center"
-              title="Akses Petugas"
-              aria-label="Akses Petugas"
-            >
-              <Lock className="w-2.5 h-2.5" />
-            </button>
-          </div>
+          <p>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</p>
           <div className="flex items-center gap-1 text-slate-400">
             <span>Website ini dikembangkan oleh Tim IT Korwilcam Purwodadi</span>
           </div>

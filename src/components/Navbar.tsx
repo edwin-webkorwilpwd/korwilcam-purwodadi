@@ -14,7 +14,6 @@ import {
   FileText, 
   Image as ImageIcon, 
   ChevronDown,
-  Lock,
   ChevronLeft,
   ChevronRight,
   ArrowRight,
@@ -223,15 +222,6 @@ export const Navbar: React.FC = () => {
               <Clock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span className="truncate max-w-[360px] 2xl:max-w-none">{officeProfile.workingHours || 'Senin - Kamis: 07.30 - 14.30 WIB | Jumat: 07.30 - 13.00 WIB'}</span>
             </div>
-            {/* Tombol Akses Petugas Tersembunyi (Ikon Gembok Mikro Samar) */}
-            <button
-              onClick={() => handleNavClick(isAuthenticated ? 'admin-dashboard' : 'admin-login')}
-              className="text-slate-600 hover:text-slate-300 transition-colors p-1 rounded opacity-30 hover:opacity-100"
-              title="Akses Petugas"
-              aria-label="Akses Petugas"
-            >
-              <Lock className="w-3 h-3" />
-            </button>
           </div>
         </div>
       </div>
@@ -337,7 +327,7 @@ export const Navbar: React.FC = () => {
               </button>
 
               <button
-                onClick={() => handleNavClick('schools', '/direktori-sekolah')}
+                onClick={() => handleNavClick('schools', '/sekolah')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all relative whitespace-nowrap ${
                   activeTab === 'schools' 
                     ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
@@ -575,7 +565,7 @@ export const Navbar: React.FC = () => {
           </button>
 
           <button
-            onClick={() => handleNavClick('schools', '/direktori-sekolah')}
+            onClick={() => handleNavClick('schools', '/sekolah')}
             className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
               activeTab === 'schools' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
             }`}

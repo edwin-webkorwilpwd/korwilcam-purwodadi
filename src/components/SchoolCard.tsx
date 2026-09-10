@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { School } from '../types';
 import { useApp } from '../context/AppContext';
-import { MapPin, User, Star, ArrowUpRight, GraduationCap, Users } from 'lucide-react';
+import { MapPin, User, Star, GraduationCap, Users, Building2 } from 'lucide-react';
+import { getGoogleDriveCandidates, isGoogleDriveUrl } from '../lib/driveHelper';
 
 interface SchoolCardProps {
   school: School;
@@ -9,6 +10,31 @@ interface SchoolCardProps {
 
 export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
   const { setSelectedSchool } = useApp();
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  const rawImage = school.image?.trim() || '';
+  const candidates = useMemo(() => {
+    if (!rawImage || rawImage.includes('photo-1580582932707')) return [];
+    if (isGoogleDriveUrl(rawImage)) {
+      return getGoogleDriveCandidates(rawImage);
+    }
+    return [rawImage];
+  }, [rawImage]);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [rawImage]);
+
+  const currentSrc = candidates[candidateIndex];
+  const hasImage = Boolean(currentSrc && candidateIndex < candidates.length);
+
+  const handleImageError = () => {
+    if (candidateIndex + 1 < candidates.length) {
+      setCandidateIndex((prev) => prev + 1);
+    } else {
+      setCandidateIndex(candidates.length);
+    }
+  };
 
   const getLevelBadge = (level: string) => {
     switch (level) {
@@ -30,17 +56,43 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
   };
 
   return (
-    <div className="card-deferred bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1">
+    <div 
+      onClick={() => setSelectedSchool(school)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setSelectedSchool(school);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      className="card-deferred bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+    >
       {/* Image & Badges */}
       <div className="relative h-48 w-full overflow-hidden bg-slate-100">
-        <img
-          src={school.image}
-          alt={school.name}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
+        {hasImage ? (
+          <>
+            <img
+              key={currentSrc}
+              src={currentSrc}
+              alt={school.name}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+              onError={handleImageError}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
+          </>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200/80 flex flex-col items-center justify-center border-b border-slate-200/60">
+            <div className="w-14 h-14 rounded-2xl bg-white/90 shadow-sm border border-slate-200/80 flex items-center justify-center text-slate-300 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300">
+              <Building2 className="w-7 h-7 stroke-[1.5]" />
+            </div>
+            <span className="text-[10px] font-medium text-slate-400 mt-2">Tidak ada foto</span>
+          </div>
+        )}
 
         {/* Level Badge */}
         <div className="absolute top-3 left-3 flex gap-2">
@@ -61,7 +113,7 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
         </div>
 
         {/* NPSN bottom badge */}
-        <div className="absolute bottom-3 left-3 text-[11px] font-mono font-medium text-white/90 bg-black/60 px-2 py-0.5 rounded">
+        <div className="absolute bottom-3 left-3 text-[11px] font-mono font-medium text-white bg-slate-900/80 px-2 py-0.5 rounded shadow-sm">
           NPSN: {school.npsn}
         </div>
       </div>
@@ -86,7 +138,7 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
           </div>
         </div>
 
-        {/* Stats & Action */}
+        {/* Stats */}
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <span className="flex items-center gap-1">
@@ -99,14 +151,6 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
               <span>{school.teachersCount} Guru</span>
             </span>
           </div>
-
-          <button
-            onClick={() => setSelectedSchool(school)}
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 group-hover:translate-x-0.5 transition-transform"
-          >
-            <span>Detail</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
     </div>
