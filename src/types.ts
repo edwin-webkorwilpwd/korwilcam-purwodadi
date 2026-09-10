@@ -82,6 +82,7 @@ export interface AulaAgendaBooking {
 export interface DocumentDownload {
   id: string;
   title: string;
+  slug?: string;
   category: 'Kurikulum' | 'Surat Edaran' | 'Blanko GTK' | 'Juknis Lomba';
   fileType: 'PDF' | 'DOCX' | 'XLSX';
   fileSize: string;
@@ -102,13 +103,23 @@ export interface GalleryItem {
   description: string;
 }
 
+export type StaffDivision = 
+  | 'Pimpinan Korwilcam Purwodadi' 
+  | 'Pengawas SD' 
+  | 'Pengawas TK' 
+  | 'Penilik PAUD' 
+  | 'Staf'
+  | 'Pimpinan' 
+  | 'Penilik PAUD/TK' 
+  | 'Tata Usaha';
+
 export interface StaffProfile {
   id: string;
   name: string;
   role: string;
   nip: string;
   photo: string;
-  division: 'Pimpinan' | 'Pengawas SD' | 'Penilik PAUD/TK' | 'Tata Usaha';
+  division: StaffDivision;
 }
 
 export interface OfficeProfile {

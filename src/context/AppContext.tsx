@@ -30,6 +30,7 @@ import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/sho
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug } from '../lib/galleryHelper';
 import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
+import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -93,6 +94,9 @@ interface AppContextType {
   setSelectedSchool: (school: School | null) => void;
   selectedGallery: GalleryItem | null;
   setSelectedGallery: (gallery: GalleryItem | null) => void;
+  selectedDocument: DocumentDownload | null;
+  setSelectedDocument: (doc: DocumentDownload | null, customPath?: string) => void;
+  incrementDocumentDownloadCount: (id: string) => Promise<void>;
   
   // Auth & Roles
   isAuthenticated: boolean;
@@ -278,6 +282,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedAnnouncement, setSelectedAnnouncementState] = useState<Announcement | null>(null);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [selectedGallery, setSelectedGalleryState] = useState<GalleryItem | null>(null);
+  const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
 
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
@@ -468,13 +473,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const mappedStaff = dbStaff.map((st: any) => {
             const rawPhoto = String(st.photo || st.foto || '').trim();
             const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
+            let div = st.division || st.divisi || 'Staf';
+            if (div === 'Pimpinan') div = 'Pimpinan Korwilcam Purwodadi';
+            else if (div === 'Penilik PAUD/TK') div = 'Penilik PAUD';
+            else if (div === 'Tata Usaha') div = 'Staf';
+
             return {
               id: String(st.id || `st-${Date.now()}`),
               name: String(st.name || st.nama || '').trim(),
               role: String(st.role || st.jabatan || 'Staf').trim(),
               nip: String(st.nip || '').trim(),
               photo: cleanPhoto,
-              division: st.division || st.divisi || 'Tata Usaha'
+              division: div
             };
           });
           setStaff(mappedStaff);
@@ -1048,6 +1058,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selectedGallery) {
       setSelectedGalleryState(null);
     }
+    if (selectedDocument) {
+      setSelectedDocumentState(null);
+    }
 
     const route = TAB_ROUTES[tab];
     const targetPath = customPath || (route ? route.path : `/${tab}`);
@@ -1085,6 +1098,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (article) {
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      setSelectedDocumentState(null);
       const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const targetBase = `/berita/${encodeURIComponent(slug)}`;
       const currentParam = new URLSearchParams(window.location.search).get('page');
@@ -1109,6 +1123,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (ann) {
       setSelectedNewsState(null);
       setSelectedGalleryState(null);
+      setSelectedDocumentState(null);
       const slug = ann.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const newPath = customPath || `/berita/pengumuman/${encodeURIComponent(slug)}`;
       if (window.location.pathname !== newPath) {
@@ -1130,6 +1145,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (item) {
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
+      setSelectedDocumentState(null);
       setActiveTabState('gallery');
       const slug = getGallerySlug(item);
       const newPath = `/galeri/${encodeURIComponent(slug)}`;
@@ -1144,6 +1160,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.history.pushState({}, '', returnPath);
       }
       document.title = 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi';
+    }
+  };
+
+  const setSelectedDocument = (doc: DocumentDownload | null, customPath?: string) => {
+    setSelectedDocumentState(doc);
+    if (doc) {
+      setSelectedNewsState(null);
+      setSelectedAnnouncementState(null);
+      setSelectedGalleryState(null);
+      setActiveTabState('downloads');
+      const slug = getDocumentSlug(doc);
+      const newPath = customPath || getDocumentDetailPath(doc);
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({ documentSlug: slug, path: newPath }, '', newPath);
+      }
+      document.title = `${doc.title} - Pusat Unduhan Korwilcam Purwodadi`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const returnPath = '/layanan/unduh-berkas';
+      if (window.location.pathname !== returnPath) {
+        window.history.pushState({}, '', returnPath);
+      }
+      document.title = TAB_ROUTES['downloads'].title;
     }
   };
 
@@ -1303,10 +1342,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Clear selectedNews, selectedAnnouncement, and selectedGallery if not viewing detail
+      // 5. Support /layanan/unduh-berkas/:slug, /unduh-berkas/:slug, /dokumen/:slug, or /unduhan/:slug
+      if (
+        (rawPath.startsWith('/layanan/unduh-berkas/') && rawPath !== '/layanan/unduh-berkas') ||
+        (rawPath.startsWith('/unduh-berkas/') && rawPath !== '/unduh-berkas') ||
+        (rawPath.startsWith('/dokumen/') && rawPath !== '/dokumen') ||
+        (rawPath.startsWith('/unduhan/') && rawPath !== '/unduhan')
+      ) {
+        const slug = decodeURIComponent(
+          rawPath
+            .replace(/^\/layanan\/unduh-berkas\//, '')
+            .replace(/^\/unduh-berkas\//, '')
+            .replace(/^\/dokumen\//, '')
+            .replace(/^\/unduhan\//, '')
+        );
+        setActiveTabState('downloads');
+        if (documents.length > 0) {
+          const found = documents.find((d) => 
+            d.id === slug || 
+            (d.slug && d.slug === slug) ||
+            getDocumentSlug(d) === slug ||
+            d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug
+          );
+          if (found) {
+            setSelectedDocumentState(found);
+            setSelectedNewsState(null);
+            setSelectedAnnouncementState(null);
+            setSelectedGalleryState(null);
+            document.title = `${found.title} - Pusat Unduhan Korwilcam Purwodadi`;
+            return;
+          }
+        }
+      }
+
+      // Query param fallback ?dokumen=slug or ?berkas=slug
+      const queryDokumen = searchParams.get('dokumen') || searchParams.get('berkas');
+      if (queryDokumen && documents.length > 0) {
+        const found = documents.find((d) => 
+          d.id === queryDokumen || 
+          (d.slug && d.slug === queryDokumen) ||
+          getDocumentSlug(d) === queryDokumen ||
+          d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === queryDokumen
+        );
+        if (found) {
+          setActiveTabState('downloads');
+          setSelectedDocumentState(found);
+          setSelectedNewsState(null);
+          setSelectedAnnouncementState(null);
+          setSelectedGalleryState(null);
+          document.title = `${found.title} - Pusat Unduhan Korwilcam Purwodadi`;
+          return;
+        }
+      }
+
+      // Clear selectedNews, selectedAnnouncement, selectedGallery, and selectedDocument if not viewing detail
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      setSelectedDocumentState(null);
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
@@ -1364,7 +1457,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements, gallery]);
+  }, [news, announcements, gallery, documents]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -2166,6 +2259,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const incrementDocumentDownloadCount = async (id: string) => {
+    let nextCount = 1;
+
+    // 1. Update React state immediately (optimistic UI update)
+    setDocuments((prev) =>
+      prev.map((d) => {
+        if (d.id === id) {
+          nextCount = (Number(d.downloadCount) || 0) + 1;
+          return { ...d, downloadCount: nextCount };
+        }
+        return d;
+      })
+    );
+
+    setSelectedDocumentState((prev) => {
+      if (prev && prev.id === id) {
+        return { ...prev, downloadCount: (Number(prev.downloadCount) || 0) + 1 };
+      }
+      return prev;
+    });
+
+    // 2. Persist to Supabase Cloud if connected
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { data: dbItem } = await client
+          .from('documents')
+          .select('download_count')
+          .eq('id', id)
+          .single();
+
+        const finalCount = dbItem ? (Number(dbItem.download_count) || 0) + 1 : nextCount;
+
+        const { error } = await client
+          .from('documents')
+          .update({ download_count: finalCount })
+          .eq('id', id);
+
+        if (!error && finalCount !== nextCount) {
+          setDocuments((prev) =>
+            prev.map((d) => (d.id === id ? { ...d, downloadCount: finalCount } : d))
+          );
+          setSelectedDocumentState((prev) =>
+            prev && prev.id === id ? { ...prev, downloadCount: finalCount } : prev
+          );
+        }
+      } catch (err) {
+        console.warn('Silently failed to update document download count in Supabase:', err);
+      }
+    }
+  };
+
   // AGENDA CRUD (Auto-save to Supabase & local state)
   const addAgenda = async (agendaData: Omit<AgendaEvent, 'id'>) => {
     const newAg: AgendaEvent = {
@@ -2731,6 +2876,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedSchool,
         selectedGallery,
         setSelectedGallery,
+        selectedDocument,
+        setSelectedDocument,
+        incrementDocumentDownloadCount,
         isAuthenticated,
         currentUser,
         adminUsers,

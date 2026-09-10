@@ -16,6 +16,7 @@ const NewsPage = React.lazy(() => import('./pages/NewsPage').then(m => ({ defaul
 const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m => ({ default: m.NewsDetailPage })));
 const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
 const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
+const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage').then(m => ({ default: m.DocumentDetailPage })));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
@@ -31,7 +32,7 @@ const PageLoadingFallback: React.FC = () => (
 );
 
 const MainContent: React.FC = () => {
-  const { activeTab, setActiveTab, isAuthenticated, selectedNews, selectedAnnouncement, selectedGallery } = useApp();
+  const { activeTab, setActiveTab, isAuthenticated, selectedNews, selectedAnnouncement, selectedGallery, selectedDocument } = useApp();
 
   // Shortcut Keyboard Rahasia (Ctrl + Shift + A atau Alt + A)
   useEffect(() => {
@@ -83,13 +84,15 @@ const MainContent: React.FC = () => {
       {/* Main Routed Page Content */}
       <main className={`flex-1 ${isWebView ? 'w-full h-[calc(100vh-74px)] overflow-hidden flex flex-col' : ''}`}>
         <Suspense fallback={<PageLoadingFallback />}>
-          {/* Full Page News Detail, Announcement Detail, atau Gallery Detail jika dipilih */}
+          {/* Full Page News Detail, Announcement Detail, Gallery Detail, atau Document Detail jika dipilih */}
           {selectedNews ? (
             <NewsDetailPage />
           ) : selectedAnnouncement ? (
             <AnnouncementDetailPage />
           ) : selectedGallery ? (
             <GalleryDetailPage />
+          ) : selectedDocument ? (
+            <DocumentDetailPage />
           ) : (
             <>
               {activeTab === 'home' && <HomePage />}

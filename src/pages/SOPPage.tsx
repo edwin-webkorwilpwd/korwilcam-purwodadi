@@ -40,10 +40,10 @@ export const SOPPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
       {/* Header Banner */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white py-14 px-4 sm:px-6 lg:px-8 overflow-hidden shadow-md">
+      <section className="relative bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-14 px-4 sm:px-8 lg:px-12 xl:px-16 overflow-hidden shadow-md">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-600/15 via-transparent to-transparent pointer-events-none" />
         
-        <div className="max-w-6xl mx-auto relative z-10">
+        <div className="w-full relative z-10">
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-300 mb-3">
             <button 
               onClick={() => setActiveTab('home', '/beranda')} 
@@ -56,7 +56,7 @@ export const SOPPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="space-y-2 max-w-3xl">
+            <div className="space-y-2 max-w-4xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold">
                 <FileCheck2 className="w-3.5 h-3.5 text-blue-400" />
                 <span>Standar Operasional Prosedur (SOP)</span>
@@ -74,7 +74,7 @@ export const SOPPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleShare}
-                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all"
+                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
                 title="Bagikan tautan SOP ini"
               >
                 <Share2 className="w-3.5 h-3.5 text-blue-300" />
@@ -88,7 +88,7 @@ export const SOPPage: React.FC = () => {
                     setIsLightboxOpen(true);
                     setZoomLevel(1);
                   }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
                   <span>Lihat Ukuran Penuh</span>
@@ -99,9 +99,9 @@ export const SOPPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Main Content Area */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-20">
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Main Content Area: Full Screen Width */}
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-6 relative z-20">
+        <div className="w-full bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-4 sm:p-6 lg:p-8 space-y-6">
           
           {/* Action Bar & Info */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
@@ -120,10 +120,10 @@ export const SOPPage: React.FC = () => {
             </div>
           </div>
 
-          {/* SOP Image Viewer (Gambar Utuh) */}
+          {/* SOP Image Viewer (Gambar Utuh Lebar Penuh) */}
           {sopImageUrl ? (
-            <div className="space-y-4">
-              <div className="relative group bg-slate-900/5 rounded-2xl border border-slate-200 p-2 sm:p-4 flex items-center justify-center overflow-hidden min-h-[300px]">
+            <div className="space-y-4 w-full">
+              <div className="relative group bg-slate-900/5 rounded-2xl border border-slate-200 p-2 sm:p-4 flex items-center justify-center overflow-hidden min-h-[300px] w-full">
                 {imageError ? (
                   <div className="py-12 px-4 text-center max-w-md space-y-3">
                     <Info className="w-10 h-10 text-amber-500 mx-auto" />
@@ -150,7 +150,7 @@ export const SOPPage: React.FC = () => {
                     <img
                       src={sopImageUrl}
                       alt="Bagan Alur SOP Pelayanan Korwilcam Purwodadi"
-                      className="w-full h-auto max-h-[85vh] object-contain rounded-xl shadow-sm transition-transform duration-200 cursor-zoom-in"
+                      className="w-full h-auto object-contain rounded-xl shadow-sm transition-transform duration-200 cursor-zoom-in"
                       onClick={() => {
                         setIsLightboxOpen(true);
                         setZoomLevel(1);

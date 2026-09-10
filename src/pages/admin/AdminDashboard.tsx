@@ -73,6 +73,7 @@ import {
   Accreditation, 
   NewsCategory, 
   StaffProfile, 
+  StaffDivision,
   AgendaEvent, 
   GalleryItem, 
   DocumentDownload, 
@@ -442,7 +443,7 @@ export const AdminDashboard: React.FC = () => {
     role: '',
     nip: '',
     photo: '',
-    division: 'Pengawas SD' as 'Pimpinan' | 'Pengawas SD' | 'Penilik PAUD/TK' | 'Tata Usaha'
+    division: 'Pengawas SD' as StaffDivision
   });
 
   const handleSaveStaff = async (e: React.FormEvent) => {
@@ -2186,10 +2187,11 @@ export const AdminDashboard: React.FC = () => {
                         onChange={(e) => setStaffForm({ ...staffForm, division: e.target.value as any })}
                         className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                       >
-                        <option value="Pimpinan">Pimpinan</option>
+                        <option value="Pimpinan Korwilcam Purwodadi">Pimpinan Korwilcam Purwodadi</option>
                         <option value="Pengawas SD">Pengawas SD</option>
-                        <option value="Penilik PAUD/TK">Penilik PAUD/TK</option>
-                        <option value="Tata Usaha">Tata Usaha</option>
+                        <option value="Pengawas TK">Pengawas TK</option>
+                        <option value="Penilik PAUD">Penilik PAUD</option>
+                        <option value="Staf">Staf</option>
                       </select>
                     </div>
                   </div>
@@ -2367,11 +2369,13 @@ export const AdminDashboard: React.FC = () => {
                             <td className="p-3">{st.role}</td>
                             <td className="p-3">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                st.division === 'Pimpinan'
+                                st.division === 'Pimpinan Korwilcam Purwodadi' || st.division === 'Pimpinan'
                                   ? 'bg-purple-50 text-purple-700 border-purple-200'
                                   : st.division === 'Pengawas SD'
                                   ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                  : st.division === 'Penilik PAUD/TK'
+                                  : st.division === 'Pengawas TK'
+                                  ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
+                                  : st.division === 'Penilik PAUD' || st.division === 'Penilik PAUD/TK'
                                   ? 'bg-amber-50 text-amber-700 border-amber-200'
                                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               }`}>
@@ -2408,7 +2412,12 @@ export const AdminDashboard: React.FC = () => {
                                       role: st.role,
                                       nip: st.nip || '',
                                       photo: st.photo,
-                                      division: st.division
+                                      division: (
+                                        st.division === 'Pimpinan' ? 'Pimpinan Korwilcam Purwodadi' :
+                                        st.division === 'Penilik PAUD/TK' ? 'Penilik PAUD' :
+                                        st.division === 'Tata Usaha' ? 'Staf' :
+                                        (st.division as StaffDivision)
+                                      )
                                     });
                                     document.getElementById('staff-form-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                   }}

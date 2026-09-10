@@ -10,12 +10,24 @@ import {
   BookOpen, 
   ShieldCheck,
   GraduationCap,
-  User
+  User,
+  X,
+  ZoomIn,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { officeProfile, staff } = useApp();
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
+  const [previewStaff, setPreviewStaff] = useState<{
+    id?: string;
+    name: string;
+    role: string;
+    nip?: string;
+    photo?: string;
+    division?: string;
+  } | null>(null);
 
   React.useEffect(() => {
     const scrollToTarget = () => {
@@ -43,10 +55,14 @@ export const ProfilePage: React.FC = () => {
   }, []);
 
   const divisionOrder: Record<string, number> = {
+    'Pimpinan Korwilcam Purwodadi': 1,
     'Pimpinan': 1,
     'Pengawas SD': 2,
-    'Penilik PAUD/TK': 3,
-    'Tata Usaha': 4
+    'Pengawas TK': 3,
+    'Penilik PAUD': 4,
+    'Penilik PAUD/TK': 4,
+    'Staf': 5,
+    'Tata Usaha': 5
   };
 
   const sortedStaff = [...staff].sort((a, b) => {
@@ -58,14 +74,84 @@ export const ProfilePage: React.FC = () => {
 
   const filteredStaff = selectedDivision === 'ALL'
     ? sortedStaff
-    : sortedStaff.filter((s) => s.division === selectedDivision);
+    : sortedStaff.filter((s) => {
+        if (selectedDivision === 'Pimpinan Korwilcam Purwodadi') {
+          return s.division === 'Pimpinan Korwilcam Purwodadi' || s.division === 'Pimpinan';
+        }
+        if (selectedDivision === 'Penilik PAUD') {
+          return s.division === 'Penilik PAUD' || s.division === 'Penilik PAUD/TK';
+        }
+        if (selectedDivision === 'Staf') {
+          return s.division === 'Staf' || s.division === 'Tata Usaha';
+        }
+        return s.division === selectedDivision;
+      });
+
+  const handleNextStaff = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!previewStaff || filteredStaff.length <= 1) return;
+    const currentIndex = filteredStaff.findIndex(s => (s.id && s.id === previewStaff.id) || s.name === previewStaff.name);
+    if (currentIndex !== -1) {
+      const nextIndex = (currentIndex + 1) % filteredStaff.length;
+      setPreviewStaff(filteredStaff[nextIndex]);
+    }
+  };
+
+  const handlePrevStaff = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!previewStaff || filteredStaff.length <= 1) return;
+    const currentIndex = filteredStaff.findIndex(s => (s.id && s.id === previewStaff.id) || s.name === previewStaff.name);
+    if (currentIndex !== -1) {
+      const prevIndex = (currentIndex - 1 + filteredStaff.length) % filteredStaff.length;
+      setPreviewStaff(filteredStaff[prevIndex]);
+    }
+  };
+
+  React.useEffect(() => {
+    if (previewStaff) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [previewStaff]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!previewStaff) return;
+      if (e.key === 'Escape') {
+        setPreviewStaff(null);
+      } else if (e.key === 'ArrowRight') {
+        if (filteredStaff.length > 1) {
+          const currentIndex = filteredStaff.findIndex(s => (s.id && s.id === previewStaff.id) || s.name === previewStaff.name);
+          if (currentIndex !== -1) {
+            const nextIndex = (currentIndex + 1) % filteredStaff.length;
+            setPreviewStaff(filteredStaff[nextIndex]);
+          }
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (filteredStaff.length > 1) {
+          const currentIndex = filteredStaff.findIndex(s => (s.id && s.id === previewStaff.id) || s.name === previewStaff.name);
+          if (currentIndex !== -1) {
+            const prevIndex = (currentIndex - 1 + filteredStaff.length) % filteredStaff.length;
+            setPreviewStaff(filteredStaff[prevIndex]);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewStaff, filteredStaff]);
 
   const divisions = [
     { id: 'ALL', label: 'Semua Pejabat & Staf' },
-    { id: 'Pimpinan', label: 'Pimpinan' },
+    { id: 'Pimpinan Korwilcam Purwodadi', label: 'Pimpinan' },
     { id: 'Pengawas SD', label: 'Pengawas SD' },
-    { id: 'Penilik PAUD/TK', label: 'Penilik PAUD/TK' },
-    { id: 'Tata Usaha', label: 'Tata Usaha' },
+    { id: 'Pengawas TK', label: 'Pengawas TK' },
+    { id: 'Penilik PAUD', label: 'Penilik PAUD' },
+    { id: 'Staf', label: 'Staf' },
   ];
 
   return (
@@ -91,7 +177,17 @@ export const ProfilePage: React.FC = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/80 shadow-xl grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           
           <div className="lg:col-span-4 flex flex-col items-center text-center space-y-4">
-            <div className="relative">
+            <div 
+              onClick={() => setPreviewStaff({
+                name: officeProfile.korwilName,
+                role: 'Koordinator Wilayah Bidang Pendidikan Purwodadi',
+                nip: officeProfile.korwilNip,
+                photo: officeProfile.korwilPhoto,
+                division: 'Pimpinan Korwilcam Purwodadi'
+              })}
+              className="relative cursor-pointer group/korwil"
+              title="Klik untuk melihat foto pimpinan lebih besar"
+            >
               {officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? (
                 <img
                   src={officeProfile.korwilPhoto}
@@ -103,7 +199,7 @@ export const ProfilePage: React.FC = () => {
                     const fallback = e.currentTarget.nextElementSibling;
                     if (fallback) (fallback as HTMLElement).classList.remove('hidden');
                   }}
-                  className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-slate-100"
+                  className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 group-hover/korwil:ring-blue-600 shadow-2xl shadow-blue-500/20 bg-slate-100 transition-all duration-300 group-hover/korwil:scale-[1.02]"
                 />
               ) : null}
               <div className={`w-48 h-56 sm:w-56 sm:h-64 rounded-2xl ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-gradient-to-b from-slate-100 to-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 ${officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? 'hidden' : 'flex'}`}>
@@ -112,6 +208,11 @@ export const ProfilePage: React.FC = () => {
               </div>
               <div className="absolute -bottom-3 -right-3 p-2 rounded-xl bg-blue-600 text-white shadow-lg">
                 <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div className="absolute inset-0 rounded-2xl bg-slate-950/20 opacity-0 group-hover/korwil:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                <div className="p-2 rounded-full bg-white/95 text-blue-600 shadow-md transform scale-90 group-hover/korwil:scale-100 transition-transform">
+                  <ZoomIn className="w-5 h-5" />
+                </div>
               </div>
             </div>
 
@@ -266,9 +367,11 @@ export const ProfilePage: React.FC = () => {
               return (
                 <div
                   key={person.id}
-                  className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-4 group"
+                  onClick={() => setPreviewStaff(person)}
+                  className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex items-center gap-4 group cursor-pointer relative"
+                  title="Klik untuk melihat foto lebih besar"
                 >
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0 overflow-hidden relative bg-slate-100 flex items-center justify-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0 overflow-hidden relative bg-slate-100 flex items-center justify-center shadow-sm">
                     {hasValidPhoto ? (
                       <img
                         src={person.photo}
@@ -280,40 +383,57 @@ export const ProfilePage: React.FC = () => {
                           const fallback = e.currentTarget.nextElementSibling;
                           if (fallback) (fallback as HTMLElement).classList.remove('hidden');
                         }}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                       />
                     ) : null}
                     <div className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 text-slate-400 ${hasValidPhoto ? 'hidden' : 'flex'}`}>
                       <User className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" />
                       <span className="text-[9px] font-bold text-slate-400 mt-0.5">ASN</span>
                     </div>
+                    {/* Hover Zoom Icon overlay on photo */}
+                    <div className="absolute inset-0 bg-slate-950/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <div className="p-1.5 rounded-full bg-white/95 text-blue-600 shadow-md transform scale-75 group-hover:scale-100 transition-transform">
+                        <ZoomIn className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
-                <div className="space-y-1 min-w-0">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
-                    person.division === 'Pimpinan'
-                      ? 'bg-purple-50 text-purple-700 border-purple-200'
-                      : person.division === 'Pengawas SD'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : person.division === 'Penilik PAUD/TK'
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  }`}>
-                    {person.division}
-                  </span>
-                  <h4 className="font-bold text-slate-900 text-sm leading-snug group-hover:text-blue-600 transition-colors truncate">
-                    {person.name}
-                  </h4>
-                  <p className="text-xs text-slate-600 font-medium truncate">
-                    {person.role}
-                  </p>
-                  <p className="text-[11px] font-mono text-slate-400">
-                    {person.nip ? `NIP. ${person.nip}` : 'NIP. -'}
-                  </p>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                      person.division === 'Pimpinan Korwilcam Purwodadi' || person.division === 'Pimpinan'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : person.division === 'Pengawas SD'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : person.division === 'Pengawas TK'
+                        ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
+                        : person.division === 'Penilik PAUD' || person.division === 'Penilik PAUD/TK'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                      {person.division === 'Pimpinan'
+                        ? 'Pimpinan Korwilcam Purwodadi'
+                        : person.division === 'Penilik PAUD/TK'
+                        ? 'Penilik PAUD'
+                        : person.division === 'Tata Usaha'
+                        ? 'Staf'
+                        : person.division}
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-sm leading-snug group-hover:text-blue-600 transition-colors truncate">
+                      {person.name}
+                    </h4>
+                    <p className="text-xs text-slate-600 font-medium truncate">
+                      {person.role}
+                    </p>
+                    <p className="text-[11px] font-mono text-slate-400">
+                      {person.nip ? `NIP. ${person.nip}` : 'NIP. -'}
+                    </p>
+                  </div>
+                  <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-xl bg-blue-50 text-blue-600 shrink-0 self-center">
+                    <ZoomIn className="w-4 h-4" />
+                  </div>
                 </div>
-              </div>
-            );
-          })
-          )}
+              );
+            })
+            )}
         </div>
       </section>
 
@@ -383,6 +503,162 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* Popup Modal Foto Profil Staf Lebih Besar */}
+      {previewStaff && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewStaff(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Foto profil ${previewStaff.name}`}
+        >
+          {/* Tombol Navigasi Sebelumnya (Desktop) */}
+          {filteredStaff.length > 1 && (
+            <button
+              type="button"
+              onClick={handlePrevStaff}
+              className="hidden md:flex absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md items-center justify-center transition-all hover:scale-110 shadow-2xl border border-white/20 z-20"
+              title="Foto Sebelumnya (Panah Kiri / Arrow Left)"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Tombol Navigasi Selanjutnya (Desktop) */}
+          {filteredStaff.length > 1 && (
+            <button
+              type="button"
+              onClick={handleNextStaff}
+              className="hidden md:flex absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md items-center justify-center transition-all hover:scale-110 shadow-2xl border border-white/20 z-20"
+              title="Foto Selanjutnya (Panah Kanan / Arrow Right)"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Tombol Tutup Melayang di Pojok Layar */}
+          <button
+            type="button"
+            onClick={() => setPreviewStaff(null)}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2.5 rounded-full bg-white/10 hover:bg-white/25 text-white backdrop-blur-md transition-all hover:rotate-90 z-30 border border-white/20 shadow-2xl"
+            title="Tutup (Tekan ESC)"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {/* Kartu Popup */}
+          <div 
+            className="relative max-w-md w-full bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh] z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Wadah Tampilan Foto */}
+            <div className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center min-h-[300px] sm:min-h-[380px] max-h-[60vh] overflow-hidden p-3">
+              {previewStaff.photo && 
+               !previewStaff.photo.includes('unsplash.com') && 
+               !previewStaff.photo.includes('photo-1560250097') && 
+               previewStaff.photo.trim().length > 0 ? (
+                <img
+                  src={previewStaff.photo}
+                  alt={previewStaff.name}
+                  className="w-auto h-auto max-w-full max-h-[56vh] object-contain rounded-xl shadow-2xl select-none"
+                />
+              ) : (
+                <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+                  <div className="w-28 h-28 rounded-3xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-slate-400">
+                    <User className="w-16 h-16" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-400">Pas Foto Belum Tersedia</p>
+                </div>
+              )}
+
+              {/* Badge Divisi di Pojok Kiri Foto */}
+              {previewStaff.division && (
+                <div className="absolute top-4 left-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-lg backdrop-blur-md border ${
+                    previewStaff.division === 'Pimpinan Korwilcam Purwodadi' || previewStaff.division === 'Pimpinan'
+                      ? 'bg-purple-600/90 text-white border-purple-400/30'
+                      : previewStaff.division === 'Pengawas SD'
+                      ? 'bg-blue-600/90 text-white border-blue-400/30'
+                      : previewStaff.division === 'Pengawas TK'
+                      ? 'bg-cyan-600/90 text-white border-cyan-400/30'
+                      : previewStaff.division === 'Penilik PAUD' || previewStaff.division === 'Penilik PAUD/TK'
+                      ? 'bg-amber-600/90 text-white border-amber-400/30'
+                      : 'bg-emerald-600/90 text-white border-emerald-400/30'
+                  }`}>
+                    {previewStaff.division === 'Pimpinan'
+                      ? 'Pimpinan Korwilcam Purwodadi'
+                      : previewStaff.division === 'Penilik PAUD/TK'
+                      ? 'Penilik PAUD'
+                      : previewStaff.division === 'Tata Usaha'
+                      ? 'Staf'
+                      : previewStaff.division}
+                  </span>
+                </div>
+              )}
+
+              {/* Tombol Tutup Pojok Atas Kartu */}
+              <button
+                type="button"
+                onClick={() => setPreviewStaff(null)}
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-900/70 hover:bg-slate-800 text-white backdrop-blur-sm transition-colors border border-white/10"
+                title="Tutup"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Keterangan Detail Staf */}
+            <div className="p-5 sm:p-6 bg-white space-y-3">
+              <div className="space-y-1">
+                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
+                  {previewStaff.name}
+                </h3>
+                <p className="text-sm font-bold text-blue-600">
+                  {previewStaff.role}
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-slate-500 font-mono">
+                  <ShieldCheck className="w-4 h-4 text-slate-400" />
+                  <span>{previewStaff.nip ? `NIP. ${previewStaff.nip}` : 'NIP. -'}</span>
+                </div>
+
+                {/* Navigasi Mobile (Jika Layar Kecil) */}
+                {filteredStaff.length > 1 && (
+                  <div className="flex md:hidden items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handlePrevStaff}
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                      title="Sebelumnya"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextStaff}
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                      title="Selanjutnya"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewStaff(null)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

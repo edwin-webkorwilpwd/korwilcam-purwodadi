@@ -6,14 +6,14 @@ import {
   Filter, 
   FileText, 
   FileSpreadsheet, 
-  Calendar, 
-  CheckCircle2, 
+  ChevronRight, 
   HardDriveDownload, 
   Clock 
 } from 'lucide-react';
+import { getDocumentDetailPath } from '../lib/documentHelper';
 
 export const DownloadsPage: React.FC = () => {
-  const { documents, showToast } = useApp();
+  const { documents, setSelectedDocument } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -38,33 +38,6 @@ export const DownloadsPage: React.FC = () => {
     { id: 'Blanko GTK', label: 'Blanko Administrasi GTK' },
     { id: 'Juknis Lomba', label: 'Juknis Lomba & O2SN' },
   ];
-
-  const handleDownload = (doc: any) => {
-    showToast(`Memulai pengunduhan: ${doc.title}`, 'success');
-    if (doc.downloadUrl && doc.downloadUrl !== '#' && doc.downloadUrl.startsWith('data:')) {
-      const link = document.createElement('a');
-      link.href = doc.downloadUrl;
-      link.download = `${doc.title}.${doc.fileType.toLowerCase()}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else if (doc.downloadUrl && doc.downloadUrl !== '#' && (doc.downloadUrl.startsWith('http://') || doc.downloadUrl.startsWith('https://'))) {
-      window.open(doc.downloadUrl, '_blank');
-    } else {
-      // Generate official styled document template for instant download
-      const content = `==========================================================\nPORTAL RESMI KORWILCAM BIDANG PENDIDIKAN PURWODADI\nDINAS PENDIDIKAN KABUPATEN GROBOGAN\n==========================================================\n\nJudul Dokumen  : ${doc.title}\nKategori       : ${doc.category}\nFormat Berkas  : ${doc.fileType}\nUkuran Berkas  : ${doc.fileSize}\nTanggal Rilis  : ${doc.date}\n\nKETERANGAN / DESKRIPSI:\n${doc.description}\n\n----------------------------------------------------------\nDokumen ini merupakan arsip digital resmi yang diterbitkan oleh Kantor Koordinator Wilayah Bidang Pendidikan Kecamatan Purwodadi untuk satuan pendidikan SD, TK, dan PAUD.\n----------------------------------------------------------`;
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const extension = doc.fileType === 'PDF' ? 'txt' : doc.fileType === 'DOCX' ? 'doc' : 'csv';
-      link.download = `${doc.title.replace(/[/\\?%*:|"<>]/g, '-')}.${extension}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
-  };
 
   const getFileIcon = (fileType: string) => {
     switch (fileType) {
@@ -137,12 +110,20 @@ export const DownloadsPage: React.FC = () => {
             filteredDocs.map((doc) => (
               <div
                 key={doc.id}
-                className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-5 group"
+                className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-5 group"
               >
                 <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 shrink-0 group-hover:scale-105 transition-transform">
+                  <a
+                    href={getDocumentDetailPath(doc)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedDocument(doc);
+                    }}
+                    className="p-3 rounded-2xl bg-slate-50 border border-slate-100 shrink-0 group-hover:scale-105 group-hover:bg-blue-50/70 group-hover:border-blue-200 transition-all cursor-pointer block"
+                    title="Buka rincian dokumen"
+                  >
                     {getFileIcon(doc.fileType)}
-                  </div>
+                  </a>
 
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
@@ -157,9 +138,16 @@ export const DownloadsPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <h4 className="font-bold text-slate-900 text-base group-hover:text-blue-600 transition-colors">
+                    <a
+                      href={getDocumentDetailPath(doc)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedDocument(doc);
+                      }}
+                      className="block font-bold text-slate-900 text-base group-hover:text-blue-600 transition-colors cursor-pointer hover:underline"
+                    >
                       {doc.title}
-                    </h4>
+                    </a>
 
                     <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
                       {doc.description}
@@ -173,13 +161,17 @@ export const DownloadsPage: React.FC = () => {
                     {doc.downloadCount} kali diunduh
                   </span>
 
-                  <button
-                    onClick={() => handleDownload(doc)}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all active:scale-95"
+                  <a
+                    href={getDocumentDetailPath(doc)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedDocument(doc);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white text-xs font-bold border border-blue-200 hover:border-blue-600 transition-all active:scale-95 shadow-sm"
                   >
-                    <Download className="w-4 h-4" />
-                    <span>Unduh Berkas</span>
-                  </button>
+                    <span>Buka Berkas</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </a>
                 </div>
               </div>
             ))
