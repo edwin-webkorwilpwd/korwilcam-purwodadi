@@ -13,7 +13,7 @@ import {
 import { getDocumentDetailPath } from '../lib/documentHelper';
 
 export const DownloadsPage: React.FC = () => {
-  const { documents, setSelectedDocument } = useApp();
+  const { documents, setSelectedDocument, documentCategories } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -31,13 +31,17 @@ export const DownloadsPage: React.FC = () => {
     });
   }, [documents, searchQuery, selectedCategory]);
 
-  const categories = [
-    { id: 'ALL', label: 'Semua Dokumen' },
-    { id: 'Kurikulum', label: 'Kurikulum Merdeka' },
-    { id: 'Surat Edaran', label: 'Surat Edaran' },
-    { id: 'Blanko GTK', label: 'Blanko Administrasi GTK' },
-    { id: 'Juknis Lomba', label: 'Juknis Lomba & O2SN' },
-  ];
+  const categories = useMemo(() => {
+    const list = [{ id: 'ALL', label: 'Semua Dokumen' }];
+    documentCategories.forEach((cat) => {
+      let label = cat;
+      if (cat === 'Kurikulum') label = 'Kurikulum Merdeka';
+      else if (cat === 'Blanko GTK') label = 'Blanko Administrasi GTK';
+      else if (cat === 'Juknis Lomba') label = 'Juknis Lomba & O2SN';
+      list.push({ id: cat, label });
+    });
+    return list;
+  }, [documentCategories]);
 
   const getFileIcon = (fileType: string) => {
     switch (fileType) {

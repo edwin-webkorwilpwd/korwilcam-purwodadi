@@ -22,7 +22,7 @@ export interface School {
   featured?: boolean;
 }
 
-export type NewsCategory = 'Kedinasan' | 'SD' | 'TK/PAUD' | 'Prestasi' | 'Pengumuman';
+export type NewsCategory = 'Kedinasan' | 'SD' | 'TK/PAUD' | 'Prestasi' | 'Pengumuman' | string;
 
 export interface NewsArticle {
   id: string;
@@ -83,7 +83,7 @@ export interface DocumentDownload {
   id: string;
   title: string;
   slug?: string;
-  category: 'Kurikulum' | 'Surat Edaran' | 'Blanko GTK' | 'Juknis Lomba';
+  category: 'Kurikulum' | 'Surat Edaran' | 'Blanko GTK' | 'Juknis Lomba' | string;
   fileType: 'PDF' | 'DOCX' | 'XLSX';
   fileSize: string;
   downloadCount: number;
@@ -96,7 +96,7 @@ export interface GalleryItem {
   id: string;
   title: string;
   slug?: string;
-  category: 'Kegiatan Belajar' | 'Lomba & Prestasi' | 'Rakor & Pelatihan' | 'Upacara';
+  category: 'Kegiatan Belajar' | 'Lomba & Prestasi' | 'Rakor & Pelatihan' | 'Upacara' | string;
   date: string;
   image: string;
   images?: string[];

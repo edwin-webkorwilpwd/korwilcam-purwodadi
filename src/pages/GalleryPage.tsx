@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Calendar, 
@@ -11,16 +11,17 @@ import { GalleryItem } from '../types';
 import { getGalleryDetailPath } from '../lib/galleryHelper';
 
 export const GalleryPage: React.FC = () => {
-  const { gallery, setSelectedGallery } = useApp();
+  const { gallery, setSelectedGallery, galleryCategories } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  const categories = [
-    { id: 'ALL', label: 'Semua Dokumentasi' },
-    { id: 'Kegiatan Belajar', label: 'Kegiatan Belajar' },
-    { id: 'Lomba & Prestasi', label: 'Lomba & Prestasi' },
-    { id: 'Rakor & Pelatihan', label: 'Rakor & Pelatihan' },
-    { id: 'Upacara', label: 'Upacara & Seremonial' },
-  ];
+  const categories = useMemo(() => {
+    const list = [{ id: 'ALL', label: 'Semua Dokumentasi' }];
+    galleryCategories.forEach((cat) => {
+      const label = cat === 'Upacara' ? 'Upacara & Seremonial' : cat;
+      list.push({ id: cat, label });
+    });
+    return list;
+  }, [galleryCategories]);
 
   const filteredGallery = selectedCategory === 'ALL'
     ? gallery

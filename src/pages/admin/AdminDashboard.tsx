@@ -104,15 +104,21 @@ export const AdminDashboard: React.FC = () => {
     addNews,
     updateNews,
     deleteNews,
+    newsCategories,
+    addNewsCategory,
     addAnnouncement,
     updateAnnouncement,
     deleteAnnouncement,
     addDocument,
     updateDocument,
     deleteDocument,
+    documentCategories,
+    addDocumentCategory,
     addGalleryItem,
     updateGalleryItem,
     deleteGalleryItem,
+    galleryCategories,
+    addGalleryCategory,
     addStaff,
     updateStaff,
     deleteStaff,
@@ -569,6 +575,30 @@ export const AdminDashboard: React.FC = () => {
     views: 0
   });
 
+  // State untuk tambah kategori berita baru
+  const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
+  const [newCategoryInput, setNewCategoryInput] = useState<string>('');
+  const [isSavingCategory, setIsSavingCategory] = useState<boolean>(false);
+
+  const handleSaveCategory = async () => {
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) {
+      showToast('Nama kategori tidak boleh kosong!', 'error');
+      return;
+    }
+    setIsSavingCategory(true);
+    try {
+      const ok = await addNewsCategory(trimmed);
+      setNewsForm((prev) => ({ ...prev, category: trimmed }));
+      setIsAddingCategory(false);
+      setNewCategoryInput('');
+    } catch (err) {
+      console.error('Error adding category:', err);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
   // Otomatis sinkronkan nama penulis berita dengan akun login aktif (kolom name di admin_users)
   React.useEffect(() => {
     if (!editingNewsId && currentUser?.name) {
@@ -784,12 +814,36 @@ export const AdminDashboard: React.FC = () => {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [docForm, setDocForm] = useState({
     title: '',
-    category: 'Kurikulum' as 'Kurikulum' | 'Surat Edaran' | 'Blanko GTK' | 'Juknis Lomba',
+    category: 'Kurikulum' as string,
     fileType: 'PDF' as 'PDF' | 'DOCX' | 'XLSX',
     fileSize: '1.5 MB',
     description: '',
     downloadUrl: '#'
   });
+
+  // State untuk tambah kategori berkas unduhan baru
+  const [isAddingDocCategory, setIsAddingDocCategory] = useState<boolean>(false);
+  const [newDocCategoryInput, setNewDocCategoryInput] = useState<string>('');
+  const [isSavingDocCategory, setIsSavingDocCategory] = useState<boolean>(false);
+
+  const handleSaveDocCategory = async () => {
+    const trimmed = newDocCategoryInput.trim();
+    if (!trimmed) {
+      showToast('Nama kategori berkas tidak boleh kosong!', 'error');
+      return;
+    }
+    setIsSavingDocCategory(true);
+    try {
+      await addDocumentCategory(trimmed);
+      setDocForm((prev) => ({ ...prev, category: trimmed }));
+      setIsAddingDocCategory(false);
+      setNewDocCategoryInput('');
+    } catch (err) {
+      console.error('Error adding doc category:', err);
+    } finally {
+      setIsSavingDocCategory(false);
+    }
+  };
 
   const processSelectedFile = (file: File) => {
     if (file.size > 25 * 1024 * 1024) {
@@ -905,11 +959,35 @@ export const AdminDashboard: React.FC = () => {
   const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
   const [galleryForm, setGalleryForm] = useState({
     title: '',
-    category: 'Kegiatan Belajar' as 'Kegiatan Belajar' | 'Lomba & Prestasi' | 'Rakor & Pelatihan' | 'Upacara',
+    category: 'Kegiatan Belajar' as string,
     image: '',
     images: [] as string[],
     description: ''
   });
+
+  // State untuk tambah kategori galeri baru
+  const [isAddingGalleryCategory, setIsAddingGalleryCategory] = useState<boolean>(false);
+  const [newGalleryCategoryInput, setNewGalleryCategoryInput] = useState<string>('');
+  const [isSavingGalleryCategory, setIsSavingGalleryCategory] = useState<boolean>(false);
+
+  const handleSaveGalleryCategory = async () => {
+    const trimmed = newGalleryCategoryInput.trim();
+    if (!trimmed) {
+      showToast('Nama kategori galeri tidak boleh kosong!', 'error');
+      return;
+    }
+    setIsSavingGalleryCategory(true);
+    try {
+      await addGalleryCategory(trimmed);
+      setGalleryForm((prev) => ({ ...prev, category: trimmed }));
+      setIsAddingGalleryCategory(false);
+      setNewGalleryCategoryInput('');
+    } catch (err) {
+      console.error('Error adding gallery category:', err);
+    } finally {
+      setIsSavingGalleryCategory(false);
+    }
+  };
 
   const galleryMultiPhotoInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -3084,17 +3162,101 @@ export const AdminDashboard: React.FC = () => {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700">Kategori</label>
-                        <select
-                          value={newsForm.category}
-                          onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value as NewsCategory })}
-                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                        >
-                          <option value="Kedinasan">Kedinasan</option>
-                          <option value="SD">Sekolah Dasar (SD)</option>
-                          <option value="TK/PAUD">TK & PAUD</option>
-                          <option value="Prestasi">Prestasi</option>
-                        </select>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Kategori</label>
+                          {!isAddingCategory && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingCategory(true);
+                                setNewCategoryInput('');
+                              }}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
+                              title="Tambah Kategori Baru (+)"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Tambah Kategori</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {!isAddingCategory ? (
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={newsForm.category}
+                              onChange={(e) => setNewsForm({ ...newsForm, category: e.target.value })}
+                              className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            >
+                              {newsCategories.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat === 'SD' ? 'Sekolah Dasar (SD)' : cat === 'TK/PAUD' ? 'TK & PAUD' : cat}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingCategory(true);
+                                setNewCategoryInput('');
+                              }}
+                              className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all hover:scale-105 shrink-0 flex items-center justify-center"
+                              title="Tambah Kategori Baru (+)"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                autoFocus
+                                value={newCategoryInput}
+                                onChange={(e) => setNewCategoryInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleSaveCategory();
+                                  } else if (e.key === 'Escape') {
+                                    setIsAddingCategory(false);
+                                  }
+                                }}
+                                placeholder="Ketik nama kategori baru..."
+                                className="flex-1 px-3 py-2 rounded-xl bg-white border-2 border-blue-500 text-xs font-semibold focus:outline-none shadow-sm"
+                              />
+                              <button
+                                type="button"
+                                disabled={isSavingCategory}
+                                onClick={handleSaveCategory}
+                                className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all hover:scale-105 shrink-0 flex items-center gap-1 text-xs font-bold disabled:opacity-50"
+                                title="Simpan Kategori Baru ke Database (V)"
+                              >
+                                {isSavingCategory ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="w-4 h-4 stroke-[3]" />
+                                    <span>V</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsAddingCategory(false);
+                                  setNewCategoryInput('');
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shrink-0 flex items-center justify-center"
+                                title="Batal"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-slate-500">
+                              Ketik nama kategori lalu klik tombol <b>V</b> (atau tekan Enter). Kategori akan langsung tersimpan di Supabase Cloud.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -3807,17 +3969,103 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">Kategori Berkas</label>
-                    <select
-                      value={docForm.category}
-                      onChange={(e) => setDocForm({ ...docForm, category: e.target.value as any })}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                    >
-                      <option value="Kurikulum">Kurikulum Merdeka</option>
-                      <option value="Surat Edaran">Surat Edaran</option>
-                      <option value="Blanko GTK">Blanko Administrasi GTK</option>
-                      <option value="Juknis Lomba">Juknis Lomba</option>
-                    </select>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700">Kategori Berkas</label>
+                      {!isAddingDocCategory && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingDocCategory(true);
+                            setNewDocCategoryInput('');
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
+                          title="Tambah Kategori Berkas Baru (+)"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tambah Kategori</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {!isAddingDocCategory ? (
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={docForm.category}
+                          onChange={(e) => setDocForm({ ...docForm, category: e.target.value as any })}
+                          className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                        >
+                          {documentCategories.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat === 'Kurikulum' ? 'Kurikulum Merdeka' :
+                               cat === 'Blanko GTK' ? 'Blanko Administrasi GTK' :
+                               cat === 'Juknis Lomba' ? 'Juknis Lomba & O2SN' : cat}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingDocCategory(true);
+                            setNewDocCategoryInput('');
+                          }}
+                          className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all hover:scale-105 shrink-0 flex items-center justify-center"
+                          title="Tambah Kategori Berkas Baru (+)"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newDocCategoryInput}
+                            onChange={(e) => setNewDocCategoryInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveDocCategory();
+                              } else if (e.key === 'Escape') {
+                                setIsAddingDocCategory(false);
+                              }
+                            }}
+                            placeholder="Ketik nama kategori berkas baru..."
+                            className="flex-1 px-3.5 py-2 rounded-xl bg-white border-2 border-blue-500 text-xs font-semibold focus:outline-none shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            disabled={isSavingDocCategory}
+                            onClick={handleSaveDocCategory}
+                            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all hover:scale-105 shrink-0 flex items-center gap-1 text-xs font-bold disabled:opacity-50"
+                            title="Simpan Kategori Baru ke Database (V)"
+                          >
+                            {isSavingDocCategory ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4 stroke-[3]" />
+                                <span>V</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingDocCategory(false);
+                              setNewDocCategoryInput('');
+                            }}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shrink-0 flex items-center justify-center"
+                            title="Batal"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Ketik nama kategori lalu klik tombol <b>V</b> (atau tekan Enter). Kategori akan langsung tersimpan di Supabase Cloud.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4001,17 +4249,101 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">Kategori Dokumentasi</label>
-                    <select
-                      value={galleryForm.category}
-                      onChange={(e) => setGalleryForm({ ...galleryForm, category: e.target.value as any })}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                    >
-                      <option value="Kegiatan Belajar">Kegiatan Belajar</option>
-                      <option value="Lomba & Prestasi">Lomba & Prestasi</option>
-                      <option value="Rakor & Pelatihan">Rakor & Pelatihan</option>
-                      <option value="Upacara">Upacara</option>
-                    </select>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700">Kategori Dokumentasi</label>
+                      {!isAddingGalleryCategory && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingGalleryCategory(true);
+                            setNewGalleryCategoryInput('');
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
+                          title="Tambah Kategori Galeri Baru (+)"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tambah Kategori</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {!isAddingGalleryCategory ? (
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={galleryForm.category}
+                          onChange={(e) => setGalleryForm({ ...galleryForm, category: e.target.value as any })}
+                          className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                        >
+                          {galleryCategories.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingGalleryCategory(true);
+                            setNewGalleryCategoryInput('');
+                          }}
+                          className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all hover:scale-105 shrink-0 flex items-center justify-center"
+                          title="Tambah Kategori Galeri Baru (+)"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newGalleryCategoryInput}
+                            onChange={(e) => setNewGalleryCategoryInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveGalleryCategory();
+                              } else if (e.key === 'Escape') {
+                                setIsAddingGalleryCategory(false);
+                              }
+                            }}
+                            placeholder="Ketik nama kategori galeri baru..."
+                            className="flex-1 px-3.5 py-2 rounded-xl bg-white border-2 border-blue-500 text-xs font-semibold focus:outline-none shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            disabled={isSavingGalleryCategory}
+                            onClick={handleSaveGalleryCategory}
+                            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all hover:scale-105 shrink-0 flex items-center gap-1 text-xs font-bold disabled:opacity-50"
+                            title="Simpan Kategori Baru ke Database (V)"
+                          >
+                            {isSavingGalleryCategory ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4 stroke-[3]" />
+                                <span>V</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingGalleryCategory(false);
+                              setNewGalleryCategoryInput('');
+                            }}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shrink-0 flex items-center justify-center"
+                            title="Batal"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Ketik nama kategori lalu klik tombol <b>V</b> (atau tekan Enter). Kategori akan langsung tersimpan di Supabase Cloud.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

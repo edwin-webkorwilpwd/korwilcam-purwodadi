@@ -71,13 +71,16 @@ interface Toast {
 interface AppContextType {
   schools: School[];
   news: NewsArticle[];
+  newsCategories: string[];
   announcements: Announcement[];
   agenda: AgendaEvent[];
   aulaBookings: AulaAgendaBooking[];
   loadingAulaBookings: boolean;
   refreshAulaBookings: () => Promise<void>;
   documents: DocumentDownload[];
+  documentCategories: string[];
   gallery: GalleryItem[];
+  galleryCategories: string[];
   staff: StaffProfile[];
   officeProfile: OfficeProfile;
   sopImageUrl: string;
@@ -122,6 +125,7 @@ interface AppContextType {
   addNews: (newsItem: Omit<NewsArticle, 'id'>) => void;
   updateNews: (id: string, newsItem: Partial<NewsArticle>) => void;
   deleteNews: (id: string) => void;
+  addNewsCategory: (categoryName: string) => Promise<boolean>;
   incrementNewsViews: (id: string) => Promise<void>;
   recordNewsReadingTime: (id: string, secondsSpent: number, isNewSession?: boolean) => Promise<void>;
 
@@ -132,6 +136,7 @@ interface AppContextType {
   addDocument: (doc: Omit<DocumentDownload, 'id' | 'downloadCount'>) => void;
   updateDocument: (id: string, doc: Partial<DocumentDownload>) => void;
   deleteDocument: (id: string) => void;
+  addDocumentCategory: (categoryName: string) => Promise<boolean>;
 
   addAgenda: (item: Omit<AgendaEvent, 'id'>) => void;
   updateAgenda: (id: string, item: Partial<AgendaEvent>) => void;
@@ -140,6 +145,7 @@ interface AppContextType {
   addGalleryItem: (item: Omit<GalleryItem, 'id'>) => void;
   updateGalleryItem: (id: string, item: Partial<GalleryItem>) => void;
   deleteGalleryItem: (id: string) => void;
+  addGalleryCategory: (categoryName: string) => Promise<boolean>;
 
   addStaff: (staffItem: Omit<StaffProfile, 'id'>) => Promise<boolean>;
   updateStaff: (id: string, staffItem: Partial<StaffProfile>) => Promise<boolean>;
@@ -172,6 +178,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [news, setNews] = useState<NewsArticle[]>(() => {
     const saved = localStorage.getItem('korwilcam_news');
     return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialNews);
+  });
+
+  const [newsCategories, setNewsCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_news_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return ['Kedinasan', 'SD', 'TK/PAUD', 'Prestasi'];
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
@@ -223,9 +240,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialDocuments);
   });
 
+  const [documentCategories, setDocumentCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_document_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'];
+  });
+
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
     const saved = localStorage.getItem('korwilcam_gallery');
     return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialGallery);
+  });
+
+  const [galleryCategories, setGalleryCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_gallery_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'];
   });
 
   const [officeProfile, setOfficeProfile] = useState<OfficeProfile>(() => {
@@ -525,7 +564,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch news
       const { data: dbNews, error: newsErr } = await client.from('news').select('*').order('created_at', { ascending: false });
       if (!newsErr && dbNews) {
-        setNews(dbNews.map((n: any) => {
+        // Cari master kategori tersimpan di Supabase
+        const sysCatItem = dbNews.find((n: any) => n.id === 'system-news-categories' || n.slug === 'system-news-categories');
+        let loadedCategories: string[] = ['Kedinasan', 'SD', 'TK/PAUD', 'Prestasi'];
+        if (sysCatItem) {
+          try {
+            if (Array.isArray(sysCatItem.tags) && sysCatItem.tags.length > 0) {
+              loadedCategories = sysCatItem.tags;
+            } else if (sysCatItem.content) {
+              const parsed = JSON.parse(sysCatItem.content);
+              if (Array.isArray(parsed)) loadedCategories = parsed;
+            }
+          } catch {}
+        }
+
+        // Filter keluar record master sistem agar tidak muncul sebagai berita artikel di website
+        const actualArticles = dbNews.filter((n: any) => n.id !== 'system-news-categories' && n.slug !== 'system-news-categories');
+
+        // Kumpulkan kategori dari artikel berita yang ada
+        actualArticles.forEach((n: any) => {
+          if (n.category && typeof n.category === 'string') {
+            const c = n.category.trim();
+            if (c && !loadedCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
+              loadedCategories.push(c);
+            }
+          }
+        });
+
+        // Pastikan kategori default selalu tersedia
+        ['Kedinasan', 'SD', 'TK/PAUD', 'Prestasi'].forEach(def => {
+          if (!loadedCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
+            loadedCategories.push(def);
+          }
+        });
+
+        setNewsCategories(loadedCategories);
+        try {
+          localStorage.setItem('korwilcam_news_categories', JSON.stringify(loadedCategories));
+        } catch {}
+
+        setNews(actualArticles.map((n: any) => {
           const title = String(n.title || n.judul || '').trim();
           const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
           let parsedTags: string[] = [];
@@ -632,7 +710,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        setDocuments(dbDocs.filter((d: any) => d.id !== 'sop-main').map((d: any) => ({
+        // Cari master kategori berkas tersimpan di Supabase
+        const sysDocCat = dbDocs.find((d: any) => d.id === 'system-document-categories');
+        let loadedDocCategories: string[] = ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'];
+        if (sysDocCat) {
+          try {
+            if (sysDocCat.description) {
+              const parsed = JSON.parse(sysDocCat.description);
+              if (Array.isArray(parsed)) loadedDocCategories = parsed;
+            }
+          } catch {}
+        }
+
+        const actualDocs = dbDocs.filter((d: any) => d.id !== 'sop-main' && d.id !== 'system-document-categories');
+
+        // Kumpulkan kategori dari dokumen aktual
+        actualDocs.forEach((d: any) => {
+          if (d.category && typeof d.category === 'string') {
+            const c = d.category.trim();
+            if (c && c !== 'SOP Pelayanan' && c !== 'System' && !loadedDocCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
+              loadedDocCategories.push(c);
+            }
+          }
+        });
+
+        // Pastikan kategori default selalu tersedia
+        ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'].forEach(def => {
+          if (!loadedDocCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
+            loadedDocCategories.push(def);
+          }
+        });
+
+        setDocumentCategories(loadedDocCategories);
+        try {
+          localStorage.setItem('korwilcam_document_categories', JSON.stringify(loadedDocCategories));
+        } catch {}
+
+        setDocuments(actualDocs.map((d: any) => ({
           id: String(d.id || `doc-${Date.now()}`),
           title: String(d.title || d.judul || '').trim(),
           category: d.category || d.kategori || 'Surat Edaran',
@@ -648,7 +762,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch gallery
       const { data: dbGallery, error: galErr } = await client.from('gallery').select('*');
       if (!galErr && dbGallery) {
-        setGallery(dbGallery.map((g: any) => ({
+        // Cari master kategori galeri tersimpan di Supabase
+        const sysGalCat = dbGallery.find((g: any) => g.id === 'system-gallery-categories');
+        let loadedGalCategories: string[] = ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'];
+        if (sysGalCat) {
+          try {
+            if (sysGalCat.description) {
+              const parsed = JSON.parse(sysGalCat.description);
+              if (Array.isArray(parsed)) loadedGalCategories = parsed;
+            }
+          } catch {}
+        }
+
+        const actualGal = dbGallery.filter((g: any) => g.id !== 'system-gallery-categories');
+
+        // Kumpulkan kategori dari item galeri aktual
+        actualGal.forEach((g: any) => {
+          if (g.category && typeof g.category === 'string') {
+            const c = g.category.trim();
+            if (c && c !== 'System' && !loadedGalCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
+              loadedGalCategories.push(c);
+            }
+          }
+        });
+
+        // Pastikan kategori default selalu tersedia
+        ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'].forEach(def => {
+          if (!loadedGalCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
+            loadedGalCategories.push(def);
+          }
+        });
+
+        setGalleryCategories(loadedGalCategories);
+        try {
+          localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(loadedGalCategories));
+        } catch {}
+
+        setGallery(actualGal.map((g: any) => ({
           id: String(g.id || `gal-${Date.now()}`),
           title: String(g.title || g.judul || '').trim(),
           category: g.category || g.kategori || 'Dokumentasi',
@@ -1909,6 +2059,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addNewsCategory = async (categoryName: string): Promise<boolean> => {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return false;
+
+    // Cek apakah sudah ada (case-insensitive)
+    const exists = newsCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
+    const updatedCategories = exists ? newsCategories : [...newsCategories, trimmed];
+
+    setNewsCategories(updatedCategories);
+    try {
+      localStorage.setItem('korwilcam_news_categories', JSON.stringify(updatedCategories));
+    } catch {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { error } = await client.from('news').upsert({
+          id: 'system-news-categories',
+          title: 'System News Categories',
+          slug: 'system-news-categories',
+          category: 'System',
+          summary: 'Master category list',
+          content: JSON.stringify(updatedCategories),
+          tags: updatedCategories,
+          author: 'System',
+          date: new Date().toISOString().split('T')[0],
+          image: ''
+        });
+
+        if (error) {
+          console.warn('Gagal menyimpan kategori ke Supabase:', error.message);
+          showToast(`Kategori tersimpan lokal. Supabase: ${error.message}`, 'info');
+          return false;
+        } else {
+          showToast(`Kategori "${trimmed}" berhasil disimpan di database Supabase Cloud!`, 'success');
+          return true;
+        }
+      } catch (err: any) {
+        showToast('Kategori tersimpan di penyimpanan lokal.', 'info');
+        return false;
+      }
+    } else {
+      showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
+      return true;
+    }
+  };
+
   const incrementNewsViews = async (id: string) => {
     let nextViews = 1;
 
@@ -2259,6 +2456,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addDocumentCategory = async (categoryName: string): Promise<boolean> => {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return false;
+
+    const exists = documentCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
+    const updatedCategories = exists ? documentCategories : [...documentCategories, trimmed];
+
+    setDocumentCategories(updatedCategories);
+    try {
+      localStorage.setItem('korwilcam_document_categories', JSON.stringify(updatedCategories));
+    } catch {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { error } = await client.from('documents').upsert({
+          id: 'system-document-categories',
+          title: 'System Document Categories',
+          category: 'System',
+          description: JSON.stringify(updatedCategories),
+          download_url: '',
+          file_type: 'PDF',
+          file_size: '0 KB',
+          download_count: 0,
+          date: new Date().toISOString().split('T')[0]
+        });
+
+        if (error) {
+          console.warn('Gagal menyimpan kategori dokumen ke Supabase:', error.message);
+          showToast(`Kategori berkas tersimpan lokal. Supabase: ${error.message}`, 'info');
+          return false;
+        } else {
+          showToast(`Kategori berkas "${trimmed}" berhasil disimpan di database Supabase Cloud!`, 'success');
+          return true;
+        }
+      } catch (err: any) {
+        showToast('Kategori berkas tersimpan di penyimpanan lokal.', 'info');
+        return false;
+      }
+    } else {
+      showToast(`Kategori berkas "${trimmed}" berhasil ditambahkan!`, 'success');
+      return true;
+    }
+  };
+
   const incrementDocumentDownloadCount = async (id: string) => {
     let nextCount = 1;
 
@@ -2530,6 +2772,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } else {
       showToast('Foto kegiatan dihapus.', 'info');
+    }
+  };
+
+  const addGalleryCategory = async (categoryName: string): Promise<boolean> => {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return false;
+
+    const exists = galleryCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
+    const updatedCategories = exists ? galleryCategories : [...galleryCategories, trimmed];
+
+    setGalleryCategories(updatedCategories);
+    try {
+      localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(updatedCategories));
+    } catch {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const { error } = await client.from('gallery').upsert({
+          id: 'system-gallery-categories',
+          title: 'System Gallery Categories',
+          category: 'System',
+          description: JSON.stringify(updatedCategories),
+          image: '',
+          date: new Date().toISOString().split('T')[0]
+        });
+
+        if (error) {
+          console.warn('Gagal menyimpan kategori galeri ke Supabase:', error.message);
+          showToast(`Kategori galeri tersimpan lokal. Supabase: ${error.message}`, 'info');
+          return false;
+        } else {
+          showToast(`Kategori galeri "${trimmed}" berhasil disimpan di database Supabase Cloud!`, 'success');
+          return true;
+        }
+      } catch (err: any) {
+        showToast('Kategori galeri tersimpan di penyimpanan lokal.', 'info');
+        return false;
+      }
+    } else {
+      showToast(`Kategori galeri "${trimmed}" berhasil ditambahkan!`, 'success');
+      return true;
     }
   };
 
@@ -2897,6 +3181,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addNews,
         updateNews,
         deleteNews,
+        newsCategories,
+        addNewsCategory,
         incrementNewsViews,
         recordNewsReadingTime,
         addAnnouncement,
@@ -2905,12 +3191,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addDocument,
         updateDocument,
         deleteDocument,
+        documentCategories,
+        addDocumentCategory,
         addAgenda,
         updateAgenda,
         deleteAgenda,
         addGalleryItem,
         updateGalleryItem,
         deleteGalleryItem,
+        galleryCategories,
+        addGalleryCategory,
         addStaff,
         updateStaff,
         deleteStaff,

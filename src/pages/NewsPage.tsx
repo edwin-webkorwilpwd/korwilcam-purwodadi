@@ -30,6 +30,7 @@ import { formatIndonesianDate, compareAgendaDatesDescending } from '../services/
 export const NewsPage: React.FC = () => {
   const { 
     news, 
+    newsCategories,
     announcements, 
     aulaBookings, 
     loadingAulaBookings, 
@@ -117,13 +118,23 @@ export const NewsPage: React.FC = () => {
     });
   }, [news, searchQuery, selectedCategory]);
 
-  const categories = [
-    { id: 'ALL', label: 'Semua Kategori' },
-    { id: 'Kedinasan', label: 'Kedinasan' },
-    { id: 'SD', label: 'Sekolah Dasar (SD)' },
-    { id: 'TK/PAUD', label: 'TK & PAUD' },
-    { id: 'Prestasi', label: 'Prestasi' },
-  ];
+  const categories = useMemo(() => {
+    const list = [
+      { id: 'ALL', label: 'Semua Kategori' },
+      { id: 'Kedinasan', label: 'Kedinasan' },
+      { id: 'SD', label: 'Sekolah Dasar (SD)' },
+      { id: 'TK/PAUD', label: 'TK & PAUD' },
+      { id: 'Prestasi', label: 'Prestasi' },
+    ];
+    const existingIds = new Set(list.map((c) => c.id.toLowerCase()));
+    newsCategories.forEach((cat) => {
+      if (!existingIds.has(cat.toLowerCase())) {
+        list.push({ id: cat, label: cat });
+        existingIds.add(cat.toLowerCase());
+      }
+    });
+    return list;
+  }, [newsCategories]);
 
   const agendaCategories = [
     { id: 'ALL', label: 'Semua Kategori' },
