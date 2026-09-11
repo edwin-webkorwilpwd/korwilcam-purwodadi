@@ -274,52 +274,6 @@ export const OrganizationPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
-      
-      {/* Top Navigation & Organization Switcher Bar */}
-      <div className="bg-slate-900 border-b border-slate-800 text-white sticky top-[64px] z-30 shadow-md">
-        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-2.5">
-          <div className="flex items-center justify-between gap-3 overflow-x-auto custom-scrollbar no-scrollbar">
-            
-            {/* Back to Directory Button */}
-            <button
-              onClick={() => setSelectedOrganizationSlug(null)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-900/60 hover:bg-blue-800 text-blue-200 hover:text-white text-xs font-bold transition-colors shrink-0 border border-blue-700/50"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Semua Organisasi</span>
-            </button>
-
-            {/* Quick Switcher Pills */}
-            <div className="flex items-center gap-2 shrink-0">
-              {organizations.map((org) => {
-                const isActive = org.id === currentOrg.id || org.slug === currentOrg.slug;
-                return (
-                  <button
-                    key={org.id}
-                    onClick={() => setSelectedOrganizationSlug(org.slug)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
-                        : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                    }`}
-                  >
-                    {org.logo ? (
-                      <img 
-                        src={isGoogleDriveUrl(org.logo) ? formatGoogleDriveImageUrl(org.logo) : org.logo} 
-                        alt={org.shortName} 
-                        className="w-4 h-4 object-contain rounded-full bg-white/10" 
-                      />
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-blue-400" />
-                    )}
-                    <span>{org.shortName}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Hero Header Section */}
       <section className="relative bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden">

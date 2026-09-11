@@ -265,7 +265,7 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 font-medium text-xs xl:text-[13px] text-slate-200 shrink-0">
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 font-semibold text-[13.5px] xl:text-[14.5px] text-slate-100 shrink-0">
               <button
                 onClick={() => handleNavClick('home', '/beranda')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
@@ -293,7 +293,7 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   <span>Profil</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-blue-300' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-blue-300' : ''}`} />
                 </button>
 
                 {profileDropdownOpen && (
@@ -391,7 +391,7 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   <span>Layanan</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${servicesDropdownOpen ? 'rotate-180 text-blue-300' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${servicesDropdownOpen ? 'rotate-180 text-blue-300' : ''}`} />
                 </button>
 
                 {servicesDropdownOpen && (
