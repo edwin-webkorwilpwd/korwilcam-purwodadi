@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { 
   School, 
   NewsArticle, 
@@ -64,6 +64,22 @@ export const initialAdminUsers: AdminUser[] = [
     createdAt: new Date().toISOString()
   }
 ];
+
+export interface ConfirmDialogOptions {
+  title: string;
+  message: string;
+  type?: 'delete' | 'edit' | 'save' | 'danger' | 'warning' | 'info';
+  confirmText?: string;
+  cancelText?: string;
+  itemName?: string;
+}
+
+export interface NoticePopupOptions {
+  title: string;
+  message: string;
+  type?: 'success' | 'warning' | 'error' | 'info';
+  duration?: number;
+}
 
 interface Toast {
   id: string;
@@ -177,6 +193,15 @@ interface AppContextType {
   toasts: Toast[];
   showToast: (message: string, type?: 'success' | 'info' | 'error') => void;
   removeToast: (id: string) => void;
+
+  // Modern Notice & Confirmation Dialogs
+  confirmDialogState: ConfirmDialogOptions | null;
+  noticePopupState: NoticePopupOptions | null;
+  showConfirmDialog: (options: ConfirmDialogOptions) => Promise<boolean>;
+  handleConfirmResponse: (confirmed: boolean) => void;
+  closeConfirmDialog: () => void;
+  showNoticePopup: (options: NoticePopupOptions) => void;
+  closeNoticePopup: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -410,6 +435,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // State for Confirm Dialog
+  const [confirmDialogState, setConfirmDialogState] = useState<ConfirmDialogOptions | null>(null);
+  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+
+  const showConfirmDialog = (options: ConfirmDialogOptions): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialogState(options);
+    });
+  };
+
+  const handleConfirmResponse = (confirmed: boolean) => {
+    if (confirmResolverRef.current) {
+      confirmResolverRef.current(confirmed);
+      confirmResolverRef.current = null;
+    }
+    setConfirmDialogState(null);
+  };
+
+  const closeConfirmDialog = () => {
+    handleConfirmResponse(false);
+  };
+
+  // State for Notice Popup
+  const [noticePopupState, setNoticePopupState] = useState<NoticePopupOptions | null>(null);
+
+  const showNoticePopup = (options: NoticePopupOptions) => {
+    setNoticePopupState(options);
+  };
+
+  const closeNoticePopup = () => {
+    setNoticePopupState(null);
+  };
 
   // Supabase state
   const [isSupabaseActive, setIsSupabaseActive] = useState<boolean>(() => {
@@ -3638,7 +3697,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetToDefaultData,
         toasts,
         showToast,
-        removeToast
+        removeToast,
+        confirmDialogState,
+        noticePopupState,
+        showConfirmDialog,
+        handleConfirmResponse,
+        closeConfirmDialog,
+        showNoticePopup,
+        closeNoticePopup
       }}
     >
       {children}

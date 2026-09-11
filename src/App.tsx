@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ToastContainer } from './components/ToastContainer';
 import { ModalDetailSchool } from './components/ModalDetailSchool';
+import { ModernNoticeModal } from './components/ModernNoticeModal';
 
 // Eagerly loaded primary landing page
 import { HomePage } from './pages/HomePage';
@@ -193,6 +194,7 @@ export function App() {
   return (
     <AppProvider>
       <MainContent />
+      <ModernNoticeModal />
     </AppProvider>
   );
 }

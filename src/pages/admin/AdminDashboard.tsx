@@ -153,7 +153,9 @@ export const AdminDashboard: React.FC = () => {
     deleteOrganization,
     addOrganizationOfficial,
     updateOrganizationOfficial,
-    deleteOrganizationOfficial
+    deleteOrganizationOfficial,
+    showConfirmDialog,
+    showNoticePopup
   } = useApp();
 
   type AdminSection = 
@@ -208,24 +210,45 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleClearSupabaseConfig = () => {
-    if (window.confirm('Hapus konfigurasi Supabase dan kembali ke mode LocalStorage offline?')) {
-      clearCustomSupabaseConfig();
-      setSupabaseUrlInput('');
-      setSupabaseKeyInput('');
-      setTestResult(null);
-      showToast('Konfigurasi Supabase dihapus. Beralih ke penyimpanan lokal.', 'info');
-    }
+  const handleClearSupabaseConfig = async () => {
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Konfigurasi Supabase?',
+      message: 'Apakah Anda yakin ingin menghapus konfigurasi Supabase dan kembali ke mode penyimpanan offline LocalStorage?',
+      type: 'delete',
+      confirmText: 'Ya, Hapus Konfigurasi',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
+    clearCustomSupabaseConfig();
+    setSupabaseUrlInput('');
+    setSupabaseKeyInput('');
+    setTestResult(null);
+    showNoticePopup({
+      title: 'Konfigurasi Dihapus!',
+      message: 'Koneksi Supabase telah dihapus. Sistem beralih ke penyimpanan lokal offline.',
+      type: 'warning'
+    });
   };
 
   const handleExportToSupabase = async () => {
-    const confirm = window.confirm(
-      'PERINGATAN: Tindakan ini akan menyalin seluruh data lokal browser ke database Supabase Cloud. Jika Anda sudah menghapus data tertentu di Supabase, data lama dari browser ini akan terunggah kembali.\n\nApakah Anda yakin ingin melanjutkan ekspor data lokal?'
-    );
-    if (!confirm) return;
+    const confirmed = await showConfirmDialog({
+      title: 'Konfirmasi Ekspor Data ke Supabase Cloud',
+      message: 'Tindakan ini akan menyalin seluruh data lokal ke database Supabase Cloud. Seluruh data di website publik akan otomatis tersinkronisasi.',
+      type: 'save',
+      confirmText: 'Ya, Ekspor Sekarang',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
     setIsExporting(true);
-    await exportAllToSupabase();
+    const ok = await exportAllToSupabase();
     setIsExporting(false);
+    if (ok) {
+      showNoticePopup({
+        title: 'Ekspor Data Berhasil!',
+        message: 'Seluruh data berhasil diunggah dan disinkronkan ke database Supabase Cloud.',
+        type: 'success'
+      });
+    }
   };
 
   const handleCopySchemaSql = () => {
@@ -245,7 +268,20 @@ export const AdminDashboard: React.FC = () => {
 
   const handleSaveHomeCMS = async (e: React.FormEvent) => {
     e.preventDefault();
+    const confirmed = await showConfirmDialog({
+      title: 'Simpan Pengaturan Beranda?',
+      message: 'Apakah Anda yakin ingin memperbarui konten, tagline, dan kutipan beranda?',
+      type: 'save',
+      confirmText: 'Ya, Simpan Perubahan',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
     await updateOfficeProfile(homeForm);
+    showNoticePopup({
+      title: 'Beranda Diperbarui!',
+      message: 'Pengaturan konten dan kutipan beranda berhasil disimpan.',
+      type: 'success'
+    });
   };
 
   // Helper to compress image and convert to lightweight Base64 string for database storage
@@ -407,23 +443,47 @@ export const AdminDashboard: React.FC = () => {
 
   const handleSaveSopCMS = async (e: React.FormEvent) => {
     e.preventDefault();
+    const confirmed = await showConfirmDialog({
+      title: 'Simpan Gambar Bagan SOP Pelayanan?',
+      message: 'Apakah Anda yakin ingin memperbarui bagan alur SOP Pelayanan?',
+      type: 'save',
+      confirmText: 'Ya, Simpan SOP',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
     setIsSavingSop(true);
     try {
       await updateSOPImageUrl(sopInputUrl.trim());
+      showNoticePopup({
+        title: 'Bagan SOP Tersimpan!',
+        message: 'Tautan bagan SOP Pelayanan berhasil diperbarui dan aktif di website.',
+        type: 'success'
+      });
     } finally {
       setIsSavingSop(false);
     }
   };
 
   const handleClearSop = async () => {
-    if (window.confirm('Yakin ingin menghapus tautan bagan SOP Pelayanan?')) {
-      setIsSavingSop(true);
-      try {
-        await updateSOPImageUrl('');
-        setSopInputUrl('');
-      } finally {
-        setIsSavingSop(false);
-      }
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Bagan SOP Pelayanan?',
+      message: 'Apakah Anda yakin ingin menghapus tautan gambar bagan SOP Pelayanan?',
+      type: 'delete',
+      confirmText: 'Ya, Hapus Bagan',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
+    setIsSavingSop(true);
+    try {
+      await updateSOPImageUrl('');
+      setSopInputUrl('');
+      showNoticePopup({
+        title: 'Bagan SOP Dihapus!',
+        message: 'Tautan bagan SOP Pelayanan berhasil dihapus.',
+        type: 'warning'
+      });
+    } finally {
+      setIsSavingSop(false);
     }
   };
 
@@ -434,9 +494,23 @@ export const AdminDashboard: React.FC = () => {
 
   const handleSaveProfileCMS = async (e: React.FormEvent) => {
     e.preventDefault();
+    const confirmed = await showConfirmDialog({
+      title: 'Simpan Profil & Visi Misi Kantor?',
+      message: 'Apakah Anda yakin ingin menyimpan perubahan visi, misi, dan profil kantor Korwilcam Purwodadi?',
+      type: 'save',
+      confirmText: 'Ya, Simpan Profil',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
+
     setIsSavingProfile(true);
     try {
       await updateOfficeProfile(profileForm);
+      showNoticePopup({
+        title: 'Profil Berhasil Disimpan!',
+        message: 'Pengaturan visi, misi, dan profil kantor berhasil diperbarui.',
+        type: 'success'
+      });
     } finally {
       setIsSavingProfile(false);
     }
@@ -475,13 +549,35 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    if (editingStaffId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Data Pejabat/Staf',
+        message: `Simpan pembaruan data untuk "${staffForm.name}"?`,
+        type: 'edit',
+        itemName: `${staffForm.name} (${staffForm.role})`,
+        confirmText: 'Ya, Perbarui Data',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+    }
+
     setIsSavingStaff(true);
     try {
       if (editingStaffId) {
         await updateStaff(editingStaffId, staffForm);
         setEditingStaffId(null);
+        showNoticePopup({
+          title: 'Data Staf Diperbarui!',
+          message: `Data "${staffForm.name}" telah berhasil diperbarui.`,
+          type: 'success'
+        });
       } else {
         await addStaff(staffForm);
+        showNoticePopup({
+          title: 'Staf Baru Ditambahkan!',
+          message: `Data "${staffForm.name}" berhasil ditambahkan ke struktur organisasi.`,
+          type: 'success'
+        });
       }
 
       setStaffForm({
@@ -556,10 +652,30 @@ export const AdminDashboard: React.FC = () => {
     };
 
     if (editingSchoolId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Data Sekolah',
+        message: `Simpan pembaruan data untuk sekolah "${schoolForm.name}"?`,
+        type: 'edit',
+        itemName: `${schoolForm.name} (NPSN: ${schoolForm.npsn})`,
+        confirmText: 'Ya, Perbarui Sekolah',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
       await updateSchool(editingSchoolId, preparedSchoolData);
       setEditingSchoolId(null);
+      showNoticePopup({
+        title: 'Data Sekolah Diperbarui!',
+        message: `Data sekolah "${schoolForm.name}" telah berhasil diperbarui.`,
+        type: 'success'
+      });
     } else {
       await addSchool(preparedSchoolData);
+      showNoticePopup({
+        title: 'Sekolah Ditambahkan!',
+        message: `Sekolah "${schoolForm.name}" berhasil didaftarkan ke sistem direktori.`,
+        type: 'success'
+      });
     }
 
     setSchoolDriveInput('');
@@ -660,6 +776,16 @@ export const AdminDashboard: React.FC = () => {
       : (editingNewsId ? (news.find((n) => n.id === editingNewsId)?.views || 0) : 0);
 
     if (editingNewsId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Berita',
+        message: 'Apakah Anda yakin ingin menyimpan perubahan pada artikel berita ini?',
+        type: 'edit',
+        itemName: newsForm.title,
+        confirmText: 'Ya, Perbarui Berita',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
       await updateNews(editingNewsId, {
         title: newsForm.title,
         category: newsForm.category,
@@ -671,6 +797,11 @@ export const AdminDashboard: React.FC = () => {
         views: parsedViews
       });
       setEditingNewsId(null);
+      showNoticePopup({
+        title: 'Berita Diperbarui!',
+        message: `Artikel berita "${newsForm.title}" berhasil diperbarui.`,
+        type: 'success'
+      });
     } else {
       await addNews({
         title: newsForm.title,
@@ -683,6 +814,11 @@ export const AdminDashboard: React.FC = () => {
         image: newsForm.image,
         views: parsedViews,
         tags: tagsArray
+      });
+      showNoticePopup({
+        title: 'Berita Diterbitkan!',
+        message: `Artikel berita "${newsForm.title}" berhasil disimpan dan tayang di website.`,
+        type: 'success'
       });
     }
 
@@ -801,12 +937,32 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (editingAnnId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Pengumuman',
+        message: 'Apakah Anda yakin ingin menyimpan perubahan pada pengumuman ini?',
+        type: 'edit',
+        itemName: annForm.title,
+        confirmText: 'Ya, Perbarui',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
       await updateAnnouncement(editingAnnId, annForm);
       setEditingAnnId(null);
+      showNoticePopup({
+        title: 'Pengumuman Diperbarui!',
+        message: `Pengumuman "${annForm.title}" berhasil diperbarui.`,
+        type: 'success'
+      });
     } else {
       await addAnnouncement({
         ...annForm,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      });
+      showNoticePopup({
+        title: 'Pengumuman Diterbitkan!',
+        message: `Pengumuman "${annForm.title}" berhasil diterbitkan dan tayang di website.`,
+        type: 'success'
       });
     }
 
@@ -955,12 +1111,32 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (editingDocId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Dokumen',
+        message: 'Apakah Anda yakin ingin menyimpan perubahan pada berkas unduhan ini?',
+        type: 'edit',
+        itemName: docForm.title,
+        confirmText: 'Ya, Perbarui',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
       await updateDocument(editingDocId, docForm);
       setEditingDocId(null);
+      showNoticePopup({
+        title: 'Dokumen Diperbarui!',
+        message: `Berkas "${docForm.title}" berhasil diperbarui.`,
+        type: 'success'
+      });
     } else {
       await addDocument({
         ...docForm,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      });
+      showNoticePopup({
+        title: 'Dokumen Ditambahkan!',
+        message: `Berkas "${docForm.title}" berhasil diunggah ke pusat unduhan.`,
+        type: 'success'
       });
     }
 
@@ -1078,6 +1254,16 @@ export const AdminDashboard: React.FC = () => {
     const imagesList = galleryForm.images.length > 0 ? galleryForm.images : [primaryCover];
 
     if (editingGalleryId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Album Galeri',
+        message: 'Apakah Anda yakin ingin menyimpan perubahan pada album galeri ini?',
+        type: 'edit',
+        itemName: galleryForm.title,
+        confirmText: 'Ya, Perbarui',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
       await updateGalleryItem(editingGalleryId, {
         title: galleryForm.title,
         category: galleryForm.category,
@@ -1086,6 +1272,11 @@ export const AdminDashboard: React.FC = () => {
         description: galleryForm.description
       });
       setEditingGalleryId(null);
+      showNoticePopup({
+        title: 'Galeri Diperbarui!',
+        message: `Album kegiatan "${galleryForm.title}" berhasil diperbarui.`,
+        type: 'success'
+      });
     } else {
       await addGalleryItem({
         title: galleryForm.title,
@@ -1094,6 +1285,11 @@ export const AdminDashboard: React.FC = () => {
         images: imagesList,
         description: galleryForm.description,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      });
+      showNoticePopup({
+        title: 'Album Galeri Dibuat!',
+        message: `Album kegiatan "${galleryForm.title}" berhasil disimpan dan tayang di website.`,
+        type: 'success'
       });
     }
 
@@ -1128,7 +1324,20 @@ export const AdminDashboard: React.FC = () => {
 
   const handleSaveContact = async (e: React.FormEvent) => {
     e.preventDefault();
+    const confirmed = await showConfirmDialog({
+      title: 'Simpan Kontak & Jam Operasional Kantor?',
+      message: 'Apakah Anda yakin ingin memperbarui informasi alamat, kontak telepon, WhatsApp, dan jam operasional kantor?',
+      type: 'save',
+      confirmText: 'Ya, Simpan Kontak',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
     await updateOfficeProfile(contactForm);
+    showNoticePopup({
+      title: 'Kontak Diperbarui!',
+      message: 'Informasi alamat dan kontak kantor berhasil disimpan.',
+      type: 'success'
+    });
   };
 
   const newComplaintsCount = complaints.filter((c) => c.status === 'Baru').length;
@@ -1191,6 +1400,16 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (editingUserId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Akun Pengelola',
+        message: `Simpan pembaruan data untuk akun pengelola "${userForm.username}"?`,
+        type: 'edit',
+        itemName: `${userForm.name} (@${userForm.username})`,
+        confirmText: 'Ya, Perbarui Akun',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
       await updateAdminUser(editingUserId, {
         name: userForm.name.trim(),
         username: userForm.username.trim().toLowerCase(),
@@ -1198,6 +1417,12 @@ export const AdminDashboard: React.FC = () => {
         role: userForm.role,
         email: userForm.email.trim(),
         status: userForm.status
+      });
+
+      showNoticePopup({
+        title: 'Akun Diperbarui!',
+        message: `Data akun pengelola "${userForm.username}" berhasil diperbarui.`,
+        type: 'success'
       });
     } else {
       await addAdminUser({
@@ -1208,6 +1433,12 @@ export const AdminDashboard: React.FC = () => {
         email: userForm.email.trim(),
         status: userForm.status
       });
+
+      showNoticePopup({
+        title: 'Akun Ditambahkan!',
+        message: `Akun pengelola "${userForm.username}" berhasil dibuat.`,
+        type: 'success'
+      });
     }
     setShowUserModal(false);
   };
@@ -1217,9 +1448,22 @@ export const AdminDashboard: React.FC = () => {
       showToast('Anda tidak dapat menghapus akun Anda sendiri!', 'error');
       return;
     }
-    if (window.confirm(`Yakin ingin menghapus akun pengelola "${user.username}" (${user.name})?`)) {
-      await deleteAdminUser(user.id);
-    }
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Akun Pengelola Ini?',
+      message: `Apakah Anda yakin ingin menghapus akun pengelola "${user.username}" (${user.name})? Pengguna ini tidak akan bisa login lagi.`,
+      type: 'delete',
+      itemName: `${user.name} (@${user.username})`,
+      confirmText: 'Ya, Hapus Akun',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
+
+    await deleteAdminUser(user.id);
+    showNoticePopup({
+      title: 'Akun Dihapus!',
+      message: `Akun pengelola "${user.username}" telah berhasil dihapus.`,
+      type: 'success'
+    });
   };
 
   // --- ORGANISASI CMS STATE ---
@@ -1293,10 +1537,24 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    const confirmed = await showConfirmDialog({
+      title: 'Simpan Seluruh Perubahan Organisasi?',
+      message: `Simpan seluruh data profil, sambutan ketua, visi-misi, dan ${orgForm.officials?.length || 0} susunan pengurus "${orgForm.name}" ke database?`,
+      type: 'save',
+      itemName: `${orgForm.name} (${orgForm.shortName})`,
+      confirmText: 'Ya, Simpan Seluruhnya',
+      cancelText: 'Tidak, Batal'
+    });
+    if (!confirmed) return;
+
     setIsSavingOrg(true);
     try {
       await updateOrganization(selectedOrgIdForEdit, orgForm);
-      showToast(`Pengaturan ${orgForm.shortName} berhasil disimpan & disinkronkan ke website!`, 'success');
+      showNoticePopup({
+        title: 'Perubahan Berhasil Disimpan!',
+        message: `Seluruh data ${orgForm.name} berhasil disimpan dan disinkronkan ke website publik.`,
+        type: 'success'
+      });
     } catch (err) {
       showToast('Gagal menyimpan perubahan organisasi.', 'error');
     } finally {
@@ -1394,11 +1652,23 @@ export const AdminDashboard: React.FC = () => {
     setShowOfficialModal(true);
   };
 
-  const handleSaveOfficialForm = (e: React.FormEvent) => {
+  const handleSaveOfficialForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!officialForm.name.trim() || !officialForm.role.trim() || !orgForm || !selectedOrgIdForEdit) {
       showToast('Nama dan jabatan pengurus wajib diisi!', 'error');
       return;
+    }
+
+    if (editingOfficialId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Pengurus',
+        message: `Simpan pembaruan data untuk pengurus "${officialForm.name}"?`,
+        type: 'edit',
+        itemName: `${officialForm.name} - ${officialForm.role}`,
+        confirmText: 'Ya, Perbarui Pengurus',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
     }
 
     const updatedOfficialList = [...(orgForm.officials || [])];
@@ -1429,14 +1699,35 @@ export const AdminDashboard: React.FC = () => {
 
     setOrgForm({ ...orgForm, officials: updatedOfficialList });
     setShowOfficialModal(false);
-    showToast('Daftar pengurus diperbarui! Jangan lupa klik "Simpan Seluruh Perubahan".', 'info');
+    showNoticePopup({
+      title: editingOfficialId ? 'Pengurus Diperbarui!' : 'Pengurus Ditambahkan!',
+      message: `Data "${officialForm.name}" tersimpan dalam daftar pengurus. Klik "Simpan Seluruh Perubahan" untuk mempublikasikan.`,
+      type: 'success'
+    });
   };
 
-  const handleDeleteOfficialItem = (offId: string) => {
-    if (!orgForm || !window.confirm('Yakin ingin menghapus pengurus ini dari daftar?')) return;
+  const handleDeleteOfficialItem = async (offId: string) => {
+    if (!orgForm) return;
+    const targetOfficial = orgForm.officials?.find(o => o.id === offId);
+    const officialName = targetOfficial?.name || 'Pengurus ini';
+
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Pengurus Dari Daftar?',
+      message: `Apakah Anda yakin ingin menghapus "${officialName}" dari daftar susunan pengurus ${orgForm.shortName}?`,
+      type: 'delete',
+      itemName: targetOfficial ? `${targetOfficial.name} (${targetOfficial.role})` : officialName,
+      confirmText: 'Ya, Hapus Pengurus',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
+
     const filtered = orgForm.officials.filter(o => o.id !== offId);
     setOrgForm({ ...orgForm, officials: filtered });
-    showToast('Pengurus dihapus dari daftar.', 'info');
+    showNoticePopup({
+      title: 'Pengurus Dihapus!',
+      message: `"${officialName}" telah dihapus dari daftar susunan pengurus.`,
+      type: 'warning'
+    });
   };
 
   const handleCreateNewOrg = async (e: React.FormEvent) => {
@@ -1471,7 +1762,11 @@ export const AdminDashboard: React.FC = () => {
     setNewOrgForm({ name: '', shortName: '', slug: '', description: '' });
     setSelectedOrgIdForEdit(createdOrg.id);
     setActiveOrgSubTab('identitas');
-    showToast(`Organisasi ${createdOrg.shortName} berhasil ditambahkan! Silakan lengkapi profilnya.`, 'success');
+    showNoticePopup({
+      title: 'Organisasi Ditambahkan!',
+      message: `Organisasi "${createdOrg.name}" berhasil dibuat. Silakan lengkapi data profil dan pengurusnya.`,
+      type: 'success'
+    });
   };
 
   const handleDeleteOrg = async (orgId: string, orgName: string) => {
@@ -1479,13 +1774,25 @@ export const AdminDashboard: React.FC = () => {
       showToast('Minimal harus ada 1 organisasi terdaftar di sistem!', 'error');
       return;
     }
-    if (window.confirm(`Yakin ingin menghapus organisasi "${orgName}" beserta seluruh data sambutan dan pengurusnya?`)) {
-      await deleteOrganization(orgId);
-      if (selectedOrgIdForEdit === orgId) {
-        setSelectedOrgIdForEdit(null);
-      }
-      showToast(`Organisasi "${orgName}" berhasil dihapus.`, 'success');
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Organisasi Ini?',
+      message: `Apakah Anda yakin ingin menghapus organisasi "${orgName}" beserta seluruh data sambutan, visi-misi, dan susunan pengurusnya? Tindakan ini permanen.`,
+      type: 'delete',
+      itemName: orgName,
+      confirmText: 'Ya, Hapus Organisasi',
+      cancelText: 'Tidak, Batalkan'
+    });
+    if (!confirmed) return;
+
+    await deleteOrganization(orgId);
+    if (selectedOrgIdForEdit === orgId) {
+      setSelectedOrgIdForEdit(null);
     }
+    showNoticePopup({
+      title: 'Organisasi Dihapus!',
+      message: `Organisasi "${orgName}" telah berhasil dihapus dari database.`,
+      type: 'success'
+    });
   };
 
   return (
@@ -2051,10 +2358,21 @@ export const AdminDashboard: React.FC = () => {
             <div className="pt-3 mt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm('Yakin ingin mereset seluruh data kembali ke data bawaan awal pabrik?')) {
-                    resetToDefaultData();
-                  }
+                onClick={async () => {
+                  const confirmed = await showConfirmDialog({
+                    title: 'Reset Seluruh Data ke Setelan Pabrik?',
+                    message: 'Apakah Anda yakin ingin mereset seluruh data website kembali ke data bawaan awal pabrik? Seluruh perubahan lokal akan dikembalikan.',
+                    type: 'danger',
+                    confirmText: 'Ya, Reset Semua Data',
+                    cancelText: 'Tidak, Batalkan'
+                  });
+                  if (!confirmed) return;
+                  resetToDefaultData();
+                  showNoticePopup({
+                    title: 'Reset Berhasil!',
+                    message: 'Seluruh data telah berhasil dikembalikan ke pengaturan awal pabrik.',
+                    type: 'warning'
+                  });
                 }}
                 className="w-full flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-semibold text-rose-600 bg-rose-50/70 hover:bg-rose-100/80 transition-colors border border-rose-100"
               >
@@ -2841,10 +3159,22 @@ export const AdminDashboard: React.FC = () => {
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm(`Hapus data ${st.name} dari database Supabase?`)) {
-                                      deleteStaff(st.id);
-                                    }
+                                  onClick={async () => {
+                                    const confirmed = await showConfirmDialog({
+                                      title: 'Hapus Data Pejabat / Staf?',
+                                      message: `Apakah Anda yakin ingin menghapus data "${st.name}" (${st.role}) dari struktur organisasi?`,
+                                      type: 'delete',
+                                      itemName: `${st.name} - ${st.role}`,
+                                      confirmText: 'Ya, Hapus Staf',
+                                      cancelText: 'Tidak, Batalkan'
+                                    });
+                                    if (!confirmed) return;
+                                    await deleteStaff(st.id);
+                                    showNoticePopup({
+                                      title: 'Data Staf Dihapus!',
+                                      message: `Data "${st.name}" telah berhasil dihapus.`,
+                                      type: 'success'
+                                    });
                                   }}
                                   className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                                   title="Hapus data staf"
@@ -3529,10 +3859,22 @@ export const AdminDashboard: React.FC = () => {
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => {
-                                  if (window.confirm(`Hapus ${item.name}?`)) {
-                                    deleteSchool(item.id);
-                                  }
+                                onClick={async () => {
+                                  const confirmed = await showConfirmDialog({
+                                    title: 'Hapus Data Sekolah?',
+                                    message: `Apakah Anda yakin ingin menghapus data "${item.name}" dari direktori sekolah?`,
+                                    type: 'delete',
+                                    itemName: item.name,
+                                    confirmText: 'Ya, Hapus Sekolah',
+                                    cancelText: 'Tidak, Batalkan'
+                                  });
+                                  if (!confirmed) return;
+                                  deleteSchool(item.id);
+                                  showNoticePopup({
+                                    title: 'Data Sekolah Dihapus!',
+                                    message: `Data sekolah "${item.name}" telah berhasil dihapus.`,
+                                    type: 'success'
+                                  });
                                 }}
                                 className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
                               >
@@ -3939,10 +4281,22 @@ export const AdminDashboard: React.FC = () => {
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm(`Hapus ${item.title}?`)) {
-                                  deleteNews(item.id);
-                                }
+                              onClick={async () => {
+                                const confirmed = await showConfirmDialog({
+                                  title: 'Hapus Berita Ini?',
+                                  message: `Apakah Anda yakin ingin menghapus artikel berita "${item.title}"?`,
+                                  type: 'delete',
+                                  itemName: item.title,
+                                  confirmText: 'Ya, Hapus Berita',
+                                  cancelText: 'Tidak, Batalkan'
+                                });
+                                if (!confirmed) return;
+                                deleteNews(item.id);
+                                showNoticePopup({
+                                  title: 'Berita Dihapus!',
+                                  message: `Artikel "${item.title}" telah berhasil dihapus.`,
+                                  type: 'success'
+                                });
                               }}
                               className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
                             >
@@ -4263,10 +4617,22 @@ export const AdminDashboard: React.FC = () => {
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (window.confirm(`Hapus pengumuman "${ann.title}"?`)) {
-                                deleteAnnouncement(ann.id);
-                              }
+                            onClick={async () => {
+                              const confirmed = await showConfirmDialog({
+                                title: 'Hapus Pengumuman Ini?',
+                                message: `Apakah Anda yakin ingin menghapus pengumuman "${ann.title}"?`,
+                                type: 'delete',
+                                itemName: ann.title,
+                                confirmText: 'Ya, Hapus Pengumuman',
+                                cancelText: 'Tidak, Batalkan'
+                              });
+                              if (!confirmed) return;
+                              deleteAnnouncement(ann.id);
+                              showNoticePopup({
+                                title: 'Pengumuman Dihapus!',
+                                message: `Pengumuman "${ann.title}" telah berhasil dihapus.`,
+                                type: 'success'
+                              });
                             }}
                             className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                             title="Hapus Pengumuman"
@@ -5494,10 +5860,22 @@ export const AdminDashboard: React.FC = () => {
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Hapus dokumen "${doc.title}"?`)) {
-                            deleteDocument(doc.id);
-                          }
+                        onClick={async () => {
+                          const confirmed = await showConfirmDialog({
+                            title: 'Hapus Dokumen Unduhan?',
+                            message: `Apakah Anda yakin ingin menghapus berkas dokumen "${doc.title}"?`,
+                            type: 'delete',
+                            itemName: doc.title,
+                            confirmText: 'Ya, Hapus Dokumen',
+                            cancelText: 'Tidak, Batalkan'
+                          });
+                          if (!confirmed) return;
+                          deleteDocument(doc.id);
+                          showNoticePopup({
+                            title: 'Dokumen Dihapus!',
+                            message: `Dokumen "${doc.title}" telah berhasil dihapus.`,
+                            type: 'success'
+                          });
                         }}
                         className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                         title="Hapus Dokumen"
@@ -5820,10 +6198,22 @@ export const AdminDashboard: React.FC = () => {
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm(`Hapus album "${item.title}"?`)) {
-                                  deleteGalleryItem(item.id);
-                                }
+                              onClick={async () => {
+                                const confirmed = await showConfirmDialog({
+                                  title: 'Hapus Album Galeri Ini?',
+                                  message: `Apakah Anda yakin ingin menghapus album galeri "${item.title}"?`,
+                                  type: 'delete',
+                                  itemName: item.title,
+                                  confirmText: 'Ya, Hapus Album',
+                                  cancelText: 'Tidak, Batalkan'
+                                });
+                                if (!confirmed) return;
+                                deleteGalleryItem(item.id);
+                                showNoticePopup({
+                                  title: 'Album Galeri Dihapus!',
+                                  message: `Album "${item.title}" telah berhasil dihapus.`,
+                                  type: 'success'
+                                });
                               }}
                               className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
                               title="Hapus Album"
@@ -5944,10 +6334,22 @@ export const AdminDashboard: React.FC = () => {
                           </div>
 
                           <button
-                            onClick={() => {
-                              if (window.confirm('Hapus pesan pengaduan ini?')) {
-                                deleteComplaint(comp.id);
-                              }
+                            onClick={async () => {
+                              const confirmed = await showConfirmDialog({
+                                title: 'Hapus Pesan Pengaduan?',
+                                message: `Apakah Anda yakin ingin menghapus pesan aspirasi/pengaduan dari "${comp.name}"?`,
+                                type: 'delete',
+                                itemName: `${comp.name} (${comp.category || 'Aduan'})`,
+                                confirmText: 'Ya, Hapus Pesan',
+                                cancelText: 'Tidak, Batalkan'
+                              });
+                              if (!confirmed) return;
+                              deleteComplaint(comp.id);
+                              showNoticePopup({
+                                title: 'Pesan Dihapus!',
+                                message: 'Pesan pengaduan telah berhasil dihapus.',
+                                type: 'success'
+                              });
                             }}
                             className="text-rose-600 hover:text-rose-800 font-semibold text-[11px] flex items-center gap-1"
                           >
