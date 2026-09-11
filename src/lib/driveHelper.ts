@@ -107,3 +107,62 @@ export function getGoogleDrivePreviewUrl(url: string): string {
   return trimmed;
 }
 
+/**
+ * Mengekstrak Folder ID dari URL Google Drive Folder
+ * Mendukung format:
+ * - https://drive.google.com/drive/folders/[FOLDER_ID]
+ * - https://drive.google.com/drive/u/0/folders/[FOLDER_ID]
+ * - https://drive.google.com/open?id=[FOLDER_ID]
+ */
+export function extractGoogleDriveFolderId(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+
+  const matchFolders = trimmed.match(/\/folders\/([a-zA-Z0-9_-]{15,})/);
+  if (matchFolders && matchFolders[1]) return matchFolders[1];
+
+  const matchIdParam = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+  if (matchIdParam && matchIdParam[1]) return matchIdParam[1];
+
+  return null;
+}
+
+export function isGoogleDriveFolderUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  return /drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\//i.test(url) || extractGoogleDriveFolderId(url) !== null;
+}
+
+export function getGoogleDriveFolderViewUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const folderId = extractGoogleDriveFolderId(trimmed);
+  if (folderId) {
+    return `https://drive.google.com/drive/folders/${folderId}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Mengekstrak banyak URL / File ID Google Drive dari sebuah blok teks (multi-link/multi-line)
+ */
+export function parseGoogleDriveImageLinks(text: string): string[] {
+  if (!text || typeof text !== 'string') return [];
+  
+  // Split berdasarkan baris baru, koma, spasi, atau titik koma
+  const tokens = text.split(/[\r\n,;]+/).map((t) => t.trim()).filter(Boolean);
+  const result: string[] = [];
+  const seenIds = new Set<string>();
+
+  for (const token of tokens) {
+    const driveId = extractGoogleDriveId(token);
+    if (driveId && !seenIds.has(driveId)) {
+      seenIds.add(driveId);
+      result.push(token);
+    } else if (!driveId && (token.startsWith('http://') || token.startsWith('https://'))) {
+      result.push(token);
+    }
+  }
+
+  return result;
+}
+

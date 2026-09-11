@@ -56,12 +56,20 @@ import {
   Target,
   Award,
   Quote,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Sliders
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
   formatGoogleDriveImageUrl, 
-  getGoogleDriveViewUrl 
+  getGoogleDriveViewUrl,
+  extractGoogleDriveFolderId,
+  isGoogleDriveFolderUrl,
+  getGoogleDriveFolderViewUrl,
+  parseGoogleDriveImageLinks
 } from '../../lib/driveHelper';
 import { 
   getSupabaseConfig, 
@@ -263,14 +271,80 @@ export const AdminDashboard: React.FC = () => {
     heroBadge: officeProfile.heroBadge || "Portal Resmi Pendidikan Kecamatan Purwodadi",
     heroTitle: officeProfile.heroTitle || "Mewujudkan Fondasi Generasi Emas SD, TK, & KB di Purwodadi",
     heroSubtitle: officeProfile.heroSubtitle || "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi...",
-    korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak..."
+    korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak...",
+    heroDriveFolderUrl: officeProfile.heroDriveFolderUrl || '',
+    heroSlideshowImages: officeProfile.heroSlideshowImages || [],
+    heroSlideshowInterval: officeProfile.heroSlideshowInterval || 5
   });
+
+  const [newSlideUrl, setNewSlideUrl] = useState('');
+  const [batchSlideText, setBatchSlideText] = useState('');
+  const [isBatchMode, setIsBatchMode] = useState(false);
+
+  const handleAddSlide = () => {
+    if (!newSlideUrl.trim()) {
+      showToast('Masukkan link foto terlebih dahulu!', 'error');
+      return;
+    }
+    const trimmed = newSlideUrl.trim();
+    setHomeForm((prev) => ({
+      ...prev,
+      heroSlideshowImages: [...(prev.heroSlideshowImages || []), trimmed]
+    }));
+    setNewSlideUrl('');
+    showToast('Foto berhasil ditambahkan ke daftar slide show!', 'success');
+  };
+
+  const handleAddBatchSlides = () => {
+    if (!batchSlideText.trim()) {
+      showToast('Tempel tautan foto terlebih dahulu!', 'error');
+      return;
+    }
+    const extracted = parseGoogleDriveImageLinks(batchSlideText);
+    if (extracted.length === 0) {
+      showToast('Tidak ada tautan foto valid yang terdeteksi dalam teks.', 'error');
+      return;
+    }
+    setHomeForm((prev) => {
+      const current = prev.heroSlideshowImages || [];
+      const newImages = [...current];
+      for (const link of extracted) {
+        if (!newImages.includes(link)) {
+          newImages.push(link);
+        }
+      }
+      return { ...prev, heroSlideshowImages: newImages };
+    });
+    setBatchSlideText('');
+    setIsBatchMode(false);
+    showToast(`${extracted.length} foto berhasil ditambahkan ke slide show!`, 'success');
+  };
+
+  const handleRemoveSlide = (indexToRemove: number) => {
+    setHomeForm((prev) => ({
+      ...prev,
+      heroSlideshowImages: (prev.heroSlideshowImages || []).filter((_, idx) => idx !== indexToRemove)
+    }));
+    showToast('Foto dihapus dari slide show.', 'info');
+  };
+
+  const handleMoveSlide = (index: number, direction: 'left' | 'right') => {
+    setHomeForm((prev) => {
+      const current = [...(prev.heroSlideshowImages || [])];
+      const targetIndex = direction === 'left' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= current.length) return prev;
+      const temp = current[index];
+      current[index] = current[targetIndex];
+      current[targetIndex] = temp;
+      return { ...prev, heroSlideshowImages: current };
+    });
+  };
 
   const handleSaveHomeCMS = async (e: React.FormEvent) => {
     e.preventDefault();
     const confirmed = await showConfirmDialog({
-      title: 'Simpan Pengaturan Beranda?',
-      message: 'Apakah Anda yakin ingin memperbarui konten, tagline, dan kutipan beranda?',
+      title: 'Simpan Pengaturan Beranda & Slide Show?',
+      message: 'Apakah Anda yakin ingin menyimpan perubahan teks hero, semboyan, link folder Google Drive, dan foto slide show ke database Supabase?',
       type: 'save',
       confirmText: 'Ya, Simpan Perubahan',
       cancelText: 'Tidak, Batalkan'
@@ -278,8 +352,8 @@ export const AdminDashboard: React.FC = () => {
     if (!confirmed) return;
     await updateOfficeProfile(homeForm);
     showNoticePopup({
-      title: 'Beranda Diperbarui!',
-      message: 'Pengaturan konten dan kutipan beranda berhasil disimpan.',
+      title: 'Beranda & Slide Show Disimpan!',
+      message: 'Pengaturan tampilan beranda dan slide show foto Google Drive berhasil disimpan dan disinkronkan ke Supabase.',
       type: 'success'
     });
   };
@@ -429,6 +503,9 @@ export const AdminDashboard: React.FC = () => {
       heroTitle: officeProfile.heroTitle || "Mewujudkan Fondasi Generasi Emas SD, TK, & KB di Purwodadi",
       heroSubtitle: officeProfile.heroSubtitle || "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi...",
       korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak...",
+      heroDriveFolderUrl: officeProfile.heroDriveFolderUrl || '',
+      heroSlideshowImages: officeProfile.heroSlideshowImages || [],
+      heroSlideshowInterval: officeProfile.heroSlideshowInterval || 5
     });
   }, [officeProfile]);
 
@@ -2635,9 +2712,221 @@ export const AdminDashboard: React.FC = () => {
                   />
                 </div>
 
+                {/* SECTION: Latar Belakang Slide Show Foto (Google Drive) */}
+                <div className="pt-5 border-t border-slate-200/80 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-600">
+                        <Images className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                          <span>Latar Belakang Slide Show Foto (Google Drive)</span>
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
+                            {homeForm.heroSlideshowImages?.length || 0} Foto Aktif
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Background biru di beranda depan akan menampilkan perputaran foto dokumentasi secara otomatis.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 1. Input Link Folder Google Drive */}
+                  <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Folder className="w-4 h-4 text-blue-600" />
+                        <span>Link Folder Gambar Google Drive</span>
+                      </label>
+                      {homeForm.heroDriveFolderUrl && (
+                        <a
+                          href={homeForm.heroDriveFolderUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 hover:underline"
+                        >
+                          <span>Buka Folder di Google Drive</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Masukkan tautan folder Google Drive tempat foto-foto kegiatan disimpan. Pastikan akses sharing diatur ke <b>&quot;Siapa saja yang memiliki link (Anyone with the link)&quot;</b>.
+                    </p>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={homeForm.heroDriveFolderUrl}
+                        onChange={(e) => setHomeForm({ ...homeForm, heroDriveFolderUrl: e.target.value })}
+                        placeholder="Contoh: https://drive.google.com/drive/folders/1a2b3c4d5e6f7g8h9?usp=sharing"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white border border-blue-300 text-xs text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-sm font-mono"
+                      />
+                      <Folder className="w-4 h-4 text-blue-500 absolute left-3 top-3 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* 2. Pengelola Foto Slide Show */}
+                  <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800">Daftar Foto yang Ditampilkan pada Slide Show</h4>
+                        <p className="text-[11px] text-slate-500">
+                          Tambahkan link foto dari Google Drive untuk ditampilkan bergantian pada latar belakang beranda.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsBatchMode(!isBatchMode)}
+                        className="self-start sm:self-auto px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 text-[11px] font-semibold transition-all cursor-pointer"
+                      >
+                        {isBatchMode ? '← Mode Input Satuan' : '📋 Tempel Banyak Link Sekaligus'}
+                      </button>
+                    </div>
+
+                    {/* Form Tambah Foto */}
+                    {isBatchMode ? (
+                      <div className="space-y-2.5 p-3.5 bg-white rounded-xl border border-slate-200 shadow-inner">
+                        <label className="text-[11px] font-bold text-slate-700 block">
+                          Tempel Beberapa Link Foto Google Drive Sekaligus (Satu link per baris):
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={batchSlideText}
+                          onChange={(e) => setBatchSlideText(e.target.value)}
+                          placeholder="https://drive.google.com/file/d/1ABC.../view&#10;https://drive.google.com/file/d/2XYZ.../view"
+                          className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                        />
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[11px] text-slate-400">Sistem otomatis mendeteksi ID file dari link Google Drive.</span>
+                          <button
+                            type="button"
+                            onClick={handleAddBatchSlides}
+                            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Ekstrak & Tambahkan Semua</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={newSlideUrl}
+                            onChange={(e) => setNewSlideUrl(e.target.value)}
+                            placeholder="Tempel link foto Google Drive (Contoh: https://drive.google.com/file/d/1.../view)"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-sm"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddSlide}
+                          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Tambah Foto</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Galeri Thumbnail Foto Slide Show */}
+                    {homeForm.heroSlideshowImages && homeForm.heroSlideshowImages.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
+                        {homeForm.heroSlideshowImages.map((imgUrl, idx) => {
+                          const displaySrc = formatGoogleDriveImageUrl(imgUrl) || imgUrl;
+                          return (
+                            <div
+                              key={idx}
+                              className="group/slide relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
+                            >
+                              {/* Thumbnail Container */}
+                              <div className="relative aspect-video w-full bg-slate-900 overflow-hidden">
+                                <img
+                                  src={displaySrc}
+                                  alt={`Slide ${idx + 1}`}
+                                  referrerPolicy="no-referrer"
+                                  crossOrigin="anonymous"
+                                  className="w-full h-full object-cover group-hover/slide:scale-105 transition-transform duration-300"
+                                  onError={(e) => {
+                                    e.currentTarget.style.opacity = '0.3';
+                                  }}
+                                />
+                                <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-sm text-[10px] font-bold text-white shadow">
+                                  Slide #{idx + 1}
+                                </div>
+                              </div>
+
+                              {/* Action Bar */}
+                              <div className="p-2 bg-white flex items-center justify-between border-t border-slate-100">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => handleMoveSlide(idx, 'left')}
+                                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-[10px] cursor-pointer"
+                                    title="Geser Mundur"
+                                  >
+                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === (homeForm.heroSlideshowImages?.length || 0) - 1}
+                                    onClick={() => handleMoveSlide(idx, 'right')}
+                                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-[10px] cursor-pointer"
+                                    title="Geser Maju"
+                                  >
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSlide(idx)}
+                                  className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 text-[10px] transition-colors cursor-pointer"
+                                  title="Hapus foto dari slide show"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center bg-white rounded-xl border border-dashed border-slate-300">
+                        <ImageIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-xs text-slate-500 font-medium">Belum ada foto slide show yang aktif.</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Tambahkan foto di atas agar latar belakang beranda berputar otomatis.</p>
+                      </div>
+                    )}
+
+                    {/* Setting Durasi Pergantian Slide */}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <Sliders className="w-4 h-4 text-slate-500" />
+                        <label className="text-xs font-bold text-slate-700">Durasi Pergantian Slide Otomatis:</label>
+                      </div>
+                      <select
+                        value={homeForm.heroSlideshowInterval || 5}
+                        onChange={(e) => setHomeForm({ ...homeForm, heroSlideshowInterval: Number(e.target.value) })}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      >
+                        <option value={3}>3 Detik (Cepat)</option>
+                        <option value={5}>5 Detik (Standar / Ideal)</option>
+                        <option value={7}>7 Detik (Santai)</option>
+                        <option value={10}>10 Detik (Lambat)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>Simpan Perubahan Tampilan Beranda</span>

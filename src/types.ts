@@ -143,6 +143,9 @@ export interface OfficeProfile {
   heroSubtitle?: string;
   heroBadge?: string;
   korwilQuote?: string;
+  heroDriveFolderUrl?: string;
+  heroSlideshowImages?: string[];
+  heroSlideshowInterval?: number;
 }
 
 export interface ComplaintMessage {

@@ -616,7 +616,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             heroTitle: (p.hero_title || initialOfficeProfile.heroTitle || '').replace(/\bPAUD\b/gi, 'KB'),
             heroSubtitle: (p.hero_subtitle || initialOfficeProfile.heroSubtitle || '').replace(/\bPAUD\b/gi, 'KB'),
             heroBadge: (p.hero_badge || initialOfficeProfile.heroBadge || '').replace(/\bPAUD\b/gi, 'KB'),
-            korwilQuote: (p.korwil_quote || initialOfficeProfile.korwilQuote || '').replace(/\bPAUD\b/gi, 'KB')
+            korwilQuote: (p.korwil_quote || initialOfficeProfile.korwilQuote || '').replace(/\bPAUD\b/gi, 'KB'),
+            heroDriveFolderUrl: p.hero_drive_folder_url !== undefined ? p.hero_drive_folder_url : (initialOfficeProfile.heroDriveFolderUrl || ''),
+            heroSlideshowImages: Array.isArray(p.hero_slideshow_images) && p.hero_slideshow_images.length > 0 
+              ? p.hero_slideshow_images 
+              : (initialOfficeProfile.heroSlideshowImages || []),
+            heroSlideshowInterval: Number(p.hero_slideshow_interval) || initialOfficeProfile.heroSlideshowInterval || 5
           };
           setOfficeProfile(updatedProfile);
           try {
@@ -1050,7 +1055,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
 
       // 1. Office Profile
-      await client.from('office_profile').upsert({
+      const officePayload: any = {
         id: 'main',
         name: officeProfile.name,
         tagline: officeProfile.tagline,
@@ -1069,8 +1074,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         hero_title: officeProfile.heroTitle,
         hero_subtitle: officeProfile.heroSubtitle,
         hero_badge: officeProfile.heroBadge,
-        korwil_quote: officeProfile.korwilQuote
-      });
+        korwil_quote: officeProfile.korwilQuote,
+        hero_drive_folder_url: officeProfile.heroDriveFolderUrl || '',
+        hero_slideshow_images: officeProfile.heroSlideshowImages || [],
+        hero_slideshow_interval: officeProfile.heroSlideshowInterval || 5
+      };
+      let { error: profErr } = await client.from('office_profile').upsert(officePayload);
+      if (profErr && profErr.message?.toLowerCase().includes('column')) {
+        const { hero_drive_folder_url, hero_slideshow_images, hero_slideshow_interval, ...safePayload } = officePayload;
+        await client.from('office_profile').upsert(safePayload);
+      }
 
       // 2. Schools
       const schoolPayload = schools.map((s) => ({
@@ -3355,7 +3368,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
-        const { error } = await client.from('office_profile').upsert({
+        const profilePayload: any = {
           id: 'main',
           name: updated.name,
           tagline: updated.tagline,
@@ -3374,8 +3387,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           hero_title: updated.heroTitle,
           hero_subtitle: updated.heroSubtitle,
           hero_badge: updated.heroBadge,
-          korwil_quote: updated.korwilQuote
-        });
+          korwil_quote: updated.korwilQuote,
+          hero_drive_folder_url: updated.heroDriveFolderUrl || '',
+          hero_slideshow_images: updated.heroSlideshowImages || [],
+          hero_slideshow_interval: updated.heroSlideshowInterval || 5
+        };
+
+        let { error } = await client.from('office_profile').upsert(profilePayload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const { hero_drive_folder_url, hero_slideshow_images, hero_slideshow_interval, ...safePayload } = profilePayload;
+          const retry = await client.from('office_profile').upsert(safePayload);
+          error = retry.error;
+        }
         if (error) {
           showToast(`Profil diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
           return false;

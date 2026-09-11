@@ -35,7 +35,15 @@ export const initialOfficeProfile: OfficeProfile = {
   heroBadge: "Portal Resmi Pendidikan Kecamatan Purwodadi",
   heroTitle: "Mewujudkan Fondasi Generasi Emas SD, TK, & KB di Purwodadi",
   heroSubtitle: "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi. Kami hadir mendampingi seluruh satuan pendidikan dasar dan anak usia dini demi terciptanya proses belajar yang merdeka, aman, berkarakter, dan berprestasi.",
-  korwilQuote: "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak agar mereka selamat dan bahagia setinggi-tingginya sebagai manusia dan anggota masyarakat."
+  korwilQuote: "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak agar mereka selamat dan bahagia setinggi-tingginya sebagai manusia dan anggota masyarakat.",
+  heroDriveFolderUrl: "",
+  heroSlideshowImages: [
+    "https://drive.google.com/file/d/1lmJrDPTE_RVGmfmzI-dpZQ1H3k0Qd7Rz/view?usp=drive_link",
+    "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=1920&q=80",
+    "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1920&q=80",
+    "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1920&q=80"
+  ],
+  heroSlideshowInterval: 5
 };
 
 export const initialSchools: School[] = [
