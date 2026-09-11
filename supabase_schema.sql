@@ -177,6 +177,25 @@ CREATE TABLE IF NOT EXISTS sop_pelayanan (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 12. TABEL ORGANISASI MITRA & PROFESI (ORGANIZATIONS)
+CREATE TABLE IF NOT EXISTS organizations (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  short_name TEXT NOT NULL,
+  description TEXT,
+  logo TEXT,
+  cover_image TEXT,
+  leader JSONB DEFAULT '{}'::jsonb,
+  vision TEXT,
+  missions JSONB DEFAULT '[]'::jsonb,
+  officials JSONB DEFAULT '[]'::jsonb,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ==========================================================
 -- PENGATURAN ROW LEVEL SECURITY (RLS)
 -- ==========================================================
@@ -193,6 +212,7 @@ ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sop_pelayanan ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 
 -- Hak Akses Baca untuk Publik (Anonim & Pengunjung)
 CREATE POLICY "Public read office_profile" ON office_profile FOR SELECT USING (true);
@@ -204,6 +224,7 @@ CREATE POLICY "Public read documents" ON documents FOR SELECT USING (true);
 CREATE POLICY "Public read gallery" ON gallery FOR SELECT USING (true);
 CREATE POLICY "Public read staff" ON staff FOR SELECT USING (true);
 CREATE POLICY "Public read sop_pelayanan" ON sop_pelayanan FOR SELECT USING (true);
+CREATE POLICY "Public read organizations" ON organizations FOR SELECT USING (true);
 
 -- Pengunjung boleh kirim aspirasi / aduan
 CREATE POLICY "Public insert complaints" ON complaints FOR INSERT WITH CHECK (true);
@@ -220,6 +241,7 @@ CREATE POLICY "Allow all on staff" ON staff FOR ALL USING (true);
 CREATE POLICY "Allow all on complaints" ON complaints FOR ALL USING (true);
 CREATE POLICY "Allow all on admin_users" ON admin_users FOR ALL USING (true);
 CREATE POLICY "Allow all on sop_pelayanan" ON sop_pelayanan FOR ALL USING (true);
+CREATE POLICY "Allow all on organizations" ON organizations FOR ALL USING (true);
 
 -- ==========================================================
 -- AKUN AWAL BAWAAN (DEFAULT SEED ACCOUNTS)
@@ -237,7 +259,7 @@ ON CONFLICT (username) DO NOTHING;
 -- Menjadikan perubahan data di tabel langsung memicu update pada layar pengunjung tanpa refresh
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan;
+  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan, organizations;
 EXCEPTION WHEN OTHERS THEN
   -- Abaikan jika tabel sudah terdaftar di publication
   NULL;
@@ -319,6 +341,41 @@ WHERE
 ALTER TABLE public.gallery 
 ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
 
+-- ==========================================================
+-- MIGRATION: BUAT TABEL ORGANISASI MITRA & PROFESI (ORGANIZATIONS)
+-- ==========================================================
+-- Jalankan potongan script ini di menu "SQL Editor" pada Supabase jika tabel 'organizations' belum ada:
+CREATE TABLE IF NOT EXISTS public.organizations (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  short_name TEXT NOT NULL,
+  description TEXT,
+  logo TEXT,
+  cover_image TEXT,
+  leader JSONB DEFAULT '{}'::jsonb,
+  vision TEXT,
+  missions JSONB DEFAULT '[]'::jsonb,
+  officials JSONB DEFAULT '[]'::jsonb,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
+-- Pengaturan RLS (Row Level Security)
+ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read organizations" ON public.organizations;
+CREATE POLICY "Public read organizations" ON public.organizations FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow all on organizations" ON public.organizations;
+CREATE POLICY "Allow all on organizations" ON public.organizations FOR ALL USING (true);
+
+-- Publikasi Realtime untuk Multi-User Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;

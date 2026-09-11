@@ -120,7 +120,7 @@ export const ModalDetailSchool: React.FC = () => {
             <div className="absolute bottom-4 left-6 right-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-2.5 py-0.5 rounded-lg text-xs font-extrabold bg-blue-600 text-white">
-                  Jenjang {selectedSchool.level}
+                  Jenjang {selectedSchool.level === 'PAUD' ? 'KB' : selectedSchool.level}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white/90 text-slate-800">
                   {selectedSchool.status}
@@ -153,7 +153,7 @@ export const ModalDetailSchool: React.FC = () => {
             <div className="relative z-10 pt-2">
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="px-2.5 py-0.5 rounded-lg text-xs font-extrabold bg-blue-600 text-white">
-                  Jenjang {selectedSchool.level}
+                  Jenjang {selectedSchool.level === 'PAUD' ? 'KB' : selectedSchool.level}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-white/90 text-slate-800">
                   {selectedSchool.status}

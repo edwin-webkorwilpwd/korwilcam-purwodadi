@@ -11,7 +11,9 @@ import {
   OfficeProfile,
   ComplaintMessage,
   AdminUser,
-  AdminRole 
+  AdminRole,
+  EducationalOrganization,
+  OrganizationOfficial 
 } from '../types';
 import { 
   initialSchools, 
@@ -22,7 +24,8 @@ import {
   initialGallery, 
   initialStaff, 
   initialOfficeProfile,
-  initialComplaints 
+  initialComplaints,
+  initialOrganizations 
 } from '../data/initialData';
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
@@ -100,6 +103,17 @@ interface AppContextType {
   selectedDocument: DocumentDownload | null;
   setSelectedDocument: (doc: DocumentDownload | null, customPath?: string) => void;
   incrementDocumentDownloadCount: (id: string) => Promise<void>;
+  
+  // Organisasi
+  organizations: EducationalOrganization[];
+  selectedOrganizationSlug: string | null;
+  setSelectedOrganizationSlug: (slug: string | null, customPath?: string) => void;
+  addOrganization: (org: Omit<EducationalOrganization, 'id'>) => Promise<boolean>;
+  updateOrganization: (id: string, orgData: Partial<EducationalOrganization>) => Promise<boolean>;
+  deleteOrganization: (id: string) => Promise<boolean>;
+  addOrganizationOfficial: (orgId: string, official: Omit<OrganizationOfficial, 'id'>) => Promise<boolean>;
+  updateOrganizationOfficial: (orgId: string, officialId: string, officialData: Partial<OrganizationOfficial>) => Promise<boolean>;
+  deleteOrganizationOfficial: (orgId: string, officialId: string) => Promise<boolean>;
   
   // Auth & Roles
   isAuthenticated: boolean;
@@ -222,7 +236,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
-    return ['Kedinasan', 'SD', 'TK/PAUD', 'Prestasi'];
+    return ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'];
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
@@ -356,6 +370,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedSchool, setSelectedSchoolState] = useState<School | null>(null);
   const [selectedGallery, setSelectedGalleryState] = useState<GalleryItem | null>(null);
   const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
+  const [organizations, setOrganizations] = useState<EducationalOrganization[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_organizations');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialOrganizations;
+    } catch {
+      return initialOrganizations;
+    }
+  });
+  const [selectedOrganizationSlug, setSelectedOrganizationSlugState] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
@@ -479,6 +506,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
+      localStorage.setItem('korwilcam_organizations', JSON.stringify(organizations));
+    } catch (e) {
+      console.warn('localStorage save organizations quota warning:', e);
+    }
+  }, [organizations]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem('korwilcam_complaints', JSON.stringify(complaints));
     } catch (e) {
       console.warn('localStorage save complaints quota warning:', e);
@@ -516,13 +551,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             korwilNip: p.korwil_nip || initialOfficeProfile.korwilNip,
             korwilPhoto: cleanKorwilPhoto || initialOfficeProfile.korwilPhoto,
             greetingTitle: p.greeting_title || initialOfficeProfile.greetingTitle,
-            greetingText: p.greeting_text || initialOfficeProfile.greetingText,
-            vision: p.vision || initialOfficeProfile.vision,
-            missions: Array.isArray(p.missions) ? p.missions : initialOfficeProfile.missions,
-            heroTitle: p.hero_title || initialOfficeProfile.heroTitle,
-            heroSubtitle: p.hero_subtitle || initialOfficeProfile.heroSubtitle,
-            heroBadge: p.hero_badge || initialOfficeProfile.heroBadge,
-            korwilQuote: p.korwil_quote || initialOfficeProfile.korwilQuote
+            greetingText: (p.greeting_text || initialOfficeProfile.greetingText || '').replace(/\bPAUD\b/gi, 'KB'),
+            vision: (p.vision || initialOfficeProfile.vision || '').replace(/\bPAUD\b/gi, 'KB'),
+            missions: (Array.isArray(p.missions) ? p.missions : initialOfficeProfile.missions).map((m: any) => typeof m === 'string' ? m.replace(/\bPAUD\b/gi, 'KB') : m),
+            heroTitle: (p.hero_title || initialOfficeProfile.heroTitle || '').replace(/\bPAUD\b/gi, 'KB'),
+            heroSubtitle: (p.hero_subtitle || initialOfficeProfile.heroSubtitle || '').replace(/\bPAUD\b/gi, 'KB'),
+            heroBadge: (p.hero_badge || initialOfficeProfile.heroBadge || '').replace(/\bPAUD\b/gi, 'KB'),
+            korwilQuote: (p.korwil_quote || initialOfficeProfile.korwilQuote || '').replace(/\bPAUD\b/gi, 'KB')
           };
           setOfficeProfile(updatedProfile);
           try {
@@ -548,7 +583,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
             let div = st.division || st.divisi || 'Staf';
             if (div === 'Pimpinan') div = 'Pimpinan Korwilcam Purwodadi';
-            else if (div === 'Penilik PAUD/TK') div = 'Penilik PAUD';
+            else if (div === 'Penilik PAUD/TK' || div === 'Penilik PAUD' || div === 'Penilik KB/TK' || div === 'Penilik KB') div = 'Penilik KB';
             else if (div === 'Tata Usaha') div = 'Staf';
 
             return {
@@ -583,7 +618,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return {
             id: String(s.id || s.npsn || `sch-${Date.now()}`),
             name: String(s.name || s.nama || s.nama_sekolah || '').trim(),
-            level: (s.level || s.jenjang || 'SD') as any,
+            level: (s.level === 'PAUD' ? 'KB' : (s.level || s.jenjang || 'SD')) as any,
             status: (s.status || 'Negeri') as any,
             npsn: String(s.npsn || '').trim(),
             akreditasi: (s.akreditasi || 'Belum Terakreditasi') as any,
@@ -607,14 +642,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!newsErr && dbNews) {
         // Cari master kategori tersimpan di Supabase
         const sysCatItem = dbNews.find((n: any) => n.id === 'system-news-categories' || n.slug === 'system-news-categories');
-        let loadedCategories: string[] = ['Kedinasan', 'SD', 'TK/PAUD', 'Prestasi'];
+        let loadedCategories: string[] = ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'];
         if (sysCatItem) {
           try {
             if (Array.isArray(sysCatItem.tags) && sysCatItem.tags.length > 0) {
-              loadedCategories = sysCatItem.tags;
+              loadedCategories = sysCatItem.tags.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
             } else if (sysCatItem.content) {
               const parsed = JSON.parse(sysCatItem.content);
-              if (Array.isArray(parsed)) loadedCategories = parsed;
+              if (Array.isArray(parsed)) loadedCategories = parsed.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
             }
           } catch {}
         }
@@ -625,7 +660,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Kumpulkan kategori dari artikel berita yang ada
         actualArticles.forEach((n: any) => {
           if (n.category && typeof n.category === 'string') {
-            const c = n.category.trim();
+            const rawC = n.category.trim();
+            const c = rawC === 'TK/PAUD' ? 'TK/KB' : rawC;
             if (c && !loadedCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
               loadedCategories.push(c);
             }
@@ -633,7 +669,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
 
         // Pastikan kategori default selalu tersedia
-        ['Kedinasan', 'SD', 'TK/PAUD', 'Prestasi'].forEach(def => {
+        ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'].forEach(def => {
           if (!loadedCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
             loadedCategories.push(def);
           }
@@ -895,6 +931,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Tabel admin_users belum terbaca:', errUsers);
       }
 
+      // Fetch organizations
+      try {
+        const { data: dbOrgs, error: orgsErr } = await client.from('organizations').select('*');
+        if (!orgsErr && dbOrgs && dbOrgs.length > 0) {
+          const mappedOrgs: EducationalOrganization[] = dbOrgs.map((o: any) => ({
+            id: String(o.id || `org-${Date.now()}`),
+            slug: String(o.slug || '').trim(),
+            name: String(o.name || '').trim(),
+            shortName: String(o.short_name || o.shortName || o.name || '').trim(),
+            description: String(o.description || '').trim(),
+            logo: String(o.logo || '').trim(),
+            coverImage: String(o.cover_image || o.coverImage || '').trim(),
+            leader: typeof o.leader === 'object' && o.leader ? o.leader : {
+              name: '',
+              title: '',
+              period: '',
+              photo: '',
+              speechTitle: '',
+              speech: ''
+            },
+            vision: String(o.vision || ''),
+            missions: Array.isArray(o.missions) ? o.missions : [],
+            officials: Array.isArray(o.officials) ? o.officials : [],
+            address: String(o.address || ''),
+            phone: String(o.phone || ''),
+            email: String(o.email || ''),
+            updatedAt: o.updated_at || o.updatedAt
+          }));
+          setOrganizations(mappedOrgs);
+          try {
+            localStorage.setItem('korwilcam_organizations', JSON.stringify(mappedOrgs));
+          } catch {}
+        }
+      } catch (errOrgs) {
+        console.warn('Tabel organizations belum terbaca:', errOrgs);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       return true;
@@ -1100,6 +1173,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel admin_users:', uErr);
       }
 
+      // 11. Organizations
+      try {
+        const orgPayload = organizations.map((o) => ({
+          id: o.id,
+          slug: o.slug,
+          name: o.name,
+          short_name: o.shortName,
+          description: o.description,
+          logo: o.logo || '',
+          cover_image: o.coverImage || '',
+          leader: o.leader,
+          vision: o.vision,
+          missions: o.missions,
+          officials: o.officials,
+          address: o.address || '',
+          phone: o.phone || '',
+          email: o.email || '',
+          updated_at: o.updatedAt || new Date().toISOString()
+        }));
+        await client.from('organizations').upsert(orgPayload);
+      } catch (oErr) {
+        console.warn('Gagal ekspor tabel organizations:', oErr);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       showToast('Seluruh data berhasil diekspor & disinkronkan ke Supabase!', 'success');
@@ -1196,6 +1293,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'organizations' },
+        () => {
+          refreshFromSupabase();
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'admin_users' },
         async () => {
           const { data: dbUsers } = await client.from('admin_users').select('*');
@@ -1226,8 +1330,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'home': { path: '/beranda', title: 'Beranda - Portal Resmi Korwilcam Bidang Pendidikan Purwodadi' },
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
-    'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & PAUD - Korwilcam Purwodadi' },
+    'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
+    'organization': { path: '/organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
     'service-cuti': { path: '/layanan/surat-cuti', title: 'Layanan Surat Cuti GTK Online - Korwilcam Purwodadi' },
@@ -1254,6 +1359,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (selectedSchool) {
       setSelectedSchoolState(null);
+    }
+    if (tab !== 'organization') {
+      setSelectedOrganizationSlugState(null);
     }
 
     const route = TAB_ROUTES[tab];
@@ -1417,7 +1525,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (window.location.pathname + window.location.search !== finalUrl) {
         window.history.pushState({}, '', finalUrl);
       }
-      document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & PAUD - Korwilcam Purwodadi';
+      document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+    }
+  };
+
+  const setSelectedOrganizationSlug = (slug: string | null, customPath?: string) => {
+    setSelectedOrganizationSlugState(slug);
+    setActiveTabState('organization');
+    setSelectedNewsState(null);
+    setSelectedAnnouncementState(null);
+    setSelectedGalleryState(null);
+    setSelectedDocumentState(null);
+    setSelectedSchoolState(null);
+
+    if (slug) {
+      const targetPath = customPath || `/organisasi/${slug}`;
+      const foundOrg = organizations.find((o) => o.slug === slug || o.id === slug);
+      const targetTitle = foundOrg ? `${foundOrg.name} - Korwilcam Purwodadi` : 'Organisasi Pendidikan - Korwilcam Purwodadi';
+
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ orgSlug: slug, path: targetPath }, '', targetPath);
+      }
+      document.title = targetTitle;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const targetPath = '/organisasi';
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ orgSlug: null, path: targetPath }, '', targetPath);
+      }
+      document.title = 'Daftar Organisasi Mitra & Profesi - Korwilcam Purwodadi';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -1691,6 +1828,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           document.title = 'Agenda Kegiatan Wilayah - Korwilcam Purwodadi';
         } else {
           document.title = TAB_ROUTES['news'].title;
+        }
+      } else if (rawPath.startsWith('/organisasi')) {
+        const parts = rawPath.split('/').filter(Boolean);
+        const slug = (parts.length > 1 && parts[1]) ? parts[1] : (searchParams.get('slug') || searchParams.get('id'));
+        setActiveTabState('organization');
+        if (slug) {
+          setSelectedOrganizationSlugState(slug);
+          const found = organizations.find((o) => o.slug === slug || o.id === slug);
+          if (found) {
+            document.title = `${found.name} - Korwilcam Purwodadi`;
+          } else {
+            document.title = 'Organisasi Pendidikan - Korwilcam Purwodadi';
+          }
+        } else {
+          setSelectedOrganizationSlugState(null);
+          document.title = 'Daftar Organisasi Mitra & Profesi - Korwilcam Purwodadi';
         }
       } else if (rawPath.startsWith('/layanan') || rawPath.startsWith('/unduhan')) {
         if (rawPath.includes('aula')) {
@@ -3247,6 +3400,142 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // ORGANISASI (PGRI, K3S, IGTKI, HIMPAUDI, Kwarran Pramuka, dll)
+  const addOrganization = async (orgData: Omit<EducationalOrganization, 'id'>): Promise<boolean> => {
+    const newOrg: EducationalOrganization = {
+      ...orgData,
+      id: `org-${Date.now()}`,
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [...organizations, newOrg];
+    setOrganizations(updated);
+    try {
+      localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('organizations').upsert({
+          id: newOrg.id,
+          slug: newOrg.slug,
+          name: newOrg.name,
+          short_name: newOrg.shortName,
+          description: newOrg.description,
+          logo: newOrg.logo || '',
+          cover_image: newOrg.coverImage || '',
+          leader: newOrg.leader,
+          vision: newOrg.vision,
+          missions: newOrg.missions,
+          officials: newOrg.officials,
+          address: newOrg.address || '',
+          phone: newOrg.phone || '',
+          email: newOrg.email || '',
+          updated_at: newOrg.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase organization upsert warning:', err);
+      }
+    }
+    showToast(`Organisasi "${newOrg.name}" berhasil ditambahkan!`, 'success');
+    return true;
+  };
+
+  const updateOrganization = async (id: string, orgData: Partial<EducationalOrganization>): Promise<boolean> => {
+    const updated = organizations.map((o) => {
+      if (o.id === id || o.slug === id) {
+        return {
+          ...o,
+          ...orgData,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return o;
+    });
+    setOrganizations(updated);
+    try {
+      localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
+    } catch (e) {}
+
+    const targetOrg = updated.find((o) => o.id === id || o.slug === id);
+    const client = getSupabaseClient();
+    if (client && targetOrg) {
+      try {
+        await client.from('organizations').upsert({
+          id: targetOrg.id,
+          slug: targetOrg.slug,
+          name: targetOrg.name,
+          short_name: targetOrg.shortName,
+          description: targetOrg.description,
+          logo: targetOrg.logo || '',
+          cover_image: targetOrg.coverImage || '',
+          leader: targetOrg.leader,
+          vision: targetOrg.vision,
+          missions: targetOrg.missions,
+          officials: targetOrg.officials,
+          address: targetOrg.address || '',
+          phone: targetOrg.phone || '',
+          email: targetOrg.email || '',
+          updated_at: targetOrg.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase organization update warning:', err);
+      }
+    }
+    showToast('Pengaturan organisasi berhasil disimpan dan disinkronkan!', 'success');
+    return true;
+  };
+
+  const deleteOrganization = async (id: string): Promise<boolean> => {
+    const target = organizations.find((o) => o.id === id || o.slug === id);
+    const updated = organizations.filter((o) => o.id !== id && o.slug !== id);
+    setOrganizations(updated);
+    try {
+      localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('organizations').delete().match({ id });
+      } catch (err) {
+        console.warn('Supabase organization delete warning:', err);
+      }
+    }
+    showToast(`Organisasi "${target?.name || ''}" berhasil dihapus!`, 'info');
+    return true;
+  };
+
+  const addOrganizationOfficial = async (orgId: string, official: Omit<OrganizationOfficial, 'id'>): Promise<boolean> => {
+    const newOfficial: OrganizationOfficial = {
+      ...official,
+      id: `off-${Date.now()}`
+    };
+    const targetOrg = organizations.find((o) => o.id === orgId || o.slug === orgId);
+    if (!targetOrg) return false;
+    const newOfficials = [...(targetOrg.officials || []), newOfficial];
+    return updateOrganization(orgId, { officials: newOfficials });
+  };
+
+  const updateOrganizationOfficial = async (orgId: string, officialId: string, officialData: Partial<OrganizationOfficial>): Promise<boolean> => {
+    const targetOrg = organizations.find((o) => o.id === orgId || o.slug === orgId);
+    if (!targetOrg) return false;
+    const newOfficials = (targetOrg.officials || []).map((off) => {
+      if (off.id === officialId) {
+        return { ...off, ...officialData };
+      }
+      return off;
+    });
+    return updateOrganization(orgId, { officials: newOfficials });
+  };
+
+  const deleteOrganizationOfficial = async (orgId: string, officialId: string): Promise<boolean> => {
+    const targetOrg = organizations.find((o) => o.id === orgId || o.slug === orgId);
+    if (!targetOrg) return false;
+    const newOfficials = (targetOrg.officials || []).filter((off) => off.id !== officialId);
+    return updateOrganization(orgId, { officials: newOfficials });
+  };
+
   const resetToDefaultData = () => {
     setSchools(initialSchools);
     setNews(initialNews);
@@ -3257,6 +3546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStaff(initialStaff);
     setOfficeProfile(initialOfficeProfile);
     setComplaints(initialComplaints);
+    setOrganizations(initialOrganizations);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
@@ -3276,6 +3566,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         staff,
         officeProfile,
         complaints,
+        organizations,
+        selectedOrganizationSlug,
+        setSelectedOrganizationSlug,
+        addOrganization,
+        updateOrganization,
+        deleteOrganization,
+        addOrganizationOfficial,
+        updateOrganizationOfficial,
+        deleteOrganizationOfficial,
         activeTab,
         setActiveTab,
         selectedNews,

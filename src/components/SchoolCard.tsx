@@ -43,6 +43,7 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
       case 'TK':
         return 'bg-sky-600 text-white';
       case 'PAUD':
+      case 'KB':
         return 'bg-emerald-600 text-white';
       default:
         return 'bg-slate-700 text-white';
@@ -97,7 +98,7 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
         {/* Level Badge */}
         <div className="absolute top-3 left-3 flex gap-2">
           <span className={`px-2.5 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wide shadow-md ${getLevelBadge(school.level)}`}>
-            {school.level}
+            {school.level === 'PAUD' ? 'KB' : school.level}
           </span>
           <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white/95 text-slate-800 shadow-md border border-white/40">
             {school.status}

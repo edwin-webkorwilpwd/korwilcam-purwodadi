@@ -1,4 +1,4 @@
-export type SchoolLevel = 'SD' | 'TK' | 'PAUD';
+export type SchoolLevel = 'SD' | 'TK' | 'PAUD' | 'KB';
 export type SchoolStatus = 'Negeri' | 'Swasta';
 export type Accreditation = 'A' | 'B' | 'C' | 'Belum Terakreditasi';
 
@@ -22,7 +22,7 @@ export interface School {
   featured?: boolean;
 }
 
-export type NewsCategory = 'Kedinasan' | 'SD' | 'TK/PAUD' | 'Prestasi' | 'Pengumuman' | string;
+export type NewsCategory = 'Kedinasan' | 'SD' | 'TK/PAUD' | 'TK/KB' | 'Prestasi' | 'Pengumuman' | string;
 
 export interface NewsArticle {
   id: string;
@@ -46,7 +46,7 @@ export interface Announcement {
   title: string;
   date: string;
   urgency: 'Penting' | 'Biasa' | 'Mendesak';
-  target: 'Semua Satuan' | 'SD' | 'TK/PAUD';
+  target: 'Semua Satuan' | 'SD' | 'TK/PAUD' | 'TK/KB';
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
@@ -108,9 +108,11 @@ export type StaffDivision =
   | 'Pengawas SD' 
   | 'Pengawas TK' 
   | 'Penilik PAUD' 
+  | 'Penilik KB'
   | 'Staf'
   | 'Pimpinan' 
   | 'Penilik PAUD/TK' 
+  | 'Penilik KB/TK'
   | 'Tata Usaha';
 
 export interface StaffProfile {
@@ -166,6 +168,43 @@ export interface AdminUser {
   avatar?: string;
   status: 'Aktif' | 'Nonaktif';
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface OrganizationLeader {
+  name: string;
+  title?: string;
+  period?: string;
+  photo?: string;
+  speechTitle?: string;
+  speech: string;
+}
+
+export interface OrganizationOfficial {
+  id: string;
+  name: string;
+  role: string;
+  nip?: string;
+  photo?: string;
+  division?: string;
+  order?: number;
+}
+
+export interface EducationalOrganization {
+  id: string;
+  slug: string;
+  name: string;
+  shortName: string;
+  description: string;
+  logo?: string;
+  coverImage?: string;
+  leader: OrganizationLeader;
+  vision: string;
+  missions: string[];
+  officials: OrganizationOfficial[];
+  address?: string;
+  phone?: string;
+  email?: string;
   updatedAt?: string;
 }
 

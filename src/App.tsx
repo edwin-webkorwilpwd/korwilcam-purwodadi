@@ -15,6 +15,7 @@ const SchoolsPage = React.lazy(() => import('./pages/SchoolsPage').then(m => ({ 
 const NewsPage = React.lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m => ({ default: m.NewsDetailPage })));
 const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
+const OrganizationPage = React.lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
 const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
 const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage').then(m => ({ default: m.DocumentDetailPage })));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
@@ -136,6 +137,7 @@ const MainContent: React.FC = () => {
               {activeTab === 'sop-pelayanan' && <SOPPage />}
               {activeTab === 'schools' && <SchoolsPage />}
               {activeTab === 'news' && <NewsPage />}
+              {activeTab === 'organization' && <OrganizationPage />}
               {activeTab === 'downloads' && <DownloadsPage />}
               {activeTab === 'gallery' && <GalleryPage />}
               {activeTab === 'contact' && <ContactPage />}

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   LayoutDashboard, 
@@ -52,7 +52,11 @@ import {
   Lock,
   Loader2,
   FileCheck2,
-  Maximize2
+  Maximize2,
+  Target,
+  Award,
+  Quote,
+  ChevronLeft
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -80,7 +84,10 @@ import {
   Announcement, 
   ComplaintMessage,
   AdminUser,
-  AdminRole 
+  AdminRole,
+  EducationalOrganization,
+  OrganizationLeader,
+  OrganizationOfficial
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { getArticleReadingStats } from '../../lib/readingTime';
@@ -138,7 +145,15 @@ export const AdminDashboard: React.FC = () => {
     adminUsers,
     addAdminUser,
     updateAdminUser,
-    deleteAdminUser
+    deleteAdminUser,
+    organizations,
+    setSelectedOrganizationSlug,
+    addOrganization,
+    updateOrganization,
+    deleteOrganization,
+    addOrganizationOfficial,
+    updateOrganizationOfficial,
+    deleteOrganizationOfficial
   } = useApp();
 
   type AdminSection = 
@@ -148,6 +163,7 @@ export const AdminDashboard: React.FC = () => {
     | 'sop-cms'
     | 'schools-cms' 
     | 'news-cms' 
+    | 'organization-cms'
     | 'downloads-cms' 
     | 'gallery-cms' 
     | 'contact-cms'
@@ -222,7 +238,7 @@ export const AdminDashboard: React.FC = () => {
   const [homeForm, setHomeForm] = useState({
     tagline: officeProfile.tagline,
     heroBadge: officeProfile.heroBadge || "Portal Resmi Pendidikan Kecamatan Purwodadi",
-    heroTitle: officeProfile.heroTitle || "Mewujudkan Fondasi Generasi Emas SD, TK, & PAUD di Purwodadi",
+    heroTitle: officeProfile.heroTitle || "Mewujudkan Fondasi Generasi Emas SD, TK, & KB di Purwodadi",
     heroSubtitle: officeProfile.heroSubtitle || "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi...",
     korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak..."
   });
@@ -374,7 +390,7 @@ export const AdminDashboard: React.FC = () => {
     setHomeForm({
       tagline: officeProfile.tagline,
       heroBadge: officeProfile.heroBadge || "Portal Resmi Pendidikan Kecamatan Purwodadi",
-      heroTitle: officeProfile.heroTitle || "Mewujudkan Fondasi Generasi Emas SD, TK, & PAUD di Purwodadi",
+      heroTitle: officeProfile.heroTitle || "Mewujudkan Fondasi Generasi Emas SD, TK, & KB di Purwodadi",
       heroSubtitle: officeProfile.heroSubtitle || "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi...",
       korwilQuote: officeProfile.korwilQuote || "Pendidikan bukan sekadar transfer ilmu, melainkan menuntun kodrat anak...",
     });
@@ -696,7 +712,7 @@ export const AdminDashboard: React.FC = () => {
   const [annForm, setAnnForm] = useState({
     title: '',
     urgency: 'Penting' as 'Penting' | 'Biasa' | 'Mendesak',
-    target: 'Semua Satuan' as 'Semua Satuan' | 'SD' | 'TK/PAUD',
+    target: 'Semua Satuan' as 'Semua Satuan' | 'SD' | 'TK/PAUD' | 'TK/KB',
     fileSize: '',
     fileUrl: '',
     fileName: '',
@@ -1206,6 +1222,272 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  // --- ORGANISASI CMS STATE ---
+  const [selectedOrgIdForEdit, setSelectedOrgIdForEdit] = useState<string | null>(null);
+  const [activeOrgSubTab, setActiveOrgSubTab] = useState<'sambutan' | 'pengurus' | 'visi-misi' | 'identitas'>('sambutan');
+  const [isSavingOrg, setIsSavingOrg] = useState(false);
+  const [newOrgMissionText, setNewOrgMissionText] = useState('');
+  const [orgForm, setOrgForm] = useState<EducationalOrganization | null>(null);
+
+  // New Organization Modal State
+  const [showNewOrgModal, setShowNewOrgModal] = useState(false);
+  const [newOrgForm, setNewOrgForm] = useState({
+    name: '',
+    shortName: '',
+    slug: '',
+    description: ''
+  });
+
+  // Official Modal State (Tambah/Edit Pengurus)
+  const [showOfficialModal, setShowOfficialModal] = useState(false);
+  const [editingOfficialId, setEditingOfficialId] = useState<string | null>(null);
+  const [officialForm, setOfficialForm] = useState<{
+    name: string;
+    role: string;
+    nip: string;
+    photo: string;
+    division: string;
+    order: number;
+  }>({
+    name: '',
+    role: '',
+    nip: '',
+    photo: '',
+    division: 'Pengurus Harian',
+    order: 1
+  });
+
+  // Google Drive & Upload Refs for Organization
+  const orgLogoInputRef = useRef<HTMLInputElement | null>(null);
+  const orgLeaderPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const officialPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const [orgLogoDriveInput, setOrgLogoDriveInput] = useState('');
+  const [orgLeaderDriveInput, setOrgLeaderDriveInput] = useState('');
+  const [officialPhotoDriveInput, setOfficialPhotoDriveInput] = useState('');
+
+  // Sync orgForm when selectedOrgIdForEdit changes or organizations updates
+  useEffect(() => {
+    if (selectedOrgIdForEdit) {
+      const found = organizations.find((o) => o.id === selectedOrgIdForEdit);
+      if (found) {
+        setOrgForm({ ...found, leader: { ...found.leader }, missions: [...found.missions], officials: [...(found.officials || [])] });
+        setOrgLogoDriveInput(isGoogleDriveUrl(found.logo || '') ? found.logo || '' : '');
+        setOrgLeaderDriveInput(isGoogleDriveUrl(found.leader?.photo || '') ? found.leader.photo || '' : '');
+      }
+    } else {
+      setOrgForm(null);
+    }
+  }, [selectedOrgIdForEdit, organizations]);
+
+  const handleSelectOrgToEdit = (orgId: string) => {
+    setSelectedOrgIdForEdit(orgId);
+    setActiveOrgSubTab('sambutan');
+  };
+
+  const handleSaveOrgCMS = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedOrgIdForEdit || !orgForm) return;
+
+    if (!orgForm.name.trim() || !orgForm.shortName.trim()) {
+      showToast('Nama organisasi dan singkatan wajib diisi!', 'error');
+      return;
+    }
+
+    setIsSavingOrg(true);
+    try {
+      await updateOrganization(selectedOrgIdForEdit, orgForm);
+      showToast(`Pengaturan ${orgForm.shortName} berhasil disimpan & disinkronkan ke website!`, 'success');
+    } catch (err) {
+      showToast('Gagal menyimpan perubahan organisasi.', 'error');
+    } finally {
+      setIsSavingOrg(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !orgForm) return;
+    try {
+      showToast('Memproses logo organisasi...', 'info');
+      const dataUrl = await compressImage(file, 600, 0.85);
+      setOrgForm(prev => prev ? { ...prev, logo: dataUrl } : null);
+      setOrgLogoDriveInput('');
+      showToast('Logo organisasi berhasil dipilih!', 'success');
+    } catch {
+      showToast('Gagal memproses logo organisasi.', 'error');
+    }
+  };
+
+  const handleLeaderPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !orgForm) return;
+    try {
+      showToast('Memproses foto ketua organisasi...', 'info');
+      const dataUrl = await compressImage(file, 800, 0.82);
+      setOrgForm(prev => prev ? {
+        ...prev,
+        leader: { ...prev.leader, photo: dataUrl }
+      } : null);
+      setOrgLeaderDriveInput('');
+      showToast('Foto ketua berhasil dipilih!', 'success');
+    } catch {
+      showToast('Gagal memproses foto ketua.', 'error');
+    }
+  };
+
+  const handleOfficialPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      showToast('Memproses foto pengurus...', 'info');
+      const dataUrl = await compressImage(file, 600, 0.82);
+      setOfficialForm(prev => ({ ...prev, photo: dataUrl }));
+      setOfficialPhotoDriveInput('');
+      showToast('Foto pengurus berhasil dipilih!', 'success');
+    } catch {
+      showToast('Gagal memproses foto pengurus.', 'error');
+    }
+  };
+
+  const handleAddOrgMission = () => {
+    if (!newOrgMissionText.trim() || !orgForm) return;
+    setOrgForm({
+      ...orgForm,
+      missions: [...orgForm.missions, newOrgMissionText.trim()]
+    });
+    setNewOrgMissionText('');
+  };
+
+  const handleRemoveOrgMission = (idx: number) => {
+    if (!orgForm) return;
+    setOrgForm({
+      ...orgForm,
+      missions: orgForm.missions.filter((_, i) => i !== idx)
+    });
+  };
+
+  const handleOpenAddOfficial = () => {
+    setEditingOfficialId(null);
+    setOfficialForm({
+      name: '',
+      role: '',
+      nip: '',
+      photo: '',
+      division: 'Pengurus Harian',
+      order: (orgForm?.officials?.length || 0) + 1
+    });
+    setOfficialPhotoDriveInput('');
+    setShowOfficialModal(true);
+  };
+
+  const handleOpenEditOfficial = (official: OrganizationOfficial) => {
+    setEditingOfficialId(official.id);
+    setOfficialForm({
+      name: official.name,
+      role: official.role,
+      nip: official.nip || '',
+      photo: official.photo || '',
+      division: official.division || 'Pengurus Harian',
+      order: typeof official.order === 'number' ? official.order : 1
+    });
+    setOfficialPhotoDriveInput(isGoogleDriveUrl(official.photo || '') ? official.photo || '' : '');
+    setShowOfficialModal(true);
+  };
+
+  const handleSaveOfficialForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!officialForm.name.trim() || !officialForm.role.trim() || !orgForm || !selectedOrgIdForEdit) {
+      showToast('Nama dan jabatan pengurus wajib diisi!', 'error');
+      return;
+    }
+
+    const updatedOfficialList = [...(orgForm.officials || [])];
+    if (editingOfficialId) {
+      const idx = updatedOfficialList.findIndex(o => o.id === editingOfficialId);
+      if (idx !== -1) {
+        updatedOfficialList[idx] = {
+          ...updatedOfficialList[idx],
+          name: officialForm.name.trim(),
+          role: officialForm.role.trim(),
+          nip: officialForm.nip.trim(),
+          photo: officialForm.photo,
+          division: officialForm.division.trim(),
+          order: Number(officialForm.order) || 1
+        };
+      }
+    } else {
+      updatedOfficialList.push({
+        id: `off-${Date.now()}`,
+        name: officialForm.name.trim(),
+        role: officialForm.role.trim(),
+        nip: officialForm.nip.trim(),
+        photo: officialForm.photo,
+        division: officialForm.division.trim(),
+        order: Number(officialForm.order) || (updatedOfficialList.length + 1)
+      });
+    }
+
+    setOrgForm({ ...orgForm, officials: updatedOfficialList });
+    setShowOfficialModal(false);
+    showToast('Daftar pengurus diperbarui! Jangan lupa klik "Simpan Seluruh Perubahan".', 'info');
+  };
+
+  const handleDeleteOfficialItem = (offId: string) => {
+    if (!orgForm || !window.confirm('Yakin ingin menghapus pengurus ini dari daftar?')) return;
+    const filtered = orgForm.officials.filter(o => o.id !== offId);
+    setOrgForm({ ...orgForm, officials: filtered });
+    showToast('Pengurus dihapus dari daftar.', 'info');
+  };
+
+  const handleCreateNewOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrgForm.name.trim() || !newOrgForm.shortName.trim()) {
+      showToast('Nama organisasi dan singkatan wajib diisi!', 'error');
+      return;
+    }
+    const cleanSlug = (newOrgForm.slug.trim() || newOrgForm.shortName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-|-$/g, '');
+    const createdOrg: EducationalOrganization = {
+      id: `org-${Date.now()}`,
+      slug: cleanSlug,
+      name: newOrgForm.name.trim(),
+      shortName: newOrgForm.shortName.trim(),
+      description: newOrgForm.description.trim() || `Organisasi ${newOrgForm.name.trim()} Kecamatan Purwodadi`,
+      logo: '',
+      leader: {
+        name: '',
+        title: `Ketua ${newOrgForm.shortName.trim()}`,
+        period: '',
+        photo: '',
+        speechTitle: '',
+        speech: ''
+      },
+      vision: '',
+      missions: [],
+      officials: []
+    };
+
+    await addOrganization(createdOrg);
+    setShowNewOrgModal(false);
+    setNewOrgForm({ name: '', shortName: '', slug: '', description: '' });
+    setSelectedOrgIdForEdit(createdOrg.id);
+    setActiveOrgSubTab('identitas');
+    showToast(`Organisasi ${createdOrg.shortName} berhasil ditambahkan! Silakan lengkapi profilnya.`, 'success');
+  };
+
+  const handleDeleteOrg = async (orgId: string, orgName: string) => {
+    if (organizations.length <= 1) {
+      showToast('Minimal harus ada 1 organisasi terdaftar di sistem!', 'error');
+      return;
+    }
+    if (window.confirm(`Yakin ingin menghapus organisasi "${orgName}" beserta seluruh data sambutan dan pengurusnya?`)) {
+      await deleteOrganization(orgId);
+      if (selectedOrgIdForEdit === orgId) {
+        setSelectedOrgIdForEdit(null);
+      }
+      showToast(`Organisasi "${orgName}" berhasil dihapus.`, 'success');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Header Bar */}
@@ -1525,7 +1807,7 @@ export const AdminDashboard: React.FC = () => {
                 <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                   currentSection === 'schools-cms' ? 'text-blue-100' : 'text-slate-400'
                 }`}>
-                  Pangkalan Data SD, TK, PAUD
+                  Pangkalan Data SD, TK, KB
                 </span>
               </div>
             </div>
@@ -1569,6 +1851,42 @@ export const AdminDashboard: React.FC = () => {
               currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
               {news.length + announcements.length}
+            </span>
+          </button>
+
+          {/* 4.5. Organisasi */}
+          <button
+            type="button"
+            onClick={() => setCurrentSection('organization-cms')}
+            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              currentSection === 'organization-cms'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+              }`}>
+                <Users className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className={`text-xs font-bold truncate leading-tight ${
+                  currentSection === 'organization-cms' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  Organisasi
+                </span>
+                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                  currentSection === 'organization-cms' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  PGRI, K3S, IGTKI, dsb.
+                </span>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+              currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {organizations.length}
             </span>
           </button>
 
@@ -1780,7 +2098,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               {/* KPI Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div 
                   onClick={() => setCurrentSection('news-cms')}
                   className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
@@ -1796,7 +2114,16 @@ export const AdminDashboard: React.FC = () => {
                 >
                   <span className="text-xs font-bold text-slate-500 uppercase">Satuan Sekolah</span>
                   <div className="text-3xl font-extrabold text-indigo-600">{schools.length}</div>
-                  <span className="text-[11px] text-slate-400">SD, TK, & PAUD</span>
+                  <span className="text-[11px] text-slate-400">SD, TK, & KB</span>
+                </div>
+
+                <div 
+                  onClick={() => setCurrentSection('organization-cms')}
+                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
+                >
+                  <span className="text-xs font-bold text-slate-500 uppercase">Organisasi</span>
+                  <div className="text-3xl font-extrabold text-amber-600">{organizations.length}</div>
+                  <span className="text-[11px] text-slate-400">Mitra & Profesi</span>
                 </div>
 
                 <div 
@@ -1901,11 +2228,12 @@ export const AdminDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[
-                    { id: 'home-cms', title: 'Halaman Beranda', desc: 'Ubah teks headline, subtitle hero, foto, dan kutipan sambutan', icon: Home, color: 'text-blue-600 bg-blue-50' },
+                    { id: 'home-cms', title: 'Halaman Beranda', desc: 'Ubah teks headline, subtitle hero, badge, dan semboyan instansi', icon: Home, color: 'text-blue-600 bg-blue-50' },
                     { id: 'profile-cms', title: 'Halaman Profil', desc: 'Ubah visi misi, sambutan korwil, dan daftar pengawas/penilik', icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
                     { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file Google Drive', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
-                    { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, PAUD, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
+                    { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, KB, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
+                    { id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' },
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
                     { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' }
@@ -1980,16 +2308,6 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Kutipan Inspirasi Pimpinan di Card Kanan</label>
-                  <textarea
-                    rows={2}
-                    value={homeForm.korwilQuote}
-                    onChange={(e) => setHomeForm({ ...homeForm, korwilQuote: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
-                  ></textarea>
-                </div>
-
-                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">Tagline / Semboyan Instansi</label>
                   <input
                     type="text"
@@ -2018,7 +2336,7 @@ export const AdminDashboard: React.FC = () => {
                   Kelola Halaman Profil, Visi-Misi & Pejabat
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Atur sambutan resmi pimpinan, rumusan visi & misi, serta daftar pengawas SD dan penilik PAUD/TK.
+                  Atur sambutan resmi pimpinan, rumusan visi & misi, serta daftar pengawas SD dan penilik KB/TK.
                 </p>
               </div>
 
@@ -2215,7 +2533,7 @@ export const AdminDashboard: React.FC = () => {
                   <div>
                     <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                       <Users className="w-4 h-4 text-blue-600" />
-                      <span>Kelola Pejabat, Pengawas SD & Penilik PAUD/TK</span>
+                      <span>Kelola Pejabat, Pengawas SD & Penilik KB/TK</span>
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Semua data pejabat, pengawas, dan staf kantor beserta pas foto otomatis tersimpan di Supabase Cloud dan tampil real-time di halaman profil publik.
@@ -2286,7 +2604,7 @@ export const AdminDashboard: React.FC = () => {
                         <option value="Pimpinan Korwilcam Purwodadi">Pimpinan Korwilcam Purwodadi</option>
                         <option value="Pengawas SD">Pengawas SD</option>
                         <option value="Pengawas TK">Pengawas TK</option>
-                        <option value="Penilik PAUD">Penilik PAUD</option>
+                        <option value="Penilik KB">Penilik KB</option>
                         <option value="Staf">Staf</option>
                       </select>
                     </div>
@@ -2471,11 +2789,11 @@ export const AdminDashboard: React.FC = () => {
                                   ? 'bg-blue-50 text-blue-700 border-blue-200'
                                   : st.division === 'Pengawas TK'
                                   ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
-                                  : st.division === 'Penilik PAUD' || st.division === 'Penilik PAUD/TK'
+                                  : st.division === 'Penilik KB' || st.division === 'Penilik KB/TK' || st.division === 'Penilik PAUD' || st.division === 'Penilik PAUD/TK'
                                   ? 'bg-amber-50 text-amber-700 border-amber-200'
                                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               }`}>
-                                {st.division}
+                                {st.division === 'Penilik PAUD' || st.division === 'Penilik PAUD/TK' || st.division === 'Penilik KB/TK' ? 'Penilik KB' : st.division}
                               </span>
                             </td>
                             <td className="p-3 font-mono">{st.nip || '-'}</td>
@@ -2510,7 +2828,7 @@ export const AdminDashboard: React.FC = () => {
                                       photo: st.photo,
                                       division: (
                                         st.division === 'Pimpinan' ? 'Pimpinan Korwilcam Purwodadi' :
-                                        st.division === 'Penilik PAUD/TK' ? 'Penilik PAUD' :
+                                        (st.division === 'Penilik PAUD/TK' || st.division === 'Penilik PAUD' || st.division === 'Penilik KB/TK') ? 'Penilik KB' :
                                         st.division === 'Tata Usaha' ? 'Staf' :
                                         (st.division as StaffDivision)
                                       )
@@ -2799,7 +3117,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="space-y-8">
               <div>
                 <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                  Kelola Direktori Sekolah (SD / TK / PAUD)
+                  Kelola Direktori Sekolah (SD / TK / KB)
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   Pangkalan data sekolah yang tampil di menu Direktori Sekolah publik.
@@ -2830,7 +3148,8 @@ export const AdminDashboard: React.FC = () => {
                     >
                       <option value="SD">Sekolah Dasar (SD)</option>
                       <option value="TK">Taman Kanak-Kanak (TK)</option>
-                      <option value="PAUD">PAUD / KB / SPS</option>
+                      <option value="KB">KB (Kelompok Bermain)</option>
+                      <option value="PAUD">KB (Kelompok Bermain - DB)</option>
                     </select>
                   </div>
                 </div>
@@ -3309,7 +3628,7 @@ export const AdminDashboard: React.FC = () => {
                             >
                               {newsCategories.map((cat) => (
                                 <option key={cat} value={cat}>
-                                  {cat === 'SD' ? 'Sekolah Dasar (SD)' : cat === 'TK/PAUD' ? 'TK & PAUD' : cat}
+                                  {cat === 'SD' ? 'Sekolah Dasar (SD)' : (cat === 'TK/PAUD' || cat === 'TK/KB') ? 'TK & KB' : cat}
                                 </option>
                               ))}
                             </select>
@@ -3676,7 +3995,8 @@ export const AdminDashboard: React.FC = () => {
                         >
                           <option value="Semua Satuan">Semua Satuan</option>
                           <option value="SD">Khusus SD</option>
-                          <option value="TK/PAUD">Khusus TK/PAUD</option>
+                          <option value="TK/KB">Khusus TK/KB</option>
+                          <option value="TK/PAUD">Khusus TK/KB (Legacy DB)</option>
                         </select>
                       </div>
 
@@ -3960,6 +4280,855 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* TAB 4.5: KELOLA ORGANISASI */}
+          {currentSection === 'organization-cms' && (
+            <div className="space-y-8">
+              {!selectedOrgIdForEdit || !orgForm ? (
+                /* VIEW A: DAFTAR ORGANISASI */
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                        Kelola Organisasi Mitra & Profesi
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Pilih organisasi di bawah ini untuk mengelola sambutan ketua, susunan pengurus beserta jabatannya, serta visi dan misi.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowNewOrgModal(true)}
+                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tambah Organisasi Baru</span>
+                    </button>
+                  </div>
+
+                  {/* Grid of Organization Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {organizations.map((org) => {
+                      const logoSrc = org.logo
+                        ? (isGoogleDriveUrl(org.logo) ? formatGoogleDriveImageUrl(org.logo) : org.logo)
+                        : '';
+                      const leaderPhoto = org.leader?.photo
+                        ? (isGoogleDriveUrl(org.leader.photo) ? formatGoogleDriveImageUrl(org.leader.photo) : org.leader.photo)
+                        : '';
+
+                      return (
+                        <div
+                          key={org.id}
+                          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between group"
+                        >
+                          <div>
+                            {/* Card Top: Logo & Actions */}
+                            <div className="flex items-start justify-between gap-3 mb-4">
+                              <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 p-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                                {logoSrc ? (
+                                  <img src={logoSrc} alt={org.shortName} className="w-full h-full object-contain" />
+                                ) : (
+                                  <span className="text-sm font-black text-blue-700">
+                                    {org.shortName.slice(0, 3).toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedOrganizationSlug(org.slug);
+                                    setActiveTab('organization', `/organisasi/${org.slug}`);
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                  title="Lihat Halaman Publik"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </button>
+                                {organizations.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteOrg(org.id, org.shortName)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    title="Hapus Organisasi"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Org Info */}
+                            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-snug group-hover:text-blue-700 transition-colors">
+                              {org.name}
+                            </h3>
+                            <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold">
+                              {org.shortName}
+                            </span>
+                            <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">
+                              {org.description || 'Belum ada deskripsi singkat organisasi.'}
+                            </p>
+
+                            {/* Leader Snippet */}
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
+                                {leaderPhoto ? (
+                                  <img src={leaderPhoto} alt="Ketua" className="w-full h-full object-cover object-top" />
+                                ) : (
+                                  <User className="w-4 h-4 text-slate-400" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Ketua Terpilih</p>
+                                <p className="text-xs font-bold text-slate-800 truncate">
+                                  {org.leader?.name || 'Belum Ditentukan'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Footer Stats & Button */}
+                          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                              <Users className="w-3.5 h-3.5 text-blue-500" />
+                              <span>{org.officials?.length || 0} Pengurus</span>
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSelectOrgToEdit(org.id)}
+                              className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Kelola Organisasi</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* VIEW B: PENGATURAN ORGANISASI TERPILIH */
+                <div className="space-y-6">
+                  {/* Top Navigation & Action Header */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrgIdForEdit(null)}
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors flex items-center gap-1"
+                        title="Kembali ke Daftar Organisasi"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                        <span className="text-xs hidden sm:inline">Daftar Organisasi</span>
+                      </button>
+
+                      <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 p-1.5 flex items-center justify-center shrink-0">
+                          {orgForm.logo ? (
+                            <img 
+                              src={isGoogleDriveUrl(orgForm.logo) ? formatGoogleDriveImageUrl(orgForm.logo) : orgForm.logo} 
+                              alt={orgForm.shortName} 
+                              className="w-full h-full object-contain" 
+                            />
+                          ) : (
+                            <span className="text-xs font-black text-blue-600">
+                              {orgForm.shortName.slice(0, 3).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                              Pengaturan {orgForm.shortName}
+                            </h2>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                              Aktif
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 truncate max-w-md">
+                            {orgForm.name}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 self-end md:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrganizationSlug(orgForm.slug);
+                          setActiveTab('organization', `/organisasi/${orgForm.slug}`);
+                        }}
+                        className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center gap-1.5"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="hidden sm:inline">Lihat di Web</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isSavingOrg}
+                        onClick={() => handleSaveOrgCMS()}
+                        className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5"
+                      >
+                        {isSavingOrg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        <span>{isSavingOrg ? 'Menyimpan...' : 'Simpan Seluruh Perubahan'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sub-Tab Selector */}
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 overflow-x-auto no-scrollbar">
+                    <button
+                      type="button"
+                      onClick={() => setActiveOrgSubTab('sambutan')}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap ${
+                        activeOrgSubTab === 'sambutan'
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>1. Sambutan Ketua Organisasi</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveOrgSubTab('pengurus')}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap ${
+                        activeOrgSubTab === 'pengurus'
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>2. Daftar Pengurus ({orgForm.officials?.length || 0})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveOrgSubTab('visi-misi')}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap ${
+                        activeOrgSubTab === 'visi-misi'
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      <Target className="w-3.5 h-3.5" />
+                      <span>3. Visi & Misi</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveOrgSubTab('identitas')}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap ${
+                        activeOrgSubTab === 'identitas'
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>4. Profil & Kontak Organisasi</span>
+                    </button>
+                  </div>
+
+                  {/* SUBTAB 1: SAMBUTAN KETUA */}
+                  {activeOrgSubTab === 'sambutan' && (
+                    <form onSubmit={handleSaveOrgCMS} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                      <div className="border-b border-slate-100 pb-3">
+                        <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                          <User className="w-4 h-4 text-blue-600" />
+                          <span>Profil & Naskah Sambutan Ketua {orgForm.shortName}</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Teks dan foto ketua ini akan tampil secara terhormat pada bagian teratas profil organisasi di website.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Nama Lengkap & Gelar Ketua</label>
+                          <input
+                            type="text"
+                            value={orgForm.leader?.name || ''}
+                            onChange={(e) => setOrgForm({
+                              ...orgForm,
+                              leader: { ...orgForm.leader, name: e.target.value }
+                            })}
+                            placeholder="Contoh: SUHARTO, S.Pd., M.Pd."
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Jabatan Resmi</label>
+                          <input
+                            type="text"
+                            value={orgForm.leader?.title || ''}
+                            onChange={(e) => setOrgForm({
+                              ...orgForm,
+                              leader: { ...orgForm.leader, title: e.target.value }
+                            })}
+                            placeholder={`Contoh: Ketua ${orgForm.shortName}`}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Masa Bakti / Periode Kepengurusan</label>
+                          <input
+                            type="text"
+                            value={orgForm.leader?.period || ''}
+                            onChange={(e) => setOrgForm({
+                              ...orgForm,
+                              leader: { ...orgForm.leader, period: e.target.value }
+                            })}
+                            placeholder="Contoh: Masa Bakti 2024 - 2029"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Judul Sambutan / Headline</label>
+                          <input
+                            type="text"
+                            value={orgForm.leader?.speechTitle || ''}
+                            onChange={(e) => setOrgForm({
+                              ...orgForm,
+                              leader: { ...orgForm.leader, speechTitle: e.target.value }
+                            })}
+                            placeholder="Contoh: Tingkatkan Soliditas dan Profesionalisme Guru Menuju Generasi Emas"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Photo Ketua Uploader */}
+                      <div className="space-y-2 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Foto Resmi Ketua Organisasi</span>
+                          </span>
+                          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            Pilih File Atau Tautan Drive
+                          </span>
+                        </label>
+
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-1">
+                          <div className="w-20 h-24 rounded-xl bg-slate-200 overflow-hidden border border-slate-300 shrink-0 flex items-center justify-center">
+                            {orgForm.leader?.photo ? (
+                              <img
+                                src={isGoogleDriveUrl(orgForm.leader.photo) ? formatGoogleDriveImageUrl(orgForm.leader.photo) : orgForm.leader.photo}
+                                alt="Foto Ketua"
+                                className="w-full h-full object-cover object-top"
+                              />
+                            ) : (
+                              <User className="w-8 h-8 text-slate-400" />
+                            )}
+                          </div>
+
+                          <div className="space-y-2.5 flex-1 w-full">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <input
+                                ref={orgLeaderPhotoInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLeaderPhotoUpload}
+                                className="hidden"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => orgLeaderPhotoInputRef.current?.click()}
+                                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5"
+                              >
+                                <UploadCloud className="w-3.5 h-3.5" />
+                                <span>Pilih Foto dari Galeri / Komputer</span>
+                              </button>
+                              {orgForm.leader?.photo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOrgForm({
+                                    ...orgForm,
+                                    leader: { ...orgForm.leader, photo: '' }
+                                  })}
+                                  className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs transition-colors"
+                                >
+                                  Hapus Foto
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="url"
+                                placeholder="Atau tempelkan tautan Google Drive / URL foto ketua..."
+                                value={orgLeaderDriveInput}
+                                onChange={(e) => {
+                                  setOrgLeaderDriveInput(e.target.value);
+                                  const formatted = formatGoogleDriveImageUrl(e.target.value.trim());
+                                  setOrgForm({
+                                    ...orgForm,
+                                    leader: { ...orgForm.leader, photo: formatted }
+                                  });
+                                }}
+                                className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Teks Sambutan Lengkap */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                          <span>Naskah Lengkap Sambutan Ketua</span>
+                          <span className="text-[10px] text-slate-400">Mendukung paragraf baru (Enter)</span>
+                        </label>
+                        <textarea
+                          rows={10}
+                          value={orgForm.leader?.speech || ''}
+                          onChange={(e) => setOrgForm({
+                            ...orgForm,
+                            leader: { ...orgForm.leader, speech: e.target.value }
+                          })}
+                          placeholder="Ketikkan naskah sambutan resmi ketua organisasi..."
+                          className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs leading-relaxed focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none font-normal"
+                        />
+                      </div>
+
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={isSavingOrg}
+                          className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Sambutan Ketua</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 2: DAFTAR PENGURUS */}
+                  {activeOrgSubTab === 'pengurus' && (
+                    <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                        <div>
+                          <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-600" />
+                            <span>Daftar Pengurus & Jabatan {orgForm.shortName}</span>
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Kelola susunan pengurus organisasi, foto, jabatan resmi, divisi, dan urutan tampilan.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleOpenAddOfficial}
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Tambah Pengurus</span>
+                        </button>
+                      </div>
+
+                      {/* Officials List Table */}
+                      {orgForm.officials && orgForm.officials.length > 0 ? (
+                        <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200">
+                                <th className="py-3 px-4 w-12 text-center">Urutan</th>
+                                <th className="py-3 px-4 w-16 text-center">Foto</th>
+                                <th className="py-3 px-4">Nama Pengurus</th>
+                                <th className="py-3 px-4">Jabatan</th>
+                                <th className="py-3 px-4">Bidang / Divisi</th>
+                                <th className="py-3 px-4">NIP / Identitas</th>
+                                <th className="py-3 px-4 text-right w-24">Aksi</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {[...orgForm.officials]
+                                .sort((a, b) => (Number(a.order) || 99) - (Number(b.order) || 99))
+                                .map((off, idx) => {
+                                  const photoSrc = off.photo
+                                    ? (isGoogleDriveUrl(off.photo) ? formatGoogleDriveImageUrl(off.photo) : off.photo)
+                                    : '';
+
+                                  return (
+                                    <tr key={off.id} className="hover:bg-blue-50/40 transition-colors">
+                                      <td className="py-3 px-4 text-center font-bold text-slate-400">
+                                        {off.order || idx + 1}
+                                      </td>
+                                      <td className="py-3 px-4 text-center">
+                                        <div className="w-9 h-9 rounded-lg bg-slate-100 overflow-hidden mx-auto border border-slate-200 flex items-center justify-center">
+                                          {photoSrc ? (
+                                            <img src={photoSrc} alt={off.name} className="w-full h-full object-cover object-top" />
+                                          ) : (
+                                            <User className="w-4 h-4 text-slate-400" />
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-4 font-bold text-slate-900">
+                                        {off.name}
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-200/80">
+                                          {off.role}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-600">
+                                        {off.division || '-'}
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
+                                        {off.nip || '-'}
+                                      </td>
+                                      <td className="py-3 px-4 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenEditOfficial(off)}
+                                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                            title="Edit Data Pengurus"
+                                          >
+                                            <Edit3 className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteOfficialItem(off.id)}
+                                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                            title="Hapus Pengurus"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-slate-400">
+                          <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                          <p className="font-semibold text-xs text-slate-600">Belum ada pengurus yang ditambahkan.</p>
+                          <p className="text-[11px] mt-0.5">Klik tombol "+ Tambah Pengurus" di atas untuk menambahkan pengurus baru.</p>
+                        </div>
+                      )}
+
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          disabled={isSavingOrg}
+                          onClick={() => handleSaveOrgCMS()}
+                          className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Daftar Pengurus</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 3: VISI DAN MISI */}
+                  {activeOrgSubTab === 'visi-misi' && (
+                    <form onSubmit={handleSaveOrgCMS} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                      <div className="border-b border-slate-100 pb-3">
+                        <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                          <Target className="w-4 h-4 text-blue-600" />
+                          <span>Rumusan Visi dan Misi {orgForm.shortName}</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Tentukan cita-cita besar dan langkah-langkah misi strategis pelaksanaan organisasi.
+                        </p>
+                      </div>
+
+                      {/* Visi */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">Rumusan Visi Organisasi</label>
+                        <textarea
+                          rows={3}
+                          value={orgForm.vision || ''}
+                          onChange={(e) => setOrgForm({ ...orgForm, vision: e.target.value })}
+                          placeholder="Ketikkan rumusan visi organisasi..."
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Misi List Repeater */}
+                      <div className="space-y-3">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          Poin-Poin Misi Organisasi ({orgForm.missions?.length || 0})
+                        </label>
+
+                        {orgForm.missions && orgForm.missions.length > 0 ? (
+                          <div className="space-y-2">
+                            {orgForm.missions.map((m, idx) => (
+                              <div key={idx} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                <span className="w-6 h-6 rounded-md bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={m}
+                                  onChange={(e) => {
+                                    const updated = [...orgForm.missions];
+                                    updated[idx] = e.target.value;
+                                    setOrgForm({ ...orgForm, missions: updated });
+                                  }}
+                                  className="flex-1 bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOrgMission(idx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                                  title="Hapus Poin Misi"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">Belum ada poin misi.</p>
+                        )}
+
+                        {/* Add Misi Input */}
+                        <div className="flex items-center gap-2 pt-2">
+                          <input
+                            type="text"
+                            value={newOrgMissionText}
+                            onChange={(e) => setNewOrgMissionText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddOrgMission();
+                              }
+                            }}
+                            placeholder="Ketik poin misi baru lalu tekan enter atau klik tambah..."
+                            className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddOrgMission}
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1 shrink-0"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Tambah Misi</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={isSavingOrg}
+                          className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Visi & Misi</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 4: IDENTITAS & PROFIL */}
+                  {activeOrgSubTab === 'identitas' && (
+                    <form onSubmit={handleSaveOrgCMS} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                      <div className="border-b border-slate-100 pb-3">
+                        <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-blue-600" />
+                          <span>Identitas, Logo & Kontak {orgForm.shortName}</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Atur nama resmi organisasi, lambang/logo, tautan URL slug, alamat sekretariat, dan kontak resmi.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Nama Lengkap Organisasi</label>
+                          <input
+                            type="text"
+                            required
+                            value={orgForm.name}
+                            onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Nama Singkat / Singkatan</label>
+                          <input
+                            type="text"
+                            required
+                            value={orgForm.shortName}
+                            onChange={(e) => setOrgForm({ ...orgForm, shortName: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Slug URL Website (/organisasi/:slug)</label>
+                          <input
+                            type="text"
+                            required
+                            value={orgForm.slug}
+                            onChange={(e) => setOrgForm({
+                              ...orgForm,
+                              slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')
+                            })}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Alamat Sekretariat</label>
+                          <input
+                            type="text"
+                            value={orgForm.address || ''}
+                            onChange={(e) => setOrgForm({ ...orgForm, address: e.target.value })}
+                            placeholder="Contoh: Gedung Guru PGRI Cabang Purwodadi"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Nomor Telepon / WhatsApp</label>
+                          <input
+                            type="text"
+                            value={orgForm.phone || ''}
+                            onChange={(e) => setOrgForm({ ...orgForm, phone: e.target.value })}
+                            placeholder="0812-xxxx-xxxx"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">Alamat Email Resmi</label>
+                          <input
+                            type="email"
+                            value={orgForm.email || ''}
+                            onChange={(e) => setOrgForm({ ...orgForm, email: e.target.value })}
+                            placeholder="organisasi@gmail.com"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Logo Uploader */}
+                      <div className="space-y-2 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Logo Lambang Organisasi</span>
+                          </span>
+                          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            Pilih File Atau Tautan Drive
+                          </span>
+                        </label>
+
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-1">
+                          <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 p-2 shadow-xs shrink-0 flex items-center justify-center overflow-hidden">
+                            {orgForm.logo ? (
+                              <img
+                                src={isGoogleDriveUrl(orgForm.logo) ? formatGoogleDriveImageUrl(orgForm.logo) : orgForm.logo}
+                                alt="Logo"
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <Building2 className="w-8 h-8 text-slate-400" />
+                            )}
+                          </div>
+
+                          <div className="space-y-2.5 flex-1 w-full">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <input
+                                ref={orgLogoInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoUpload}
+                                className="hidden"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => orgLogoInputRef.current?.click()}
+                                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5"
+                              >
+                                <UploadCloud className="w-3.5 h-3.5" />
+                                <span>Pilih Logo dari Komputer / HP</span>
+                              </button>
+                              {orgForm.logo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOrgForm({ ...orgForm, logo: '' })}
+                                  className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs transition-colors"
+                                >
+                                  Hapus Logo
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="url"
+                                placeholder="Atau masukkan tautan Google Drive / URL logo..."
+                                value={orgLogoDriveInput}
+                                onChange={(e) => {
+                                  setOrgLogoDriveInput(e.target.value);
+                                  const formatted = formatGoogleDriveImageUrl(e.target.value.trim());
+                                  setOrgForm({ ...orgForm, logo: formatted });
+                                }}
+                                className="w-full px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deskripsi Singkat */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">Deskripsi Singkat Profil Organisasi</label>
+                        <textarea
+                          rows={3}
+                          value={orgForm.description}
+                          onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={isSavingOrg}
+                          className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Identitas Organisasi</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                </div>
+              )}
             </div>
           )}
 
@@ -5464,6 +6633,270 @@ export const AdminDashboard: React.FC = () => {
                 >
                   <Save className="w-4 h-4" />
                   <span>{editingUserId ? 'Simpan Perubahan' : 'Buat Akun Sekarang'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TAMBAH ORGANISASI BARU */}
+      {showNewOrgModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Tambah Organisasi Baru</h3>
+                  <p className="text-[11px] text-slate-500">Daftarkan organisasi mitra pendidikan baru</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewOrgModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewOrg} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Nama Lengkap Organisasi</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Misal: Ikatan Guru Olahraga Nasional (IGORNAS)"
+                  value={newOrgForm.name}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                    setNewOrgForm(prev => ({
+                      ...prev,
+                      name,
+                      slug: prev.slug ? prev.slug : slug
+                    }));
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Nama Singkat / Singkatan</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Misal: IGORNAS"
+                  value={newOrgForm.shortName}
+                  onChange={(e) => setNewOrgForm({ ...newOrgForm, shortName: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Slug URL (/organisasi/:slug)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Misal: igornas"
+                  value={newOrgForm.slug}
+                  onChange={(e) => setNewOrgForm({ ...newOrgForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-') })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Deskripsi Singkat (Opsional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Deskripsi singkat peran organisasi..."
+                  value={newOrgForm.description}
+                  onChange={(e) => setNewOrgForm({ ...newOrgForm, description: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowNewOrgModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all"
+                >
+                  Buat Organisasi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TAMBAH / EDIT PENGURUS ORGANISASI */}
+      {showOfficialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    {editingOfficialId ? 'Edit Data Pengurus' : 'Tambah Pengurus Baru'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {orgForm?.shortName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOfficialModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOfficialForm} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Nama Lengkap Pengurus & Gelar</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Misal: Drs. BAMBANG SUTRISNO"
+                  value={officialForm.name}
+                  onChange={(e) => setOfficialForm({ ...officialForm, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Jabatan Resmi</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Misal: Wakil Ketua / Sekretaris"
+                    value={officialForm.role}
+                    onChange={(e) => setOfficialForm({ ...officialForm, role: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Bidang / Divisi</label>
+                  <input
+                    type="text"
+                    placeholder="Misal: Pengurus Harian"
+                    value={officialForm.division}
+                    onChange={(e) => setOfficialForm({ ...officialForm, division: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">NIP / Keterangan (Opsional)</label>
+                  <input
+                    type="text"
+                    placeholder="197003151994121002"
+                    value={officialForm.nip}
+                    onChange={(e) => setOfficialForm({ ...officialForm, nip: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Urutan Tampilan</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={officialForm.order}
+                    onChange={(e) => setOfficialForm({ ...officialForm, order: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Foto Pengurus */}
+              <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <label className="text-xs font-bold text-slate-700 block">Foto Pengurus</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-200 overflow-hidden border border-slate-300 shrink-0 flex items-center justify-center">
+                    {officialForm.photo ? (
+                      <img
+                        src={isGoogleDriveUrl(officialForm.photo) ? formatGoogleDriveImageUrl(officialForm.photo) : officialForm.photo}
+                        alt="Foto Pengurus"
+                        className="w-full h-full object-cover object-top"
+                      />
+                    ) : (
+                      <User className="w-5 h-5 text-slate-400" />
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 flex-1">
+                    <input
+                      ref={officialPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleOfficialPhotoUpload}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => officialPhotoInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
+                      >
+                        Pilih Foto
+                      </button>
+                      {officialForm.photo && (
+                        <button
+                          type="button"
+                          onClick={() => setOfficialForm({ ...officialForm, photo: '' })}
+                          className="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-xs font-bold"
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="Atau link Google Drive / URL foto..."
+                      value={officialPhotoDriveInput}
+                      onChange={(e) => {
+                        setOfficialPhotoDriveInput(e.target.value);
+                        setOfficialForm(prev => ({ ...prev, photo: formatGoogleDriveImageUrl(e.target.value.trim()) }));
+                      }}
+                      className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowOfficialModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all"
+                >
+                  {editingOfficialId ? 'Perbarui Pengurus' : 'Tambahkan Pengurus'}
                 </button>
               </div>
             </form>

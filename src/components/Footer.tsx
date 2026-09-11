@@ -38,7 +38,7 @@ export const Footer: React.FC = () => {
             </div>
             
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              Unit koordinasi pembinaan & mutu pendidikan jenjang SD, TK, dan PAUD di Kecamatan Purwodadi.
+              Unit koordinasi pembinaan & mutu pendidikan jenjang SD, TK, dan KB di Kecamatan Purwodadi.
             </p>
 
             <div className="pt-0.5 space-y-1 text-[10px] text-slate-300">

@@ -21,6 +21,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
       case 'SD':
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'TK/PAUD':
+      case 'TK/KB':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
@@ -40,7 +41,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
         />
         <div className="absolute top-3 left-3">
           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${getCategoryBadge(article.category)}`}>
-            {article.category}
+            {article.category === 'TK/PAUD' ? 'TK/KB' : article.category}
           </span>
         </div>
       </div>

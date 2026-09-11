@@ -59,6 +59,8 @@ export const ProfilePage: React.FC = () => {
     'Pimpinan': 1,
     'Pengawas SD': 2,
     'Pengawas TK': 3,
+    'Penilik KB': 4,
+    'Penilik KB/TK': 4,
     'Penilik PAUD': 4,
     'Penilik PAUD/TK': 4,
     'Staf': 5,
@@ -78,8 +80,8 @@ export const ProfilePage: React.FC = () => {
         if (selectedDivision === 'Pimpinan Korwilcam Purwodadi') {
           return s.division === 'Pimpinan Korwilcam Purwodadi' || s.division === 'Pimpinan';
         }
-        if (selectedDivision === 'Penilik PAUD') {
-          return s.division === 'Penilik PAUD' || s.division === 'Penilik PAUD/TK';
+        if (selectedDivision === 'Penilik KB' || selectedDivision === 'Penilik PAUD') {
+          return s.division === 'Penilik KB' || s.division === 'Penilik KB/TK' || s.division === 'Penilik PAUD' || s.division === 'Penilik PAUD/TK';
         }
         if (selectedDivision === 'Staf') {
           return s.division === 'Staf' || s.division === 'Tata Usaha';
@@ -150,7 +152,7 @@ export const ProfilePage: React.FC = () => {
     { id: 'Pimpinan Korwilcam Purwodadi', label: 'Pimpinan' },
     { id: 'Pengawas SD', label: 'Pengawas SD' },
     { id: 'Pengawas TK', label: 'Pengawas TK' },
-    { id: 'Penilik PAUD', label: 'Penilik PAUD' },
+    { id: 'Penilik KB', label: 'Penilik KB' },
     { id: 'Staf', label: 'Staf' },
   ];
 
@@ -281,7 +283,7 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             <div className="pt-6 border-t border-blue-800/60 text-xs text-blue-300 font-medium">
-              Landasan Pijak Pembangunan Pendidikan SD, TK, & PAUD
+              Landasan Pijak Pembangunan Pendidikan SD, TK, & KB
             </div>
           </div>
 
@@ -405,14 +407,14 @@ export const ProfilePage: React.FC = () => {
                         ? 'bg-blue-50 text-blue-700 border-blue-200'
                         : person.division === 'Pengawas TK'
                         ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
-                        : person.division === 'Penilik PAUD' || person.division === 'Penilik PAUD/TK'
+                        : person.division === 'Penilik KB' || person.division === 'Penilik KB/TK' || person.division === 'Penilik PAUD' || person.division === 'Penilik PAUD/TK'
                         ? 'bg-amber-50 text-amber-700 border-amber-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     }`}>
                       {person.division === 'Pimpinan'
                         ? 'Pimpinan Korwilcam Purwodadi'
-                        : person.division === 'Penilik PAUD/TK'
-                        ? 'Penilik PAUD'
+                        : person.division === 'Penilik PAUD/TK' || person.division === 'Penilik PAUD' || person.division === 'Penilik KB/TK'
+                        ? 'Penilik KB'
                         : person.division === 'Tata Usaha'
                         ? 'Staf'
                         : person.division}
@@ -582,14 +584,14 @@ export const ProfilePage: React.FC = () => {
                       ? 'bg-blue-600/90 text-white border-blue-400/30'
                       : previewStaff.division === 'Pengawas TK'
                       ? 'bg-cyan-600/90 text-white border-cyan-400/30'
-                      : previewStaff.division === 'Penilik PAUD' || previewStaff.division === 'Penilik PAUD/TK'
+                      : previewStaff.division === 'Penilik KB' || previewStaff.division === 'Penilik KB/TK' || previewStaff.division === 'Penilik PAUD' || previewStaff.division === 'Penilik PAUD/TK'
                       ? 'bg-amber-600/90 text-white border-amber-400/30'
                       : 'bg-emerald-600/90 text-white border-emerald-400/30'
                   }`}>
                     {previewStaff.division === 'Pimpinan'
                       ? 'Pimpinan Korwilcam Purwodadi'
-                      : previewStaff.division === 'Penilik PAUD/TK'
-                      ? 'Penilik PAUD'
+                      : previewStaff.division === 'Penilik PAUD/TK' || previewStaff.division === 'Penilik PAUD' || previewStaff.division === 'Penilik KB/TK'
+                      ? 'Penilik KB'
                       : previewStaff.division === 'Tata Usaha'
                       ? 'Staf'
                       : previewStaff.division}

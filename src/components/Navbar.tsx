@@ -20,11 +20,22 @@ import {
   Download,
   CalendarCheck,
   FileCheck,
-  ClipboardCheck
+  ClipboardCheck,
+  Users
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { activeTab, setActiveTab, officeProfile, news, setSelectedNews, isAuthenticated } = useApp();
+  const { 
+    activeTab, 
+    setActiveTab, 
+    officeProfile, 
+    news, 
+    setSelectedNews, 
+    isAuthenticated,
+    organizations,
+    selectedOrganizationSlug,
+    setSelectedOrganizationSlug 
+  } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
@@ -348,6 +359,22 @@ export const Navbar: React.FC = () => {
                 Berita & Informasi
               </button>
 
+              {/* Menu Organisasi Langsung (Navigasi Halaman Daftar Organisasi) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedOrganizationSlug(null);
+                  handleNavClick('organization', '/organisasi');
+                }}
+                className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'organization'
+                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
+                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Organisasi
+              </button>
+
               {/* Layanan Dropdown */}
               <div 
                 className="relative"
@@ -582,6 +609,27 @@ export const Navbar: React.FC = () => {
           >
             <FileText className="w-4 h-4 text-blue-400" />
             <span>Berita, Pengumuman & Prestasi</span>
+          </button>
+
+          {/* Menu Organisasi Mobile Langsung */}
+          <button
+            onClick={() => {
+              setSelectedOrganizationSlug(null);
+              handleNavClick('organization', '/organisasi');
+            }}
+            className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors border ${
+              activeTab === 'organization'
+                ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                : 'bg-slate-950/60 text-slate-200 border-blue-900/40 hover:bg-white/10'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              <span>Organisasi Mitra & Profesi</span>
+            </span>
+            <span className="text-[10px] bg-blue-900/80 text-blue-200 px-2 py-0.5 rounded-full font-mono font-bold">
+              {organizations.length}
+            </span>
           </button>
 
           {/* Menu Layanan Terpadu Mobile */}

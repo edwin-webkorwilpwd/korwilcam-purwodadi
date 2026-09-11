@@ -338,7 +338,7 @@ export const HomePage: React.FC = () => {
               Warta & Liputan Terkini
             </h2>
             <p className="text-sm text-slate-600">
-              Dokumentasi kegiatan dan berita terhangat seputar SD, TK, PAUD di Purwodadi.
+              Dokumentasi kegiatan dan berita terhangat seputar SD, TK, KB di Purwodadi.
             </p>
           </div>
 
@@ -369,7 +369,7 @@ export const HomePage: React.FC = () => {
               Direktori Sekolah Pilihan
             </h2>
             <p className="text-sm text-slate-600">
-              Lihat profil satuan pendidikan jenjang SD, TK, dan PAUD di Kecamatan Purwodadi.
+              Lihat profil satuan pendidikan jenjang SD, TK, dan KB di Kecamatan Purwodadi.
             </p>
           </div>
 

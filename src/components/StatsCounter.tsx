@@ -17,8 +17,8 @@ export const StatsCounter: React.FC = () => {
   const tkNegeri = tkSchools.filter((s) => s.status === 'Negeri').length;
   const tkSwasta = tkSchools.filter((s) => s.status === 'Swasta').length;
 
-  // 3. Data PAUD Real-time dari Database
-  const paudSchools = schools.filter((s) => s.level?.toUpperCase() === 'PAUD');
+  // 3. Data KB Real-time dari Database
+  const paudSchools = schools.filter((s) => s.level?.toUpperCase() === 'PAUD' || s.level?.toUpperCase() === 'KB');
   const paudCount = paudSchools.length;
   const paudNegeri = paudSchools.filter((s) => s.status === 'Negeri').length;
   const paudSwasta = paudSchools.filter((s) => s.status === 'Swasta').length;
@@ -50,7 +50,7 @@ export const StatsCounter: React.FC = () => {
       badge: `${tkCount} Lembaga`
     },
     {
-      title: "Kelompok Bermain & PAUD",
+      title: "Kelompok Bermain (KB)",
       value: paudCount.toString(),
       subvalue: paudCount > 0 ? `${paudNegeri} Negeri • ${paudSwasta} Swasta` : '0 Lembaga Terdaftar',
       icon: Baby,

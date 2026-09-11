@@ -112,7 +112,10 @@ export const NewsPage: React.FC = () => {
         item.author.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchCategory =
-        selectedCategory === 'ALL' || item.category === selectedCategory;
+        selectedCategory === 'ALL' ||
+        item.category === selectedCategory ||
+        (selectedCategory === 'TK/KB' && (item.category === 'TK/KB' || item.category === 'TK/PAUD')) ||
+        (selectedCategory === 'TK/PAUD' && (item.category === 'TK/KB' || item.category === 'TK/PAUD'));
 
       return matchSearch && matchCategory;
     });
@@ -123,14 +126,16 @@ export const NewsPage: React.FC = () => {
       { id: 'ALL', label: 'Semua Kategori' },
       { id: 'Kedinasan', label: 'Kedinasan' },
       { id: 'SD', label: 'Sekolah Dasar (SD)' },
-      { id: 'TK/PAUD', label: 'TK & PAUD' },
+      { id: 'TK/KB', label: 'TK & KB' },
       { id: 'Prestasi', label: 'Prestasi' },
     ];
     const existingIds = new Set(list.map((c) => c.id.toLowerCase()));
     newsCategories.forEach((cat) => {
-      if (!existingIds.has(cat.toLowerCase())) {
-        list.push({ id: cat, label: cat });
-        existingIds.add(cat.toLowerCase());
+      const normalizedId = cat === 'TK/PAUD' ? 'TK/KB' : cat;
+      const normalizedLabel = (cat === 'TK/PAUD' || cat === 'TK/KB') ? 'TK & KB' : cat;
+      if (!existingIds.has(normalizedId.toLowerCase())) {
+        list.push({ id: normalizedId, label: normalizedLabel });
+        existingIds.add(normalizedId.toLowerCase());
       }
     });
     return list;

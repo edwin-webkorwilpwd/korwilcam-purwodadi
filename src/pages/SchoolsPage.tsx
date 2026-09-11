@@ -33,7 +33,11 @@ export const SchoolsPage: React.FC = () => {
         school.headmaster.toLowerCase().includes(query);
 
       // Level match
-      const matchLevel = selectedLevel === 'ALL' || school.level === selectedLevel;
+      const matchLevel =
+        selectedLevel === 'ALL' ||
+        school.level === selectedLevel ||
+        (selectedLevel === 'KB' && (school.level === 'KB' || school.level === 'PAUD')) ||
+        (selectedLevel === 'PAUD' && (school.level === 'KB' || school.level === 'PAUD'));
 
       // Status match
       const matchStatus = selectedStatus === 'ALL' || school.status === selectedStatus;
@@ -54,7 +58,7 @@ export const SchoolsPage: React.FC = () => {
 
   const countSD = schools.filter((s) => s.level === 'SD').length;
   const countTK = schools.filter((s) => s.level === 'TK').length;
-  const countPAUD = schools.filter((s) => s.level === 'PAUD').length;
+  const countKB = schools.filter((s) => s.level === 'PAUD' || s.level === 'KB').length;
 
   return (
     <div className="space-y-12 pb-20">
@@ -66,7 +70,7 @@ export const SchoolsPage: React.FC = () => {
             <span>Pangkalan Data Satuan Pendidikan</span>
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
-            Daftar Sekolah SD, TK & PAUD
+            Daftar Sekolah SD, TK & KB
           </h1>
           <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
             Temukan data resmi, NPSN, akreditasi, nama kepala sekolah, dan kontak satuan pendidikan di bawah naungan Korwilcam Purwodadi.
@@ -81,7 +85,7 @@ export const SchoolsPage: React.FC = () => {
               TK: {countTK} Lembaga
             </span>
             <span className="px-3 py-1.5 rounded-xl bg-emerald-900/60 border border-emerald-700/50 text-emerald-200 font-semibold">
-              PAUD: {countPAUD} Lembaga
+              KB: {countKB} Lembaga
             </span>
           </div>
         </div>
@@ -125,7 +129,7 @@ export const SchoolsPage: React.FC = () => {
                 { id: 'ALL', label: 'Semua Jenjang' },
                 { id: 'SD', label: 'SD' },
                 { id: 'TK', label: 'TK' },
-                { id: 'PAUD', label: 'PAUD' },
+                { id: 'KB', label: 'KB' },
               ].map((lvl) => (
                 <button
                   key={lvl.id}

@@ -434,7 +434,7 @@ export const FALLBACK_AULA_BOOKINGS: AulaAgendaBooking[] = [
     kategori: "Rapat Dinas",
     keterangan: "Rapat HIMPAUDI Kec. Purwodadi",
     statusPersetujuan: "Disetujui",
-    nip: "PAUD"
+    nip: "KB"
   },
   {
     id: "sheet-25",
@@ -640,7 +640,7 @@ export const FALLBACK_AULA_BOOKINGS: AulaAgendaBooking[] = [
     tanggalPenggunaan: "2026-07-24",
     jamPemakaian: "07:00 - 12:00",
     kategori: "Rapat Dinas",
-    keterangan: "PAUD",
+    keterangan: "KB",
     statusPersetujuan: "Disetujui",
     nip: "199805172025211045"
   },
@@ -655,7 +655,7 @@ export const FALLBACK_AULA_BOOKINGS: AulaAgendaBooking[] = [
     kategori: "Rapat Dinas",
     keterangan: "Rapat Rutin himpaudi",
     statusPersetujuan: "Disetujui",
-    nip: "PAUD"
+    nip: "KB"
   },
   {
     id: "sheet-42",

@@ -1,4 +1,4 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { Resvg } from '@resvg/resvg-js';
 import fs from 'fs';
 import path from 'path';
@@ -227,6 +227,10 @@ export default async function handler(req: any, res: any) {
       fitTo: {
         mode: 'width',
         value: 1200
+      },
+      font: {
+        loadSystemFonts: true,
+        defaultFontFamily: 'Segoe UI'
       }
     });
     const pngBuffer = resvg.render().asPng();
