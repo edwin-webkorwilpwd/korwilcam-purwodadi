@@ -21,6 +21,7 @@ import {
   CalendarCheck,
   FileCheck,
   ClipboardCheck,
+  ClipboardList,
   Users
 } from 'lucide-react';
 
@@ -420,6 +421,33 @@ export const Navbar: React.FC = () => {
                         Pusat Layanan Terpadu Korwilcam
                       </div>
 
+                      {/* 0. Persyaratan Pelayanan (Paling Atas Sendiri) */}
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
+                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                          activeTab === 'service-requirements' 
+                            ? 'bg-blue-600/30 border border-blue-500/40 text-white' 
+                            : 'hover:bg-white/10 text-slate-200'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                          activeTab === 'service-requirements' 
+                            ? 'bg-indigo-600 text-white shadow-sm' 
+                            : 'bg-indigo-500/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white'
+                        }`}>
+                          <ClipboardList className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">
+                            Persyaratan Pelayanan
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-normal leading-tight">
+                            Standar & berkas persyaratan pengajuan layanan
+                          </div>
+                        </div>
+                      </button>
+
                       {/* 1. Unduh Berkas */}
                       <button
                         type="button"
@@ -658,6 +686,16 @@ export const Navbar: React.FC = () => {
             <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-blue-300">
               Layanan Terpadu
             </div>
+
+            <button
+              onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+                activeTab === 'service-requirements' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Persyaratan Pelayanan</span>
+            </button>
 
             <button
               onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}

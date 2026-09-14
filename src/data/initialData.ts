@@ -9,7 +9,8 @@ import {
   StaffProfile,
   ComplaintMessage,
   EducationalOrganization,
-  TeacherNominative 
+  TeacherNominative,
+  ServiceRequirement
 } from '../types';
 
 export const initialOfficeProfile: OfficeProfile = {
@@ -802,4 +803,8 @@ export const initialOrganizations: EducationalOrganization[] = [
 ];
 
 export const initialTeachers: TeacherNominative[] = [];
+
+export const initialServiceRequirements: ServiceRequirement[] = [];
+
+
 

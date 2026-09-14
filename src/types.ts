@@ -232,3 +232,18 @@ export interface TeacherNominative {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface ServiceRequirement {
+  id: string;
+  title: string;
+  category?: string;
+  description?: string;
+  requirements: string[];
+  notes?: string;
+  estimatedTime?: string;
+  fee?: string;
+  order?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+

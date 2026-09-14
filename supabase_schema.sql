@@ -217,6 +217,21 @@ CREATE TABLE IF NOT EXISTS daftar_guru (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 14. TABEL PERSYARATAN PELAYANAN
+CREATE TABLE IF NOT EXISTS service_requirements (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'Kepegawaian & GTK',
+  description TEXT,
+  requirements JSONB DEFAULT '[]'::jsonb,
+  notes TEXT,
+  estimated_time TEXT DEFAULT '1 - 3 Hari Kerja',
+  fee TEXT DEFAULT 'Gratis / Rp 0',
+  sort_order INT DEFAULT 1,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ==========================================================
 -- PENGATURAN ROW LEVEL SECURITY (RLS)
 -- ==========================================================
@@ -235,6 +250,7 @@ ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sop_pelayanan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daftar_guru ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_requirements ENABLE ROW LEVEL SECURITY;
 
 -- Hak Akses Baca untuk Publik (Anonim & Pengunjung)
 CREATE POLICY "Public read office_profile" ON office_profile FOR SELECT USING (true);
@@ -248,6 +264,7 @@ CREATE POLICY "Public read staff" ON staff FOR SELECT USING (true);
 CREATE POLICY "Public read sop_pelayanan" ON sop_pelayanan FOR SELECT USING (true);
 CREATE POLICY "Public read organizations" ON organizations FOR SELECT USING (true);
 CREATE POLICY "Public read daftar_guru" ON daftar_guru FOR SELECT USING (true);
+CREATE POLICY "Public read service_requirements" ON service_requirements FOR SELECT USING (true);
 
 -- Pengunjung boleh kirim aspirasi / aduan
 CREATE POLICY "Public insert complaints" ON complaints FOR INSERT WITH CHECK (true);
@@ -266,6 +283,7 @@ CREATE POLICY "Allow all on admin_users" ON admin_users FOR ALL USING (true);
 CREATE POLICY "Allow all on sop_pelayanan" ON sop_pelayanan FOR ALL USING (true);
 CREATE POLICY "Allow all on organizations" ON organizations FOR ALL USING (true);
 CREATE POLICY "Allow all on daftar_guru" ON daftar_guru FOR ALL USING (true);
+CREATE POLICY "Allow all on service_requirements" ON service_requirements FOR ALL USING (true);
 
 -- ==========================================================
 -- AKUN AWAL BAWAAN (DEFAULT SEED ACCOUNTS)
@@ -283,7 +301,7 @@ ON CONFLICT (username) DO NOTHING;
 -- Menjadikan perubahan data di tabel langsung memicu update pada layar pengunjung tanpa refresh
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan, organizations, daftar_guru;
+  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan, organizations, daftar_guru, service_requirements;
 EXCEPTION WHEN OTHERS THEN
   -- Abaikan jika tabel sudah terdaftar di publication
   NULL;

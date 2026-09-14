@@ -14,7 +14,8 @@ import {
   AdminRole,
   EducationalOrganization,
   OrganizationOfficial,
-  TeacherNominative 
+  TeacherNominative,
+  ServiceRequirement
 } from '../types';
 import { 
   initialSchools, 
@@ -27,7 +28,8 @@ import {
   initialOfficeProfile,
   initialComplaints,
   initialOrganizations,
-  initialTeachers 
+  initialTeachers,
+  initialServiceRequirements
 } from '../data/initialData';
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
@@ -140,6 +142,13 @@ interface AppContextType {
   deleteTeacher: (id: string) => Promise<boolean>;
   batchAddTeachers: (newTeachers: Omit<TeacherNominative, 'id'>[]) => Promise<boolean>;
   clearAllTeachers: () => Promise<boolean>;
+
+  // Persyaratan Pelayanan
+  serviceRequirements: ServiceRequirement[];
+  addServiceRequirement: (item: Omit<ServiceRequirement, 'id'>) => Promise<boolean>;
+  updateServiceRequirement: (id: string, item: Partial<ServiceRequirement>) => Promise<boolean>;
+  deleteServiceRequirement: (id: string) => Promise<boolean>;
+  resetServiceRequirements: () => Promise<boolean>;
   
   // Auth & Roles
   isAuthenticated: boolean;
@@ -464,6 +473,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [serviceRequirements, setServiceRequirements] = useState<ServiceRequirement[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_service_requirements');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Buang data dummy bawaan awal (req-01 s.d. req-07 atau req-init)
+          const filtered = parsed.filter(
+            (r: any) => !r.id?.startsWith('req-0') && !r.id?.startsWith('req-init')
+          );
+          if (filtered.length > 0) return filtered;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -646,6 +674,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [complaints]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('korwilcam_service_requirements', JSON.stringify(serviceRequirements));
+    } catch (e) {
+      console.warn('localStorage save service_requirements quota warning:', e);
+    }
+  }, [serviceRequirements]);
+
   // Initial fetch from Supabase if connected
   const refreshFromSupabase = async (): Promise<boolean> => {
     const client = getSupabaseClient();
@@ -688,6 +724,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         } catch (errTeach) {
           console.warn('Tabel daftar_guru belum terbaca:', errTeach);
+        }
+      })();
+
+      // 0.1 Fetch service_requirements IMMEDIATELY IN PARALLEL
+      const serviceReqsFetchPromise = (async () => {
+        try {
+          const { data: dbReqs, error: reqErr } = await client
+            .from('service_requirements')
+            .select('*')
+            .order('sort_order', { ascending: true });
+          if (!reqErr && Array.isArray(dbReqs)) {
+            const mappedReqs: ServiceRequirement[] = dbReqs.map((r: any, index: number) => ({
+              id: String(r.id || `req-${Date.now()}-${index}`),
+              title: String(r.title || '').trim(),
+              category: String(r.category || 'Kepegawaian & GTK').trim(),
+              description: String(r.description || '').trim(),
+              requirements: Array.isArray(r.requirements) 
+                ? r.requirements 
+                : (typeof r.requirements === 'string' ? JSON.parse(r.requirements) : []),
+              notes: r.notes || '',
+              estimatedTime: r.estimated_time || r.estimatedTime || '1 - 3 Hari Kerja',
+              fee: r.fee || 'Gratis / Rp 0',
+              order: typeof r.sort_order === 'number' ? r.sort_order : (r.order || index + 1),
+              createdAt: r.created_at || r.createdAt,
+              updatedAt: r.updated_at || r.updatedAt
+            }));
+            setServiceRequirements(mappedReqs);
+            try {
+              localStorage.setItem('korwilcam_service_requirements', JSON.stringify(mappedReqs));
+            } catch {}
+          } else {
+            // Jika di database belum ada data atau tabel belum dibuat, jangan tampilkan data dummy
+            setServiceRequirements([]);
+            try {
+              localStorage.setItem('korwilcam_service_requirements', JSON.stringify([]));
+            } catch {}
+          }
+        } catch (errReq) {
+          console.warn('Tabel service_requirements belum terbaca:', errReq);
+          setServiceRequirements([]);
+          try {
+            localStorage.setItem('korwilcam_service_requirements', JSON.stringify([]));
+          } catch {}
         }
       })();
       
@@ -1133,11 +1212,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Tabel organizations belum terbaca:', errOrgs);
       }
 
-      // Await parallel daftar_guru fetch
+      // Await parallel daftar_guru and service_requirements fetch
       try {
-        await teachersFetchPromise;
-      } catch (errTeach) {
-        console.warn('Tabel daftar_guru belum terbaca:', errTeach);
+        await Promise.all([teachersFetchPromise, serviceReqsFetchPromise]);
+      } catch (errParallel) {
+        console.warn('Parallel fetch warning:', errParallel);
       }
 
       setSyncStatus('connected');
@@ -1395,6 +1474,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel daftar_guru:', tErr);
       }
 
+      // 13. Export service_requirements
+      try {
+        const reqPayload = serviceRequirements.map((r) => ({
+          id: r.id,
+          title: r.title,
+          category: r.category || 'Kepegawaian & GTK',
+          description: r.description || '',
+          requirements: r.requirements || [],
+          notes: r.notes || '',
+          estimated_time: r.estimatedTime || '1-3 Hari Kerja',
+          fee: r.fee || 'Gratis / Rp 0',
+          sort_order: r.order || 1,
+          created_at: r.createdAt || new Date().toISOString(),
+          updated_at: r.updatedAt || new Date().toISOString()
+        }));
+        await client.from('service_requirements').upsert(reqPayload);
+      } catch (rErr) {
+        console.warn('Gagal ekspor tabel service_requirements:', rErr);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       showToast('Seluruh data berhasil diekspor & disinkronkan ke Supabase!', 'success');
@@ -1505,6 +1604,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_requirements' },
+        () => {
+          refreshFromSupabase();
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'admin_users' },
         async () => {
           const { data: dbUsers } = await client.from('admin_users').select('*');
@@ -1539,6 +1645,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'nominatif': { path: '/nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'organization': { path: '/organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
+    'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
     'service-cuti': { path: '/layanan/surat-cuti', title: 'Layanan Surat Cuti GTK Online - Korwilcam Purwodadi' },
@@ -2054,8 +2161,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSelectedOrganizationSlugState(null);
           document.title = 'Daftar Organisasi Mitra & Profesi - Korwilcam Purwodadi';
         }
-      } else if (rawPath.startsWith('/layanan') || rawPath.startsWith('/unduhan')) {
-        if (rawPath.includes('aula')) {
+      } else if (rawPath.startsWith('/layanan') || rawPath.startsWith('/unduhan') || rawPath.startsWith('/persyaratan')) {
+        if (rawPath.includes('persyaratan') || rawPath.includes('syarat')) {
+          setActiveTabState('service-requirements');
+          document.title = TAB_ROUTES['service-requirements'].title;
+        } else if (rawPath.includes('aula')) {
           setActiveTabState('service-aula');
           document.title = TAB_ROUTES['service-aula'].title;
         } else if (rawPath.includes('cuti')) {
@@ -3909,6 +4019,115 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  // Persyaratan Pelayanan (CRUD)
+  const addServiceRequirement = async (item: Omit<ServiceRequirement, 'id'>): Promise<boolean> => {
+    const newItem: ServiceRequirement = {
+      ...item,
+      id: `req-${Date.now()}`,
+      order: item.order || (serviceRequirements.length + 1),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [...serviceRequirements, newItem].sort((a, b) => (a.order || 0) - (b.order || 0));
+    setServiceRequirements(updated);
+    try {
+      localStorage.setItem('korwilcam_service_requirements', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('service_requirements').upsert({
+          id: newItem.id,
+          title: newItem.title,
+          category: newItem.category || 'Kepegawaian & GTK',
+          description: newItem.description || '',
+          requirements: newItem.requirements || [],
+          notes: newItem.notes || '',
+          estimated_time: newItem.estimatedTime || '1-3 Hari Kerja',
+          fee: newItem.fee || 'Gratis / Rp 0',
+          sort_order: newItem.order,
+          created_at: newItem.createdAt,
+          updated_at: newItem.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase addServiceRequirement warning:', err);
+      }
+    }
+    showToast(`Jenis layanan "${newItem.title}" berhasil ditambahkan!`, 'success');
+    return true;
+  };
+
+  const updateServiceRequirement = async (id: string, itemData: Partial<ServiceRequirement>): Promise<boolean> => {
+    const updated = serviceRequirements.map((r) => {
+      if (r.id === id) {
+        return {
+          ...r,
+          ...itemData,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return r;
+    }).sort((a, b) => (a.order || 0) - (b.order || 0));
+    setServiceRequirements(updated);
+    try {
+      localStorage.setItem('korwilcam_service_requirements', JSON.stringify(updated));
+    } catch (e) {}
+
+    const target = updated.find((r) => r.id === id);
+    const client = getSupabaseClient();
+    if (client && target) {
+      try {
+        await client.from('service_requirements').upsert({
+          id: target.id,
+          title: target.title,
+          category: target.category || 'Kepegawaian & GTK',
+          description: target.description || '',
+          requirements: target.requirements || [],
+          notes: target.notes || '',
+          estimated_time: target.estimatedTime || '1-3 Hari Kerja',
+          fee: target.fee || 'Gratis / Rp 0',
+          sort_order: target.order || 1,
+          created_at: target.createdAt || new Date().toISOString(),
+          updated_at: target.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase updateServiceRequirement warning:', err);
+      }
+    }
+    showToast('Persyaratan pelayanan berhasil diperbarui!', 'success');
+    return true;
+  };
+
+  const deleteServiceRequirement = async (id: string): Promise<boolean> => {
+    const target = serviceRequirements.find((r) => r.id === id);
+    const updated = serviceRequirements.filter((r) => r.id !== id);
+    setServiceRequirements(updated);
+    try {
+      localStorage.setItem('korwilcam_service_requirements', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('service_requirements').delete().match({ id });
+      } catch (err) {
+        console.warn('Supabase deleteServiceRequirement warning:', err);
+      }
+    }
+    showToast(`Layanan "${target?.title || ''}" berhasil dihapus!`, 'info');
+    return true;
+  };
+
+  const resetServiceRequirements = async (): Promise<boolean> => {
+    setServiceRequirements([]);
+    try {
+      localStorage.setItem('korwilcam_service_requirements', JSON.stringify([]));
+    } catch (e) {}
+    showToast('Data persyaratan pelayanan telah dikosongkan!', 'info');
+    return true;
+  };
+
   const resetToDefaultData = () => {
     setSchools(initialSchools);
     setNews(initialNews);
@@ -3921,6 +4140,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setComplaints(initialComplaints);
     setOrganizations(initialOrganizations);
     setTeachers(initialTeachers);
+    setServiceRequirements(initialServiceRequirements);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
@@ -3955,6 +4175,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTeacher,
         batchAddTeachers,
         clearAllTeachers,
+        serviceRequirements,
+        addServiceRequirement,
+        updateServiceRequirement,
+        deleteServiceRequirement,
+        resetServiceRequirements,
         activeTab,
         setActiveTab,
         selectedNews,

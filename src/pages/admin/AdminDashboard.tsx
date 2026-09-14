@@ -61,7 +61,8 @@ import {
   ChevronUp,
   ChevronDown,
   Sliders,
-  Search
+  Search,
+  ClipboardList
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -97,7 +98,8 @@ import {
   EducationalOrganization,
   OrganizationLeader,
   OrganizationOfficial,
-  TeacherNominative
+  TeacherNominative,
+  ServiceRequirement
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { 
@@ -178,6 +180,11 @@ export const AdminDashboard: React.FC = () => {
     deleteTeacher,
     batchAddTeachers,
     clearAllTeachers,
+    serviceRequirements,
+    addServiceRequirement,
+    updateServiceRequirement,
+    deleteServiceRequirement,
+    resetServiceRequirements,
     showConfirmDialog,
     showNoticePopup
   } = useApp();
@@ -186,14 +193,15 @@ export const AdminDashboard: React.FC = () => {
     | 'overview' 
     | 'home-cms' 
     | 'profile-cms' 
-    | 'sop-cms'
+    | 'sop-cms' 
     | 'schools-cms' 
-    | 'nominatif-cms'
+    | 'nominatif-cms' 
     | 'news-cms' 
-    | 'organization-cms'
+    | 'organization-cms' 
+    | 'service-requirements-cms'
     | 'downloads-cms' 
     | 'gallery-cms' 
-    | 'contact-cms'
+    | 'contact-cms' 
     | 'users-cms';
 
   const [currentSection, setCurrentSection] = useState<AdminSection>('overview');
@@ -1019,6 +1027,156 @@ export const AdminDashboard: React.FC = () => {
 
     await clearAllTeachers();
     handleCancelEditTeacher();
+  };
+
+  // --- 4.8. SERVICE REQUIREMENTS CMS STATE ---
+  const [reqSearchQuery, setReqSearchQuery] = useState('');
+  const [reqCategoryFilter, setReqCategoryFilter] = useState('ALL');
+  const [isReqModalOpen, setIsReqModalOpen] = useState(false);
+  const [editingReqId, setEditingReqId] = useState<string | null>(null);
+  const [reqFormInputMode, setReqFormInputMode] = useState<'list' | 'text'>('list');
+
+  const [reqForm, setReqForm] = useState({
+    title: '',
+    category: 'Kepegawaian & GTK',
+    description: '',
+    requirements: [''] as string[],
+    requirementsText: '',
+    notes: '',
+    estimatedTime: '1 - 3 Hari Kerja',
+    fee: '',
+    order: 1
+  });
+
+  const handleOpenAddReqModal = () => {
+    setEditingReqId(null);
+    setReqForm({
+      title: '',
+      category: 'Kepegawaian & GTK',
+      description: '',
+      requirements: [''],
+      requirementsText: '',
+      notes: '',
+      estimatedTime: '1 - 3 Hari Kerja',
+      fee: '',
+      order: serviceRequirements.length + 1
+    });
+    setReqFormInputMode('list');
+    setIsReqModalOpen(true);
+  };
+
+  const handleOpenEditReqModal = (item: ServiceRequirement) => {
+    setEditingReqId(item.id);
+    const reqList = Array.isArray(item.requirements) && item.requirements.length > 0 ? [...item.requirements] : [''];
+    setReqForm({
+      title: item.title,
+      category: item.category || 'Kepegawaian & GTK',
+      description: item.description || '',
+      requirements: reqList,
+      requirementsText: reqList.filter(Boolean).join('\n'),
+      notes: item.notes || '',
+      estimatedTime: item.estimatedTime || '1 - 3 Hari Kerja',
+      fee: item.fee || '',
+      order: item.order || 1
+    });
+    setReqFormInputMode('list');
+    setIsReqModalOpen(true);
+  };
+
+  const handleReqItemChange = (index: number, val: string) => {
+    setReqForm((prev) => {
+      const updated = [...prev.requirements];
+      updated[index] = val;
+      return { ...prev, requirements: updated, requirementsText: updated.filter(Boolean).join('\n') };
+    });
+  };
+
+  const handleAddReqItem = () => {
+    setReqForm((prev) => ({
+      ...prev,
+      requirements: [...prev.requirements, '']
+    }));
+  };
+
+  const handleRemoveReqItem = (index: number) => {
+    setReqForm((prev) => {
+      const updated = prev.requirements.filter((_, i) => i !== index);
+      const safeUpdated = updated.length > 0 ? updated : [''];
+      return { ...prev, requirements: safeUpdated, requirementsText: safeUpdated.filter(Boolean).join('\n') };
+    });
+  };
+
+  const handleSaveReq = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqForm.title.trim()) {
+      showToast('Judul jenis pelayanan wajib diisi!', 'error');
+      return;
+    }
+
+    let finalReqs: string[] = [];
+    if (reqFormInputMode === 'text') {
+      finalReqs = reqForm.requirementsText
+        .split('\n')
+        .map((s) => s.trim().replace(/^[-*•\d+.]\s*/, ''))
+        .filter(Boolean);
+    } else {
+      finalReqs = reqForm.requirements.map((s) => s.trim()).filter(Boolean);
+    }
+
+    if (finalReqs.length === 0) {
+      showToast('Harap masukkan minimal 1 butir persyaratan!', 'error');
+      return;
+    }
+
+    if (editingReqId) {
+      await updateServiceRequirement(editingReqId, {
+        title: reqForm.title.trim(),
+        category: reqForm.category.trim(),
+        description: reqForm.description.trim(),
+        requirements: finalReqs,
+        notes: reqForm.notes.trim(),
+        estimatedTime: reqForm.estimatedTime.trim(),
+        fee: reqForm.fee.trim(),
+        order: Number(reqForm.order) || 1
+      });
+    } else {
+      await addServiceRequirement({
+        title: reqForm.title.trim(),
+        category: reqForm.category.trim(),
+        description: reqForm.description.trim(),
+        requirements: finalReqs,
+        notes: reqForm.notes.trim(),
+        estimatedTime: reqForm.estimatedTime.trim(),
+        fee: reqForm.fee.trim(),
+        order: Number(reqForm.order) || 1
+      });
+    }
+
+    setIsReqModalOpen(false);
+  };
+
+  const handleDeleteReq = async (item: ServiceRequirement) => {
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Persyaratan Pelayanan?',
+      message: `Apakah Anda yakin ingin menghapus "${item.title}" dari daftar persyaratan pelayanan?`,
+      type: 'danger',
+      confirmText: 'Ya, Hapus Layanan',
+      cancelText: 'Batal'
+    });
+    if (!confirmed) return;
+    await deleteServiceRequirement(item.id);
+  };
+
+  const handleResetDefaultReqs = async () => {
+    const confirmed = await showConfirmDialog({
+      title: 'Kosongkan Seluruh Persyaratan?',
+      message: 'Apakah Anda yakin ingin mengosongkan seluruh daftar persyaratan pelayanan?',
+      type: 'danger',
+      confirmText: 'Ya, Kosongkan',
+      cancelText: 'Batal'
+    });
+    if (!confirmed) return;
+    await resetServiceRequirements();
   };
 
   // --- 4. NEWS & INFORMASI CMS STATE ---
@@ -2569,6 +2727,42 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
+          {/* 4.8. Persyaratan Pelayanan */}
+          <button
+            type="button"
+            onClick={() => setCurrentSection('service-requirements-cms')}
+            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              currentSection === 'service-requirements-cms'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+              }`}>
+                <ClipboardList className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className={`text-xs font-bold truncate leading-tight ${
+                  currentSection === 'service-requirements-cms' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  Persyaratan Pelayanan
+                </span>
+                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                  currentSection === 'service-requirements-cms' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  Standar Berkas & Layanan
+                </span>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+              currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {serviceRequirements.length}
+            </span>
+          </button>
+
           {/* 5. Layanan Unduhan */}
           <button
             type="button"
@@ -2925,6 +3119,7 @@ export const AdminDashboard: React.FC = () => {
                     { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, GTT & Honorer di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
                     { id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' },
+                    { id: 'service-requirements-cms', title: 'Persyaratan Pelayanan', desc: 'Atur standar berkas persyaratan pelayanan pendidikan dan kepegawaian', icon: ClipboardList, color: 'text-blue-600 bg-blue-50' },
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
                     { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' }
@@ -6644,6 +6839,522 @@ export const AdminDashboard: React.FC = () => {
                     </form>
                   )}
 
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4.8: KELOLA PERSYARATAN PELAYANAN */}
+          {currentSection === 'service-requirements-cms' && (
+            <div className="space-y-8">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200/60 mb-2">
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    <span>Standar Pelayanan Publik Korwilcam</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    Kelola Persyaratan Pelayanan
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Atur daftar jenis pelayanan dan berkas persyaratan yang harus dipenuhi oleh pemohon (Guru, Sekolah, Siswa, dan Masyarakat Umum).
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {serviceRequirements.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetDefaultReqs}
+                      className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all flex items-center gap-1.5"
+                      title="Kosongkan seluruh data persyaratan pelayanan"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Kosongkan</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenAddReqModal}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tambah Pelayanan</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar */}
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  {/* Search Input */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={reqSearchQuery}
+                      onChange={(e) => setReqSearchQuery(e.target.value)}
+                      placeholder="Cari jenis pelayanan atau kata kunci berkas..."
+                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                    />
+                    {reqSearchQuery && (
+                      <button
+                        onClick={() => setReqSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick Counter */}
+                  <div className="text-xs text-slate-500 font-medium px-2 shrink-0">
+                    Menampilkan <span className="font-bold text-slate-800">{
+                      serviceRequirements.filter(item => {
+                        const q = reqSearchQuery.toLowerCase();
+                        const cat = item.category || 'Kepegawaian & GTK';
+                        const reqs = Array.isArray(item.requirements) ? item.requirements : [];
+                        const matchesQuery = !q || 
+                          item.title.toLowerCase().includes(q) ||
+                          cat.toLowerCase().includes(q) ||
+                          reqs.some(r => r.toLowerCase().includes(q));
+                        const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
+                        return matchesQuery && matchesCat;
+                      }).length
+                    }</span> dari <span className="font-bold text-slate-800">{serviceRequirements.length}</span> layanan
+                  </div>
+                </div>
+
+                {/* Category Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                  <span className="text-slate-400 text-[11px] font-semibold mr-1 shrink-0">Kategori:</span>
+                  {['Semua', 'Kepegawaian & GTK', 'Kesiswaan & Kurikulum', 'Kelembagaan & Legalitas', 'Umum & Tata Usaha'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setReqCategoryFilter(cat)}
+                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs whitespace-nowrap transition-all ${
+                        reqCategoryFilter === cat
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Service Cards / Table */}
+              {serviceRequirements
+                .filter(item => {
+                  const q = reqSearchQuery.toLowerCase();
+                  const cat = item.category || 'Kepegawaian & GTK';
+                  const reqs = Array.isArray(item.requirements) ? item.requirements : [];
+                  const matchesQuery = !q || 
+                    item.title.toLowerCase().includes(q) ||
+                    cat.toLowerCase().includes(q) ||
+                    reqs.some(r => r.toLowerCase().includes(q));
+                  const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
+                  return matchesQuery && matchesCat;
+                })
+                .sort((a, b) => (a.order || 0) - (b.order || 0))
+                .length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 shadow-sm space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
+                    <ClipboardList className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1.5 max-w-lg mx-auto">
+                    <h3 className="font-bold text-slate-900 text-base">
+                      {reqSearchQuery || reqCategoryFilter !== 'Semua' 
+                        ? 'Tidak Ditemukan Hasil Pencarian' 
+                        : 'Belum Ada Data Persyaratan Pelayanan'}
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      {reqSearchQuery || reqCategoryFilter !== 'Semua'
+                        ? 'Tidak ditemukan pelayanan yang sesuai dengan kata kunci atau filter pencarian Anda.'
+                        : 'Belum ada data jenis pelayanan yang tersimpan. Klik tombol Tambah Pelayanan Baru di bawah untuk mulai menambahkan.'}
+                    </p>
+                  </div>
+
+                  {reqSearchQuery || reqCategoryFilter !== 'Semua' ? (
+                    <button
+                      onClick={() => {
+                        setReqSearchQuery('');
+                        setReqCategoryFilter('Semua');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+                    >
+                      Reset Filter
+                    </button>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenAddReqModal}
+                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-blue-500/20"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Tambah Pelayanan Baru</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {serviceRequirements
+                    .filter(item => {
+                      const q = reqSearchQuery.toLowerCase();
+                      const cat = item.category || 'Kepegawaian & GTK';
+                      const reqs = Array.isArray(item.requirements) ? item.requirements : [];
+                      const matchesQuery = !q || 
+                        item.title.toLowerCase().includes(q) ||
+                        cat.toLowerCase().includes(q) ||
+                        reqs.some(r => r.toLowerCase().includes(q));
+                      const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
+                      return matchesQuery && matchesCat;
+                    })
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all space-y-4"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                                #{item.order || 1}
+                              </span>
+                              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60">
+                                {item.category}
+                              </span>
+                              {item.estimatedTime && (
+                                <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-slate-400" />
+                                  <span>{item.estimatedTime}</span>
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                              {item.title}
+                            </h3>
+                            {item.description && (
+                              <p className="text-xs text-slate-600 leading-relaxed">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditReqModal(item)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 text-xs font-bold transition-all flex items-center gap-1"
+                              title="Edit pelayanan dan persyaratan"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReq(item)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 text-xs font-bold transition-all flex items-center gap-1"
+                              title="Hapus pelayanan ini"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Checklist Preview Box */}
+                        <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Berkas Persyaratan ({item.requirements?.length || 0} butir):</span>
+                            </span>
+                          </div>
+                          <ul className="space-y-1.5 pl-1">
+                            {item.requirements?.slice(0, 5).map((req, idx) => (
+                              <li key={idx} className="text-xs text-slate-700 flex items-start gap-2">
+                                <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <span className="flex-1">{req}</span>
+                              </li>
+                            ))}
+                            {(item.requirements?.length || 0) > 5 && (
+                              <li className="text-[11px] text-blue-600 font-semibold italic pl-6 pt-0.5">
+                                + {(item.requirements?.length || 0) - 5} berkas persyaratan lainnya...
+                              </li>
+                            )}
+                          </ul>
+
+                          {item.notes && (
+                            <div className="mt-2 pt-2 border-t border-slate-200/60 text-[11px] text-amber-800 bg-amber-50/80 px-2.5 py-1.5 rounded-lg flex items-start gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600 mt-0.5" />
+                              <span><strong>Catatan:</strong> {item.notes}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {/* Modal Tambah / Edit Pelayanan */}
+              {isReqModalOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+                  <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                    
+                    {/* Modal Header */}
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                          <ClipboardList className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-base text-slate-900">
+                            {editingReqId ? 'Edit Jenis Pelayanan' : 'Tambah Jenis Pelayanan Baru'}
+                          </h3>
+                          <p className="text-[11px] text-slate-500">
+                            Kelola judul layanan, deskripsi, dan rincian berkas persyaratan.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsReqModalOpen(false)}
+                        className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Modal Body (Scrollable) */}
+                    <form onSubmit={handleSaveReq} className="flex-1 overflow-y-auto p-6 space-y-5">
+                      
+                      {/* Judul Pelayanan */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Judul Jenis Pelayanan *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={reqForm.title}
+                          onChange={(e) => setReqForm({ ...reqForm, title: e.target.value })}
+                          placeholder="Contoh: Pengusulan Kenaikan Pangkat (KP) Guru & Tendik"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Kategori & Nomor Urut */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">
+                            Kategori Pelayanan *
+                          </label>
+                          <select
+                            value={reqForm.category}
+                            onChange={(e) => setReqForm({ ...reqForm, category: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          >
+                            <option value="Kepegawaian & GTK">Kepegawaian & GTK</option>
+                            <option value="Kesiswaan & Kurikulum">Kesiswaan & Kurikulum</option>
+                            <option value="Kelembagaan & Legalitas">Kelembagaan & Legalitas</option>
+                            <option value="Umum & Tata Usaha">Umum & Tata Usaha</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700">
+                            Nomor Urut
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={reqForm.order}
+                            onChange={(e) => setReqForm({ ...reqForm, order: parseInt(e.target.value, 10) || 1 })}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Estimasi Waktu Penyelesaian */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Estimasi Waktu Penyelesaian</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={reqForm.estimatedTime}
+                          onChange={(e) => setReqForm({ ...reqForm, estimatedTime: e.target.value })}
+                          placeholder="Contoh: 1 - 3 Hari Kerja, atau Langsung Selesai"
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Deskripsi Singkat */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Deskripsi / Ringkasan Layanan
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={reqForm.description}
+                          onChange={(e) => setReqForm({ ...reqForm, description: e.target.value })}
+                          placeholder="Penjelasan singkat mengenai peruntukan atau tujuan dari layanan ini..."
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none leading-relaxed"
+                        />
+                      </div>
+
+                      {/* PERSYARATAN BERKAS (Manual & Paste) */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                              <span>Daftar Berkas Persyaratan *</span>
+                            </label>
+                            <span className="text-[11px] text-slate-500">
+                              Tambahkan satu per satu secara manual atau salin tempel (paste) banyak baris sekaligus.
+                            </span>
+                          </div>
+
+                          {/* Mode Switcher */}
+                          <div className="inline-flex rounded-lg bg-slate-100 p-0.5 self-start">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReqFormInputMode('list');
+                                if (reqForm.requirementsText) {
+                                  const lines = reqForm.requirementsText
+                                    .split('\n')
+                                    .map((s) => s.trim().replace(/^[-*•\d+.]\s*/, ''))
+                                    .filter(Boolean);
+                                  if (lines.length > 0) {
+                                    setReqForm((prev) => ({ ...prev, requirements: lines }));
+                                  }
+                                }
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                                reqFormInputMode === 'list'
+                                  ? 'bg-white text-blue-700 shadow-sm'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Per Baris (Daftar)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReqFormInputMode('text');
+                                const joined = reqForm.requirements.filter(Boolean).join('\n');
+                                setReqForm((prev) => ({ ...prev, requirementsText: joined }));
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                                reqFormInputMode === 'text'
+                                  ? 'bg-white text-blue-700 shadow-sm'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Paste Multi-Baris
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Input Mode 1: List with Add/Remove */}
+                        {reqFormInputMode === 'list' ? (
+                          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                            {reqForm.requirements.map((req, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={req}
+                                  onChange={(e) => handleReqItemChange(idx, e.target.value)}
+                                  placeholder={`Contoh: Fotokopi SK Terakhir legalisir basah...`}
+                                  className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                                />
+                                {reqForm.requirements.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveReqItem(idx)}
+                                    className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    title="Hapus butir ini"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={handleAddReqItem}
+                              className="w-full py-2 border-2 border-dashed border-blue-200 rounded-xl text-blue-600 hover:bg-blue-50/70 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>+ Tambah Butir Persyaratan Baru</span>
+                            </button>
+                          </div>
+                        ) : (
+                          /* Input Mode 2: Multi-line Text Area for easy pasting */
+                          <div className="space-y-1.5">
+                            <textarea
+                              rows={5}
+                              value={reqForm.requirementsText}
+                              onChange={(e) => setReqForm({ ...reqForm, requirementsText: e.target.value })}
+                              placeholder={`Contoh Paste:\nSurat Pengantar dari Kepala Sekolah\nFotokopi SK Pangkat Terakhir\nFotokopi SKP 2 Tahun Terakhir\nPakta Integritas bermaterai 10.000`}
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none font-mono leading-relaxed"
+                            />
+                            <p className="text-[10px] text-slate-400">
+                              * Tip: Tempelkan (paste) daftar dari dokumen Word/PDF. Setiap baris baru otomatis diubah menjadi 1 butir checklist.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Catatan Tambahan */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Catatan Khusus / Informasi Tambahan (Opsional)</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={reqForm.notes}
+                          onChange={(e) => setReqForm({ ...reqForm, notes: e.target.value })}
+                          placeholder="Contoh: Berkas dibuat rangkap 2 (1 asli, 1 legalisir), dimasukkan map snelhecter warna merah..."
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none leading-relaxed"
+                        />
+                      </div>
+
+                      {/* Modal Footer */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setIsReqModalOpen(false)}
+                          className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>{editingReqId ? 'Simpan Perubahan' : 'Simpan Layanan Baru'}</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
             </div>

@@ -24,6 +24,7 @@ const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ 
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 import { WebViewPage } from './pages/WebViewPage';
+import { ServiceRequirementsPage } from './pages/ServiceRequirementsPage';
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 
@@ -76,14 +77,14 @@ const MainContent: React.FC = () => {
   // Melacak webview mana saja yang sudah pernah dimount agar tetap hidup di memori (keep-alive)
   const [visitedWebViews, setVisitedWebViews] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    if (activeTab.startsWith('service-')) {
+    if (WEBVIEW_SERVICES.some((s) => s.id === activeTab)) {
       initial[activeTab] = true;
     }
     return initial;
   });
 
   useEffect(() => {
-    if (activeTab.startsWith('service-')) {
+    if (WEBVIEW_SERVICES.some((s) => s.id === activeTab)) {
       setVisitedWebViews((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
     }
   }, [activeTab]);
@@ -112,7 +113,7 @@ const MainContent: React.FC = () => {
     );
   }
 
-  const isWebView = activeTab.startsWith('service-');
+  const isWebView = WEBVIEW_SERVICES.some((s) => s.id === activeTab);
 
   // Public portal routing
   return (
@@ -141,6 +142,7 @@ const MainContent: React.FC = () => {
               {activeTab === 'nominatif' && <NominativePage />}
               {activeTab === 'news' && <NewsPage />}
               {activeTab === 'organization' && <OrganizationPage />}
+              {activeTab === 'service-requirements' && <ServiceRequirementsPage />}
               {activeTab === 'downloads' && <DownloadsPage />}
               {activeTab === 'gallery' && <GalleryPage />}
               {activeTab === 'contact' && <ContactPage />}
