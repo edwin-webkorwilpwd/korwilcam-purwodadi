@@ -349,6 +349,17 @@ export const Navbar: React.FC = () => {
               </button>
 
               <button
+                onClick={() => handleNavClick('nominatif', '/nominatif')}
+                className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === 'nominatif' 
+                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
+                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Nominatif
+              </button>
+
+              <button
                 onClick={() => handleNavClick('news', '/berita')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'news' 
@@ -599,6 +610,16 @@ export const Navbar: React.FC = () => {
           >
             <GraduationCap className="w-4 h-4 text-blue-400" />
             <span>Sekolah</span>
+          </button>
+
+          <button
+            onClick={() => handleNavClick('nominatif', '/nominatif')}
+            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              activeTab === 'nominatif' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+            }`}
+          >
+            <Users className="w-4 h-4 text-blue-400" />
+            <span>Nominatif Guru</span>
           </button>
 
           <button

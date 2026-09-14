@@ -24,8 +24,16 @@ CREATE TABLE IF NOT EXISTS office_profile (
   hero_subtitle TEXT,
   hero_badge TEXT,
   korwil_quote TEXT,
+  hero_drive_folder_url TEXT,
+  hero_slideshow_images JSONB DEFAULT '[]'::jsonb,
+  hero_slideshow_interval INTEGER DEFAULT 5,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migrasi Kolom Tambahan (Aman dijalankan jika tabel office_profile sudah ada sebelumnya)
+ALTER TABLE office_profile ADD COLUMN IF NOT EXISTS hero_drive_folder_url TEXT;
+ALTER TABLE office_profile ADD COLUMN IF NOT EXISTS hero_slideshow_images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE office_profile ADD COLUMN IF NOT EXISTS hero_slideshow_interval INTEGER DEFAULT 5;
 
 -- 2. TABEL SATUAN SEKOLAH (SD, TK, PAUD)
 CREATE TABLE IF NOT EXISTS schools (
@@ -193,6 +201,19 @@ CREATE TABLE IF NOT EXISTS organizations (
   address TEXT,
   phone TEXT,
   email TEXT,
+  social_media JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 13. TABEL DAFTAR GURU (NOMINATIF)
+CREATE TABLE IF NOT EXISTS daftar_guru (
+  id TEXT PRIMARY KEY,
+  no INT,
+  nama TEXT NOT NULL,
+  nip TEXT DEFAULT '-',
+  status_pegawai TEXT NOT NULL,
+  instansi TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -213,6 +234,7 @@ ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sop_pelayanan ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daftar_guru ENABLE ROW LEVEL SECURITY;
 
 -- Hak Akses Baca untuk Publik (Anonim & Pengunjung)
 CREATE POLICY "Public read office_profile" ON office_profile FOR SELECT USING (true);
@@ -225,6 +247,7 @@ CREATE POLICY "Public read gallery" ON gallery FOR SELECT USING (true);
 CREATE POLICY "Public read staff" ON staff FOR SELECT USING (true);
 CREATE POLICY "Public read sop_pelayanan" ON sop_pelayanan FOR SELECT USING (true);
 CREATE POLICY "Public read organizations" ON organizations FOR SELECT USING (true);
+CREATE POLICY "Public read daftar_guru" ON daftar_guru FOR SELECT USING (true);
 
 -- Pengunjung boleh kirim aspirasi / aduan
 CREATE POLICY "Public insert complaints" ON complaints FOR INSERT WITH CHECK (true);
@@ -242,6 +265,7 @@ CREATE POLICY "Allow all on complaints" ON complaints FOR ALL USING (true);
 CREATE POLICY "Allow all on admin_users" ON admin_users FOR ALL USING (true);
 CREATE POLICY "Allow all on sop_pelayanan" ON sop_pelayanan FOR ALL USING (true);
 CREATE POLICY "Allow all on organizations" ON organizations FOR ALL USING (true);
+CREATE POLICY "Allow all on daftar_guru" ON daftar_guru FOR ALL USING (true);
 
 -- ==========================================================
 -- AKUN AWAL BAWAAN (DEFAULT SEED ACCOUNTS)
@@ -259,7 +283,7 @@ ON CONFLICT (username) DO NOTHING;
 -- Menjadikan perubahan data di tabel langsung memicu update pada layar pengunjung tanpa refresh
 DO $$
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan, organizations;
+  ALTER PUBLICATION supabase_realtime ADD TABLE schools, news, announcements, agenda, documents, gallery, staff, office_profile, complaints, admin_users, sop_pelayanan, organizations, daftar_guru;
 EXCEPTION WHEN OTHERS THEN
   -- Abaikan jika tabel sudah terdaftar di publication
   NULL;
@@ -360,8 +384,13 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   address TEXT,
   phone TEXT,
   email TEXT,
+  social_media JSONB DEFAULT '{}'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Pastikan kolom social_media ada jika tabel organizations sudah dibuat sebelumnya:
+ALTER TABLE public.organizations 
+ADD COLUMN IF NOT EXISTS social_media JSONB DEFAULT '{}'::jsonb;
 
 -- Pengaturan RLS (Row Level Security)
 ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
@@ -376,6 +405,42 @@ CREATE POLICY "Allow all on organizations" ON public.organizations FOR ALL USING
 DO $$
 BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+-- ==========================================================
+-- MIGRATION: BUAT TABEL DAFTAR GURU (NOMINATIF GURU)
+-- ==========================================================
+-- Jalankan potongan script ini di menu "SQL Editor" pada Supabase:
+CREATE TABLE IF NOT EXISTS public.daftar_guru (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  no INT,
+  nama TEXT NOT NULL,
+  nip TEXT DEFAULT '-',
+  status_pegawai TEXT NOT NULL,
+  instansi TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Pastikan kolom id otomatis terisi UUID jika diinput melalui import CSV
+ALTER TABLE public.daftar_guru 
+ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
+
+-- Pengaturan RLS (Row Level Security)
+ALTER TABLE public.daftar_guru ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read daftar_guru" ON public.daftar_guru;
+CREATE POLICY "Public read daftar_guru" ON public.daftar_guru FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on daftar_guru" ON public.daftar_guru;
+CREATE POLICY "Allow all on daftar_guru" ON public.daftar_guru FOR ALL USING (true);
+
+-- Publikasi Realtime untuk Multi-User Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.daftar_guru;
 EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;

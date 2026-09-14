@@ -13,7 +13,8 @@ import {
   AdminUser,
   AdminRole,
   EducationalOrganization,
-  OrganizationOfficial 
+  OrganizationOfficial,
+  TeacherNominative 
 } from '../types';
 import { 
   initialSchools, 
@@ -25,7 +26,8 @@ import {
   initialStaff, 
   initialOfficeProfile,
   initialComplaints,
-  initialOrganizations 
+  initialOrganizations,
+  initialTeachers 
 } from '../data/initialData';
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
@@ -131,6 +133,14 @@ interface AppContextType {
   updateOrganizationOfficial: (orgId: string, officialId: string, officialData: Partial<OrganizationOfficial>) => Promise<boolean>;
   deleteOrganizationOfficial: (orgId: string, officialId: string) => Promise<boolean>;
   
+  // Nominatif Guru
+  teachers: TeacherNominative[];
+  addTeacher: (teacher: Omit<TeacherNominative, 'id'>) => Promise<boolean>;
+  updateTeacher: (id: string, teacherData: Partial<TeacherNominative>) => Promise<boolean>;
+  deleteTeacher: (id: string) => Promise<boolean>;
+  batchAddTeachers: (newTeachers: Omit<TeacherNominative, 'id'>[]) => Promise<boolean>;
+  clearAllTeachers: () => Promise<boolean>;
+  
   // Auth & Roles
   isAuthenticated: boolean;
   currentUser: AdminUser | null;
@@ -222,6 +232,9 @@ export const isDummySchoolImage = (url?: string): boolean => {
   }
   return false;
 };
+
+// In-memory module cache for instant (0ms) teacher nominative display across navigation
+let _inMemoryTeachersCache: TeacherNominative[] | null = null;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDbConfigured = getSupabaseConfig().isConfigured;
@@ -409,6 +422,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [selectedOrganizationSlug, setSelectedOrganizationSlugState] = useState<string | null>(null);
 
+  const [teachers, setTeachers] = useState<TeacherNominative[]>(() => {
+    if (_inMemoryTeachersCache && _inMemoryTeachersCache.length > 0) {
+      return _inMemoryTeachersCache;
+    }
+
+    try {
+      const sessionSaved = sessionStorage.getItem('korwilcam_teachers');
+      if (sessionSaved) {
+        const parsed = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter(
+            (t: any) => !t.id?.startsWith('guru-00') && !t.id?.startsWith('guru-01')
+          );
+          if (filtered.length > 0) {
+            _inMemoryTeachersCache = filtered;
+            return filtered;
+          }
+        }
+      }
+    } catch {}
+
+    try {
+      const saved = localStorage.getItem('korwilcam_teachers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Buang data dummy bawaan awal (guru-001 s.d. guru-012)
+          const filtered = parsed.filter(
+            (t: any) => !t.id?.startsWith('guru-00') && !t.id?.startsWith('guru-01')
+          );
+          if (filtered.length > 0) {
+            _inMemoryTeachersCache = filtered;
+            return filtered;
+          }
+        }
+      }
+      return initialTeachers;
+    } catch {
+      return initialTeachers;
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -572,6 +627,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [organizations]);
 
   useEffect(() => {
+    _inMemoryTeachersCache = teachers;
+    try {
+      sessionStorage.setItem('korwilcam_teachers', JSON.stringify(teachers));
+    } catch {}
+    try {
+      localStorage.setItem('korwilcam_teachers', JSON.stringify(teachers));
+    } catch (e) {
+      console.warn('localStorage save teachers quota warning:', e);
+    }
+  }, [teachers]);
+
+  useEffect(() => {
     try {
       localStorage.setItem('korwilcam_complaints', JSON.stringify(complaints));
     } catch (e) {
@@ -590,6 +657,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       setSyncStatus('syncing');
+
+      // 0. Fetch daftar_guru IMMEDIATELY IN PARALLEL (Nominatif Guru)
+      // Supaya nominatif langsung tampil cepat tanpa harus menunggu 11 tabel lainnya selesai secara berurutan!
+      const teachersFetchPromise = (async () => {
+        try {
+          const { data: dbTeachers, error: teachErr } = await client
+            .from('daftar_guru')
+            .select('*')
+            .order('no', { ascending: true });
+          if (!teachErr && Array.isArray(dbTeachers)) {
+            const mappedTeachers: TeacherNominative[] = dbTeachers.map((t: any, index: number) => ({
+              id: String(t.id || `guru-${Date.now()}-${index}`),
+              no: typeof t.no === 'number' ? t.no : (parseInt(t.no, 10) || index + 1),
+              nama: String(t.nama || '').trim(),
+              nip: String(t.nip || '-').trim(),
+              statusPegawai: String(t.status_pegawai || t.statusPegawai || 'PNS').trim(),
+              instansi: String(t.instansi || '').trim(),
+              createdAt: t.created_at || t.createdAt,
+              updatedAt: t.updated_at || t.updatedAt
+            }));
+            _inMemoryTeachersCache = mappedTeachers;
+            setTeachers(mappedTeachers);
+            try {
+              sessionStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
+            } catch {}
+            try {
+              localStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
+            } catch {}
+          }
+        } catch (errTeach) {
+          console.warn('Tabel daftar_guru belum terbaca:', errTeach);
+        }
+      })();
       
       // 1. Fetch office_profile FIRST (Prioritas Utama untuk header & hero pimpinan instansi)
       try {
@@ -1033,6 +1133,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Tabel organizations belum terbaca:', errOrgs);
       }
 
+      // Await parallel daftar_guru fetch
+      try {
+        await teachersFetchPromise;
+      } catch (errTeach) {
+        console.warn('Tabel daftar_guru belum terbaca:', errTeach);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       return true;
@@ -1271,6 +1378,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel organizations:', oErr);
       }
 
+      // 12. Daftar Guru (Nominatif Guru)
+      try {
+        const teacherPayload = teachers.map((t) => ({
+          id: t.id,
+          no: t.no,
+          nama: t.nama,
+          nip: t.nip || '-',
+          status_pegawai: t.statusPegawai,
+          instansi: t.instansi,
+          created_at: t.createdAt || new Date().toISOString(),
+          updated_at: t.updatedAt || new Date().toISOString()
+        }));
+        await client.from('daftar_guru').upsert(teacherPayload);
+      } catch (tErr) {
+        console.warn('Gagal ekspor tabel daftar_guru:', tErr);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       showToast('Seluruh data berhasil diekspor & disinkronkan ke Supabase!', 'success');
@@ -1374,6 +1498,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'daftar_guru' },
+        () => {
+          refreshFromSupabase();
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'admin_users' },
         async () => {
           const { data: dbUsers } = await client.from('admin_users').select('*');
@@ -1405,6 +1536,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
     'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi' },
+    'nominatif': { path: '/nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'organization': { path: '/organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
@@ -1894,6 +2026,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (rawPath.startsWith('/direktori-sekolah') || rawPath.startsWith('/sekolah')) {
         setActiveTabState('schools');
         document.title = TAB_ROUTES['schools'].title;
+      } else if (rawPath.startsWith('/nominatif') || rawPath.startsWith('/daftar-guru')) {
+        setActiveTabState('nominatif');
+        document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/berita')) {
         setActiveTabState('news');
         if (rawPath.includes('pengumuman')) {
@@ -1953,7 +2088,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements, gallery, documents, schools, organizations]);
+  }, [news, announcements, gallery, documents, schools, organizations, teachers]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -3622,6 +3757,158 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return updateOrganization(orgId, { officials: newOfficials });
   };
 
+  // ==========================================================
+  // DAFTAR GURU (NOMINATIF GURU) CRUD
+  // ==========================================================
+  const addTeacher = async (teacher: Omit<TeacherNominative, 'id'>): Promise<boolean> => {
+    const nextNo = teacher.no || (teachers.length > 0 ? Math.max(...teachers.map((t) => t.no || 0)) + 1 : 1);
+    const newTeacher: TeacherNominative = {
+      ...teacher,
+      no: nextNo,
+      id: `guru-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [...teachers, newTeacher].sort((a, b) => (a.no || 0) - (b.no || 0));
+    setTeachers(updated);
+    try {
+      localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('daftar_guru').upsert({
+          id: newTeacher.id,
+          no: newTeacher.no,
+          nama: newTeacher.nama,
+          nip: newTeacher.nip || '-',
+          status_pegawai: newTeacher.statusPegawai,
+          instansi: newTeacher.instansi,
+          created_at: newTeacher.createdAt,
+          updated_at: newTeacher.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase addTeacher warning:', err);
+      }
+    }
+    showToast(`Data guru "${newTeacher.nama}" berhasil ditambahkan!`, 'success');
+    return true;
+  };
+
+  const updateTeacher = async (id: string, teacherData: Partial<TeacherNominative>): Promise<boolean> => {
+    const updated = teachers.map((t) => {
+      if (t.id === id) {
+        return {
+          ...t,
+          ...teacherData,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return t;
+    }).sort((a, b) => (a.no || 0) - (b.no || 0));
+    setTeachers(updated);
+    try {
+      localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
+    } catch (e) {}
+
+    const targetTeacher = updated.find((t) => t.id === id);
+    const client = getSupabaseClient();
+    if (client && targetTeacher) {
+      try {
+        await client.from('daftar_guru').upsert({
+          id: targetTeacher.id,
+          no: targetTeacher.no,
+          nama: targetTeacher.nama,
+          nip: targetTeacher.nip || '-',
+          status_pegawai: targetTeacher.statusPegawai,
+          instansi: targetTeacher.instansi,
+          created_at: targetTeacher.createdAt || new Date().toISOString(),
+          updated_at: targetTeacher.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase updateTeacher warning:', err);
+      }
+    }
+    showToast('Data nominatif guru berhasil diperbarui!', 'success');
+    return true;
+  };
+
+  const deleteTeacher = async (id: string): Promise<boolean> => {
+    const target = teachers.find((t) => t.id === id);
+    const updated = teachers.filter((t) => t.id !== id);
+    setTeachers(updated);
+    try {
+      localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('daftar_guru').delete().match({ id });
+      } catch (err) {
+        console.warn('Supabase deleteTeacher warning:', err);
+      }
+    }
+    showToast(`Data guru "${target?.nama || ''}" berhasil dihapus!`, 'info');
+    return true;
+  };
+
+  const batchAddTeachers = async (newTeachers: Omit<TeacherNominative, 'id'>[]): Promise<boolean> => {
+    let currentMaxNo = teachers.length > 0 ? Math.max(...teachers.map((t) => t.no || 0)) : 0;
+    const addedList: TeacherNominative[] = newTeachers.map((t, idx) => ({
+      ...t,
+      id: `guru-${Date.now()}-${idx}`,
+      no: t.no || ++currentMaxNo,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }));
+    const updated = [...teachers, ...addedList].sort((a, b) => (a.no || 0) - (b.no || 0));
+    setTeachers(updated);
+    try {
+      localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const payload = addedList.map((t) => ({
+          id: t.id,
+          no: t.no,
+          nama: t.nama,
+          nip: t.nip || '-',
+          status_pegawai: t.statusPegawai,
+          instansi: t.instansi,
+          created_at: t.createdAt,
+          updated_at: t.updatedAt
+        }));
+        await client.from('daftar_guru').upsert(payload);
+      } catch (err) {
+        console.warn('Supabase batchAddTeachers warning:', err);
+      }
+    }
+    showToast(`Berhasil menambahkan ${addedList.length} data guru!`, 'success');
+    return true;
+  };
+
+  const clearAllTeachers = async (): Promise<boolean> => {
+    setTeachers([]);
+    try {
+      localStorage.setItem('korwilcam_teachers', JSON.stringify([]));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('daftar_guru').delete().neq('id', 'dummy-never-match');
+      } catch (err) {
+        console.warn('Supabase clearAllTeachers warning:', err);
+      }
+    }
+    showToast('Seluruh data guru berhasil dikosongkan!', 'info');
+    return true;
+  };
+
   const resetToDefaultData = () => {
     setSchools(initialSchools);
     setNews(initialNews);
@@ -3633,6 +3920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOfficeProfile(initialOfficeProfile);
     setComplaints(initialComplaints);
     setOrganizations(initialOrganizations);
+    setTeachers(initialTeachers);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
@@ -3661,6 +3949,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addOrganizationOfficial,
         updateOrganizationOfficial,
         deleteOrganizationOfficial,
+        teachers,
+        addTeacher,
+        updateTeacher,
+        deleteTeacher,
+        batchAddTeachers,
+        clearAllTeachers,
         activeTab,
         setActiveTab,
         selectedNews,

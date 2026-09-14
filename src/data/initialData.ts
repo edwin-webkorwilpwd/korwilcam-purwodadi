@@ -8,7 +8,8 @@ import {
   GalleryItem, 
   StaffProfile,
   ComplaintMessage,
-  EducationalOrganization 
+  EducationalOrganization,
+  TeacherNominative 
 } from '../types';
 
 export const initialOfficeProfile: OfficeProfile = {
@@ -799,4 +800,6 @@ export const initialOrganizations: EducationalOrganization[] = [
     email: "kkgpaipurwodadi@gmail.com"
   }
 ];
+
+export const initialTeachers: TeacherNominative[] = [];
 

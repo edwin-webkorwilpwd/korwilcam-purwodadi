@@ -60,7 +60,8 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
-  Sliders
+  Sliders,
+  Search
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -95,7 +96,8 @@ import {
   AdminRole,
   EducationalOrganization,
   OrganizationLeader,
-  OrganizationOfficial
+  OrganizationOfficial,
+  TeacherNominative
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { 
@@ -170,6 +172,12 @@ export const AdminDashboard: React.FC = () => {
     addOrganizationOfficial,
     updateOrganizationOfficial,
     deleteOrganizationOfficial,
+    teachers,
+    addTeacher,
+    updateTeacher,
+    deleteTeacher,
+    batchAddTeachers,
+    clearAllTeachers,
     showConfirmDialog,
     showNoticePopup
   } = useApp();
@@ -180,6 +188,7 @@ export const AdminDashboard: React.FC = () => {
     | 'profile-cms' 
     | 'sop-cms'
     | 'schools-cms' 
+    | 'nominatif-cms'
     | 'news-cms' 
     | 'organization-cms'
     | 'downloads-cms' 
@@ -781,6 +790,235 @@ export const AdminDashboard: React.FC = () => {
       coordinates: '',
       titikKoordinat: ''
     });
+  };
+
+  // --- 3.5. NOMINATIF GURU CMS STATE ---
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
+  const [teacherSearchInput, setTeacherSearchInput] = useState('');
+  const [teacherFilterStatus, setTeacherFilterStatus] = useState('ALL');
+  const [teacherFilterInstansi, setTeacherFilterInstansi] = useState('ALL');
+  const [teacherForm, setTeacherForm] = useState({
+    no: 0,
+    nama: '',
+    nip: '',
+    statusPegawai: 'PNS',
+    instansi: ''
+  });
+
+  const handleSaveTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teacherForm.nama.trim()) {
+      showToast('Nama guru wajib diisi!', 'error');
+      return;
+    }
+    if (!teacherForm.instansi.trim()) {
+      showToast('Instansi sekolah tempat bertugas wajib diisi!', 'error');
+      return;
+    }
+
+    const calculatedNo = Number(teacherForm.no) || (teachers.length > 0 ? Math.max(...teachers.map((t) => t.no || 0)) + 1 : 1);
+    const preparedData = {
+      no: calculatedNo,
+      nama: teacherForm.nama.trim(),
+      nip: teacherForm.nip.trim() || '-',
+      statusPegawai: teacherForm.statusPegawai,
+      instansi: teacherForm.instansi.trim()
+    };
+
+    if (editingTeacherId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Konfirmasi Perubahan Data Guru',
+        message: `Simpan pembaruan data untuk guru "${teacherForm.nama}"?`,
+        type: 'edit',
+        itemName: `${teacherForm.nama} (${teacherForm.statusPegawai})`,
+        confirmText: 'Ya, Simpan Perubahan',
+        cancelText: 'Tidak, Batalkan'
+      });
+      if (!confirmed) return;
+
+      await updateTeacher(editingTeacherId, preparedData);
+      setEditingTeacherId(null);
+      showNoticePopup({
+        title: 'Data Guru Diperbarui!',
+        message: `Data nominatif guru "${teacherForm.nama}" telah berhasil diperbarui dan disinkronkan ke Supabase.`,
+        type: 'success'
+      });
+    } else {
+      await addTeacher(preparedData);
+      showNoticePopup({
+        title: 'Data Guru Ditambahkan!',
+        message: `Guru "${teacherForm.nama}" berhasil ditambahkan ke daftar nominatif Supabase.`,
+        type: 'success'
+      });
+    }
+
+    setTeacherForm({
+      no: 0,
+      nama: '',
+      nip: '',
+      statusPegawai: 'PNS',
+      instansi: ''
+    });
+  };
+
+  const handleEditTeacher = (t: TeacherNominative) => {
+    setEditingTeacherId(t.id);
+    setTeacherForm({
+      no: t.no || 0,
+      nama: t.nama || '',
+      nip: t.nip && t.nip !== '-' ? t.nip : '',
+      statusPegawai: t.statusPegawai || 'PNS',
+      instansi: t.instansi || ''
+    });
+  };
+
+  const handleCancelEditTeacher = () => {
+    setEditingTeacherId(null);
+    setTeacherForm({
+      no: 0,
+      nama: '',
+      nip: '',
+      statusPegawai: 'PNS',
+      instansi: ''
+    });
+  };
+
+  const handleDeleteTeacher = async (t: TeacherNominative) => {
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Data Guru?',
+      message: `Apakah Anda yakin ingin menghapus data guru "${t.nama}" (${t.statusPegawai} - ${t.instansi}) dari daftar nominatif Supabase?`,
+      type: 'delete',
+      confirmText: 'Ya, Hapus Permanen',
+      cancelText: 'Tidak, Batalkan',
+      itemName: t.nama
+    });
+    if (!confirmed) return;
+
+    await deleteTeacher(t.id);
+    if (editingTeacherId === t.id) {
+      handleCancelEditTeacher();
+    }
+  };
+
+  const csvFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDownloadCsvTemplate = () => {
+    const csvContent = "no,nama,nip,status_pegawai,instansi\n1,SUGITO S.Pd M.Pd,196805121991031008,PNS,SDN 1 Purwodadi\n2,AGUS PRASETYO S.Pd,198811042022211006,PPPK,SDN 4 Purwodadi\n3,RIZAL ARIFIN S.Pd,-,GTT,SDN 2 Danyang\n4,SITI AISYAH S.Pd.I,-,Honorer,SDN Kandangan";
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'template_daftar_guru.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('Template file CSV berhasil diunduh!', 'success');
+  };
+
+  const handleImportCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text || !text.trim()) {
+          showToast('File CSV kosong!', 'error');
+          return;
+        }
+
+        const lines = text.split(/\r\n|\n/).filter((line) => line.trim() !== '');
+        if (lines.length <= 1) {
+          showToast('File CSV tidak memiliki baris data!', 'error');
+          return;
+        }
+
+        // Delimiter auto-detect
+        const firstLine = lines[0];
+        const delimiter = firstLine.includes(';') && !firstLine.includes(',') ? ';' : ',';
+
+        // Parse headers
+        const headers = firstLine.split(delimiter).map((h) => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
+        
+        const idxNo = headers.findIndex((h) => h === 'no' || h === 'nomor');
+        const idxNama = headers.findIndex((h) => h === 'nama' || h === 'nama lengkap' || h === 'nama_lengkap' || h === 'guru');
+        const idxNip = headers.findIndex((h) => h === 'nip');
+        const idxStatus = headers.findIndex((h) => h === 'status_pegawai' || h === 'status pegawai' || h === 'status' || h === 'statuspegawai');
+        const idxInstansi = headers.findIndex((h) => h === 'instansi' || h === 'sekolah' || h === 'unit kerja' || h === 'tempat tugas');
+
+        if (idxNama === -1 || idxInstansi === -1) {
+          showToast('File CSV wajib memiliki kolom "Nama" dan "Instansi"!', 'error');
+          return;
+        }
+
+        const parsedRows: Omit<TeacherNominative, 'id'>[] = [];
+        let autoNo = 1;
+
+        for (let i = 1; i < lines.length; i++) {
+          const rawRow = lines[i].split(delimiter).map((col) => col.trim().replace(/^["']|["']$/g, ''));
+          if (rawRow.length === 0 || rawRow.every((c) => c === '')) continue;
+
+          const nama = rawRow[idxNama] || '';
+          const instansi = rawRow[idxInstansi] || '';
+          if (!nama && !instansi) continue;
+
+          let noVal = idxNo !== -1 ? parseInt(rawRow[idxNo], 10) : autoNo;
+          if (isNaN(noVal) || noVal <= 0) noVal = autoNo;
+          autoNo = Math.max(autoNo, noVal) + 1;
+
+          const nipVal = idxNip !== -1 && rawRow[idxNip] ? rawRow[idxNip] : '-';
+          const statusVal = idxStatus !== -1 && rawRow[idxStatus] ? rawRow[idxStatus] : 'PNS';
+
+          parsedRows.push({
+            no: noVal,
+            nama,
+            nip: nipVal,
+            statusPegawai: statusVal,
+            instansi
+          });
+        }
+
+        if (parsedRows.length === 0) {
+          showToast('Tidak ada data valid yang ditemukan pada file CSV!', 'error');
+          return;
+        }
+
+        await batchAddTeachers(parsedRows);
+        showNoticePopup({
+          title: 'Import CSV Berhasil!',
+          message: `Sebanyak ${parsedRows.length} data guru berhasil diimpor dan disinkronkan ke Supabase!`,
+          type: 'success'
+        });
+      } catch (err: any) {
+        console.error('Error importing CSV:', err);
+        showToast(`Gagal membaca file CSV: ${err.message || err}`, 'error');
+      } finally {
+        if (csvFileInputRef.current) {
+          csvFileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const handleClearAllTeachers = async () => {
+    if (teachers.length === 0) {
+      showToast('Daftar guru sudah dalam keadaan kosong.', 'info');
+      return;
+    }
+    const confirmed = await showConfirmDialog({
+      title: 'Kosongkan Seluruh Data Guru?',
+      message: `Apakah Anda yakin ingin menghapus seluruh ${teachers.length} data guru dari sistem dan database Supabase? Tindakan ini akan mengosongkan tabel daftar_guru.`,
+      type: 'danger',
+      confirmText: 'Ya, Kosongkan Semua',
+      cancelText: 'Batal'
+    });
+    if (!confirmed) return;
+
+    await clearAllTeachers();
+    handleCancelEditTeacher();
   };
 
   // --- 4. NEWS & INFORMASI CMS STATE ---
@@ -2223,6 +2461,42 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
+          {/* 3.5. Nominatif Guru (Supabase) */}
+          <button
+            type="button"
+            onClick={() => setCurrentSection('nominatif-cms')}
+            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              currentSection === 'nominatif-cms'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
+              }`}>
+                <Users className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className={`text-xs font-bold truncate leading-tight ${
+                  currentSection === 'nominatif-cms' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  Nominatif Guru
+                </span>
+                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                  currentSection === 'nominatif-cms' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  Daftar Pendidik Supabase
+                </span>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+              currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {teachers.length}
+            </span>
+          </button>
+
           {/* 4. Warta & Informasi */}
           <button
             type="button"
@@ -2648,6 +2922,7 @@ export const AdminDashboard: React.FC = () => {
                     { id: 'profile-cms', title: 'Halaman Profil', desc: 'Ubah visi misi, sambutan korwil, dan daftar pengawas/penilik', icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
                     { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file Google Drive', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
                     { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, KB, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
+                    { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, GTT & Honorer di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
                     { id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' },
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
@@ -4194,6 +4469,370 @@ export const AdminDashboard: React.FC = () => {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3.5: KELOLA NOMINATIF GURU (SUPABASE) */}
+          {currentSection === 'nominatif-cms' && (
+            <div className="space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2.5">
+                    <Users className="w-6 h-6 text-emerald-600" />
+                    <span>Kelola Daftar Nominatif Guru</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Pangkalan data nominatif seluruh guru di wilayah Korwilcam Purwodadi yang tersimpan di tabel Supabase <code className="px-1.5 py-0.5 bg-slate-100 rounded text-blue-600 font-mono text-[11px]">daftar_guru</code>.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Total {teachers.length} Guru</span>
+                  </div>
+                  {isSupabaseActive && (
+                    <span className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                      Cloud Sync Aktif
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Tambah / Edit Guru */}
+              <form onSubmit={handleSaveTeacher} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                      {editingTeacherId ? '✎' : '+'}
+                    </div>
+                    <span>{editingTeacherId ? 'Edit Data Nominatif Guru' : 'Tambah Data Guru Baru ke Supabase'}</span>
+                  </div>
+                  {editingTeacherId && (
+                    <span className="text-[11px] bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-md font-semibold">
+                      Mode Edit Aktif
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                  {/* No Urut */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">No. Urut</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={teacherForm.no || ''}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, no: parseInt(e.target.value, 10) || 0 })}
+                      placeholder="Auto"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Nama Lengkap */}
+                  <div className="sm:col-span-5 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Nama Lengkap & Gelar *</label>
+                    <input
+                      type="text"
+                      required
+                      value={teacherForm.nama}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, nama: e.target.value })}
+                      placeholder="Contoh: SUGITO, S.Pd., M.Pd."
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none"
+                    />
+                  </div>
+
+                  {/* NIP */}
+                  <div className="sm:col-span-5 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">NIP (Nomor Induk Pegawai)</label>
+                    <input
+                      type="text"
+                      value={teacherForm.nip}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, nip: e.target.value })}
+                      placeholder="Contoh: 196805121991031008 atau '-' jika belum ada"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Status Pegawai */}
+                  <div className="sm:col-span-4 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Status Pegawai *</label>
+                    <select
+                      value={teacherForm.statusPegawai}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, statusPegawai: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none"
+                    >
+                      <option value="PNS">PNS (Pegawai Negeri Sipil)</option>
+                      <option value="PPPK">PPPK</option>
+                      <option value="PPPK Paruh Waktu">PPPK Paruh Waktu</option>
+                      <option value="Honorer">Honorer</option>
+                    </select>
+                  </div>
+
+                  {/* Instansi */}
+                  <div className="sm:col-span-8 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">Instansi / Sekolah Tempat Tugas *</label>
+                    <input
+                      type="text"
+                      required
+                      list="schools-datalist"
+                      value={teacherForm.instansi}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, instansi: e.target.value })}
+                      placeholder="Contoh: SDN 1 Purwodadi"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none"
+                    />
+                    <datalist id="schools-datalist">
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.name} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{editingTeacherId ? 'Simpan Perubahan Guru' : 'Simpan Data Guru ke Supabase'}</span>
+                  </button>
+                  {editingTeacherId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditTeacher}
+                      className="px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition-colors"
+                    >
+                      Batal
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Table List & Filter */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-4 p-4 sm:p-6">
+                {/* Hidden File Input for CSV */}
+                <input
+                  type="file"
+                  ref={csvFileInputRef}
+                  accept=".csv"
+                  onChange={handleImportCsv}
+                  className="hidden"
+                />
+
+                {/* Top Action Toolbar: CSV Tools & Search */}
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-slate-900">
+                      Daftar Guru Terdaftar ({teachers.length})
+                    </span>
+                    {teachers.length === 0 && (
+                      <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">
+                        Tabel Kosong
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Button Unduh Format CSV */}
+                    <button
+                      type="button"
+                      onClick={handleDownloadCsvTemplate}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      title="Unduh contoh template kolom CSV (No, Nama, NIP, Status Pegawai, Instansi)"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Format CSV</span>
+                    </button>
+
+                    {/* Button Import CSV */}
+                    <button
+                      type="button"
+                      onClick={() => csvFileInputRef.current?.click()}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                      title="Upload file CSV untuk menginput banyak data sekaligus ke Supabase"
+                    >
+                      <UploadCloud className="w-4 h-4 text-emerald-600" />
+                      <span>Import File CSV</span>
+                    </button>
+
+                    {/* Button Kosongkan Semua (Hanya muncul jika ada data) */}
+                    {teachers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAllTeachers}
+                        className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                        title="Hapus seluruh data guru dari database"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Kosongkan</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={teacherSearchInput}
+                      onChange={(e) => setTeacherSearchInput(e.target.value)}
+                      placeholder="Cari guru berdasarkan nama, NIP, atau instansi..."
+                      className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                    />
+                  </div>
+
+                  {/* Filters */}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={teacherFilterStatus}
+                      onChange={(e) => setTeacherFilterStatus(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
+                    >
+                      <option value="ALL">Semua Status</option>
+                      <option value="PNS">PNS</option>
+                      <option value="PPPK">PPPK</option>
+                      <option value="PPPK Paruh Waktu">PPPK Paruh Waktu</option>
+                      <option value="Honorer">Honorer</option>
+                    </select>
+
+                    <select
+                      value={teacherFilterInstansi}
+                      onChange={(e) => setTeacherFilterInstansi(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none max-w-[180px] truncate"
+                    >
+                      <option value="ALL">Semua Instansi</option>
+                      {Array.from(new Set(teachers.map((t) => t.instansi).filter(Boolean))).sort().map((ins) => (
+                        <option key={ins} value={ins}>
+                          {ins}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-3.5 w-14 text-center">No</th>
+                        <th className="py-3 px-4">Nama Lengkap</th>
+                        <th className="py-3 px-4">NIP</th>
+                        <th className="py-3 px-4">Status Pegawai</th>
+                        <th className="py-3 px-4">Instansi</th>
+                        <th className="py-3 px-4 text-center w-28">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(() => {
+                        const filtered = teachers.filter((t) => {
+                          const q = teacherSearchInput.toLowerCase().trim();
+                          const matchQ =
+                            !q ||
+                            (t.nama && t.nama.toLowerCase().includes(q)) ||
+                            (t.nip && t.nip.toLowerCase().includes(q)) ||
+                            (t.instansi && t.instansi.toLowerCase().includes(q));
+                          const matchStatus = (() => {
+                            if (!teacherFilterStatus || teacherFilterStatus === 'ALL') return true;
+                            const s = t.statusPegawai?.toUpperCase().trim() || '';
+                            const f = teacherFilterStatus.toUpperCase().trim();
+                            if (f === 'PNS') return s === 'PNS' || (s.includes('PNS') && !s.includes('NON'));
+                            if (f === 'PPPK') return (s === 'PPPK' || s === 'P3K' || (s.includes('PPPK') && !s.includes('PARUH')));
+                            if (f === 'PPPK PARUH WAKTU') return s.includes('PARUH');
+                            if (f === 'HONORER') return s.includes('HONOR') || s === 'GTT' || s === 'PTT' || s === 'GTY' || s.includes('NON ASN') || s.includes('NON-ASN');
+                            return s === f;
+                          })();
+                          const matchInstansi =
+                            teacherFilterInstansi === 'ALL' ||
+                            t.instansi?.toLowerCase() === teacherFilterInstansi.toLowerCase();
+                          return matchQ && matchStatus && matchInstansi;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={6} className="py-12 text-center text-slate-400">
+                                <div className="flex flex-col items-center justify-center space-y-2">
+                                  <Users className="w-10 h-10 text-slate-300 stroke-[1.5]" />
+                                  <p className="font-semibold text-slate-600 text-sm">
+                                    {teachers.length === 0
+                                      ? 'Belum ada data guru di database.'
+                                      : 'Tidak ada guru yang sesuai dengan pencarian / filter.'}
+                                  </p>
+                                  <p className="text-xs text-slate-400 max-w-sm">
+                                    {teachers.length === 0
+                                      ? 'Tabel Supabase saat ini kosong. Anda dapat menginput manual di form atas atau klik tombol "Import File CSV".'
+                                      : 'Silakan ubah kata kunci atau pilih Semua Status / Instansi.'}
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map((t, idx) => {
+                          const statusUpper = t.statusPegawai?.toUpperCase() || '';
+                          let badgeBg = 'bg-slate-100 text-slate-700';
+                          if (statusUpper === 'PNS' || (statusUpper.includes('PNS') && !statusUpper.includes('NON'))) {
+                            badgeBg = 'bg-blue-100 text-blue-700';
+                          } else if (statusUpper.includes('PARUH')) {
+                            badgeBg = 'bg-teal-100 text-teal-700';
+                          } else if (statusUpper.includes('PPPK') || statusUpper.includes('P3K')) {
+                            badgeBg = 'bg-emerald-100 text-emerald-700';
+                          } else if (statusUpper.includes('HONOR') || statusUpper === 'GTT' || statusUpper === 'PTT' || statusUpper === 'GTY' || statusUpper.includes('NON ASN')) {
+                            badgeBg = 'bg-amber-100 text-amber-800';
+                          }
+
+                          return (
+                            <tr key={t.id || idx} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-2.5 px-3.5 text-center font-bold text-slate-500">
+                                {t.no || idx + 1}
+                              </td>
+                              <td className="py-2.5 px-4 font-semibold text-slate-900">
+                                {t.nama}
+                              </td>
+                              <td className="py-2.5 px-4 font-mono text-slate-600">
+                                {t.nip && t.nip !== '-' ? t.nip : <span className="text-slate-400 italic">-</span>}
+                              </td>
+                              <td className="py-2.5 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeBg}`}>
+                                  {t.statusPegawai}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-4 text-slate-700 font-medium">
+                                {t.instansi}
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditTeacher(t)}
+                                    className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                    title="Edit data guru"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTeacher(t)}
+                                    className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                    title="Hapus data guru"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>

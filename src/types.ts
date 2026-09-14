@@ -220,3 +220,15 @@ export interface EducationalOrganization {
   updatedAt?: string;
 }
 
+export type TeacherEmployeeStatus = 'PNS' | 'PPPK' | 'GTT' | 'Guru Honor Sekolah' | 'Tenaga Kependidikan' | string;
+
+export interface TeacherNominative {
+  id: string;
+  no: number;
+  nama: string;
+  nip: string;
+  statusPegawai: string;
+  instansi: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
