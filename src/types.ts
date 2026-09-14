@@ -193,6 +193,14 @@ export interface OrganizationOfficial {
   order?: number;
 }
 
+export interface OrganizationSocialMedia {
+  website?: string;
+  tiktok?: string;
+  facebook?: string;
+  instagram?: string;
+  youtube?: string;
+}
+
 export interface EducationalOrganization {
   id: string;
   slug: string;
@@ -208,6 +216,7 @@ export interface EducationalOrganization {
   address?: string;
   phone?: string;
   email?: string;
+  socialMedia?: OrganizationSocialMedia;
   updatedAt?: string;
 }
 

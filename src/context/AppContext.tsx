@@ -1021,6 +1021,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             address: String(o.address || ''),
             phone: String(o.phone || ''),
             email: String(o.email || ''),
+            socialMedia: typeof o.social_media === 'object' && o.social_media ? o.social_media : (typeof o.socialMedia === 'object' && o.socialMedia ? o.socialMedia : {}),
             updatedAt: o.updated_at || o.updatedAt
           }));
           setOrganizations(mappedOrgs);
@@ -1262,6 +1263,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           address: o.address || '',
           phone: o.phone || '',
           email: o.email || '',
+          social_media: o.socialMedia || {},
           updated_at: o.updatedAt || new Date().toISOString()
         }));
         await client.from('organizations').upsert(orgPayload);
@@ -1951,7 +1953,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements, gallery, documents, schools]);
+  }, [news, announcements, gallery, documents, schools, organizations]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -3513,6 +3515,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           address: newOrg.address || '',
           phone: newOrg.phone || '',
           email: newOrg.email || '',
+          social_media: newOrg.socialMedia || {},
           updated_at: newOrg.updatedAt
         });
       } catch (err) {
@@ -3558,6 +3561,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           address: targetOrg.address || '',
           phone: targetOrg.phone || '',
           email: targetOrg.email || '',
+          social_media: targetOrg.socialMedia || {},
           updated_at: targetOrg.updatedAt
         });
       } catch (err) {

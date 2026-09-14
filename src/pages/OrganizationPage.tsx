@@ -23,6 +23,14 @@ import {
 } from 'lucide-react';
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
 import { OrganizationOfficial, EducationalOrganization } from '../types';
+import { 
+  TikTokIcon, 
+  FacebookIcon, 
+  InstagramIcon, 
+  YoutubeIcon, 
+  WebsiteIcon, 
+  formatExternalUrl 
+} from '../components/SocialIcons';
 
 export const OrganizationPage: React.FC = () => {
   const { organizations, selectedOrganizationSlug, setSelectedOrganizationSlug, setActiveTab } = useApp();
@@ -53,6 +61,67 @@ export const OrganizationPage: React.FC = () => {
       (o.address && o.address.toLowerCase().includes(q))
     );
   }, [organizations, searchQuery]);
+
+  // Social Media Links (hanya yang tautannya diisi dan tidak kosong) - diletakkan di top-level hooks
+  const socialLinks = useMemo(() => {
+    if (!currentOrg?.socialMedia) return [];
+    const sm = currentOrg.socialMedia;
+    const items: Array<{
+      key: string;
+      name: string;
+      url: string;
+      icon: React.ComponentType<{ className?: string }>;
+      colorClass: string;
+    }> = [];
+
+    if (sm.website && sm.website.trim()) {
+      items.push({
+        key: 'website',
+        name: 'Website Official',
+        url: formatExternalUrl(sm.website),
+        icon: WebsiteIcon,
+        colorClass: 'bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-blue-300/50'
+      });
+    }
+    if (sm.tiktok && sm.tiktok.trim()) {
+      items.push({
+        key: 'tiktok',
+        name: 'TikTok',
+        url: formatExternalUrl(sm.tiktok),
+        icon: TikTokIcon,
+        colorClass: 'bg-slate-900/80 hover:bg-black text-white border-slate-700 hover:border-slate-500'
+      });
+    }
+    if (sm.facebook && sm.facebook.trim()) {
+      items.push({
+        key: 'facebook',
+        name: 'Facebook',
+        url: formatExternalUrl(sm.facebook),
+        icon: FacebookIcon,
+        colorClass: 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-100 border-blue-400/40 hover:border-blue-400'
+      });
+    }
+    if (sm.instagram && sm.instagram.trim()) {
+      items.push({
+        key: 'instagram',
+        name: 'Instagram',
+        url: formatExternalUrl(sm.instagram),
+        icon: InstagramIcon,
+        colorClass: 'bg-gradient-to-r from-pink-500/25 via-purple-500/25 to-amber-500/25 hover:from-pink-500/35 hover:via-purple-500/35 hover:to-amber-500/35 text-pink-100 border-pink-400/30 hover:border-pink-400/60'
+      });
+    }
+    if (sm.youtube && sm.youtube.trim()) {
+      items.push({
+        key: 'youtube',
+        name: 'YouTube',
+        url: formatExternalUrl(sm.youtube),
+        icon: YoutubeIcon,
+        colorClass: 'bg-red-600/30 hover:bg-red-600/50 text-red-100 border-red-400/40 hover:border-red-400'
+      });
+    }
+
+    return items;
+  }, [currentOrg?.socialMedia]);
 
   // Auto scroll to target section if hash is present
   useEffect(() => {
@@ -355,6 +424,33 @@ export const OrganizationPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Akun Media Sosial & Website Resmi (Hanya tampil jika ada minimal 1 akun yang diisi) */}
+              {socialLinks.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3.5 pt-3.5 border-t border-white/10">
+                  <span className="text-[11px] font-bold text-blue-200/70 mr-1 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-blue-400 shrink-0" />
+                    <span>Kanal Resmi:</span>
+                  </span>
+                  {socialLinks.map((item) => {
+                    const IconComp = item.icon;
+                    return (
+                      <a
+                        key={item.key}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs border ${item.colorClass} hover:scale-[1.03] active:scale-[0.98]`}
+                        title={`Buka ${item.name} resmi ${currentOrg.shortName}`}
+                      >
+                        <IconComp className="w-3.5 h-3.5 shrink-0" />
+                        <span>{item.name}</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-60 shrink-0" />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Quick Jump Anchors */}
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mt-5">

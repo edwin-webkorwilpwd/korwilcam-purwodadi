@@ -98,6 +98,14 @@ import {
   OrganizationOfficial
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
+import { 
+  TikTokIcon, 
+  FacebookIcon, 
+  InstagramIcon, 
+  YoutubeIcon, 
+  WebsiteIcon, 
+  formatExternalUrl 
+} from '../../components/SocialIcons';
 import { getArticleReadingStats } from '../../lib/readingTime';
 import { getGoogleMapsUrl, normalizeToGoogleMapsUrl } from '../../lib/coordinates';
 
@@ -1591,7 +1599,13 @@ export const AdminDashboard: React.FC = () => {
     if (selectedOrgIdForEdit) {
       const found = organizations.find((o) => o.id === selectedOrgIdForEdit);
       if (found) {
-        setOrgForm({ ...found, leader: { ...found.leader }, missions: [...found.missions], officials: [...(found.officials || [])] });
+        setOrgForm({ 
+          ...found, 
+          leader: { ...found.leader }, 
+          missions: [...found.missions], 
+          officials: [...(found.officials || [])],
+          socialMedia: { ...(found.socialMedia || {}) }
+        });
         setOrgLogoDriveInput(isGoogleDriveUrl(found.logo || '') ? found.logo || '' : '');
         setOrgLeaderDriveInput(isGoogleDriveUrl(found.leader?.photo || '') ? found.leader.photo || '' : '');
       }
@@ -1831,7 +1845,14 @@ export const AdminDashboard: React.FC = () => {
       },
       vision: '',
       missions: [],
-      officials: []
+      officials: [],
+      socialMedia: {
+        website: '',
+        tiktok: '',
+        facebook: '',
+        instagram: '',
+        youtube: ''
+      }
     };
 
     await addOrganization(createdOrg);
@@ -5191,7 +5212,7 @@ export const AdminDashboard: React.FC = () => {
                       }`}
                     >
                       <Building2 className="w-3.5 h-3.5" />
-                      <span>4. Profil & Kontak Organisasi</span>
+                      <span>4. Profil, Kontak & Media Sosial</span>
                     </button>
                   </div>
 
@@ -5755,6 +5776,208 @@ export const AdminDashboard: React.FC = () => {
                               />
                             </div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Akun Media Sosial & Website Resmi */}
+                      <div className="space-y-4 p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/20 border border-slate-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200/80 pb-3">
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-blue-600" />
+                              <span>Akun Media Sosial & Website Resmi</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Tautkan kanal publik organisasi. Kosongkan jika belum memiliki akun, dan otomatis tidak akan tampil di website publik.
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-100/70 px-2.5 py-1 rounded-full shrink-0 self-start sm:self-auto border border-blue-200">
+                            Tampil Kondisional
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                          
+                          {/* Website Official */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                                  <WebsiteIcon className="w-3.5 h-3.5" />
+                                </span>
+                                <span>Website Official / Portal</span>
+                              </label>
+                              {orgForm.socialMedia?.website && (
+                                <a 
+                                  href={formatExternalUrl(orgForm.socialMedia.website)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                >
+                                  <span>Tes Tautan</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                            <input
+                              type="url"
+                              value={orgForm.socialMedia?.website || ''}
+                              onChange={(e) => setOrgForm({
+                                ...orgForm,
+                                socialMedia: {
+                                  ...orgForm.socialMedia,
+                                  website: e.target.value
+                                }
+                              })}
+                              placeholder="Contoh: https://pgri-purwodadi.or.id"
+                              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* TikTok */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-md bg-slate-900 text-white flex items-center justify-center shrink-0">
+                                  <TikTokIcon className="w-3 h-3" />
+                                </span>
+                                <span>TikTok</span>
+                              </label>
+                              {orgForm.socialMedia?.tiktok && (
+                                <a 
+                                  href={formatExternalUrl(orgForm.socialMedia.tiktok)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                >
+                                  <span>Tes Tautan</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                            <input
+                              type="url"
+                              value={orgForm.socialMedia?.tiktok || ''}
+                              onChange={(e) => setOrgForm({
+                                ...orgForm,
+                                socialMedia: {
+                                  ...orgForm.socialMedia,
+                                  tiktok: e.target.value
+                                }
+                              })}
+                              placeholder="Contoh: https://www.tiktok.com/@pgripurwodadi"
+                              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Facebook */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0">
+                                  <FacebookIcon className="w-3.5 h-3.5" />
+                                </span>
+                                <span>Facebook (Halaman / Profil)</span>
+                              </label>
+                              {orgForm.socialMedia?.facebook && (
+                                <a 
+                                  href={formatExternalUrl(orgForm.socialMedia.facebook)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                >
+                                  <span>Tes Tautan</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                            <input
+                              type="url"
+                              value={orgForm.socialMedia?.facebook || ''}
+                              onChange={(e) => setOrgForm({
+                                ...orgForm,
+                                socialMedia: {
+                                  ...orgForm.socialMedia,
+                                  facebook: e.target.value
+                                }
+                              })}
+                              placeholder="Contoh: https://www.facebook.com/pgripurwodadi"
+                              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Instagram */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-md bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center shrink-0">
+                                  <InstagramIcon className="w-3.5 h-3.5" />
+                                </span>
+                                <span>Instagram</span>
+                              </label>
+                              {orgForm.socialMedia?.instagram && (
+                                <a 
+                                  href={formatExternalUrl(orgForm.socialMedia.instagram)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                >
+                                  <span>Tes Tautan</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                            <input
+                              type="url"
+                              value={orgForm.socialMedia?.instagram || ''}
+                              onChange={(e) => setOrgForm({
+                                ...orgForm,
+                                socialMedia: {
+                                  ...orgForm.socialMedia,
+                                  instagram: e.target.value
+                                }
+                              })}
+                              placeholder="Contoh: https://www.instagram.com/pgripurwodadi"
+                              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* YouTube */}
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span className="w-5 h-5 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0">
+                                  <YoutubeIcon className="w-3.5 h-3.5" />
+                                </span>
+                                <span>Kanal YouTube</span>
+                              </label>
+                              {orgForm.socialMedia?.youtube && (
+                                <a 
+                                  href={formatExternalUrl(orgForm.socialMedia.youtube)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                >
+                                  <span>Tes Tautan</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                            <input
+                              type="url"
+                              value={orgForm.socialMedia?.youtube || ''}
+                              onChange={(e) => setOrgForm({
+                                ...orgForm,
+                                socialMedia: {
+                                  ...orgForm.socialMedia,
+                                  youtube: e.target.value
+                                }
+                              })}
+                              placeholder="Contoh: https://www.youtube.com/@pgripurwodadi"
+                              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+
                         </div>
                       </div>
 
