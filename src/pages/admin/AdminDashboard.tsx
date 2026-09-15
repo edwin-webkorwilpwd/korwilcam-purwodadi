@@ -210,6 +210,9 @@ export const AdminDashboard: React.FC = () => {
 
   const [currentSection, setCurrentSection] = useState<AdminSection>('overview');
   const isSuperAdmin = currentUser?.role === 'Super Admin';
+  const isAdmin = currentUser?.role === 'Admin';
+  const isAdminOrSuperAdmin = isSuperAdmin || isAdmin;
+  const isWriter = currentUser?.role === 'Penulis';
 
   // Supabase Modal & Connection State
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
@@ -1261,20 +1264,80 @@ export const AdminDashboard: React.FC = () => {
 
   // --- 4. NEWS & INFORMASI CMS STATE ---
   const [newsSubTab, setNewsSubTab] = useState<'news' | 'announcements'>('news');
+  const [newsFilterTab, setNewsFilterTab] = useState<'all' | 'mine'>('all');
+
+  // Kunci tab pengumuman otomatis jika login sebagai Penulis
+  React.useEffect(() => {
+    if (isWriter && newsSubTab === 'announcements') {
+      setNewsSubTab('news');
+    }
+  }, [isWriter, newsSubTab]);
 
   // News form
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
   const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
+  const activeUserRole = currentUser?.role || 'Admin';
   const [newsForm, setNewsForm] = useState({
     title: '',
     category: 'Kedinasan' as NewsCategory,
     summary: '',
     content: '',
     author: activeAuthorName,
+    authorId: currentUser?.id || '',
+    authorRole: activeUserRole as string,
     image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
     tags: 'Pendidikan, Purwodadi',
     views: 0
   });
+
+  // Helper cek kepemilikan artikel berita berdasarkan akun/role login
+  const isNewsItemOwner = (item: NewsArticle) => {
+    if (!currentUser) return false;
+
+    // Cocokkan authorId jika tersedia
+    if (item.authorId && currentUser.id && item.authorId === currentUser.id) {
+      return true;
+    }
+
+    // Jika authorId milik Super Admin tetapi yang login bukan Super Admin / Admin
+    if (item.authorId === 'usr-superadmin' && !isAdminOrSuperAdmin) {
+      return false;
+    }
+
+    // Cek kecocokan nama author (case-insensitive)
+    if (item.author && activeAuthorName && item.author.trim().toLowerCase() === activeAuthorName.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Cek kecocokan authorRole jika ada
+    if (item.authorRole && activeUserRole && item.authorRole.trim().toLowerCase() === activeUserRole.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Jika dibuat oleh Super Administrator dan user login bukan Super Admin / Admin
+    const isSuperAdminAuthor = ['super administrator', 'super admin'].some((adm) =>
+      item.author?.toLowerCase().includes(adm)
+    );
+    if (isSuperAdminAuthor && !isAdminOrSuperAdmin) {
+      return false;
+    }
+
+    return false;
+  };
+
+  // Daftar berita yang ditampilkan:
+  // Super Admin & Admin dapat melihat seluruh berita (atau filter ke berita miliknya)
+  // Penulis HANYA dapat melihat berita yang ditulis oleh dirinya sendiri
+  const displayedNews = useMemo(() => {
+    if (isAdminOrSuperAdmin) {
+      if (newsFilterTab === 'mine') {
+        return news.filter((item) => isNewsItemOwner(item));
+      }
+      return news;
+    }
+    // Penulis: HANYA menampilkan berita yang dibuat akun login
+    return news.filter((item) => isNewsItemOwner(item));
+  }, [news, isAdminOrSuperAdmin, newsFilterTab, currentUser, activeAuthorName, activeUserRole]);
 
   // State untuk tambah kategori berita baru
   const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
@@ -1300,12 +1363,17 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Otomatis sinkronkan nama penulis berita dengan akun login aktif (kolom name di admin_users)
+  // Otomatis sinkronkan nama dan role penulis berita dengan akun login aktif
   React.useEffect(() => {
-    if (!editingNewsId && currentUser?.name) {
-      setNewsForm((prev) => ({ ...prev, author: currentUser.name }));
+    if (!editingNewsId && currentUser) {
+      setNewsForm((prev) => ({
+        ...prev,
+        author: currentUser.name || activeAuthorName,
+        authorId: currentUser.id || '',
+        authorRole: currentUser.role || activeUserRole
+      }));
     }
-  }, [currentUser?.name, editingNewsId]);
+  }, [currentUser, editingNewsId, activeAuthorName, activeUserRole]);
 
   // NEWS COVER PHOTO UPLOAD
   const newsPhotoInputRef = useRef<HTMLInputElement | null>(null);
@@ -1332,11 +1400,21 @@ export const AdminDashboard: React.FC = () => {
     }
 
     const tagsArray = newsForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
-    const parsedViews = isSuperAdmin
+    const parsedViews = isAdminOrSuperAdmin
       ? Math.max(0, Number(newsForm.views) || 0)
       : (editingNewsId ? (news.find((n) => n.id === editingNewsId)?.views || 0) : 0);
 
     if (editingNewsId) {
+      const existingNews = news.find((n) => n.id === editingNewsId);
+      if (existingNews && !isAdminOrSuperAdmin && !isNewsItemOwner(existingNews)) {
+        showNoticePopup({
+          title: 'Akses Ditolak!',
+          message: 'Anda tidak memiliki izin untuk mengubah artikel berita milik pengguna/role lain.',
+          type: 'warning'
+        });
+        return;
+      }
+
       const confirmed = await showConfirmDialog({
         title: 'Konfirmasi Perubahan Berita',
         message: 'Apakah Anda yakin ingin menyimpan perubahan pada artikel berita ini?',
@@ -1353,6 +1431,8 @@ export const AdminDashboard: React.FC = () => {
         summary: newsForm.summary || newsForm.content.slice(0, 150) + '...',
         content: newsForm.content,
         author: newsForm.author,
+        authorId: newsForm.authorId || currentUser?.id || '',
+        authorRole: newsForm.authorRole || activeUserRole,
         image: newsForm.image,
         tags: tagsArray,
         views: parsedViews
@@ -1370,7 +1450,9 @@ export const AdminDashboard: React.FC = () => {
         category: newsForm.category,
         summary: newsForm.summary || newsForm.content.slice(0, 150) + '...',
         content: newsForm.content,
-        author: newsForm.author,
+        author: newsForm.author || activeAuthorName,
+        authorId: currentUser?.id || '',
+        authorRole: activeUserRole,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
         image: newsForm.image,
         views: parsedViews,
@@ -1389,6 +1471,8 @@ export const AdminDashboard: React.FC = () => {
       summary: '',
       content: '',
       author: activeAuthorName,
+      authorId: currentUser?.id || '',
+      authorRole: activeUserRole,
       image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
       tags: 'Pendidikan, Purwodadi',
       views: 0
@@ -1492,6 +1576,14 @@ export const AdminDashboard: React.FC = () => {
 
   const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isWriter) {
+      showNoticePopup({
+        title: 'Akses Ditolak!',
+        message: 'Wewenang Penulis tidak memiliki izin untuk mengelola atau menerbitkan Surat Edaran & Pengumuman.',
+        type: 'warning'
+      });
+      return;
+    }
     if (!annForm.title || !annForm.summary) {
       showToast('Judul dan ringkasan pengumuman wajib diisi!', 'error');
       return;
@@ -1718,13 +1810,52 @@ export const AdminDashboard: React.FC = () => {
 
   // --- 6. GALLERY CMS STATE ---
   const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
+  const [galleryFilterTab, setGalleryFilterTab] = useState<'all' | 'mine'>('all');
   const [galleryForm, setGalleryForm] = useState({
     title: '',
     category: 'Kegiatan Belajar' as string,
     image: '',
     images: [] as string[],
-    description: ''
+    description: '',
+    authorId: currentUser?.id || '',
+    authorName: activeAuthorName as string,
+    authorRole: activeUserRole as string
   });
+
+  // Helper cek kepemilikan album galeri berdasarkan akun/role login
+  const isGalleryItemOwner = (item: GalleryItem) => {
+    if (!currentUser) return false;
+    if (item.authorId && currentUser.id && item.authorId === currentUser.id) return true;
+    if (item.authorName && currentUser.name && item.authorName.trim().toLowerCase() === currentUser.name.trim().toLowerCase()) return true;
+    if (item.authorRole && currentUser.role && item.authorRole === currentUser.role) return true;
+    return false;
+  };
+
+  // Otomatis sinkronkan nama & role pembuat album dengan akun login aktif
+  React.useEffect(() => {
+    if (!editingGalleryId && currentUser) {
+      setGalleryForm((prev) => ({
+        ...prev,
+        authorId: currentUser.id || '',
+        authorName: currentUser.name || activeAuthorName,
+        authorRole: currentUser.role || activeUserRole
+      }));
+    }
+  }, [currentUser, editingGalleryId, activeAuthorName, activeUserRole]);
+
+  // Filter daftar galeri yang tampil di CMS:
+  // Super Admin & Admin dapat melihat seluruh album (atau filter ke unggahan miliknya)
+  // Penulis HANYA dapat melihat album dokumentasi yang diunggah oleh dirinya sendiri
+  const displayedGallery = useMemo(() => {
+    if (!currentUser) return [];
+    if (isAdminOrSuperAdmin) {
+      if (galleryFilterTab === 'mine') {
+        return sortGalleryDescending(gallery.filter((g) => isGalleryItemOwner(g)));
+      }
+      return sortGalleryDescending(gallery);
+    }
+    return sortGalleryDescending(gallery.filter((g) => isGalleryItemOwner(g)));
+  }, [gallery, currentUser, galleryFilterTab, isAdminOrSuperAdmin]);
 
   // State untuk tambah kategori galeri baru
   const [isAddingGalleryCategory, setIsAddingGalleryCategory] = useState<boolean>(false);
@@ -1815,6 +1946,12 @@ export const AdminDashboard: React.FC = () => {
     const imagesList = galleryForm.images.length > 0 ? galleryForm.images : [primaryCover];
 
     if (editingGalleryId) {
+      const existingItem = gallery.find((g) => g.id === editingGalleryId);
+      if (existingItem && !isGalleryItemOwner(existingItem) && !isAdminOrSuperAdmin) {
+        showToast('Anda tidak memiliki izin untuk mengedit album yang diunggah oleh akun/role lain!', 'error');
+        return;
+      }
+
       const confirmed = await showConfirmDialog({
         title: 'Konfirmasi Perubahan Album Galeri',
         message: 'Apakah Anda yakin ingin menyimpan perubahan pada album galeri ini?',
@@ -1830,7 +1967,10 @@ export const AdminDashboard: React.FC = () => {
         category: galleryForm.category,
         image: primaryCover,
         images: imagesList,
-        description: galleryForm.description
+        description: galleryForm.description,
+        authorId: existingItem?.authorId || currentUser?.id,
+        authorName: galleryForm.authorName || activeAuthorName,
+        authorRole: galleryForm.authorRole || activeUserRole
       });
       setEditingGalleryId(null);
       showNoticePopup({
@@ -1845,7 +1985,10 @@ export const AdminDashboard: React.FC = () => {
         image: primaryCover,
         images: imagesList,
         description: galleryForm.description,
-        date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+        authorId: currentUser?.id,
+        authorName: currentUser?.name || galleryForm.authorName || activeAuthorName,
+        authorRole: currentUser?.role || galleryForm.authorRole || activeUserRole
       });
       showNoticePopup({
         title: 'Album Galeri Dibuat!',
@@ -1859,7 +2002,10 @@ export const AdminDashboard: React.FC = () => {
       category: 'Kegiatan Belajar',
       image: '',
       images: [],
-      description: ''
+      description: '',
+      authorId: currentUser?.id || '',
+      authorName: activeAuthorName,
+      authorRole: activeUserRole
     });
   };
 
@@ -2760,14 +2906,14 @@ export const AdminDashboard: React.FC = () => {
                 <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                   currentSection === 'news-cms' ? 'text-blue-100' : 'text-slate-400'
                 }`}>
-                  Berita & Surat Edaran
+                  {isWriter ? 'Artikel Berita Saya' : 'Berita & Surat Edaran'}
                 </span>
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
               currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
-              {news.length + announcements.length}
+              {isWriter ? displayedNews.length : (news.length + announcements.length)}
             </span>
           </button>
 
@@ -2915,7 +3061,7 @@ export const AdminDashboard: React.FC = () => {
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
               currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
-              {gallery.length} Album
+              {isAdminOrSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
             </span>
           </button>
 
@@ -3035,21 +3181,29 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' ? (
+          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Lock className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis, menyunting, dan menerbitkan artikel pada menu <strong>Warta & Informasi</strong>.
+                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong> serta <strong>Galeri Kegiatan</strong>.
               </p>
-              <button
-                onClick={() => setCurrentSection('news-cms')}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-all"
-              >
-                Buka Menu Warta & Informasi
-              </button>
+              <div className="flex flex-wrap justify-center gap-2.5">
+                <button
+                  onClick={() => setCurrentSection('news-cms')}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-all"
+                >
+                  Buka Menu Warta & Informasi
+                </button>
+                <button
+                  onClick={() => setCurrentSection('gallery-cms')}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs shadow-md hover:bg-slate-900 transition-all"
+                >
+                  Buka Menu Galeri Kegiatan
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -5146,18 +5300,31 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Berita & Liputan ({news.length})</span>
+                  <span>Berita & Liputan ({isWriter ? displayedNews.length : news.length})</span>
                 </button>
 
-                <button
-                  onClick={() => setNewsSubTab('announcements')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    newsSubTab === 'announcements' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
-                  }`}
-                >
-                  <BellRing className="w-4 h-4" />
-                  <span>Pengumuman & Surat Edaran ({announcements.length})</span>
-                </button>
+                {isWriter ? (
+                  <div
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed select-none"
+                    title="Tab Pengumuman & Surat Edaran dikunci khusus untuk Admin & Super Admin"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Pengumuman & Surat Edaran ({announcements.length})</span>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-200">
+                      Terkunci (Khusus Admin)
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setNewsSubTab('announcements')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      newsSubTab === 'announcements' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
+                    }`}
+                  >
+                    <BellRing className="w-4 h-4" />
+                    <span>Pengumuman & Surat Edaran ({announcements.length})</span>
+                  </button>
+                )}
               </div>
 
               {/* Subtab 1: News */}
@@ -5336,13 +5503,13 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700">Penulis / Humas</label>
                           <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                             <Lock className="w-2.5 h-2.5 text-slate-500" />
-                            <span>Otomatis Akun Login</span>
+                            <span>Otomatis Akun</span>
                           </span>
                         </div>
                         <input
@@ -5352,6 +5519,24 @@ export const AdminDashboard: React.FC = () => {
                           value={editingNewsId ? (newsForm.author || activeAuthorName) : activeAuthorName}
                           className="w-full px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 cursor-not-allowed select-none shadow-inner"
                           title="Penulis otomatis mendeteksi nama dari akun login di database dan tidak dapat diubah"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Role Pengunggah</label>
+                          <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>Terverifikasi</span>
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          readOnly
+                          disabled
+                          value={editingNewsId ? (newsForm.authorRole || activeUserRole) : activeUserRole}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 cursor-not-allowed select-none shadow-inner"
+                          title="Role wewenang akun terverifikasi otomatis"
                         />
                       </div>
 
@@ -5372,14 +5557,14 @@ export const AdminDashboard: React.FC = () => {
                             <Eye className="w-3.5 h-3.5 text-blue-600" />
                             <span>Jumlah Tayangan (Views)</span>
                           </span>
-                          {isSuperAdmin ? (
+                          {isAdminOrSuperAdmin ? (
                             <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                               Sinkron ke Web
                             </span>
                           ) : (
                             <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                               <Lock className="w-2.5 h-2.5 text-slate-500" />
-                              <span>Terkunci (Super Admin)</span>
+                              <span>Terkunci (Admin / Super Admin)</span>
                             </span>
                           )}
                         </label>
@@ -5387,30 +5572,30 @@ export const AdminDashboard: React.FC = () => {
                           <input
                             type="number"
                             min="0"
-                            readOnly={!isSuperAdmin}
-                            disabled={!isSuperAdmin}
+                            readOnly={!isAdminOrSuperAdmin}
+                            disabled={!isAdminOrSuperAdmin}
                             value={newsForm.views}
                             onChange={(e) => {
-                              if (isSuperAdmin) {
+                              if (isAdminOrSuperAdmin) {
                                 setNewsForm({ ...newsForm, views: Math.max(0, parseInt(e.target.value) || 0) });
                               }
                             }}
                             placeholder="0"
                             className={`w-full pl-3.5 pr-20 py-2 rounded-xl border border-slate-200 text-xs font-bold ${
-                              isSuperAdmin
+                              isAdminOrSuperAdmin
                                 ? 'bg-slate-50 text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none'
                                 : 'bg-slate-100 text-slate-600 cursor-not-allowed select-none shadow-inner'
                             }`}
-                            title={isSuperAdmin ? 'Atur jumlah tayangan manual' : 'Jumlah tayangan dikunci dan hanya dapat diedit oleh Super Admin'}
+                            title={isAdminOrSuperAdmin ? 'Atur jumlah tayangan manual' : 'Jumlah tayangan dikunci dan hanya dapat diedit oleh Administrator / Super Admin'}
                           />
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400 pointer-events-none">
                             tayangan
                           </div>
                         </div>
-                        <p className={`text-[10px] ${isSuperAdmin ? 'text-slate-500' : 'text-slate-400'}`}>
-                          {isSuperAdmin
+                        <p className={`text-[10px] ${isAdminOrSuperAdmin ? 'text-slate-500' : 'text-slate-400'}`}>
+                          {isAdminOrSuperAdmin
                             ? 'Bisa diatur manual untuk memancing pembaca & akan bertambah otomatis saat dibaca.'
-                            : 'Jumlah tayangan bertambah otomatis saat dibaca pengunjung (Hanya Super Admin yang dapat mengubah manual).'}
+                            : 'Jumlah tayangan bertambah otomatis saat dibaca pengunjung (Hanya Admin / Super Admin yang dapat mengubah manual).'}
                         </p>
                       </div>
                     </div>
@@ -5451,6 +5636,8 @@ export const AdminDashboard: React.FC = () => {
                               summary: '',
                               content: '',
                               author: activeAuthorName,
+                              authorId: currentUser?.id || '',
+                              authorRole: activeUserRole,
                               image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
                               tags: 'Pendidikan, Purwodadi',
                               views: 0
@@ -5466,86 +5653,161 @@ export const AdminDashboard: React.FC = () => {
 
                   {/* List news */}
                   <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="p-4 border-b border-slate-100 font-bold text-sm text-slate-800">
-                      Daftar Berita ({news.length} Artikel)
+                    <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-sm text-slate-800">
+                          {isAdminOrSuperAdmin
+                            ? (newsFilterTab === 'mine' ? `Daftar Berita Saya (${displayedNews.length} Artikel)` : `Semua Artikel Berita (${displayedNews.length} Artikel)`)
+                            : `Daftar Berita Saya (${displayedNews.length} Artikel)`}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {isAdminOrSuperAdmin
+                            ? 'Sebagai Admin / Super Admin, Anda dapat mengelola seluruh artikel berita atau artikel yang Anda terbitkan sendiri.'
+                            : `Menampilkan artikel berita resmi yang dibuat dan dikelola oleh ${currentUser?.name || 'akun Anda'}.`}
+                        </p>
+                      </div>
+
+                      {/* Filter Tab Khusus Super Admin & Admin */}
+                      {isAdminOrSuperAdmin && (
+                        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setNewsFilterTab('mine')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              newsFilterTab === 'mine'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Artikel Saya ({news.filter((item) => isNewsItemOwner(item)).length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewsFilterTab('all')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              newsFilterTab === 'all'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Semua Berita ({news.length})
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="divide-y divide-slate-100">
-                      {news.map((item) => (
-                        <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <img src={item.image} alt={item.title} className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-slate-900 text-xs truncate">{item.title}</h4>
-                              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                                <span>{item.date}</span>
-                                <span>•</span>
-                                <span>{item.category}</span>
-                                <span>•</span>
-                                <span>{item.author}</span>
-                                <span>•</span>
-                                <span className="inline-flex items-center gap-1 text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                                  <Eye className="w-3 h-3" />
-                                  {item.views || 0} tayangan
-                                </span>
-                                <span>•</span>
-                                <span className="inline-flex items-center gap-1 text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100" title={getArticleReadingStats(item).detailed}>
-                                  <Clock className="w-3 h-3" />
-                                  {getArticleReadingStats(item).text}
-                                </span>
+
+                    {displayedNews.length === 0 ? (
+                      <div className="p-12 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-800">
+                          Belum Ada Berita yang Anda Tulis
+                        </h4>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                          Anda belum menulis artikel berita. Silakan lengkapi formulir di atas untuk menerbitkan artikel berita pertama Anda.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {displayedNews.map((item) => {
+                          const canManageItem = isAdminOrSuperAdmin || isNewsItemOwner(item);
+
+                          return (
+                            <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img src={item.image} alt={item.title} className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                <div className="min-w-0">
+                                  <h4 className="font-bold text-slate-900 text-xs truncate">{item.title}</h4>
+                                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                                    <span>{item.date}</span>
+                                    <span>•</span>
+                                    <span>{item.category}</span>
+                                    <span>•</span>
+                                    <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 inline-flex items-center gap-1">
+                                      <User className="w-3 h-3 text-slate-500" />
+                                      <span>{item.author} {item.authorRole ? `(${item.authorRole})` : ''}</span>
+                                    </span>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center gap-1 text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                                      <Eye className="w-3 h-3" />
+                                      {item.views || 0} tayangan
+                                    </span>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center gap-1 text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100" title={getArticleReadingStats(item).detailed}>
+                                      <Clock className="w-3 h-3" />
+                                      {getArticleReadingStats(item).text}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {canManageItem ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setEditingNewsId(item.id);
+                                        setNewsForm({
+                                          title: item.title,
+                                          category: item.category,
+                                          summary: item.summary,
+                                          content: item.content,
+                                          author: item.author,
+                                          authorId: item.authorId || '',
+                                          authorRole: item.authorRole || activeUserRole,
+                                          image: item.image,
+                                          tags: (item.tags || []).join(', '),
+                                          views: item.views || 0
+                                        });
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }}
+                                      className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                      title="Edit Berita Saya"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        const confirmed = await showConfirmDialog({
+                                          title: 'Hapus Berita Ini?',
+                                          message: `Apakah Anda yakin ingin menghapus artikel berita "${item.title}"?`,
+                                          type: 'delete',
+                                          itemName: item.title,
+                                          confirmText: 'Ya, Hapus Berita',
+                                          cancelText: 'Tidak, Batalkan'
+                                        });
+                                        if (!confirmed) return;
+                                        deleteNews(item.id);
+                                        showNoticePopup({
+                                          title: 'Berita Dihapus!',
+                                          message: `Artikel "${item.title}" telah berhasil dihapus.`,
+                                          type: 'success'
+                                        });
+                                      }}
+                                      className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                      title="Hapus Berita"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-medium select-none" title="Dibuat oleh akun/role lain">
+                                    <Lock className="w-3 h-3 text-slate-400" />
+                                    <span>Terkunci</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              onClick={() => {
-                                setEditingNewsId(item.id);
-                                setNewsForm({
-                                  title: item.title,
-                                  category: item.category,
-                                  summary: item.summary,
-                                  content: item.content,
-                                  author: item.author,
-                                  image: item.image,
-                                  tags: item.tags.join(', '),
-                                  views: item.views || 0
-                                });
-                              }}
-                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                const confirmed = await showConfirmDialog({
-                                  title: 'Hapus Berita Ini?',
-                                  message: `Apakah Anda yakin ingin menghapus artikel berita "${item.title}"?`,
-                                  type: 'delete',
-                                  itemName: item.title,
-                                  confirmText: 'Ya, Hapus Berita',
-                                  cancelText: 'Tidak, Batalkan'
-                                });
-                                if (!confirmed) return;
-                                deleteNews(item.id);
-                                showNoticePopup({
-                                  title: 'Berita Dihapus!',
-                                  message: `Artikel "${item.title}" telah berhasil dihapus.`,
-                                  type: 'success'
-                                });
-                              }}
-                              className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Subtab 2: Announcements */}
-              {newsSubTab === 'announcements' && (
+              {newsSubTab === 'announcements' && !isWriter && (
                 <div className="space-y-6">
                   <form onSubmit={handleSaveAnnouncement} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div className="space-y-1.5">
@@ -5860,7 +6122,7 @@ export const AdminDashboard: React.FC = () => {
                                 confirmText: 'Ya, Hapus Pengumuman',
                                 cancelText: 'Tidak, Batalkan'
                               });
-                              if (!confirmed) return;
+                              if (!confirmed || isWriter) return;
                               deleteAnnouncement(ann.id);
                               showNoticePopup({
                                 title: 'Pengumuman Dihapus!',
@@ -8041,6 +8303,51 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Info Identitas Akun Login Pengunggah (Otomatis Mendeteksi Nama & Role) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Nama Pengunggah / Pembuat Album</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                        <Lock className="w-2.5 h-2.5 text-slate-500" />
+                        <span>Otomatis Akun Login</span>
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={editingGalleryId ? (galleryForm.authorName || activeAuthorName) : (currentUser?.name || activeAuthorName)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 cursor-not-allowed select-none shadow-xs"
+                      title="Nama akun yang sedang login otomatis terdeteksi sebagai pembuat/pengunggah dokumentasi foto"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Role Akun Login</span>
+                      </label>
+                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                        <span>Role Terverifikasi</span>
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={editingGalleryId ? (galleryForm.authorRole || activeUserRole) : (currentUser?.role || activeUserRole)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-blue-700 cursor-not-allowed select-none shadow-xs"
+                      title="Tingkatan wewenang akun yang login (Super Admin / Admin / Penulis)"
+                    />
+                  </div>
+                </div>
+
                 {/* Upload Multi-Foto Folder Album Kegiatan */}
                 <div className="space-y-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -8171,7 +8478,10 @@ export const AdminDashboard: React.FC = () => {
                           category: 'Kegiatan Belajar',
                           image: '',
                           images: [],
-                          description: ''
+                          description: '',
+                          authorId: currentUser?.id || '',
+                          authorName: activeAuthorName,
+                          authorRole: activeUserRole
                         });
                       }}
                       className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-xs"
@@ -8182,78 +8492,169 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </form>
 
-              {/* Gallery Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {sortGalleryDescending(gallery).map((item) => {
-                  const totalPhotos = (item.images && item.images.length > 0) ? item.images.length : (item.image ? 1 : 0);
-                  return (
-                    <div key={item.id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm group">
-                      <div className="relative h-44 bg-slate-900">
-                        <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
-                        
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white">
-                          {item.category}
-                        </span>
+              {/* Section Header & Ownership Filter */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200/80">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Folder className="w-5 h-5 text-amber-500" />
+                    <span>
+                      {isAdminOrSuperAdmin && galleryFilterTab === 'all'
+                        ? `Seluruh Koleksi Album Galeri (${gallery.length} Album)`
+                        : `Koleksi Album Unggahan Saya (${displayedGallery.length} Album)`}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {isAdminOrSuperAdmin && galleryFilterTab === 'all'
+                      ? 'Menampilkan seluruh album foto yang diunggah oleh semua pengelola website.'
+                      : `Menampilkan hanya album foto dokumentasi yang diunggah oleh akun ${currentUser?.name} (${currentUser?.role}).`}
+                  </p>
+                </div>
 
-                        {/* Folder badge with count */}
-                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-sm flex items-center gap-1">
-                          <Folder className="w-3 h-3" />
-                          <span>{totalPhotos} Foto</span>
-                        </span>
-                      </div>
-                      <div className="p-3.5 space-y-2">
-                        <h4 className="font-bold text-slate-900 text-xs line-clamp-1">{item.title}</h4>
-                        <p className="text-[11px] text-slate-500 line-clamp-1">{item.description}</p>
-                        <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[11px]">
-                          <span className="text-slate-400 font-mono">{item.date}</span>
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => {
-                                setEditingGalleryId(item.id);
-                                setGalleryForm({
-                                  title: item.title,
-                                  category: item.category,
-                                  image: item.image,
-                                  images: (item.images && item.images.length > 0) ? [...item.images] : [item.image],
-                                  description: item.description
-                                });
-                              }}
-                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                              title="Edit Album"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                const confirmed = await showConfirmDialog({
-                                  title: 'Hapus Album Galeri Ini?',
-                                  message: `Apakah Anda yakin ingin menghapus album galeri "${item.title}"?`,
-                                  type: 'delete',
-                                  itemName: item.title,
-                                  confirmText: 'Ya, Hapus Album',
-                                  cancelText: 'Tidak, Batalkan'
-                                });
-                                if (!confirmed) return;
-                                deleteGalleryItem(item.id);
-                                showNoticePopup({
-                                  title: 'Album Galeri Dihapus!',
-                                  message: `Album "${item.title}" telah berhasil dihapus.`,
-                                  type: 'success'
-                                });
-                              }}
-                              className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                              title="Hapus Album"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                {/* Filter Tabs Khusus Super Admin & Admin */}
+                {isAdminOrSuperAdmin && (
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setGalleryFilterTab('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        galleryFilterTab === 'all'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      Semua Album ({gallery.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryFilterTab('mine')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        galleryFilterTab === 'mine'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      Unggahan Saya ({gallery.filter((g) => isGalleryItemOwner(g)).length})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Gallery Grid or Empty State */}
+              {displayedGallery.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {displayedGallery.map((item) => {
+                    const totalPhotos = (item.images && item.images.length > 0) ? item.images.length : (item.image ? 1 : 0);
+                    const canManageItem = isGalleryItemOwner(item) || isAdminOrSuperAdmin;
+
+                    return (
+                      <div key={item.id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm group">
+                        <div className="relative h-44 bg-slate-900">
+                          <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                          
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white">
+                            {item.category}
+                          </span>
+
+                          {/* Folder badge with count */}
+                          <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-sm flex items-center gap-1">
+                            <Folder className="w-3 h-3" />
+                            <span>{totalPhotos} Foto</span>
+                          </span>
+                        </div>
+                        <div className="p-3.5 space-y-2">
+                          <h4 className="font-bold text-slate-900 text-xs line-clamp-1">{item.title}</h4>
+                          <p className="text-[11px] text-slate-500 line-clamp-1">{item.description}</p>
+                          
+                          {/* Pengunggah Info Badge */}
+                          <div className="flex items-center gap-1.5 text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100 w-fit">
+                            <User className="w-2.5 h-2.5 text-purple-600" />
+                            <span>Oleh: <strong>{item.authorName || 'Super Administrator'}</strong>{item.authorRole ? ` (${item.authorRole})` : ''}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[11px]">
+                            <span className="text-slate-400 font-mono">{item.date}</span>
+                            
+                            {canManageItem ? (
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingGalleryId(item.id);
+                                    setGalleryForm({
+                                      title: item.title,
+                                      category: item.category,
+                                      image: item.image,
+                                      images: (item.images && item.images.length > 0) ? [...item.images] : [item.image],
+                                      description: item.description,
+                                      authorId: item.authorId || '',
+                                      authorName: item.authorName || activeAuthorName,
+                                      authorRole: item.authorRole || activeUserRole
+                                    });
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                  title={isAdminOrSuperAdmin ? "Edit Album" : "Edit Album Saya"}
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!isGalleryItemOwner(item) && !isAdminOrSuperAdmin) {
+                                      showNoticePopup({
+                                        title: 'Akses Ditolak!',
+                                        message: 'Anda tidak memiliki hak akses untuk menghapus album yang diunggah oleh akun atau role lain.',
+                                        type: 'warning'
+                                      });
+                                      return;
+                                    }
+
+                                    const confirmed = await showConfirmDialog({
+                                      title: 'Hapus Album Galeri Ini?',
+                                      message: `Apakah Anda yakin ingin menghapus album galeri "${item.title}"?`,
+                                      type: 'delete',
+                                      itemName: item.title,
+                                      confirmText: 'Ya, Hapus Album',
+                                      cancelText: 'Tidak, Batalkan'
+                                    });
+                                    if (!confirmed) return;
+                                    deleteGalleryItem(item.id);
+                                    showNoticePopup({
+                                      title: 'Album Galeri Dihapus!',
+                                      message: `Album "${item.title}" telah berhasil dihapus.`,
+                                      type: 'success'
+                                    });
+                                  }}
+                                  className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                  title="Hapus Album"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200" title="Hanya akun pengunggah atau Administrator yang dapat mengedit/menghapus">
+                                <Lock className="w-2.5 h-2.5 text-slate-400" />
+                                <span>Hanya Pemilik</span>
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 space-y-3 shadow-xs">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+                    <Folder className="w-7 h-7 text-amber-500" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800">
+                    Belum Ada Album yang Diunggah oleh Akun Anda
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                    Anda sedang login sebagai <strong className="text-slate-800">{currentUser?.name}</strong> ({currentUser?.role}). Foto atau album yang diunggah oleh role/akun lain tidak ditampilkan di panel Anda agar privasi pengelolaan terjaga. Silakan gunakan formulir di atas untuk mengunggah foto dokumentasi kegiatan baru.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -8546,7 +8947,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-900">Penulis</h4>
-                        <span className="text-[10px] text-emerald-700 font-medium">Warta & Liputan Berita</span>
+                        <span className="text-[10px] text-emerald-700 font-medium">Warta Berita & Galeri Foto</span>
                       </div>
                     </div>
                     <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
@@ -8554,7 +8955,7 @@ export const AdminDashboard: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Wewenang redaksi: menulis artikel baru, menyunting berita kegiatan sekolah/kedinasan, dan memperbarui warta informasi publik.
+                    Wewenang redaksi: menulis artikel berita kegiatan sekolah/kedinasan, serta mengunggah foto dokumentasi pada Galeri Kegiatan.
                   </p>
                 </div>
               </div>
@@ -9020,7 +9421,7 @@ export const AdminDashboard: React.FC = () => {
                   >
                     <option value="Super Admin">Super Admin (Akses Penuh)</option>
                     <option value="Admin">Admin (Kelola Konten & Data)</option>
-                    <option value="Penulis">Penulis (Hanya Warta & Berita)</option>
+                    <option value="Penulis">Penulis (Warta, Berita & Galeri Foto)</option>
                   </select>
                 </div>
 

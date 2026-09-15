@@ -5,7 +5,8 @@ import {
   Folder, 
   FolderOpen, 
   Images, 
-  ArrowRight
+  ArrowRight,
+  User
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { getGalleryDetailPath, sortGalleryDescending } from '../lib/galleryHelper';
@@ -136,10 +137,14 @@ export const GalleryPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Date */}
-                    <div className="absolute bottom-3 left-4 text-white">
+                    {/* Date & Uploader */}
+                    <div className="absolute bottom-3 left-4 right-4 text-white flex items-center justify-between gap-2">
                       <span className="text-[11px] font-mono text-amber-300 flex items-center gap-1.5 font-medium">
                         <Calendar className="w-3 h-3" /> {item.date}
+                      </span>
+                      <span className="text-[10px] text-white/90 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1 truncate max-w-[150px]">
+                        <User className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                        <span className="truncate">{item.authorName || 'Super Administrator'}</span>
                       </span>
                     </div>
                   </div>

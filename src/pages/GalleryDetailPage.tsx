@@ -16,7 +16,8 @@ import {
   ExternalLink,
   Layers,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { getGallerySlug } from '../lib/galleryHelper';
@@ -103,12 +104,16 @@ export const GalleryDetailPage: React.FC = () => {
   };
 
   const handleShareWhatsApp = () => {
+    const authorText = selectedGallery.authorName 
+      ? `Diunggah oleh: ${selectedGallery.authorName}${selectedGallery.authorRole ? ` (${selectedGallery.authorRole})` : ''}\n` 
+      : '';
     const text = encodeURIComponent(
       `*DOKUMENTASI KEGIATAN KORWILCAM PURWODADI*\n\n` +
       `*${selectedGallery.title}*\n` +
       `Kategori: ${selectedGallery.category} | Tanggal: ${selectedGallery.date}\n` +
-      `Jumlah Foto: ${totalPhotos} Foto Dokumentasi\n\n` +
-      `Keterangan:\n${selectedGallery.description || 'Dokumentasi kegiatan pendidikan se-Kecamatan Purwodadi.'}\n\n` +
+      `Jumlah Foto: ${totalPhotos} Foto Dokumentasi\n` +
+      authorText +
+      `\nKeterangan:\n${selectedGallery.description || 'Dokumentasi kegiatan pendidikan se-Kecamatan Purwodadi.'}\n\n` +
       `Lihat seluruh foto lengkapnya pada tautan resmi berikut:\n${currentUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
@@ -196,6 +201,13 @@ export const GalleryDetailPage: React.FC = () => {
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 flex items-center gap-1.5 border border-amber-200">
               <Images className="w-3.5 h-3.5 text-amber-700" />
               <span>{totalPhotos} Foto Dokumentasi</span>
+            </span>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 flex items-center gap-1.5 border border-purple-200">
+              <User className="w-3.5 h-3.5 text-purple-600" />
+              <span>
+                Diunggah oleh: <strong className="text-purple-950 font-extrabold">{selectedGallery.authorName || 'Super Administrator'}</strong>
+                {selectedGallery.authorRole ? ` (${selectedGallery.authorRole})` : ''}
+              </span>
             </span>
           </div>
 

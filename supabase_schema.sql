@@ -499,3 +499,23 @@ EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
 
+-- ==========================================================
+-- FUNGSI INCREMENT PENAYANGAN BERITA (ATOMIC & AMAN UNTUK PENGUNJUNG ANONIM)
+-- ==========================================================
+-- Jalankan fungsi ini di menu "SQL Editor" Supabase jika belum tersedia:
+CREATE OR REPLACE FUNCTION public.increment_news_views(article_id TEXT)
+RETURNS INTEGER AS $$
+DECLARE
+  new_views INTEGER;
+BEGIN
+  UPDATE public.news
+  SET views = COALESCE(views, 0) + 1
+  WHERE id = article_id OR slug = article_id
+  RETURNING views INTO new_views;
+  
+  RETURN COALESCE(new_views, 1);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.increment_news_views(TEXT) TO anon, authenticated, service_role;
+

@@ -690,7 +690,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAt: item.createdAt,
           description: item.description,
           image: item.image,
-          images: [item.image]
+          images: [item.image],
+          authorId: item.authorId,
+          authorName: item.authorName,
+          authorRole: item.authorRole
         }));
         localStorage.setItem('korwilcam_gallery', JSON.stringify(lightweight));
       } catch (_) {}
@@ -963,7 +966,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               })(),
               description: g.description || g.deskripsi || '',
               date: g.date || g.tanggal || '',
-              createdAt: g.created_at || g.createdAt
+              createdAt: g.created_at || g.createdAt,
+              authorId: g.author_id || g.authorId || '',
+              authorName: g.author_name || g.authorName || g.author || 'Super Administrator',
+              authorRole: g.author_role || g.authorRole || 'Super Admin'
             }));
 
             // Pastikan terurut secara descending (terbaru paling atas)
@@ -1151,37 +1157,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('korwilcam_news_categories', JSON.stringify(loadedCategories));
         } catch {}
 
-        setNews(actualArticles.map((n: any) => {
-          const title = String(n.title || n.judul || '').trim();
-          const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
-          let parsedTags: string[] = [];
-          if (Array.isArray(n.tags)) {
-            parsedTags = n.tags;
-          } else if (typeof n.tags === 'string') {
-            try {
-              const p = JSON.parse(n.tags);
-              if (Array.isArray(p)) parsedTags = p;
-              else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-            } catch {
-              parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+        setNews((prevNews) => {
+          return actualArticles.map((n: any) => {
+            const id = String(n.id || `news-${Date.now()}`);
+            const title = String(n.title || n.judul || '').trim();
+            const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
+            let parsedTags: string[] = [];
+            if (Array.isArray(n.tags)) {
+              parsedTags = n.tags;
+            } else if (typeof n.tags === 'string') {
+              try {
+                const p = JSON.parse(n.tags);
+                if (Array.isArray(p)) parsedTags = p;
+                else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+              } catch {
+                parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+              }
             }
-          }
-          return {
-            id: String(n.id || `news-${Date.now()}`),
-            title,
-            slug,
-            category: n.category || n.kategori || 'Kedinasan',
-            summary: n.summary || n.ringkasan || (n.content ? String(n.content).substring(0, 150) : ''),
-            content: n.content || n.isi || n.konten || '',
-            author: n.author || n.penulis || 'Humas Korwilcam',
-            date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
-            image: n.image || n.gambar || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
-            views: Number(n.views || 0),
-            totalReadSeconds: Number(n.total_read_seconds) || 0,
-            readCount: Number(n.read_count) || 0,
-            tags: parsedTags
-          };
-        }));
+            const existingLocal = prevNews.find((p) => p.id === id || p.slug === slug);
+            const serverViews = Number(n.views || 0);
+            const localViews = existingLocal ? Number(existingLocal.views || 0) : 0;
+            const finalViews = Math.max(serverViews, localViews);
+
+            return {
+              id,
+              title,
+              slug,
+              category: n.category || n.kategori || 'Kedinasan',
+              summary: n.summary || n.ringkasan || (n.content ? String(n.content).substring(0, 150) : ''),
+              content: n.content || n.isi || n.konten || '',
+              author: n.author || n.penulis || 'Humas Korwilcam',
+              authorId: n.author_id || n.authorId || undefined,
+              authorRole: n.author_role || n.authorRole || undefined,
+              date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
+              image: n.image || n.gambar || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+              views: finalViews,
+              totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
+              readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),
+              tags: parsedTags
+            };
+          });
+        });
       }
 
       // Fetch announcements
@@ -1478,12 +1494,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         summary: n.summary,
         content: n.content,
         author: n.author,
+        author_id: n.authorId,
+        author_role: n.authorRole,
         date: n.date,
         image: n.image,
         views: n.views,
         tags: n.tags
       }));
-      await client.from('news').upsert(newsPayload);
+      let { error: newsErr } = await client.from('news').upsert(newsPayload);
+      if (newsErr && newsErr.message?.toLowerCase().includes('column')) {
+        const safeNews = newsPayload.map(({ author_id, author_role, ...rest }: any) => rest);
+        await client.from('news').upsert(safeNews);
+      }
 
       // 4. Announcements
       const annPayload = announcements.map((a) => ({
@@ -1555,7 +1577,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         image: g.image,
         images: g.images && g.images.length > 0 ? g.images : [g.image],
         description: g.description,
-        date: g.date
+        date: g.date,
+        author_id: g.authorId,
+        author_name: g.authorName,
+        author_role: g.authorRole
       }));
       let { error: galErr } = await client.from('gallery').upsert(galPayload);
       if (galErr && galErr.message?.toLowerCase().includes('column')) {
@@ -2162,14 +2187,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 2. Support /berita/:slug (excluding subtabs)
       if (rawPath.startsWith('/berita/') && !rawPath.startsWith('/berita/pengumuman') && rawPath !== '/berita/agenda' && rawPath !== '/berita/liputan') {
-        const slug = decodeURIComponent(rawPath.replace(/^\/berita\//, ''));
+        const slug = decodeURIComponent(rawPath.replace(/^\/berita\//, '')).trim();
+        const cleanSlug = slug.replace(/(^-|-$)/g, '').toLowerCase();
         setActiveTabState('news');
         if (news.length > 0) {
-          const found = news.find((n) => 
-            n.slug === slug || 
-            n.id === slug || 
-            n.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug
-          );
+          const found = news.find((n) => {
+            const itemSlug = (n.slug || '').toLowerCase();
+            const normalizedTitle = n.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            return (
+              n.id === slug ||
+              itemSlug === slug.toLowerCase() ||
+              itemSlug === cleanSlug ||
+              normalizedTitle === cleanSlug ||
+              normalizedTitle === slug.toLowerCase()
+            );
+          });
           if (found) {
             setSelectedNewsState(found);
             setSelectedAnnouncementState(null);
@@ -2398,7 +2430,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, selectedSchool, and selectedServiceRequirement if not viewing detail
-      setSelectedNewsState(null);
+      if (!rawPath.startsWith('/berita/') && !rawPath.startsWith('/b/') && !searchParams.get('berita')) {
+        setSelectedNewsState(null);
+      }
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
       setSelectedDocumentState(null);
@@ -2846,7 +2880,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
-        const payload: any = {
+        let { error } = await client.from('news').upsert({
           id: newArticle.id,
           title: newArticle.title,
           slug: newArticle.slug,
@@ -2854,13 +2888,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           summary: newArticle.summary,
           content: newArticle.content,
           author: newArticle.author,
+          author_id: newArticle.authorId,
+          author_role: newArticle.authorRole,
           date: newArticle.date,
           image: newArticle.image,
           views: newArticle.views,
           tags: newArticle.tags
-        };
+        });
 
-        const { error } = await client.from('news').upsert(payload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const retry = await client.from('news').upsert({
+            id: newArticle.id,
+            title: newArticle.title,
+            slug: newArticle.slug,
+            category: newArticle.category,
+            summary: newArticle.summary,
+            content: newArticle.content,
+            author: newArticle.author,
+            date: newArticle.date,
+            image: newArticle.image,
+            views: newArticle.views,
+            tags: newArticle.tags
+          });
+          error = retry.error;
+        }
 
         if (error) {
           console.error('Supabase addNews error:', error);
@@ -2895,7 +2946,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       try {
         const n = mergedNews as NewsArticle;
-        const payload: any = {
+        let { error } = await client.from('news').upsert({
           id: n.id,
           title: n.title,
           slug: n.slug,
@@ -2903,13 +2954,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           summary: n.summary,
           content: n.content,
           author: n.author,
+          author_id: n.authorId,
+          author_role: n.authorRole,
           date: n.date,
           image: n.image,
           views: n.views,
           tags: n.tags
-        };
+        });
 
-        const { error } = await client.from('news').upsert(payload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const retry = await client.from('news').upsert({
+            id: n.id,
+            title: n.title,
+            slug: n.slug,
+            category: n.category,
+            summary: n.summary,
+            content: n.content,
+            author: n.author,
+            date: n.date,
+            image: n.image,
+            views: n.views,
+            tags: n.tags
+          });
+          error = retry.error;
+        }
 
         if (error) {
           console.error('Supabase updateNews error:', error);
@@ -2998,50 +3066,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const incrementNewsViews = async (id: string) => {
-    let nextViews = 1;
+    // 1. Hitung penambahan tayangan secara optimistik
+    let calculatedNextViews = 1;
 
-    // 1. Update React state immediately (optimistic UI update)
-    setNews((prev) =>
-      prev.map((n) => {
-        if (n.id === id) {
-          nextViews = (Number(n.views) || 0) + 1;
-          return { ...n, views: nextViews };
+    setNews((prev) => {
+      const target = prev.find((n) => n.id === id || n.slug === id);
+      if (target) {
+        calculatedNextViews = (Number(target.views) || 0) + 1;
+      } else {
+        calculatedNextViews = 1;
+      }
+      return prev.map((n) => {
+        if (n.id === id || n.slug === id) {
+          return { ...n, views: calculatedNextViews };
         }
         return n;
-      })
-    );
+      });
+    });
 
     setSelectedNewsState((prev) => {
-      if (prev && prev.id === id) {
-        return { ...prev, views: (Number(prev.views) || 0) + 1 };
+      if (prev && (prev.id === id || prev.slug === id)) {
+        const next = Math.max((Number(prev.views) || 0) + 1, calculatedNextViews);
+        calculatedNextViews = next;
+        return { ...prev, views: next };
       }
       return prev;
     });
 
-    // 2. Persist to Supabase Cloud if connected
+    // Simpan segera ke localStorage agar tersinkronisasi saat refresh halaman seketika
+    try {
+      const savedRaw = localStorage.getItem('korwilcam_news');
+      if (savedRaw) {
+        const parsed = JSON.parse(savedRaw);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((n: any) => {
+            if (n.id === id || n.slug === id) {
+              return { ...n, views: Math.max((Number(n.views) || 0) + 1, calculatedNextViews) };
+            }
+            return n;
+          });
+          localStorage.setItem('korwilcam_news', JSON.stringify(updated));
+        }
+      }
+    } catch {}
+
+    // 2. Persist ke Supabase Cloud jika terhubung
     const client = getSupabaseClient();
     if (client) {
       try {
-        const { data: dbItem } = await client
-          .from('news')
-          .select('views')
-          .eq('id', id)
-          .single();
+        // Coba 1: Gunakan RPC increment_news_views jika tersedia di database
+        const { data: rpcViews, error: rpcErr } = await client.rpc('increment_news_views', {
+          article_id: id
+        });
 
-        const finalViews = dbItem ? (Number(dbItem.views) || 0) + 1 : nextViews;
-
-        const { error } = await client
-          .from('news')
-          .update({ views: finalViews })
-          .eq('id', id);
-
-        if (!error && finalViews !== nextViews) {
+        if (!rpcErr && typeof rpcViews === 'number' && rpcViews > 0) {
           setNews((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, views: finalViews } : n))
+            prev.map((n) => (n.id === id || n.slug === id ? { ...n, views: rpcViews } : n))
           );
           setSelectedNewsState((prev) =>
-            prev && prev.id === id ? { ...prev, views: finalViews } : prev
+            prev && (prev.id === id || prev.slug === id) ? { ...prev, views: rpcViews } : prev
           );
+          return;
+        }
+
+        // Coba 2: Direct SELECT & UPDATE fallback
+        const { data: dbItem, error: fetchErr } = await client
+          .from('news')
+          .select('id, views, slug')
+          .or(`id.eq."${id}",slug.eq."${id}"`)
+          .maybeSingle();
+
+        if (!fetchErr && dbItem) {
+          const serverViews = (Number(dbItem.views) || 0) + 1;
+          const finalViews = Math.max(serverViews, calculatedNextViews);
+
+          const { error: updateErr } = await client
+            .from('news')
+            .update({ views: finalViews })
+            .eq('id', dbItem.id);
+
+          if (!updateErr) {
+            setNews((prev) =>
+              prev.map((n) => (n.id === id || n.slug === id ? { ...n, views: finalViews } : n))
+            );
+            setSelectedNewsState((prev) =>
+              prev && (prev.id === id || prev.slug === id) ? { ...prev, views: finalViews } : prev
+            );
+          } else {
+            console.warn('Gagal update views Supabase:', updateErr);
+          }
         }
       } catch (err) {
         console.warn('Silently failed to update news view count in Supabase:', err);
@@ -3566,7 +3679,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           images: newItem.images,
           description: newItem.description,
           date: newItem.date,
-          created_at: newItem.createdAt
+          created_at: newItem.createdAt,
+          author_id: newItem.authorId,
+          author_name: newItem.authorName,
+          author_role: newItem.authorRole
         });
         if (error && error.message?.toLowerCase().includes('column')) {
           const retry = await client.from('gallery').upsert({
@@ -3627,7 +3743,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           image: g.image,
           images: g.images,
           description: g.description,
-          date: g.date
+          date: g.date,
+          author_id: g.authorId,
+          author_name: g.authorName,
+          author_role: g.authorRole
         });
         if (error && error.message?.toLowerCase().includes('column')) {
           const retry = await client.from('gallery').upsert({

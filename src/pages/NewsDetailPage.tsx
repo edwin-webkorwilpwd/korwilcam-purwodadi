@@ -80,27 +80,25 @@ export const NewsDetailPage: React.FC = () => {
     }
   }, [selectedNews?.id]);
 
-  // 2. Track & hitung jumlah tayangan berita: HANYA 1 KALI saat artikel dibuka per sesi
-  const trackedArticleIdRef = React.useRef<string | null>(null);
+  // 2. Track & hitung jumlah tayangan berita: bertambah setiap kali artikel dibuka atau direfresh
+  const lastTrackedIdRef = React.useRef<string | null>(null);
+  const currentNewsId = selectedNews?.id;
+
   useEffect(() => {
-    if (!selectedNews?.id) return;
-    const newsId = selectedNews.id;
+    if (!currentNewsId) return;
 
-    // Cegah eksekusi berulang jika ID artikel sama
-    if (trackedArticleIdRef.current === newsId) return;
-    trackedArticleIdRef.current = newsId;
+    // Hanya eksekusi 1 kali per artikel per mount / refresh / navigasi
+    if (lastTrackedIdRef.current === currentNewsId) return;
+    lastTrackedIdRef.current = currentNewsId;
 
-    // Cegah penambahan berulang dalam satu sesi browser
-    const sessionKey = `viewed_news_${newsId}`;
+    // Bersihkan kunci sessionStorage lama agar tidak ada lagi pemblokiran penayangan
     try {
-      if (!sessionStorage.getItem(sessionKey)) {
-        sessionStorage.setItem(sessionKey, '1');
-        incrementNewsViewsRef.current(newsId);
-      }
-    } catch {
-      incrementNewsViewsRef.current(newsId);
-    }
-  }, [selectedNews?.id]);
+      sessionStorage.removeItem(`viewed_news_${currentNewsId}`);
+    } catch {}
+
+    // Tambahkan tayangan langsung
+    incrementNewsViewsRef.current(currentNewsId);
+  }, [currentNewsId]);
 
   // 3. Deteksi durasi aktif membaca dan akumulasi rata-rata membaca secara riil
   useEffect(() => {
@@ -412,7 +410,12 @@ export const NewsDetailPage: React.FC = () => {
                 <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                   <User className="w-3.5 h-3.5" />
                 </div>
-                <span>Oleh: <strong className="text-slate-800">{selectedNews.author}</strong></span>
+                <span>
+                  Oleh: <strong className="text-slate-800">{selectedNews.author}</strong>
+                  {selectedNews.authorRole && (
+                    <span className="ml-1 text-slate-500 font-normal">({selectedNews.authorRole})</span>
+                  )}
+                </span>
               </div>
 
               <div className="flex items-center gap-2 font-medium">

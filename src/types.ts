@@ -32,6 +32,8 @@ export interface NewsArticle {
   summary: string;
   content: string;
   author: string;
+  authorId?: string;
+  authorRole?: string;
   date: string;
   image: string;
   views: number;
@@ -102,6 +104,9 @@ export interface GalleryItem {
   images?: string[];
   description: string;
   createdAt?: string;
+  authorId?: string;
+  authorName?: string;
+  authorRole?: string;
 }
 
 export type StaffDivision = 

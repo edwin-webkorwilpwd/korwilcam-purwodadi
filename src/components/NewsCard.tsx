@@ -85,7 +85,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <User className="w-3.5 h-3.5 text-blue-500" />
-            <span className="truncate max-w-[120px]">{article.author}</span>
+            <span className="truncate max-w-[140px]">{article.author}{article.authorRole ? ` (${article.authorRole})` : ''}</span>
           </div>
 
           <button

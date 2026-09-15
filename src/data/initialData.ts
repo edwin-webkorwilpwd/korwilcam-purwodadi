@@ -219,6 +219,8 @@ Koordinator Wilayah, NARTO, S.Pd.,M.Pd, dalam arahannya menegaskan bahwa ANBK bu
 
 Pengawas SD, Drs. Sutrisno, M.Pd., menambahkan materi teknis terkait pelaksanaan gladi bersih dan sinkronisasi data simulasi ANBK. Diharapkan seluruh sekolah dapat melaksanakan kegiatan secara mandiri dengan hasil yang optimal.`,
     author: "Humas Korwilcam Purwodadi",
+    authorId: "usr-penulis",
+    authorRole: "Penulis",
     date: "28 Agustus 2026",
     image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000",
     views: 642,
@@ -237,6 +239,8 @@ Sebanyak lebih dari 600 anak usia dini berpartisipasi dalam aneka lomba edukatif
 
 Penilik KB Korwilcam Purwodadi, Siti Khotimah, S.Pd., menyampaikan apresiasi yang setinggi-tingginya kepada seluruh pendidik KB dan wali murid yang kompak mendukung tumbuhnya fondasi emas anak-anak Purwodadi. "Pendidikan usia dini merupakan masa keemasan (golden age) yang membutuhkan stimulus kasih sayang dan kegembiraan, bukan tekanan akademik yang memberatkan," tutur Siti.`,
     author: "Tim Redaksi KB",
+    authorId: "usr-admin",
+    authorRole: "Admin",
     date: "20 Agustus 2026",
     image: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&q=80&w=1000",
     views: 489,
@@ -255,6 +259,8 @@ Perolehan medali emas disumbangkan oleh siswa dari SDN 1 Purwodadi untuk cabang 
 
 Korwilcam Purwodadi menyampaikan rasa bangga dan memberikan sertifikat penghargaan serta tali asih kepada para pembina dan siswa berprestasi. Para pemenang ini selanjutnya akan mewakili kabupaten ke tingkat Provinsi Jawa Tengah.`,
     author: "Seksi Kesiswaan & Bakat",
+    authorId: "usr-admin",
+    authorRole: "Admin",
     date: "14 Agustus 2026",
     image: "https://images.unsplash.com/photo-1569783721739-16a7f5024443?auto=format&fit=crop&q=80&w=1000",
     views: 812,
@@ -271,6 +277,8 @@ Korwilcam Purwodadi menyampaikan rasa bangga dan memberikan sertifikat pengharga
 
 Pelatihan ini memfasilitasi pendidik dalam merancang modul ajar berdiferensiasi, membuat aksi nyata PMM yang lolos kurasi, serta menyusun asesmen formatif yang ramah anak. Para peserta sangat antusias mengikuti praktik langsung pembuatan konten refleksi pembelajaran.`,
     author: "Tim Kurikulum & GTK",
+    authorId: "usr-admin",
+    authorRole: "Admin",
     date: "05 Agustus 2026",
     image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=1000",
     views: 520,
@@ -411,7 +419,10 @@ export const initialGallery: GalleryItem[] = [
     images: [
       "/gallery/cover-14-agustus-2026.jpg"
     ],
-    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 14 Agustus 2026."
+    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 14 Agustus 2026.",
+    authorId: "usr-superadmin",
+    authorName: "Super Administrator",
+    authorRole: "Super Admin"
   },
   {
     id: "gal-1788839526109",
@@ -423,7 +434,10 @@ export const initialGallery: GalleryItem[] = [
     images: [
       "/gallery/cover-7-agustus-2026.jpg"
     ],
-    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 7 Agustus 2026."
+    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 7 Agustus 2026.",
+    authorId: "usr-superadmin",
+    authorName: "Super Administrator",
+    authorRole: "Super Admin"
   }
 ];
 
