@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { SchoolCard } from '../components/SchoolCard';
 import { 
@@ -10,7 +10,11 @@ import {
   Sparkles, 
   Baby, 
   CheckCircle2, 
-  Building2 
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { SchoolLevel, SchoolStatus } from '../types';
 
@@ -21,6 +25,8 @@ export const SchoolsPage: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedAkreditasi, setSelectedAkreditasi] = useState<string>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   const filteredSchools = useMemo(() => {
     return schools.filter((school) => {
@@ -49,11 +55,24 @@ export const SchoolsPage: React.FC = () => {
     });
   }, [schools, searchQuery, selectedLevel, selectedStatus, selectedAkreditasi]);
 
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedLevel, selectedStatus, selectedAkreditasi]);
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredSchools.length / itemsPerPage));
+  const currentSchools = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredSchools.slice(start, start + itemsPerPage);
+  }, [filteredSchools, currentPage, itemsPerPage]);
+
   const resetFilters = () => {
     setSearchQuery('');
     setSelectedLevel('ALL');
     setSelectedStatus('ALL');
     setSelectedAkreditasi('ALL');
+    setCurrentPage(1);
   };
 
   const countSD = schools.filter((s) => s.level === 'SD').length;
@@ -192,9 +211,14 @@ export const SchoolsPage: React.FC = () => {
         </div>
 
         {/* Results Counter Bar */}
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-600 px-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs font-semibold text-slate-600 px-2">
           <span>
             Menemukan <strong className="text-blue-700">{filteredSchools.length}</strong> sekolah di Purwodadi
+            {filteredSchools.length > itemsPerPage && (
+              <span className="text-slate-400 font-normal ml-1.5">
+                (Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(filteredSchools.length, currentPage * itemsPerPage)})
+              </span>
+            )}
           </span>
           <span className="text-slate-400">
             Total pangkalan data: {schools.length} sekolah
@@ -203,10 +227,111 @@ export const SchoolsPage: React.FC = () => {
 
         {/* School Grid */}
         {filteredSchools.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSchools.map((school) => (
-              <SchoolCard key={school.id} school={school} />
-            ))}
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentSchools.map((school) => (
+                <SchoolCard key={school.id} school={school} />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 sm:p-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div className="text-xs text-slate-500">
+                  Menampilkan{' '}
+                  <strong className="text-slate-800">
+                    {(currentPage - 1) * itemsPerPage + 1}
+                  </strong>{' '}
+                  -{' '}
+                  <strong className="text-slate-800">
+                    {Math.min(filteredSchools.length, currentPage * itemsPerPage)}
+                  </strong>{' '}
+                  dari <strong className="text-slate-800">{filteredSchools.length}</strong> sekolah (Halaman{' '}
+                  <strong className="text-slate-800">{currentPage}</strong> dari{' '}
+                  <strong className="text-slate-800">{totalPages}</strong>)
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {/* First Page */}
+                  <button
+                    onClick={() => {
+                      setCurrentPage(1);
+                      window.scrollTo({ top: 380, behavior: 'smooth' });
+                    }}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Halaman Pertama"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* Previous Page */}
+                  <button
+                    onClick={() => {
+                      setCurrentPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 380, behavior: 'smooth' });
+                    }}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* Page indicators */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum = i + 1;
+                      if (totalPages > 5 && currentPage > 3) {
+                        pageNum = Math.min(currentPage - 2 + i, totalPages - (4 - i));
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => {
+                            setCurrentPage(pageNum);
+                            window.scrollTo({ top: 380, behavior: 'smooth' });
+                          }}
+                          className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+                            currentPage === pageNum
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Next Page */}
+                  <button
+                    onClick={() => {
+                      setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 380, behavior: 'smooth' });
+                    }}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Halaman Selanjutnya"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {/* Last Page */}
+                  <button
+                    onClick={() => {
+                      setCurrentPage(totalPages);
+                      window.scrollTo({ top: 380, behavior: 'smooth' });
+                    }}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Halaman Terakhir"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-4">
