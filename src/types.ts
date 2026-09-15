@@ -223,6 +223,7 @@ export interface EducationalOrganization {
   phone?: string;
   email?: string;
   socialMedia?: OrganizationSocialMedia;
+  assignedUsername?: string;
   updatedAt?: string;
 }
 

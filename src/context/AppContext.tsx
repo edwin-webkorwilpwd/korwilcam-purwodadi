@@ -1389,6 +1389,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             phone: String(o.phone || ''),
             email: String(o.email || ''),
             socialMedia: typeof o.social_media === 'object' && o.social_media ? o.social_media : (typeof o.socialMedia === 'object' && o.socialMedia ? o.socialMedia : {}),
+            assignedUsername: o.assigned_username || o.assignedUsername || undefined,
             updatedAt: o.updated_at || o.updatedAt
           }));
           setOrganizations(mappedOrgs);
@@ -1647,9 +1648,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           phone: o.phone || '',
           email: o.email || '',
           social_media: o.socialMedia || {},
+          assigned_username: o.assignedUsername || null,
           updated_at: o.updatedAt || new Date().toISOString()
         }));
-        await client.from('organizations').upsert(orgPayload);
+        const { error: oErr } = await client.from('organizations').upsert(orgPayload);
+        if (oErr) {
+          // Fallback jika kolom assigned_username belum ada di skema database pengguna
+          const fallbackPayload = orgPayload.map(({ assigned_username, ...rest }) => rest);
+          await client.from('organizations').upsert(fallbackPayload);
+        }
       } catch (oErr) {
         console.warn('Gagal ekspor tabel organizations:', oErr);
       }
@@ -4174,7 +4181,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (client) {
       try {
-        await client.from('organizations').upsert({
+        const payload: any = {
           id: newOrg.id,
           slug: newOrg.slug,
           name: newOrg.name,
@@ -4190,8 +4197,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           phone: newOrg.phone || '',
           email: newOrg.email || '',
           social_media: newOrg.socialMedia || {},
+          assigned_username: newOrg.assignedUsername || null,
           updated_at: newOrg.updatedAt
-        });
+        };
+        const { error: upsertErr } = await client.from('organizations').upsert(payload);
+        if (upsertErr) {
+          // Retry tanpa assigned_username jika kolom belum ada di Supabase
+          delete payload.assigned_username;
+          await client.from('organizations').upsert(payload);
+        }
       } catch (err) {
         console.warn('Supabase organization upsert warning:', err);
       }
@@ -4220,7 +4234,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (client && targetOrg) {
       try {
-        await client.from('organizations').upsert({
+        const payload: any = {
           id: targetOrg.id,
           slug: targetOrg.slug,
           name: targetOrg.name,
@@ -4236,8 +4250,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           phone: targetOrg.phone || '',
           email: targetOrg.email || '',
           social_media: targetOrg.socialMedia || {},
+          assigned_username: targetOrg.assignedUsername || null,
           updated_at: targetOrg.updatedAt
-        });
+        };
+        const { error: upsertErr } = await client.from('organizations').upsert(payload);
+        if (upsertErr) {
+          // Retry tanpa assigned_username jika kolom belum ada di Supabase
+          delete payload.assigned_username;
+          await client.from('organizations').upsert(payload);
+        }
       } catch (err) {
         console.warn('Supabase organization update warning:', err);
       }

@@ -62,7 +62,8 @@ import {
   ChevronDown,
   Sliders,
   Search,
-  ClipboardList
+  ClipboardList,
+  UserCheck
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -208,11 +209,50 @@ export const AdminDashboard: React.FC = () => {
     | 'contact-cms' 
     | 'users-cms';
 
-  const [currentSection, setCurrentSection] = useState<AdminSection>('overview');
+  const [currentSection, setCurrentSection] = useState<AdminSection>(() => 
+    currentUser?.role === 'Penulis' ? 'news-cms' : 'overview'
+  );
   const isSuperAdmin = currentUser?.role === 'Super Admin';
   const isAdmin = currentUser?.role === 'Admin';
   const isAdminOrSuperAdmin = isSuperAdmin || isAdmin;
   const isWriter = currentUser?.role === 'Penulis';
+
+  // Hak akses khusus Organisasi:
+  // Super Admin & Admin dapat mengakses semua organisasi.
+  // Akun non-admin (misal Penulis) hanya bisa mengakses menu Organisasi jika akunnya (username) ditunjuk pada setidaknya satu organisasi.
+  const isUserAssignedToAnyOrg = useMemo(() => {
+    if (!currentUser?.username) return false;
+    const curUser = currentUser.username.trim().toLowerCase();
+    return organizations.some(
+      (o) => o.assignedUsername && o.assignedUsername.trim().toLowerCase() === curUser
+    );
+  }, [currentUser?.username, organizations]);
+
+  const canAccessOrganizationCms = isAdminOrSuperAdmin || isUserAssignedToAnyOrg;
+
+  const displayedOrganizations = useMemo(() => {
+    if (isAdminOrSuperAdmin) return organizations;
+    if (!currentUser?.username) return [];
+    const curUser = currentUser.username.trim().toLowerCase();
+    return organizations.filter(
+      (o) => o.assignedUsername && o.assignedUsername.trim().toLowerCase() === curUser
+    );
+  }, [isAdminOrSuperAdmin, currentUser?.username, organizations]);
+
+  // Guard: Pastikan role Penulis hanya berada di menu yang diizinkan (news-cms, gallery-cms, organization-cms jika ditugaskan)
+  useEffect(() => {
+    if (isWriter) {
+      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms'];
+      if (canAccessOrganizationCms) {
+        allowedSections.push('organization-cms');
+      }
+      if (!allowedSections.includes(currentSection)) {
+        setCurrentSection('news-cms');
+      }
+    } else if (currentSection === 'organization-cms' && !canAccessOrganizationCms) {
+      setCurrentSection('overview');
+    }
+  }, [isWriter, currentSection, canAccessOrganizationCms]);
 
   // Supabase Modal & Connection State
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
@@ -2186,7 +2226,8 @@ export const AdminDashboard: React.FC = () => {
     name: '',
     shortName: '',
     slug: '',
-    description: ''
+    description: '',
+    assignedUsername: ''
   });
 
   // Official Modal State (Tambah/Edit Pengurus)
@@ -2236,7 +2277,24 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [selectedOrgIdForEdit, organizations]);
 
+  // Guard jika organisasi yang diedit bukan wewenang user non-admin
+  useEffect(() => {
+    if (!isAdminOrSuperAdmin && selectedOrgIdForEdit) {
+      const org = organizations.find((o) => o.id === selectedOrgIdForEdit);
+      if (!org || org.assignedUsername?.trim().toLowerCase() !== currentUser?.username?.trim().toLowerCase()) {
+        setSelectedOrgIdForEdit(null);
+      }
+    }
+  }, [isAdminOrSuperAdmin, selectedOrgIdForEdit, organizations, currentUser?.username]);
+
   const handleSelectOrgToEdit = (orgId: string) => {
+    if (!isAdminOrSuperAdmin) {
+      const org = organizations.find((o) => o.id === orgId);
+      if (!org || org.assignedUsername?.trim().toLowerCase() !== currentUser?.username?.trim().toLowerCase()) {
+        showToast('Anda tidak memiliki wewenang untuk mengelola organisasi ini.', 'error');
+        return;
+      }
+    }
     setSelectedOrgIdForEdit(orgId);
     setActiveOrgSubTab('sambutan');
   };
@@ -2244,6 +2302,11 @@ export const AdminDashboard: React.FC = () => {
   const handleSaveOrgCMS = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!selectedOrgIdForEdit || !orgForm) return;
+
+    if (!isAdminOrSuperAdmin && orgForm.assignedUsername?.trim().toLowerCase() !== currentUser?.username?.trim().toLowerCase()) {
+      showToast('Anda tidak memiliki hak untuk menyimpan perubahan pada organisasi ini.', 'error');
+      return;
+    }
 
     if (!orgForm.name.trim() || !orgForm.shortName.trim()) {
       showToast('Nama organisasi dan singkatan wajib diisi!', 'error');
@@ -2468,6 +2531,7 @@ export const AdminDashboard: React.FC = () => {
       vision: '',
       missions: [],
       officials: [],
+      assignedUsername: newOrgForm.assignedUsername?.trim() || undefined,
       socialMedia: {
         website: '',
         tiktok: '',
@@ -2479,7 +2543,7 @@ export const AdminDashboard: React.FC = () => {
 
     await addOrganization(createdOrg);
     setShowNewOrgModal(false);
-    setNewOrgForm({ name: '', shortName: '', slug: '', description: '' });
+    setNewOrgForm({ name: '', shortName: '', slug: '', description: '', assignedUsername: '' });
     setSelectedOrgIdForEdit(createdOrg.id);
     setActiveOrgSubTab('identitas');
     showNoticePopup({
@@ -2490,6 +2554,10 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleDeleteOrg = async (orgId: string, orgName: string) => {
+    if (!isAdminOrSuperAdmin) {
+      showToast('Hanya Super Admin dan Admin yang berhak menghapus organisasi!', 'error');
+      return;
+    }
     if (organizations.length <= 1) {
       showToast('Minimal harus ada 1 organisasi terdaftar di sistem!', 'error');
       return;
@@ -2655,231 +2723,240 @@ export const AdminDashboard: React.FC = () => {
         {/* Sidebar Nav: Matched 1-to-1 with Public Menus */}
         <aside className="w-full lg:w-72 xl:w-80 bg-white border-r border-slate-200 p-3.5 space-y-1 shrink-0 select-none">
           
-          <div className="px-2.5 pt-1 pb-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              Menu Pengelolaan Web
+          {!isWriter && (
+            <>
+              <div className="px-2.5 pt-1 pb-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Menu Pengelolaan Web
+                </span>
+              </div>
+
+              {/* Overview */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('overview')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'overview'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'overview' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <LayoutDashboard className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'overview' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Ringkasan Dashboard
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'overview' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Statistik & Status Sistem
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </>
+          )}
+
+          <div className="pt-2 pb-1 px-2.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100 pt-2">
+              {isWriter ? 'Menu Akses Penulis:' : 'Kelola Halaman Publik:'}
             </span>
           </div>
 
-          {/* Overview */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('overview')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'overview'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'overview' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <LayoutDashboard className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'overview' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Ringkasan Dashboard
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'overview' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Statistik & Status Sistem
-                </span>
-              </div>
-            </div>
-          </button>
+          {/* Menu Khusus Super Admin & Admin */}
+          {isAdminOrSuperAdmin && (
+            <>
+              {/* 1. Beranda */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('home-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'home-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'home-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <Home className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'home-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Beranda
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'home-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Hero, Banner & Sambutan
+                    </span>
+                  </div>
+                </div>
+              </button>
 
-          <div className="pt-3 pb-1 px-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100 pt-2.5">
-              Kelola Halaman Publik:
-            </span>
-          </div>
+              {/* 2. Profil */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('profile-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'profile-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'profile-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Profil Instansi
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'profile-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Visi-Misi & Jajaran Pejabat
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {staff.length} Staf
+                </span>
+              </button>
 
-          {/* 1. Beranda */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('home-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'home-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'home-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <Home className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'home-cms' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Beranda
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'home-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Hero, Banner & Sambutan
-                </span>
-              </div>
-            </div>
-          </button>
+              {/* 2.5 SOP Pelayanan */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('sop-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'sop-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <FileCheck2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'sop-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      SOP Pelayanan
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'sop-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Bagan Alur Google Drive
+                    </span>
+                  </div>
+                </div>
+                {sopImageUrl ? (
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                    currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  }`}>
+                    Aktif
+                  </span>
+                ) : (
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                    currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    Kosong
+                  </span>
+                )}
+              </button>
 
-          {/* 2. Profil */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('profile-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'profile-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <Building2 className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'profile-cms' ? 'text-white' : 'text-slate-800'
+              {/* 3. Direktori Sekolah */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('schools-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'schools-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'schools-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Direktori Sekolah
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'schools-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Pangkalan Data SD, TK, KB
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  Profil Instansi
+                  {schools.length}
                 </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'profile-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Visi-Misi & Jajaran Pejabat
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {staff.length} Staf
-            </span>
-          </button>
+              </button>
 
-          {/* 2.5 SOP Pelayanan */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('sop-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'sop-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <FileCheck2 className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'sop-cms' ? 'text-white' : 'text-slate-800'
+              {/* 3.5. Nominatif Guru (Supabase) */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('nominatif-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'nominatif-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
+                  }`}>
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'nominatif-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Nominatif Guru
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'nominatif-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Daftar Pendidik Supabase
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  SOP Pelayanan
+                  {teachers.length}
                 </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'sop-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Bagan Alur Google Drive
-                </span>
-              </div>
-            </div>
-            {sopImageUrl ? (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-              }`}>
-                Aktif
-              </span>
-            ) : (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
-              }`}>
-                Kosong
-              </span>
-            )}
-          </button>
-
-          {/* 3. Direktori Sekolah */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('schools-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'schools-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <GraduationCap className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'schools-cms' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Direktori Sekolah
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'schools-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Pangkalan Data SD, TK, KB
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {schools.length}
-            </span>
-          </button>
-
-          {/* 3.5. Nominatif Guru (Supabase) */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('nominatif-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'nominatif-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
-              }`}>
-                <Users className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'nominatif-cms' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Nominatif Guru
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'nominatif-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Daftar Pendidik Supabase
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {teachers.length}
-            </span>
-          </button>
+              </button>
+            </>
+          )}
 
           {/* 4. Warta & Informasi */}
           <button
@@ -2917,117 +2994,124 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
-          {/* 4.5. Organisasi */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('organization-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'organization-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+          {/* 4.5. Organisasi (Khusus Admin/Super Admin atau Akun yang Ditunjuk) */}
+          {canAccessOrganizationCms && (
+            <button
+              type="button"
+              onClick={() => setCurrentSection('organization-cms')}
+              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                currentSection === 'organization-cms'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                }`}>
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'organization-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Organisasi
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'organization-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    {isAdminOrSuperAdmin ? 'PGRI, K3S, IGTKI, dsb.' : 'Kelola Organisasi'}
+                  </span>
+                </div>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
               }`}>
-                <Users className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'organization-cms' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Organisasi
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'organization-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  PGRI, K3S, IGTKI, dsb.
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {organizations.length}
-            </span>
-          </button>
+                {displayedOrganizations.length}
+              </span>
+            </button>
+          )}
 
-          {/* 4.8. Persyaratan Pelayanan */}
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentSection('service-requirements-cms');
-              setReqCategoryFilter('Semua');
-              setReqSearchQuery('');
-            }}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'service-requirements-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <ClipboardList className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'service-requirements-cms' ? 'text-white' : 'text-slate-800'
+          {/* 4.8 & 5. Menu Khusus Super Admin & Admin */}
+          {isAdminOrSuperAdmin && (
+            <>
+              {/* 4.8. Persyaratan Pelayanan */}
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentSection('service-requirements-cms');
+                  setReqCategoryFilter('Semua');
+                  setReqSearchQuery('');
+                }}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'service-requirements-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <ClipboardList className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'service-requirements-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Persyaratan Pelayanan
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'service-requirements-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Standar Berkas & Layanan
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  Persyaratan Pelayanan
+                  {serviceRequirements.length}
                 </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'service-requirements-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Standar Berkas & Layanan
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {serviceRequirements.length}
-            </span>
-          </button>
+              </button>
 
-          {/* 5. Layanan Unduhan */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('downloads-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'downloads-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <Download className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'downloads-cms' ? 'text-white' : 'text-slate-800'
+              {/* 5. Layanan Unduhan */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('downloads-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'downloads-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <Download className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'downloads-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Layanan Unduhan
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'downloads-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Modul Kurikulum & Blanko
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  Layanan Unduhan
+                  {documents.length}
                 </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'downloads-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Modul Kurikulum & Blanko
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {documents.length}
-            </span>
-          </button>
+              </button>
+            </>
+          )}
 
           {/* 6. Galeri */}
           <button
@@ -3065,43 +3149,45 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
-          {/* 7. Kontak & Aduan */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('contact-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
-              currentSection === 'contact-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                currentSection === 'contact-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <Phone className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'contact-cms' ? 'text-white' : 'text-slate-800'
+          {/* 7. Kontak & Aduan (Khusus Super Admin & Admin) */}
+          {isAdminOrSuperAdmin && (
+            <button
+              type="button"
+              onClick={() => setCurrentSection('contact-cms')}
+              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                currentSection === 'contact-cms'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  currentSection === 'contact-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                 }`}>
-                  Kontak & Pengaduan
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'contact-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Info Kantor & Kotak Masuk
-                </span>
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'contact-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Kontak & Pengaduan
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'contact-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    Info Kantor & Kotak Masuk
+                  </span>
+                </div>
               </div>
-            </div>
-            {newComplaintsCount > 0 && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                currentSection === 'contact-cms' ? 'bg-white/20 text-white' : 'bg-rose-500 text-white animate-pulse'
-              }`}>
-                {newComplaintsCount} Baru
-              </span>
-            )}
-          </button>
+              {newComplaintsCount > 0 && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'contact-cms' ? 'bg-white/20 text-white' : 'bg-rose-500 text-white animate-pulse'
+                }`}>
+                  {newComplaintsCount} Baru
+                </span>
+              )}
+            </button>
+          )}
 
           {/* 8. Pengaturan Akun & Hak Akses (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
@@ -3181,14 +3267,14 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' ? (
+          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Lock className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong> serta <strong>Galeri Kegiatan</strong>.
+                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong>, <strong>Galeri Kegiatan</strong>{canAccessOrganizationCms ? ', serta Organisasi yang ditugaskan kepada Anda' : ''}.
               </p>
               <div className="flex flex-wrap justify-center gap-2.5">
                 <button
@@ -3203,6 +3289,14 @@ export const AdminDashboard: React.FC = () => {
                 >
                   Buka Menu Galeri Kegiatan
                 </button>
+                {canAccessOrganizationCms && (
+                  <button
+                    onClick={() => setCurrentSection('organization-cms')}
+                    className="px-4 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md hover:bg-amber-700 transition-all"
+                  >
+                    Buka Menu Organisasi
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -3239,14 +3333,16 @@ export const AdminDashboard: React.FC = () => {
                   <span className="text-[11px] text-slate-400">SD, TK, & KB</span>
                 </div>
 
-                <div 
-                  onClick={() => setCurrentSection('organization-cms')}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                >
-                  <span className="text-xs font-bold text-slate-500 uppercase">Organisasi</span>
-                  <div className="text-3xl font-extrabold text-amber-600">{organizations.length}</div>
-                  <span className="text-[11px] text-slate-400">Mitra & Profesi</span>
-                </div>
+                {canAccessOrganizationCms && (
+                  <div 
+                    onClick={() => setCurrentSection('organization-cms')}
+                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
+                  >
+                    <span className="text-xs font-bold text-slate-500 uppercase">Organisasi</span>
+                    <div className="text-3xl font-extrabold text-amber-600">{displayedOrganizations.length}</div>
+                    <span className="text-[11px] text-slate-400">Mitra & Profesi</span>
+                  </div>
+                )}
 
                 <div 
                   onClick={() => setCurrentSection('downloads-cms')}
@@ -3356,7 +3452,7 @@ export const AdminDashboard: React.FC = () => {
                     { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, KB, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
                     { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, GTT & Honorer di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
-                    { id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' },
+                    ...(canAccessOrganizationCms ? [{ id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' }] : []),
                     { id: 'service-requirements-cms', title: 'Persyaratan Pelayanan', desc: 'Atur standar berkas persyaratan pelayanan pendidikan dan kepegawaian', icon: ClipboardList, color: 'text-blue-600 bg-blue-50' },
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
@@ -6157,122 +6253,155 @@ export const AdminDashboard: React.FC = () => {
                         Kelola Organisasi Mitra & Profesi
                       </h2>
                       <p className="text-xs text-slate-500 mt-1">
-                        Pilih organisasi di bawah ini untuk mengelola sambutan ketua, susunan pengurus beserta jabatannya, serta visi dan misi.
+                        {isAdminOrSuperAdmin 
+                          ? 'Pilih organisasi di bawah ini untuk mengelola sambutan ketua, susunan pengurus beserta jabatannya, visi-misi, serta akun penanggung jawab pengelola.'
+                          : `Organisasi mitra yang dapat dikelola oleh akun Anda (@${currentUser?.username || ''}).`}
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setShowNewOrgModal(true)}
-                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Tambah Organisasi Baru</span>
-                    </button>
+                    {isAdminOrSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewOrgModal(true)}
+                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Tambah Organisasi Baru</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* Grid of Organization Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {organizations.map((org) => {
-                      const logoSrc = org.logo
-                        ? (isGoogleDriveUrl(org.logo) ? formatGoogleDriveImageUrl(org.logo) : org.logo)
-                        : '';
-                      const leaderPhoto = org.leader?.photo
-                        ? (isGoogleDriveUrl(org.leader.photo) ? formatGoogleDriveImageUrl(org.leader.photo) : org.leader.photo)
-                        : '';
+                  {displayedOrganizations.length === 0 ? (
+                    <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center space-y-3">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-100">
+                        <Users className="w-7 h-7" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-800">Belum Ada Organisasi yang Ditugaskan</h3>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                        Akun Anda (<strong className="text-slate-700">@{currentUser?.username}</strong>) belum ditugaskan untuk mengelola organisasi manapun. Silakan hubungi Super Admin atau Admin untuk mendapatkan penugasan organisasi.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                      {displayedOrganizations.map((org) => {
+                        const logoSrc = org.logo
+                          ? (isGoogleDriveUrl(org.logo) ? formatGoogleDriveImageUrl(org.logo) : org.logo)
+                          : '';
+                        const leaderPhoto = org.leader?.photo
+                          ? (isGoogleDriveUrl(org.leader.photo) ? formatGoogleDriveImageUrl(org.leader.photo) : org.leader.photo)
+                          : '';
 
-                      return (
-                        <div
-                          key={org.id}
-                          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between group"
-                        >
-                          <div>
-                            {/* Card Top: Logo & Actions */}
-                            <div className="flex items-start justify-between gap-3 mb-4">
-                              <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 p-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
-                                {logoSrc ? (
-                                  <img src={logoSrc} alt={org.shortName} className="w-full h-full object-contain" />
+                        return (
+                          <div
+                            key={org.id}
+                            className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between group"
+                          >
+                            <div>
+                              {/* Card Top: Logo & Actions */}
+                              <div className="flex items-start justify-between gap-3 mb-4">
+                                <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 p-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                                  {logoSrc ? (
+                                    <img src={logoSrc} alt={org.shortName} className="w-full h-full object-contain" />
+                                  ) : (
+                                    <span className="text-sm font-black text-blue-700">
+                                      {org.shortName.slice(0, 3).toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedOrganizationSlug(org.slug);
+                                      setActiveTab('organization', `/organisasi/${org.slug}`);
+                                    }}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                    title="Lihat Halaman Publik"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </button>
+                                  {isAdminOrSuperAdmin && organizations.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteOrg(org.id, org.shortName)}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                      title="Hapus Organisasi"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Org Info */}
+                              <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-snug group-hover:text-blue-700 transition-colors">
+                                {org.name}
+                              </h3>
+                              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold">
+                                {org.shortName}
+                              </span>
+                              <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">
+                                {org.description || 'Belum ada deskripsi singkat organisasi.'}
+                              </p>
+
+                              {/* Leader Snippet */}
+                              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
+                                  {leaderPhoto ? (
+                                    <img src={leaderPhoto} alt="Ketua" className="w-full h-full object-cover object-top" />
+                                  ) : (
+                                    <User className="w-4 h-4 text-slate-400" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Ketua Terpilih</p>
+                                  <p className="text-xs font-bold text-slate-800 truncate">
+                                    {org.leader?.name || 'Belum Ditentukan'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Akun Pengelola */}
+                              <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <UserCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                  <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Pengelola:</span>
+                                </div>
+                                {org.assignedUsername ? (
+                                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/60 truncate max-w-[140px]" title={`Dikelola oleh @${org.assignedUsername}`}>
+                                    @{org.assignedUsername}
+                                  </span>
                                 ) : (
-                                  <span className="text-sm font-black text-blue-700">
-                                    {org.shortName.slice(0, 3).toUpperCase()}
+                                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    Semua Admin
                                   </span>
                                 )}
                               </div>
-
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedOrganizationSlug(org.slug);
-                                    setActiveTab('organization', `/organisasi/${org.slug}`);
-                                  }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                  title="Lihat Halaman Publik"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                </button>
-                                {organizations.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteOrg(org.id, org.shortName)}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                    title="Hapus Organisasi"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
                             </div>
 
-                            {/* Org Info */}
-                            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-snug group-hover:text-blue-700 transition-colors">
-                              {org.name}
-                            </h3>
-                            <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold">
-                              {org.shortName}
-                            </span>
-                            <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">
-                              {org.description || 'Belum ada deskripsi singkat organisasi.'}
-                            </p>
+                            {/* Footer Stats & Button */}
+                            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-blue-500" />
+                                <span>{org.officials?.length || 0} Pengurus</span>
+                              </span>
 
-                            {/* Leader Snippet */}
-                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
-                                {leaderPhoto ? (
-                                  <img src={leaderPhoto} alt="Ketua" className="w-full h-full object-cover object-top" />
-                                ) : (
-                                  <User className="w-4 h-4 text-slate-400" />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Ketua Terpilih</p>
-                                <p className="text-xs font-bold text-slate-800 truncate">
-                                  {org.leader?.name || 'Belum Ditentukan'}
-                                </p>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectOrgToEdit(org.id)}
+                                className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Kelola Organisasi</span>
+                              </button>
                             </div>
                           </div>
-
-                          {/* Footer Stats & Button */}
-                          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
-                              <Users className="w-3.5 h-3.5 text-blue-500" />
-                              <span>{org.officials?.length || 0} Pengurus</span>
-                            </span>
-
-                            <button
-                              type="button"
-                              onClick={() => handleSelectOrgToEdit(org.id)}
-                              className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Kelola Organisasi</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* VIEW B: PENGATURAN ORGANISASI TERPILIH */
@@ -6344,6 +6473,60 @@ export const AdminDashboard: React.FC = () => {
                         {isSavingOrg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         <span>{isSavingOrg ? 'Menyimpan...' : 'Simpan Seluruh Perubahan'}</span>
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Penugasan Akun Pengelola Organisasi */}
+                  <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-slate-50 rounded-2xl border border-blue-200/80 p-4 sm:p-5 shadow-xs">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                          <UserCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-extrabold text-slate-900">
+                              Akun Pengelola Organisasi
+                            </h3>
+                            {orgForm.assignedUsername ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                @{orgForm.assignedUsername}
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                                Semua Admin
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                            Pilih akun yang berhak membuka menu Organisasi dan mengelola data serta struktur pengurus <strong className="text-slate-800">{orgForm.shortName}</strong>.
+                          </p>
+                        </div>
+                      </div>
+
+                      {isAdminOrSuperAdmin ? (
+                        <div className="w-full md:w-80 shrink-0">
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Pilih Akun Penanggung Jawab:
+                          </label>
+                          <select
+                            value={orgForm.assignedUsername || ''}
+                            onChange={(e) => setOrgForm({ ...orgForm, assignedUsername: e.target.value || undefined })}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-bold text-slate-800 shadow-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          >
+                            <option value="">Semua Admin (Tidak dibatasi akun khusus)</option>
+                            {adminUsers.map((u) => (
+                              <option key={u.id} value={u.username}>
+                                @{u.username} — {u.name} ({u.role})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="px-3.5 py-2 rounded-xl bg-white/90 border border-blue-200 text-xs text-blue-900 font-medium shrink-0 self-start md:self-auto">
+                          Dikelola oleh akun Anda (<strong className="font-bold">@{currentUser?.username}</strong>)
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -7166,6 +7349,33 @@ export const AdminDashboard: React.FC = () => {
 
                         </div>
                       </div>
+
+                      {/* Akun Pengelola Organisasi (Tabel admin_users) */}
+                      {isAdminOrSuperAdmin && (
+                        <div className="space-y-2 p-4 sm:p-5 rounded-2xl bg-blue-50/70 border border-blue-200">
+                          <div className="flex items-center gap-2">
+                            <UserCheck className="w-4 h-4 text-blue-600" />
+                            <label className="text-xs font-bold text-slate-800">
+                              Akun Pengelola Organisasi (Tabel admin_users)
+                            </label>
+                          </div>
+                          <select
+                            value={orgForm.assignedUsername || ''}
+                            onChange={(e) => setOrgForm({ ...orgForm, assignedUsername: e.target.value || undefined })}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          >
+                            <option value="">Semua Admin (Tidak dibatasi akun khusus)</option>
+                            {adminUsers.map((u) => (
+                              <option key={u.id} value={u.username}>
+                                @{u.username} — {u.name} ({u.role})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[11px] text-slate-500">
+                            Akun yang dipilih akan memiliki hak akses untuk membuka menu Organisasi di CMS dan mengelola data {orgForm.shortName}.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Deskripsi Singkat */}
                       <div className="space-y-1.5">
@@ -9547,6 +9757,25 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setNewOrgForm({ ...newOrgForm, description: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Akun Pengelola Khusus (Opsional)</label>
+                <select
+                  value={newOrgForm.assignedUsername || ''}
+                  onChange={(e) => setNewOrgForm({ ...newOrgForm, assignedUsername: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none font-medium"
+                >
+                  <option value="">Semua Admin (Tidak dibatasi akun khusus)</option>
+                  {adminUsers.map((u) => (
+                    <option key={u.id} value={u.username}>
+                      @{u.username} — {u.name} ({u.role})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400">
+                  Akun yang dipilih akan dapat membuka menu Organisasi dan mengelola organisasi baru ini.
+                </p>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">

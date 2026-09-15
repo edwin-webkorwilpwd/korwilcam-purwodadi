@@ -202,6 +202,7 @@ CREATE TABLE IF NOT EXISTS organizations (
   phone TEXT,
   email TEXT,
   social_media JSONB DEFAULT '{}'::jsonb,
+  assigned_username TEXT,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -518,4 +519,11 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.increment_news_views(TEXT) TO anon, authenticated, service_role;
+
+-- ==========================================================
+-- MIGRATION: TAMBAH KOLOM ASSIGNED_USERNAME KE TABEL ORGANIZATIONS
+-- ==========================================================
+-- Jalankan potongan script ini di menu "SQL Editor" pada Supabase jika tabel organizations sudah ada sebelumnya:
+ALTER TABLE public.organizations
+  ADD COLUMN IF NOT EXISTS assigned_username TEXT;
 
