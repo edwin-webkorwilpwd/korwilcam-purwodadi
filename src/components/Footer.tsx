@@ -46,9 +46,9 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab(isAuthenticated ? 'admin-dashboard' : 'admin-login')}
-                  className="text-blue-400 hover:text-blue-300 transition-colors shrink-0 mt-0.5 cursor-pointer p-0.5 -m-0.5 rounded focus:outline-none"
-                  title="Akses Petugas"
-                  aria-label="Akses Petugas"
+                  className="text-blue-400 shrink-0 mt-0.5 p-0.5 -m-0.5 focus:outline-none cursor-default"
+                  tabIndex={-1}
+                  aria-hidden="true"
                 >
                   <MapPin className="w-3 h-3" />
                 </button>

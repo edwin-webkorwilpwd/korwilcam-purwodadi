@@ -1850,8 +1850,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'service-survey': { path: '/layanan/survey-pelayanan', title: 'Survey Kepuasan Pelayanan Terpadu - Korwilcam Purwodadi' },
     'gallery': { path: '/galeri', title: 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi' },
     'contact': { path: '/kontak', title: 'Kontak & Layanan Pengaduan - Korwilcam Purwodadi' },
-    'admin-login': { path: '/admin/login', title: 'Login Panel Admin - Korwilcam Purwodadi' },
-    'admin-dashboard': { path: '/admin/dashboard', title: 'Dashboard Panel Admin - Korwilcam Purwodadi' }
+    'admin-login': { path: '/angmin/lugin', title: 'Login Panel Admin - Korwilcam Purwodadi' },
+    'admin-dashboard': { path: '/angmin/dashboard', title: 'Dashboard Panel Admin - Korwilcam Purwodadi' }
   };
 
   const setActiveTab = (tab: string, customPath?: string) => {
@@ -2469,14 +2469,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (rawPath.startsWith('/kontak') || rawPath.startsWith('/pengaduan') || rawPath.startsWith('/aduan')) {
         setActiveTabState('contact');
         document.title = TAB_ROUTES['contact'].title;
-      } else if (rawPath.startsWith('/admin')) {
+      } else if (rawPath.startsWith('/angmin')) {
         if (rawPath.includes('dashboard')) {
           setActiveTabState('admin-dashboard');
           document.title = TAB_ROUTES['admin-dashboard'].title;
         } else {
           setActiveTabState('admin-login');
           document.title = TAB_ROUTES['admin-login'].title;
+          if (rawPath !== '/angmin/lugin') {
+            window.history.replaceState({ tab: 'admin-login', path: '/angmin/lugin' }, '', '/angmin/lugin');
+          }
         }
+      } else if (rawPath.startsWith('/admin')) {
+        // Demi keamanan: URL /admin lama dialihkan ke beranda (karena URL login resmi telah dipindahkan ke /angmin/lugin)
+        window.history.replaceState({}, '', '/beranda');
+        setActiveTabState('home');
+        document.title = TAB_ROUTES['home'].title;
       }
     };
 
