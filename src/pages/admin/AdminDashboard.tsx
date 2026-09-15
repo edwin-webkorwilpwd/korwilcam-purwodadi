@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   LayoutDashboard, 
@@ -182,10 +182,13 @@ export const AdminDashboard: React.FC = () => {
     batchAddTeachers,
     clearAllTeachers,
     serviceRequirements,
+    serviceRequirementCategories,
     addServiceRequirement,
     updateServiceRequirement,
     deleteServiceRequirement,
     resetServiceRequirements,
+    addServiceRequirementCategory,
+    deleteServiceRequirementCategory,
     showConfirmDialog,
     showNoticePopup
   } = useApp();
@@ -1031,11 +1034,83 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // --- 4.8. SERVICE REQUIREMENTS CMS STATE ---
+  const DEFAULT_REQ_CATEGORIES = [
+    'Kepegawaian & GTK',
+    'Kesiswaan & Kurikulum',
+    'Kelembagaan & Legalitas',
+    'Umum & Tata Usaha'
+  ];
+
   const [reqSearchQuery, setReqSearchQuery] = useState('');
-  const [reqCategoryFilter, setReqCategoryFilter] = useState('ALL');
+  const [reqCategoryFilter, setReqCategoryFilter] = useState('Semua');
   const [isReqModalOpen, setIsReqModalOpen] = useState(false);
   const [editingReqId, setEditingReqId] = useState<string | null>(null);
   const [reqFormInputMode, setReqFormInputMode] = useState<'list' | 'text'>('list');
+
+  const [customReqCategories, setCustomReqCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('custom_service_categories');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isAddingReqCategory, setIsAddingReqCategory] = useState(false);
+  const [newReqCategoryInput, setNewReqCategoryInput] = useState('');
+
+  const allReqCategories = useMemo(() => {
+    const set = new Set<string>(
+      serviceRequirementCategories && serviceRequirementCategories.length > 0
+        ? serviceRequirementCategories
+        : DEFAULT_REQ_CATEGORIES
+    );
+    serviceRequirements.forEach((item) => {
+      if (item.category && item.category.trim() && item.category !== 'System') {
+        set.add(item.category.trim());
+      }
+    });
+    customReqCategories.forEach((cat) => {
+      if (cat && cat.trim() && cat !== 'System') {
+        set.add(cat.trim());
+      }
+    });
+    return Array.from(set);
+  }, [serviceRequirements, serviceRequirementCategories, customReqCategories]);
+
+  const handleSaveNewCategory = async () => {
+    const trimmed = newReqCategoryInput.trim();
+    if (!trimmed) {
+      showToast('Nama kategori tidak boleh kosong!', 'error');
+      return;
+    }
+    const existing = allReqCategories.find((c) => c.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      setReqForm((prev) => ({ ...prev, category: existing }));
+      setIsAddingReqCategory(false);
+      setNewReqCategoryInput('');
+      showToast(`Kategori "${existing}" dipilih.`, 'info');
+      return;
+    }
+
+    // Simpan ke Supabase Cloud via AppContext (tersinkronisasi untuk seluruh admin)
+    await addServiceRequirementCategory(trimmed);
+
+    const updated = [...customReqCategories, trimmed];
+    setCustomReqCategories(updated);
+    try {
+      localStorage.setItem('custom_service_categories', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+    setReqForm((prev) => ({ ...prev, category: trimmed }));
+    setIsAddingReqCategory(false);
+    setNewReqCategoryInput('');
+  };
+
+  const handleCancelNewCategory = () => {
+    setIsAddingReqCategory(false);
+    setNewReqCategoryInput('');
+  };
 
   const [reqForm, setReqForm] = useState({
     title: '',
@@ -1051,9 +1126,11 @@ export const AdminDashboard: React.FC = () => {
 
   const handleOpenAddReqModal = () => {
     setEditingReqId(null);
+    setIsAddingReqCategory(false);
+    setNewReqCategoryInput('');
     setReqForm({
       title: '',
-      category: 'Kepegawaian & GTK',
+      category: allReqCategories[0] || 'Kepegawaian & GTK',
       description: '',
       requirements: [''],
       requirementsText: '',
@@ -1068,6 +1145,8 @@ export const AdminDashboard: React.FC = () => {
 
   const handleOpenEditReqModal = (item: ServiceRequirement) => {
     setEditingReqId(item.id);
+    setIsAddingReqCategory(false);
+    setNewReqCategoryInput('');
     const reqList = Array.isArray(item.requirements) && item.requirements.length > 0 ? [...item.requirements] : [''];
     setReqForm({
       title: item.title,
@@ -2731,7 +2810,11 @@ export const AdminDashboard: React.FC = () => {
           {/* 4.8. Persyaratan Pelayanan */}
           <button
             type="button"
-            onClick={() => setCurrentSection('service-requirements-cms')}
+            onClick={() => {
+              setCurrentSection('service-requirements-cms');
+              setReqCategoryFilter('Semua');
+              setReqSearchQuery('');
+            }}
             className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
               currentSection === 'service-requirements-cms'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
@@ -3129,7 +3212,13 @@ export const AdminDashboard: React.FC = () => {
                     return (
                       <div
                         key={i}
-                        onClick={() => setCurrentSection(menu.id as AdminSection)}
+                        onClick={() => {
+                          if (menu.id === 'service-requirements-cms') {
+                            setReqCategoryFilter('Semua');
+                            setReqSearchQuery('');
+                          }
+                          setCurrentSection(menu.id as AdminSection);
+                        }}
                         className="p-4 rounded-xl border border-slate-200/80 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group flex items-start gap-3"
                       >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${menu.color} group-hover:scale-110 transition-transform`}>
@@ -6929,7 +7018,7 @@ export const AdminDashboard: React.FC = () => {
                 {/* Category Pills */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
                   <span className="text-slate-400 text-[11px] font-semibold mr-1 shrink-0">Kategori:</span>
-                  {['Semua', 'Kepegawaian & GTK', 'Kesiswaan & Kurikulum', 'Kelembagaan & Legalitas', 'Umum & Tata Usaha'].map((cat) => (
+                  {['Semua', ...allReqCategories].map((cat) => (
                     <button
                       key={cat}
                       type="button"
@@ -7156,19 +7245,94 @@ export const AdminDashboard: React.FC = () => {
                       {/* Kategori & Nomor Urut */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="sm:col-span-2 space-y-1.5">
-                          <label className="text-xs font-bold text-slate-700">
-                            Kategori Pelayanan *
-                          </label>
-                          <select
-                            value={reqForm.category}
-                            onChange={(e) => setReqForm({ ...reqForm, category: e.target.value })}
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
-                          >
-                            <option value="Kepegawaian & GTK">Kepegawaian & GTK</option>
-                            <option value="Kesiswaan & Kurikulum">Kesiswaan & Kurikulum</option>
-                            <option value="Kelembagaan & Legalitas">Kelembagaan & Legalitas</option>
-                            <option value="Umum & Tata Usaha">Umum & Tata Usaha</option>
-                          </select>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700">
+                              Kategori Pelayanan *
+                            </label>
+                            {!isAddingReqCategory && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsAddingReqCategory(true);
+                                  setNewReqCategoryInput('');
+                                }}
+                                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Tambah Kategori</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {!isAddingReqCategory ? (
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={reqForm.category}
+                                onChange={(e) => setReqForm({ ...reqForm, category: e.target.value })}
+                                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
+                              >
+                                {allReqCategories.map((cat) => (
+                                  <option key={cat} value={cat}>
+                                    {cat}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsAddingReqCategory(true);
+                                  setNewReqCategoryInput('');
+                                }}
+                                title="Tambah Kategori Baru (+)"
+                                className="h-[38px] px-2.5 sm:px-3 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all shadow-sm shrink-0 active:scale-95"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span className="hidden sm:inline text-xs">Tambah</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={newReqCategoryInput}
+                                  onChange={(e) => setNewReqCategoryInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleSaveNewCategory();
+                                    } else if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      handleCancelNewCategory();
+                                    }
+                                  }}
+                                  placeholder="Ketik nama kategori baru..."
+                                  className="flex-1 px-3.5 py-2 rounded-xl bg-white border-2 border-blue-500 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveNewCategory}
+                                  title="Simpan Kategori Baru"
+                                  className="h-[38px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold shadow-sm shrink-0 transition-all active:scale-95"
+                                >
+                                  <Check className="w-4 h-4 stroke-[2.5]" />
+                                  <span>Simpan</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelNewCategory}
+                                  title="Batal"
+                                  className="h-[38px] w-9 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-xl flex items-center justify-center shrink-0 transition-all active:scale-95"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <p className="text-[10px] text-slate-400 italic">
+                                Ketik nama kategori baru, lalu klik tombol centang (Simpan) atau tekan tombol Enter.
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         <div className="space-y-1.5">

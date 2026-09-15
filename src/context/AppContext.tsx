@@ -146,12 +146,15 @@ interface AppContextType {
 
   // Persyaratan Pelayanan
   serviceRequirements: ServiceRequirement[];
+  serviceRequirementCategories: string[];
   selectedServiceRequirement: ServiceRequirement | null;
   setSelectedServiceRequirement: (item: ServiceRequirement | null, customPath?: string) => void;
   addServiceRequirement: (item: Omit<ServiceRequirement, 'id'>) => Promise<boolean>;
   updateServiceRequirement: (id: string, item: Partial<ServiceRequirement>) => Promise<boolean>;
   deleteServiceRequirement: (id: string) => Promise<boolean>;
   resetServiceRequirements: () => Promise<boolean>;
+  addServiceRequirementCategory: (categoryName: string) => Promise<boolean>;
+  deleteServiceRequirementCategory: (categoryName: string) => Promise<boolean>;
   
   // Auth & Roles
   isAuthenticated: boolean;
@@ -524,6 +527,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [serviceRequirementCategories, setServiceRequirementCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_service_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      'Kepegawaian & GTK',
+      'Kesiswaan & Kurikulum',
+      'Kelembagaan & Legalitas',
+      'Umum & Tata Usaha'
+    ];
+  });
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -775,15 +794,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.1 Fetch service_requirements IMMEDIATELY IN PARALLEL
+      // 0.1 Fetch service_requirements and categories IMMEDIATELY IN PARALLEL
       const serviceReqsFetchPromise = (async () => {
         try {
+          // Fetch categories from service_categories table if exists
+          try {
+            const { data: dbCats } = await client
+              .from('service_categories')
+              .select('name')
+              .order('created_at', { ascending: true });
+            if (Array.isArray(dbCats) && dbCats.length > 0) {
+              const catNames = dbCats.map((c: any) => String(c.name || '').trim()).filter(Boolean);
+              if (catNames.length > 0) {
+                setServiceRequirementCategories((prev) => {
+                  const merged = Array.from(new Set([...prev, ...catNames]));
+                  try {
+                    localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
+                  } catch {}
+                  return merged;
+                });
+              }
+            }
+          } catch {}
+
           const { data: dbReqs, error: reqErr } = await client
             .from('service_requirements')
             .select('*')
             .order('sort_order', { ascending: true });
+
           if (!reqErr && Array.isArray(dbReqs)) {
-            const mappedReqs: ServiceRequirement[] = dbReqs.map((r: any, index: number) => ({
+            // 1. Ekstrak master kategori tersimpan di Supabase
+            const sysCat = dbReqs.find((r: any) => r.id === 'system-service-categories');
+            if (sysCat) {
+              try {
+                let parsed: string[] = [];
+                if (Array.isArray(sysCat.requirements) && sysCat.requirements.length > 0) {
+                  parsed = sysCat.requirements;
+                } else if (sysCat.notes) {
+                  parsed = JSON.parse(sysCat.notes);
+                }
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setServiceRequirementCategories((prev) => {
+                    const merged = Array.from(new Set([...prev, ...parsed]));
+                    try {
+                      localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
+                    } catch {}
+                    return merged;
+                  });
+                }
+              } catch {}
+            }
+
+            // 2. Filter hanya layanan publik riil (abaikan system-service-categories)
+            const actualReqs = dbReqs.filter((r: any) => r.id !== 'system-service-categories');
+
+            // Ekstrak kategori dari masing-masing layanan aktual
+            actualReqs.forEach((r: any) => {
+              if (r.category && typeof r.category === 'string') {
+                const c = r.category.trim();
+                if (c && c !== 'System') {
+                  setServiceRequirementCategories((prev) => {
+                    if (prev.includes(c)) return prev;
+                    const merged = [...prev, c];
+                    try {
+                      localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
+                    } catch {}
+                    return merged;
+                  });
+                }
+              }
+            });
+
+            const mappedReqs: ServiceRequirement[] = actualReqs.map((r: any, index: number) => ({
               id: String(r.id || `req-${Date.now()}-${index}`),
               title: String(r.title || '').trim(),
               category: String(r.category || 'Kepegawaian & GTK').trim(),
@@ -1564,9 +1646,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel daftar_guru:', tErr);
       }
 
-      // 13. Export service_requirements
+      // 13. Export service_requirements & master categories
       try {
-        const reqPayload = serviceRequirements.map((r) => ({
+        const reqPayload: any[] = serviceRequirements.map((r) => ({
           id: r.id,
           title: r.title,
           category: r.category || 'Kepegawaian & GTK',
@@ -1579,7 +1661,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           created_at: r.createdAt || new Date().toISOString(),
           updated_at: r.updatedAt || new Date().toISOString()
         }));
+
+        // Sertakan record system-service-categories untuk sinkronisasi master kategori antar-admin
+        reqPayload.push({
+          id: 'system-service-categories',
+          title: 'System Service Categories',
+          category: 'System',
+          description: 'Master category list for service requirements',
+          requirements: serviceRequirementCategories,
+          notes: JSON.stringify(serviceRequirementCategories),
+          estimated_time: '1 Hari',
+          fee: 'Gratis',
+          sort_order: -999,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
         await client.from('service_requirements').upsert(reqPayload);
+
+        // Ekspor juga ke tabel service_categories jika tabel ini sudah dibuat
+        try {
+          const catPayload = serviceRequirementCategories.map((c) => ({
+            id: `cat-${c.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+            name: c,
+            created_at: new Date().toISOString()
+          }));
+          await client.from('service_categories').upsert(catPayload, { onConflict: 'name' });
+        } catch {}
       } catch (rErr) {
         console.warn('Gagal ekspor tabel service_requirements:', rErr);
       }
@@ -4324,6 +4432,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  const addServiceRequirementCategory = async (categoryName: string): Promise<boolean> => {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return false;
+
+    const exists = serviceRequirementCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
+    const updatedCategories = exists ? serviceRequirementCategories : [...serviceRequirementCategories, trimmed];
+
+    setServiceRequirementCategories(updatedCategories);
+    try {
+      localStorage.setItem('korwilcam_service_categories', JSON.stringify(updatedCategories));
+    } catch {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        // 1. Simpan ke system record di tabel service_requirements (pasti ada)
+        await client.from('service_requirements').upsert({
+          id: 'system-service-categories',
+          title: 'System Service Categories',
+          category: 'System',
+          description: 'Master kategori persyaratan pelayanan',
+          requirements: updatedCategories,
+          notes: JSON.stringify(updatedCategories),
+          estimated_time: '1 Hari',
+          fee: 'Gratis',
+          sort_order: -999,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+        // 2. Simpan juga ke tabel service_categories jika tabel ini sudah dibuat di Supabase
+        try {
+          await client.from('service_categories').upsert({
+            id: `cat-${trimmed.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+            name: trimmed,
+            created_at: new Date().toISOString()
+          }, { onConflict: 'name' });
+        } catch {}
+
+        showToast(`Kategori "${trimmed}" berhasil disimpan di Supabase Cloud untuk seluruh admin!`, 'success');
+        return true;
+      } catch (err: any) {
+        console.warn('Gagal sinkron kategori ke Supabase:', err);
+        showToast('Kategori tersimpan di penyimpanan lokal.', 'info');
+        return false;
+      }
+    } else {
+      showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
+      return true;
+    }
+  };
+
+  const deleteServiceRequirementCategory = async (categoryName: string): Promise<boolean> => {
+    const trimmed = categoryName.trim();
+    const updatedCategories = serviceRequirementCategories.filter((c) => c.toLowerCase() !== trimmed.toLowerCase());
+
+    setServiceRequirementCategories(updatedCategories);
+    try {
+      localStorage.setItem('korwilcam_service_categories', JSON.stringify(updatedCategories));
+    } catch {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('service_requirements').upsert({
+          id: 'system-service-categories',
+          title: 'System Service Categories',
+          category: 'System',
+          description: 'Master kategori persyaratan pelayanan',
+          requirements: updatedCategories,
+          notes: JSON.stringify(updatedCategories),
+          estimated_time: '1 Hari',
+          fee: 'Gratis',
+          sort_order: -999,
+          updated_at: new Date().toISOString()
+        });
+
+        try {
+          await client.from('service_categories').delete().eq('name', trimmed);
+        } catch {}
+      } catch (err) {
+        console.warn('Gagal menghapus kategori dari Supabase:', err);
+      }
+    }
+    return true;
+  };
+
   const resetToDefaultData = () => {
     setSchools(initialSchools);
     setNews(initialNews);
@@ -4372,12 +4567,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         batchAddTeachers,
         clearAllTeachers,
         serviceRequirements,
+        serviceRequirementCategories,
         selectedServiceRequirement,
         setSelectedServiceRequirement,
         addServiceRequirement,
         updateServiceRequirement,
         deleteServiceRequirement,
         resetServiceRequirements,
+        addServiceRequirementCategory,
+        deleteServiceRequirementCategory,
         activeTab,
         setActiveTab,
         selectedNews,

@@ -22,7 +22,7 @@ export const ServiceRequirementsPage: React.FC = () => {
   const categories = useMemo(() => {
     const set = new Set<string>();
     serviceRequirements.forEach((r) => {
-      if (r.category && r.category.trim() !== '') {
+      if (r.category && r.category.trim() !== '' && r.category !== 'System') {
         set.add(r.category.trim());
       }
     });

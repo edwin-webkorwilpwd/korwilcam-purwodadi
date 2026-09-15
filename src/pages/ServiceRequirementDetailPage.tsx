@@ -7,7 +7,6 @@ import {
   ClipboardList, 
   Copy, 
   Check, 
-  Printer, 
   MessageSquare, 
   Share2, 
   ChevronRight, 
@@ -102,10 +101,6 @@ export const ServiceRequirementDetailPage: React.FC = () => {
       showToast('Tautan link halaman persyaratan berhasil disalin!', 'success');
       setTimeout(() => setLinkCopied(false), 2500);
     });
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const handleWhatsAppConsult = () => {
@@ -297,16 +292,6 @@ export const ServiceRequirementDetailPage: React.FC = () => {
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-500" />}
                   <span>{copied ? 'Berhasil Disalin' : 'Salin Persyaratan'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                  title="Cetak lembar persyaratan ini"
-                >
-                  <Printer className="w-4 h-4 text-slate-500" />
-                  <span>Cetak / PDF</span>
                 </button>
 
                 <button

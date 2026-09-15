@@ -462,3 +462,40 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
+
+-- ==========================================================
+-- MIGRATION: BUAT TABEL KATEGORI PERSYARATAN PELAYANAN (SERVICE_CATEGORIES)
+-- ==========================================================
+-- Jalankan potongan script ini di menu "SQL Editor" pada Supabase:
+CREATE TABLE IF NOT EXISTS public.service_categories (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Pengaturan RLS (Row Level Security)
+ALTER TABLE public.service_categories ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read service_categories" ON public.service_categories;
+CREATE POLICY "Public read service_categories" ON public.service_categories FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on service_categories" ON public.service_categories;
+CREATE POLICY "Allow all on service_categories" ON public.service_categories FOR ALL USING (true);
+
+-- Isi kategori default bawaan awal jika belum ada
+INSERT INTO public.service_categories (name)
+VALUES 
+  ('Kepegawaian & GTK'),
+  ('Kesiswaan & Kurikulum'),
+  ('Kelembagaan & Legalitas'),
+  ('Umum & Tata Usaha')
+ON CONFLICT (name) DO NOTHING;
+
+-- Publikasi Realtime untuk Multi-User Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.service_categories;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
