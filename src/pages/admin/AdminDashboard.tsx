@@ -112,6 +112,7 @@ import {
 } from '../../components/SocialIcons';
 import { getArticleReadingStats } from '../../lib/readingTime';
 import { getGoogleMapsUrl, normalizeToGoogleMapsUrl } from '../../lib/coordinates';
+import { sortGalleryDescending } from '../../lib/galleryHelper';
 
 export const AdminDashboard: React.FC = () => {
   const { 
@@ -8019,7 +8020,7 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Gallery Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {gallery.map((item) => {
+                {sortGalleryDescending(gallery).map((item) => {
                   const totalPhotos = (item.images && item.images.length > 0) ? item.images.length : (item.image ? 1 : 0);
                   return (
                     <div key={item.id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm group">

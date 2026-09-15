@@ -35,7 +35,8 @@ export const Navbar: React.FC = () => {
     isAuthenticated,
     organizations,
     selectedOrganizationSlug,
-    setSelectedOrganizationSlug 
+    setSelectedOrganizationSlug,
+    setSelectedServiceRequirement 
   } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -137,6 +138,7 @@ export const Navbar: React.FC = () => {
   const handleNavClick = (tab: string, path?: string) => {
     if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
     if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
+    if (setSelectedServiceRequirement) setSelectedServiceRequirement(null);
     setActiveTab(tab, path);
     setMobileMenuOpen(false);
     setProfileDropdownOpen(false);

@@ -35,9 +35,10 @@ import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocal
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
-import { getGallerySlug } from '../lib/galleryHelper';
+import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } from '../lib/galleryHelper';
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
+import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -145,6 +146,8 @@ interface AppContextType {
 
   // Persyaratan Pelayanan
   serviceRequirements: ServiceRequirement[];
+  selectedServiceRequirement: ServiceRequirement | null;
+  setSelectedServiceRequirement: (item: ServiceRequirement | null, customPath?: string) => void;
   addServiceRequirement: (item: Omit<ServiceRequirement, 'id'>) => Promise<boolean>;
   updateServiceRequirement: (id: string, item: Partial<ServiceRequirement>) => Promise<boolean>;
   deleteServiceRequirement: (id: string) => Promise<boolean>;
@@ -244,6 +247,8 @@ export const isDummySchoolImage = (url?: string): boolean => {
 
 // In-memory module cache for instant (0ms) teacher nominative display across navigation
 let _inMemoryTeachersCache: TeacherNominative[] | null = null;
+// In-memory module cache for instant (0ms) gallery albums display across navigation & visitors
+let _inMemoryGalleryCache: GalleryItem[] | null = null;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDbConfigured = getSupabaseConfig().isConfigured;
@@ -347,8 +352,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
-    const saved = localStorage.getItem('korwilcam_gallery');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialGallery);
+    if (_inMemoryGalleryCache && _inMemoryGalleryCache.length > 0) {
+      return _inMemoryGalleryCache;
+    }
+    try {
+      const sessionSaved = sessionStorage.getItem('korwilcam_gallery');
+      if (sessionSaved) {
+        const parsed = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sorted = sortGalleryDescending(parsed);
+          _inMemoryGalleryCache = sorted;
+          return sorted;
+        }
+      }
+    } catch {}
+    try {
+      const saved = localStorage.getItem('korwilcam_gallery');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sorted = sortGalleryDescending(parsed);
+          _inMemoryGalleryCache = sorted;
+          return sorted;
+        }
+      }
+    } catch {}
+    const initialSorted = sortGalleryDescending(initialGallery);
+    _inMemoryGalleryCache = initialSorted;
+    return initialSorted;
   });
 
   const [galleryCategories, setGalleryCategories] = useState<string[]>(() => {
@@ -417,6 +448,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedSchool, setSelectedSchoolState] = useState<School | null>(null);
   const [selectedGallery, setSelectedGalleryState] = useState<GalleryItem | null>(null);
   const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
+  const [selectedServiceRequirement, setSelectedServiceRequirementState] = useState<ServiceRequirement | null>(null);
   const [organizations, setOrganizations] = useState<EducationalOrganization[]>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_organizations');
@@ -624,9 +656,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
+      sessionStorage.setItem('korwilcam_gallery', JSON.stringify(gallery));
+    } catch (_) {}
+    try {
       localStorage.setItem('korwilcam_gallery', JSON.stringify(gallery));
     } catch (e) {
-      console.warn('localStorage save gallery quota warning:', e);
+      // Fallback: simpan versi thumbnail/cover jika base64 melebihi kuota 5MB browser
+      try {
+        const lightweight = gallery.map(item => ({
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          date: item.date,
+          createdAt: item.createdAt,
+          description: item.description,
+          image: item.image,
+          images: [item.image]
+        }));
+        localStorage.setItem('korwilcam_gallery', JSON.stringify(lightweight));
+      } catch (_) {}
     }
   }, [gallery]);
 
@@ -769,7 +817,105 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch {}
         }
       })();
-      
+
+      // 0.2 Fetch gallery IMMEDIATELY IN PARALLEL (Dokumentasi Kegiatan)
+      // Supaya galeri langsung tampil instan tanpa delay 3 detik dan foto terbaru selalu di posisi paling atas!
+      const galleryFetchPromise = (async () => {
+        try {
+          const { data: dbGallery, error: galErr } = await client
+            .from('gallery')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!galErr && dbGallery) {
+            // Cari master kategori galeri tersimpan di Supabase
+            const sysGalCat = dbGallery.find((g: any) => g.id === 'system-gallery-categories');
+            let loadedGalCategories: string[] = ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'];
+            if (sysGalCat) {
+              try {
+                if (sysGalCat.description) {
+                  const parsed = JSON.parse(sysGalCat.description);
+                  if (Array.isArray(parsed)) loadedGalCategories = parsed;
+                }
+              } catch {}
+            }
+
+            const actualGal = dbGallery.filter((g: any) => g.id !== 'system-gallery-categories');
+
+            // Kumpulkan kategori dari item galeri aktual
+            actualGal.forEach((g: any) => {
+              if (g.category && typeof g.category === 'string') {
+                const c = g.category.trim();
+                if (c && c !== 'System' && !loadedGalCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
+                  loadedGalCategories.push(c);
+                }
+              }
+            });
+
+            // Pastikan kategori default selalu tersedia
+            ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'].forEach(def => {
+              if (!loadedGalCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
+                loadedGalCategories.push(def);
+              }
+            });
+
+            setGalleryCategories(loadedGalCategories);
+            try {
+              localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(loadedGalCategories));
+            } catch {}
+
+            const mappedGal: GalleryItem[] = actualGal.map((g: any) => ({
+              id: String(g.id || `gal-${Date.now()}`),
+              title: String(g.title || g.judul || '').trim(),
+              category: g.category || g.kategori || 'Dokumentasi',
+              image: g.image || g.gambar || '',
+              images: (() => {
+                if (Array.isArray(g.images) && g.images.length > 0) return g.images;
+                if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
+                  try {
+                    const parsed = JSON.parse(g.images);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                  } catch (_) {}
+                }
+                return g.image ? [g.image] : [];
+              })(),
+              description: g.description || g.deskripsi || '',
+              date: g.date || g.tanggal || '',
+              createdAt: g.created_at || g.createdAt
+            }));
+
+            // Pastikan terurut secara descending (terbaru paling atas)
+            const sortedGal = sortGalleryDescending(mappedGal);
+            _inMemoryGalleryCache = sortedGal;
+            setGallery(sortedGal);
+
+            try {
+              sessionStorage.setItem('korwilcam_gallery', JSON.stringify(sortedGal));
+            } catch {}
+            try {
+              localStorage.setItem('korwilcam_gallery', JSON.stringify(sortedGal));
+            } catch (quotaErr) {
+              // Jika data base64 melebihi kuota 5MB browser, simpan versi cover image agar tetap super cepat
+              try {
+                const lightweight = sortedGal.map(item => ({
+                  id: item.id,
+                  title: item.title,
+                  category: item.category,
+                  date: item.date,
+                  createdAt: item.createdAt,
+                  description: item.description,
+                  image: item.image,
+                  images: [item.image]
+                }));
+                localStorage.setItem('korwilcam_gallery', JSON.stringify(lightweight));
+              } catch {}
+            }
+          }
+        } catch (errGal) {
+          console.warn('Tabel galeri parallel fetch warning:', errGal);
+        }
+      })();
+
       // 1. Fetch office_profile FIRST (Prioritas Utama untuk header & hero pimpinan instansi)
       try {
         const { data: dbProfile } = await client.from('office_profile').select('*').limit(1);
@@ -1079,64 +1225,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
-      // Fetch gallery
-      const { data: dbGallery, error: galErr } = await client.from('gallery').select('*');
-      if (!galErr && dbGallery) {
-        // Cari master kategori galeri tersimpan di Supabase
-        const sysGalCat = dbGallery.find((g: any) => g.id === 'system-gallery-categories');
-        let loadedGalCategories: string[] = ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'];
-        if (sysGalCat) {
-          try {
-            if (sysGalCat.description) {
-              const parsed = JSON.parse(sysGalCat.description);
-              if (Array.isArray(parsed)) loadedGalCategories = parsed;
-            }
-          } catch {}
-        }
-
-        const actualGal = dbGallery.filter((g: any) => g.id !== 'system-gallery-categories');
-
-        // Kumpulkan kategori dari item galeri aktual
-        actualGal.forEach((g: any) => {
-          if (g.category && typeof g.category === 'string') {
-            const c = g.category.trim();
-            if (c && c !== 'System' && !loadedGalCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
-              loadedGalCategories.push(c);
-            }
-          }
-        });
-
-        // Pastikan kategori default selalu tersedia
-        ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'].forEach(def => {
-          if (!loadedGalCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
-            loadedGalCategories.push(def);
-          }
-        });
-
-        setGalleryCategories(loadedGalCategories);
-        try {
-          localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(loadedGalCategories));
-        } catch {}
-
-        setGallery(actualGal.map((g: any) => ({
-          id: String(g.id || `gal-${Date.now()}`),
-          title: String(g.title || g.judul || '').trim(),
-          category: g.category || g.kategori || 'Dokumentasi',
-          image: g.image || g.gambar || '',
-          images: (() => {
-            if (Array.isArray(g.images) && g.images.length > 0) return g.images;
-            if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
-              try {
-                const parsed = JSON.parse(g.images);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-              } catch (_) {}
-            }
-            return g.image ? [g.image] : [];
-          })(),
-          description: g.description || g.deskripsi || '',
-          date: g.date || g.tanggal || ''
-        })));
-      }
+      // Await parallel gallery fetch
+      await galleryFetchPromise;
 
       // Fetch complaints
       const { data: dbComplaints, error: compErr } = await client.from('complaints').select('*').order('created_at', { ascending: false });
@@ -1670,6 +1760,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selectedDocument) {
       setSelectedDocumentState(null);
     }
+    if (selectedServiceRequirement) {
+      setSelectedServiceRequirementState(null);
+    }
     if (selectedSchool) {
       setSelectedSchoolState(null);
     }
@@ -1798,6 +1891,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.history.pushState({}, '', returnPath);
       }
       document.title = TAB_ROUTES['downloads'].title;
+    }
+  };
+
+  const setSelectedServiceRequirement = (item: ServiceRequirement | null, customPath?: string) => {
+    setSelectedServiceRequirementState(item);
+    if (item) {
+      setSelectedNewsState(null);
+      setSelectedAnnouncementState(null);
+      setSelectedGalleryState(null);
+      setSelectedDocumentState(null);
+      setSelectedSchoolState(null);
+      setSelectedOrganizationSlugState(null);
+      setActiveTabState('service-requirements');
+      const slug = getServiceRequirementSlug(item);
+      const newPath = customPath || getServiceRequirementDetailPath(item);
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({ serviceRequirementSlug: slug, path: newPath }, '', newPath);
+      }
+      document.title = `${item.title} - Persyaratan Pelayanan Korwilcam Purwodadi`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const returnPath = '/layanan/persyaratan-pelayanan';
+      if (window.location.pathname !== returnPath) {
+        window.history.pushState({}, '', returnPath);
+      }
+      document.title = TAB_ROUTES['service-requirements']?.title || 'Persyaratan Pelayanan - Korwilcam Purwodadi';
     }
   };
 
@@ -2113,12 +2232,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, and selectedSchool if not viewing detail
+      // 7. Support /layanan/persyaratan-pelayanan/:slug, /persyaratan-pelayanan/:slug, or /persyaratan/:slug
+      if (
+        (rawPath.startsWith('/layanan/persyaratan-pelayanan/') && rawPath !== '/layanan/persyaratan-pelayanan') ||
+        (rawPath.startsWith('/persyaratan-pelayanan/') && rawPath !== '/persyaratan-pelayanan') ||
+        (rawPath.startsWith('/persyaratan/') && rawPath !== '/persyaratan')
+      ) {
+        const slug = decodeURIComponent(
+          rawPath
+            .replace(/^\/layanan\/persyaratan-pelayanan\//, '')
+            .replace(/^\/persyaratan-pelayanan\//, '')
+            .replace(/^\/persyaratan\//, '')
+        ).trim();
+        setActiveTabState('service-requirements');
+        if (serviceRequirements.length > 0) {
+          const found = serviceRequirements.find((s) => 
+            s.id === slug || 
+            (s.slug && s.slug === slug) ||
+            getServiceRequirementSlug(s) === slug ||
+            s.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug
+          );
+          if (found) {
+            setSelectedServiceRequirementState(found);
+            setSelectedNewsState(null);
+            setSelectedAnnouncementState(null);
+            setSelectedGalleryState(null);
+            setSelectedDocumentState(null);
+            setSelectedSchoolState(null);
+            setSelectedOrganizationSlugState(null);
+            document.title = `${found.title} - Persyaratan Pelayanan Korwilcam Purwodadi`;
+            return;
+          }
+        }
+      }
+
+      // Query param fallback ?persyaratan=slug or ?syarat=slug
+      const queryPersyaratan = searchParams.get('persyaratan') || searchParams.get('syarat');
+      if (queryPersyaratan && serviceRequirements.length > 0) {
+        const found = serviceRequirements.find((s) => 
+          s.id === queryPersyaratan || 
+          (s.slug && s.slug === queryPersyaratan) ||
+          getServiceRequirementSlug(s) === queryPersyaratan ||
+          s.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === queryPersyaratan
+        );
+        if (found) {
+          setActiveTabState('service-requirements');
+          setSelectedServiceRequirementState(found);
+          setSelectedNewsState(null);
+          setSelectedAnnouncementState(null);
+          setSelectedGalleryState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedOrganizationSlugState(null);
+          document.title = `${found.title} - Persyaratan Pelayanan Korwilcam Purwodadi`;
+          return;
+        }
+      }
+
+      // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, selectedSchool, and selectedServiceRequirement if not viewing detail
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
       setSelectedDocumentState(null);
       setSelectedSchoolState(null);
+      setSelectedServiceRequirementState(null);
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
@@ -2198,7 +2375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements, gallery, documents, schools, organizations, teachers]);
+  }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -3251,9 +3428,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...itemData,
       image: imagesList[0] || itemData.image,
       images: imagesList,
-      id: `gal-${Date.now()}`
+      id: `gal-${Date.now()}`,
+      createdAt: new Date().toISOString()
     };
-    setGallery((prev) => [newItem, ...prev]);
+    setGallery((prev) => {
+      const updated = sortGalleryDescending([newItem, ...prev]);
+      _inMemoryGalleryCache = updated;
+      try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
     const client = getSupabaseClient();
     if (client) {
@@ -3266,7 +3449,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           image: newItem.image,
           images: newItem.images,
           description: newItem.description,
-          date: newItem.date
+          date: newItem.date,
+          created_at: newItem.createdAt
         });
         if (error && error.message?.toLowerCase().includes('column')) {
           const retry = await client.from('gallery').upsert({
@@ -3297,18 +3481,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateGalleryItem = async (id: string, updatedData: Partial<GalleryItem>) => {
     let mergedGallery: GalleryItem | null = null;
-    setGallery((prev) =>
-      prev.map((g) => {
-        if (g.id === id) {
-          mergedGallery = { ...g, ...updatedData };
-          if (updatedData.images && updatedData.images.length > 0 && !updatedData.image) {
-            mergedGallery.image = updatedData.images[0];
+    setGallery((prev) => {
+      const updated = sortGalleryDescending(
+        prev.map((g) => {
+          if (g.id === id) {
+            mergedGallery = { ...g, ...updatedData };
+            if (updatedData.images && updatedData.images.length > 0 && !updatedData.image) {
+              mergedGallery.image = updatedData.images[0];
+            }
+            return mergedGallery;
           }
-          return mergedGallery;
-        }
-        return g;
-      })
-    );
+          return g;
+        })
+      );
+      _inMemoryGalleryCache = updated;
+      try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
     const client = getSupabaseClient();
     if (client && mergedGallery) {
@@ -3351,7 +3540,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteGalleryItem = async (id: string) => {
-    setGallery((prev) => prev.filter((g) => g.id !== id));
+    setGallery((prev) => {
+      const updated = prev.filter((g) => g.id !== id);
+      _inMemoryGalleryCache = updated;
+      try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
     const client = getSupabaseClient();
     if (client) {
@@ -4024,6 +4218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newItem: ServiceRequirement = {
       ...item,
       id: `req-${Date.now()}`,
+      slug: item.slug || generateServiceRequirementSlug(item.title),
       order: item.order || (serviceRequirements.length + 1),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -4064,6 +4259,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...r,
           ...itemData,
+          slug: itemData.slug || (itemData.title ? generateServiceRequirementSlug(itemData.title) : r.slug),
           updatedAt: new Date().toISOString()
         };
       }
@@ -4176,6 +4372,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         batchAddTeachers,
         clearAllTeachers,
         serviceRequirements,
+        selectedServiceRequirement,
+        setSelectedServiceRequirement,
         addServiceRequirement,
         updateServiceRequirement,
         deleteServiceRequirement,

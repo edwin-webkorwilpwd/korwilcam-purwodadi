@@ -101,6 +101,7 @@ export interface GalleryItem {
   image: string;
   images?: string[];
   description: string;
+  createdAt?: string;
 }
 
 export type StaffDivision = 
@@ -236,6 +237,7 @@ export interface TeacherNominative {
 export interface ServiceRequirement {
   id: string;
   title: string;
+  slug?: string;
   category?: string;
   description?: string;
   requirements: string[];

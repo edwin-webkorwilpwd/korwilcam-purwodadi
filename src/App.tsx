@@ -25,6 +25,7 @@ const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').t
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 import { WebViewPage } from './pages/WebViewPage';
 import { ServiceRequirementsPage } from './pages/ServiceRequirementsPage';
+const ServiceRequirementDetailPage = React.lazy(() => import('./pages/ServiceRequirementDetailPage').then(m => ({ default: m.ServiceRequirementDetailPage })));
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 
@@ -57,7 +58,16 @@ const PageLoadingFallback: React.FC = () => (
 );
 
 const MainContent: React.FC = () => {
-  const { activeTab, setActiveTab, isAuthenticated, selectedNews, selectedAnnouncement, selectedGallery, selectedDocument } = useApp();
+  const { 
+    activeTab, 
+    setActiveTab, 
+    isAuthenticated, 
+    selectedNews, 
+    selectedAnnouncement, 
+    selectedGallery, 
+    selectedDocument,
+    selectedServiceRequirement 
+  } = useApp();
 
   // Shortcut Keyboard Rahasia (Ctrl + Shift + A atau Alt + A)
   useEffect(() => {
@@ -133,6 +143,8 @@ const MainContent: React.FC = () => {
             <GalleryDetailPage />
           ) : selectedDocument ? (
             <DocumentDetailPage />
+          ) : selectedServiceRequirement ? (
+            <ServiceRequirementDetailPage />
           ) : !isWebView ? (
             <>
               {activeTab === 'home' && <HomePage />}
@@ -159,7 +171,8 @@ const MainContent: React.FC = () => {
               !selectedNews &&
               !selectedAnnouncement &&
               !selectedGallery &&
-              !selectedDocument;
+              !selectedDocument &&
+              !selectedServiceRequirement;
 
             return (
               <div

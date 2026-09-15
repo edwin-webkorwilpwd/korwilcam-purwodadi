@@ -402,80 +402,31 @@ export const initialDocuments: DocumentDownload[] = [
 
 export const initialGallery: GalleryItem[] = [
   {
-    id: "gal-01",
-    title: "Upacara Peringatan Hari Pendidikan Nasional Tingkat Kecamatan",
+    id: "gal-1789350781225",
+    title: "14 Agustus 2026. Apel Pagi Pegawai Korwilcam Purwodadi",
     category: "Upacara",
-    date: "02 Mei 2026",
-    image: "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&q=80&w=800",
+    date: "14 September 2026",
+    createdAt: "2026-09-14T01:53:03.884035+00:00",
+    image: "/gallery/cover-14-agustus-2026.jpg",
     images: [
-      "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=1200"
+      "/gallery/cover-14-agustus-2026.jpg"
     ],
-    description: "Seluruh kepala sekolah dan perwakilan guru mengenakan busana adat daerah dalam upacara di halaman Korwilcam."
+    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 14 Agustus 2026."
   },
   {
-    id: "gal-02",
-    title: "Kunjungan Monitoring Transisi KB ke SD yang Menyenangkan",
-    category: "Kegiatan Belajar",
-    date: "18 Juli 2026",
-    image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=800",
+    id: "gal-1788839526109",
+    title: "7 Agustus 2026. Apel Pagi Pegawai Korwilcam Purwodadi",
+    category: "Upacara",
+    date: "8 September 2026",
+    createdAt: "2026-09-08T03:52:11.288125+00:00",
+    image: "/gallery/cover-7-agustus-2026.jpg",
     images: [
-      "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200"
+      "/gallery/cover-7-agustus-2026.jpg"
     ],
-    description: "Pengawas dan Penilik meninjau MPLS ramah anak di salah satu sekolah dasar dan TK terpadu."
-  },
-  {
-    id: "gal-03",
-    title: "Pentas Seni dan Festival Kreativitas Siswa Sekolah Dasar Purwodadi",
-    category: "Lomba & Prestasi",
-    date: "12 Agustus 2026",
-    image: "https://images.unsplash.com/photo-1460518451285-97b6aa326961?auto=format&fit=crop&q=80&w=800",
-    images: [
-      "https://images.unsplash.com/photo-1460518451285-97b6aa326961?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&q=80&w=1200"
-    ],
-    description: "Penampilan tari tradisional kreasi baru yang memukau para penonton dan dewan juri."
-  },
-  {
-    id: "gal-04",
-    title: "Bimbingan Teknis Pengelolaan BOSP & Akuntansi Sekolah",
-    category: "Rakor & Pelatihan",
-    date: "22 Agustus 2026",
-    image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=800",
-    images: [
-      "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1200"
-    ],
-    description: "Sesi tanya jawab bendahara sekolah bersama narasumber akuntabilitas keuangan daerah."
-  },
-  {
-    id: "gal-05",
-    title: "Keceriaan Anak-Anak KB Belajar Membaca Nyaring (Read Aloud)",
-    category: "Kegiatan Belajar",
-    date: "25 Agustus 2026",
-    image: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&q=80&w=800",
-    images: [
-      "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1200"
-    ],
-    description: "Stimulasi literasi dini melalui dongeng interaktif bersama bunda pendidik."
-  },
-  {
-    id: "gal-06",
-    title: "Penyerahan Trophy Pemenang Lomba Literasi & Numerasi Wilayah",
-    category: "Lomba & Prestasi",
-    date: "29 Agustus 2026",
-    image: "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=800",
-    images: [
-      "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200",
-      "https://images.unsplash.com/photo-1460518451285-97b6aa326961?auto=format&fit=crop&q=80&w=1200"
-    ],
-    description: "Koordinator Wilayah menyerahkan piala bergilir kepada sekolah peraih akumulasi poin tertinggi."
+    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 7 Agustus 2026."
   }
 ];
+
 
 export const initialStaff: StaffProfile[] = [
   {

@@ -8,7 +8,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { GalleryItem } from '../types';
-import { getGalleryDetailPath } from '../lib/galleryHelper';
+import { getGalleryDetailPath, sortGalleryDescending } from '../lib/galleryHelper';
 
 export const GalleryPage: React.FC = () => {
   const { gallery, setSelectedGallery, galleryCategories } = useApp();
@@ -23,9 +23,12 @@ export const GalleryPage: React.FC = () => {
     return list;
   }, [galleryCategories]);
 
-  const filteredGallery = selectedCategory === 'ALL'
-    ? gallery
-    : gallery.filter((item) => item.category === selectedCategory);
+  const filteredGallery = useMemo(() => {
+    const list = selectedCategory === 'ALL'
+      ? gallery
+      : gallery.filter((item) => item.category === selectedCategory);
+    return sortGalleryDescending(list);
+  }, [gallery, selectedCategory]);
 
   const handleOpenAlbum = (item: GalleryItem, e: React.MouseEvent) => {
     e.preventDefault();
