@@ -561,7 +561,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem('korwilcam_data_requests');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
       return initialDataRequests;
     } catch {
@@ -939,39 +939,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.15 Fetch data_requests (Layanan Permintaan Data Webview)
-      (async () => {
+      // 0.15 Fetch data_requests IMMEDIATELY IN PARALLEL (Layanan Permintaan Data Webview)
+      const dataReqsFetchPromise = (async () => {
         try {
           const { data: dbDataReqs, error: dataReqErr } = await client
             .from('data_requests')
             .select('*')
             .order('sort_order', { ascending: true });
 
-          if (!dataReqErr && Array.isArray(dbDataReqs) && dbDataReqs.length > 0) {
-            const mappedDataReqs: DataRequestLink[] = dbDataReqs.map((d: any, index: number) => {
-              const itemTitle = String(d.title || d.judul || '').trim();
-              return {
-                id: String(d.id || `req-data-${Date.now()}-${index}`),
-                title: itemTitle,
-                slug: d.slug ? String(d.slug).trim() : generateDataRequestSlug(itemTitle),
-                url: String(d.url || d.link || '').trim(),
-                description: d.description || d.keterangan || '',
-                cropTop: typeof d.crop_top === 'number' ? d.crop_top : (d.cropTop || 0),
-                isActive: d.is_active !== false && d.isActive !== false,
-                order: typeof d.sort_order === 'number' ? d.sort_order : (d.order || index + 1),
-                createdAt: d.created_at || d.createdAt,
-                updatedAt: d.updated_at || d.updatedAt
-              };
-            });
-            setDataRequests(mappedDataReqs);
+          if (!dataReqErr && Array.isArray(dbDataReqs)) {
+            if (dbDataReqs.length > 0) {
+              const mappedDataReqs: DataRequestLink[] = dbDataReqs.map((d: any, index: number) => {
+                const itemTitle = String(d.title || d.judul || '').trim();
+                return {
+                  id: String(d.id || `req-data-${Date.now()}-${index}`),
+                  title: itemTitle,
+                  slug: d.slug ? String(d.slug).trim() : generateDataRequestSlug(itemTitle),
+                  url: String(d.url || d.link || '').trim(),
+                  description: d.description || d.keterangan || '',
+                  cropTop: typeof d.crop_top === 'number' ? d.crop_top : (d.cropTop || 0),
+                  isActive: d.is_active !== false && d.isActive !== false,
+                  order: typeof d.sort_order === 'number' ? d.sort_order : (d.order || index + 1),
+                  createdAt: d.created_at || d.createdAt,
+                  updatedAt: d.updated_at || d.updatedAt
+                };
+              });
+              setDataRequests(mappedDataReqs);
+              try {
+                localStorage.setItem('korwilcam_data_requests', JSON.stringify(mappedDataReqs));
+              } catch {}
+            } else {
+              // Jika di tabel Supabase kosong (0 data), wajib kosongkan state & localStorage (tampilkan empty state)
+              setDataRequests([]);
+              try {
+                localStorage.setItem('korwilcam_data_requests', JSON.stringify([]));
+              } catch {}
+            }
+          } else {
+            setDataRequests([]);
             try {
-              localStorage.setItem('korwilcam_data_requests', JSON.stringify(mappedDataReqs));
+              localStorage.setItem('korwilcam_data_requests', JSON.stringify([]));
             } catch {}
           }
         } catch (errDataReq) {
           console.warn('Tabel data_requests belum terbaca:', errDataReq);
+          setDataRequests([]);
+          try {
+            localStorage.setItem('korwilcam_data_requests', JSON.stringify([]));
+          } catch {}
         }
       })();
+
 
       // 0.2 Fetch gallery IMMEDIATELY IN PARALLEL (Dokumentasi Kegiatan)
       // Supaya galeri langsung tampil instan tanpa delay 3 detik dan foto terbaru selalu di posisi paling atas!
@@ -1471,9 +1489,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Tabel organizations belum terbaca:', errOrgs);
       }
 
-      // Await parallel daftar_guru and service_requirements fetch
+      // Await parallel daftar_guru, service_requirements, and data_requests fetch
       try {
-        await Promise.all([teachersFetchPromise, serviceReqsFetchPromise]);
+        await Promise.all([teachersFetchPromise, serviceReqsFetchPromise, dataReqsFetchPromise]);
       } catch (errParallel) {
         console.warn('Parallel fetch warning:', errParallel);
       }
@@ -1796,19 +1814,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 14. Export data_requests (Layanan Permintaan Data Webview)
       try {
-        const dataReqPayload = dataRequests.map((d, index) => ({
-          id: d.id,
-          title: d.title,
-          slug: d.slug || generateDataRequestSlug(d.title),
-          url: d.url,
-          description: d.description || '',
-          crop_top: d.cropTop || 0,
-          is_active: d.isActive !== false,
-          sort_order: d.order || index + 1,
-          created_at: d.createdAt || new Date().toISOString(),
-          updated_at: d.updatedAt || new Date().toISOString()
-        }));
-        await client.from('data_requests').upsert(dataReqPayload);
+        if (dataRequests && dataRequests.length > 0) {
+          const dataReqPayload = dataRequests.map((d, index) => ({
+            id: d.id,
+            title: d.title,
+            slug: d.slug || generateDataRequestSlug(d.title),
+            url: d.url,
+            description: d.description || '',
+            crop_top: d.cropTop || 0,
+            is_active: d.isActive !== false,
+            sort_order: d.order || index + 1,
+            created_at: d.createdAt || new Date().toISOString(),
+            updated_at: d.updatedAt || new Date().toISOString()
+          }));
+          await client.from('data_requests').upsert(dataReqPayload);
+        }
       } catch (dErr) {
         console.warn('Gagal ekspor tabel data_requests:', dErr);
       }
@@ -2690,6 +2710,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             document.title = `${firstReq.title} - Korwilcam Purwodadi`;
           } else {
+            setSelectedDataRequestSlug(null);
             document.title = TAB_ROUTES['service-permintaan-data'].title;
           }
         } else {
