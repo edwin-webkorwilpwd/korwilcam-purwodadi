@@ -87,7 +87,7 @@ export const HeroSection: React.FC = () => {
                   alt="Dokumentasi Korwilcam Purwodadi"
                   referrerPolicy="no-referrer"
                   crossOrigin="anonymous"
-                  className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.72] contrast-[1.05] ${
+                  className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.85] contrast-[1.05] ${
                     isActive ? 'scale-105' : 'scale-100'
                   }`}
                   onError={(e) => {
@@ -108,9 +108,9 @@ export const HeroSection: React.FC = () => {
         <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 pointer-events-none" />
       )}
 
-      {/* 2. Balanced Medium Scrim - Foto tetap terlihat jelas namun nyaman di mata, tulisan kontras */}
-      <div className="absolute inset-0 z-[2] bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/75 pointer-events-none" />
-      <div className="absolute inset-0 z-[2] bg-blue-950/25 mix-blend-multiply pointer-events-none" />
+      {/* 2. Balanced Medium Scrim - Foto terlihat sedikit lebih cerah & jelas, tulisan tetap kontras */}
+      <div className="absolute inset-0 z-[2] bg-gradient-to-b from-slate-950/55 via-slate-950/35 to-slate-950/60 pointer-events-none" />
+      <div className="absolute inset-0 z-[2] bg-blue-950/15 mix-blend-multiply pointer-events-none" />
 
       {/* 3. Hero Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-8 text-center">
