@@ -265,6 +265,12 @@ export const isDummySchoolImage = (url?: string): boolean => {
 let _inMemoryTeachersCache: TeacherNominative[] | null = null;
 // In-memory module cache for instant (0ms) gallery albums display across navigation & visitors
 let _inMemoryGalleryCache: GalleryItem[] | null = null;
+// In-memory module cache for instant (0ms) announcements display across navigation & submenus
+let _inMemoryAnnouncementsCache: Announcement[] | null = null;
+// In-memory module cache for instant (0ms) documents / downloads display across navigation & visitors
+let _inMemoryDocumentsCache: DocumentDownload[] | null = null;
+// In-memory module cache for instant (0ms) news articles display across navigation
+let _inMemoryNewsCache: NewsArticle[] | null = null;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDbConfigured = getSupabaseConfig().isConfigured;
@@ -292,8 +298,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [news, setNews] = useState<NewsArticle[]>(() => {
-    const saved = localStorage.getItem('korwilcam_news');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialNews);
+    if (_inMemoryNewsCache && _inMemoryNewsCache.length > 0) {
+      return _inMemoryNewsCache;
+    }
+    try {
+      const sessionSaved = sessionStorage.getItem('korwilcam_news');
+      if (sessionSaved) {
+        const parsed = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryNewsCache = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    try {
+      const saved = localStorage.getItem('korwilcam_news');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryNewsCache = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    const initial = isDbConfigured ? [] : initialNews;
+    _inMemoryNewsCache = initial;
+    return initial;
   });
 
   const [newsCategories, setNewsCategories] = useState<string[]>(() => {
@@ -308,8 +338,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
-    const saved = localStorage.getItem('korwilcam_announcements');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialAnnouncements);
+    if (_inMemoryAnnouncementsCache && _inMemoryAnnouncementsCache.length > 0) {
+      return _inMemoryAnnouncementsCache;
+    }
+    try {
+      const sessionSaved = sessionStorage.getItem('korwilcam_announcements');
+      if (sessionSaved) {
+        const parsed = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryAnnouncementsCache = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    try {
+      const saved = localStorage.getItem('korwilcam_announcements');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryAnnouncementsCache = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    const initial = isDbConfigured ? [] : initialAnnouncements;
+    _inMemoryAnnouncementsCache = initial;
+    return initial;
   });
 
   const [agenda, setAgenda] = useState<AgendaEvent[]>(() => {
@@ -352,8 +406,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const [documents, setDocuments] = useState<DocumentDownload[]>(() => {
+    if (_inMemoryDocumentsCache && _inMemoryDocumentsCache.length > 0) {
+      return _inMemoryDocumentsCache;
+    }
+    const sessionSaved = sessionStorage.getItem('korwilcam_documents');
+    if (sessionSaved) {
+      try {
+        const parsed: DocumentDownload[] = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryDocumentsCache = parsed;
+          return parsed;
+        }
+      } catch {}
+    }
     const saved = localStorage.getItem('korwilcam_documents');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialDocuments);
+    if (saved) {
+      try {
+        const parsed: DocumentDownload[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Sanitasi awal: buang dokumen doc-ann-* jika duplikat dari dokumen master
+          const masterUrls = new Set<string>();
+          parsed.forEach((d) => {
+            if (!d.id.startsWith('doc-ann-') && d.downloadUrl && d.downloadUrl !== '#') {
+              masterUrls.add(d.downloadUrl.trim());
+            }
+          });
+          const filtered = parsed.filter((d) => {
+            if (d.id.startsWith('doc-ann-') && d.downloadUrl && masterUrls.has(d.downloadUrl.trim())) {
+              return false;
+            }
+            return true;
+          });
+          _inMemoryDocumentsCache = filtered;
+          return filtered;
+        }
+      } catch (_) {}
+    }
+    return isDbConfigured ? [] : initialDocuments;
   });
 
   const [documentCategories, setDocumentCategories] = useState<string[]>(() => {
@@ -670,6 +759,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [schools]);
 
   useEffect(() => {
+    _inMemoryNewsCache = news;
+    try {
+      sessionStorage.setItem('korwilcam_news', JSON.stringify(news));
+    } catch (_) {}
     try {
       localStorage.setItem('korwilcam_news', JSON.stringify(news));
     } catch (e) {
@@ -678,10 +771,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [news]);
 
   useEffect(() => {
+    _inMemoryAnnouncementsCache = announcements;
+    try {
+      sessionStorage.setItem('korwilcam_announcements', JSON.stringify(announcements));
+    } catch (_) {}
     try {
       localStorage.setItem('korwilcam_announcements', JSON.stringify(announcements));
     } catch (e) {
-      console.warn('localStorage save announcements quota warning:', e);
+      // Jika file lampiran base64 melebihi kuota 5MB localStorage, simpan versi ringkas tanpa base64 berat
+      try {
+        const lightweight = announcements.map((a) => ({
+          ...a,
+          fileUrl: (a.fileUrl && a.fileUrl.startsWith('data:')) ? '#' : a.fileUrl
+        }));
+        localStorage.setItem('korwilcam_announcements', JSON.stringify(lightweight));
+      } catch (quotaErr) {
+        console.warn('localStorage save announcements quota warning:', quotaErr);
+      }
     }
   }, [announcements]);
 
@@ -694,10 +800,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [agenda]);
 
   useEffect(() => {
+    _inMemoryDocumentsCache = documents;
+    try {
+      sessionStorage.setItem('korwilcam_documents', JSON.stringify(documents));
+    } catch (_) {}
     try {
       localStorage.setItem('korwilcam_documents', JSON.stringify(documents));
     } catch (e) {
-      console.warn('localStorage save documents quota warning:', e);
+      try {
+        const lightweight = documents.map((d) => ({
+          ...d,
+          downloadUrl: (d.downloadUrl && d.downloadUrl.startsWith('data:')) ? '#' : d.downloadUrl
+        }));
+        localStorage.setItem('korwilcam_documents', JSON.stringify(lightweight));
+      } catch (quotaErr) {
+        console.warn('localStorage save documents quota warning:', quotaErr);
+      }
     }
   }, [documents]);
 
@@ -1092,6 +1210,276 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
+      // 0.3 Fetch announcements IMMEDIATELY IN PARALLEL (Pengumuman & Surat Edaran)
+      // Supaya pengumuman terbaru langsung tampil instan (0ms) tanpa delay bagi pengunjung!
+      let loadedAnnouncements: Announcement[] = [];
+      const announcementsFetchPromise = (async () => {
+        try {
+          const { data: dbAnnouncements, error: annErr } = await client
+            .from('announcements')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!annErr && dbAnnouncements) {
+            loadedAnnouncements = dbAnnouncements.map((a: any) => {
+              let fileSize = a.file_size || a.fileSize || '';
+              let fileName = a.file_name || a.fileName || '';
+              let fileType = a.file_type || a.fileType || '';
+              let fileUrl = a.file_url || a.fileUrl || '';
+              let serviceRequirementId = a.service_requirement_id || a.serviceRequirementId || '';
+              let serviceRequirementTitle = a.service_requirement_title || a.serviceRequirementTitle || '';
+              let sourceDocumentId = a.source_document_id || a.sourceDocumentId || '';
+
+              if (fileSize && fileSize.includes('|')) {
+                const parts = fileSize.split('|');
+                fileSize = parts[0] || '';
+                fileName = parts[1] || fileName;
+                fileType = parts[2] || fileType;
+                fileUrl = parts[3] || fileUrl;
+                serviceRequirementId = parts[4] || serviceRequirementId;
+                serviceRequirementTitle = parts[5] || serviceRequirementTitle;
+                sourceDocumentId = parts[6] || sourceDocumentId;
+              }
+
+              const title = String(a.title || a.judul || '').trim();
+              return {
+                id: String(a.id || `ann-${Date.now()}`),
+                title,
+                date: a.date || a.tanggal || (a.created_at ? new Date(a.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
+                urgency: a.urgency || a.prioritas || 'Biasa',
+                target: a.target || a.sasaran || 'Semua Satuan',
+                fileSize: fileSize || '1 MB',
+                fileUrl: fileUrl || '#',
+                fileName: fileName || 'lampiran.pdf',
+                fileType: fileType || 'PDF',
+                summary: a.summary || a.ringkasan || title || '',
+                serviceRequirementId: serviceRequirementId || undefined,
+                serviceRequirementTitle: serviceRequirementTitle || undefined,
+                sourceDocumentId: sourceDocumentId || undefined
+              };
+            });
+            _inMemoryAnnouncementsCache = loadedAnnouncements;
+            setAnnouncements(loadedAnnouncements);
+            try {
+              sessionStorage.setItem('korwilcam_announcements', JSON.stringify(loadedAnnouncements));
+            } catch {}
+            try {
+              localStorage.setItem('korwilcam_announcements', JSON.stringify(loadedAnnouncements));
+            } catch (quotaErr) {
+              try {
+                const lightweight = loadedAnnouncements.map(item => ({
+                  ...item,
+                  fileUrl: (item.fileUrl && item.fileUrl.startsWith('data:')) ? '#' : item.fileUrl
+                }));
+                localStorage.setItem('korwilcam_announcements', JSON.stringify(lightweight));
+              } catch {}
+            }
+          }
+        } catch (errAnn) {
+          console.warn('Tabel announcements parallel fetch warning:', errAnn);
+        }
+        return loadedAnnouncements;
+      })();
+
+      // 0.3 Fetch documents IMMEDIATELY IN PARALLEL (Layanan Unduhan & Unduh Berkas)
+      // Supaya seluruh berkas unduhan langsung tampil instan (0ms) tanpa harus menunggu antrean sekolah dan berita!
+      const documentsFetchPromise = (async () => {
+        try {
+          const [anns, { data: dbDocs, error: docErr }] = await Promise.all([
+            announcementsFetchPromise,
+            client.from('documents').select('*')
+          ]);
+
+          if (!docErr && dbDocs) {
+            const sopDoc = dbDocs.find((d: any) => d.id === 'sop-main' || d.category === 'SOP Pelayanan');
+            if (sopDoc && (sopDoc.download_url || sopDoc.downloadUrl)) {
+              const loadedUrl = sopDoc.download_url || sopDoc.downloadUrl;
+              setSopImageUrl((prev) => prev || loadedUrl);
+              if (!localStorage.getItem('korwilcam_sop_image_url')) {
+                localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
+              }
+            }
+
+            // Cari master kategori berkas tersimpan di Supabase
+            const sysDocCat = dbDocs.find((d: any) => d.id === 'system-document-categories');
+            let loadedDocCategories: string[] = ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'];
+            if (sysDocCat) {
+              try {
+                if (sysDocCat.description) {
+                  const parsed = JSON.parse(sysDocCat.description);
+                  if (Array.isArray(parsed)) loadedDocCategories = parsed;
+                }
+              } catch {}
+            }
+
+            const actualDocs = dbDocs.filter((d: any) => d.id !== 'sop-main' && d.id !== 'system-document-categories');
+
+            // Kumpulkan kategori dari dokumen aktual
+            actualDocs.forEach((d: any) => {
+              if (d.category && typeof d.category === 'string') {
+                const c = d.category.trim();
+                if (c && c !== 'SOP Pelayanan' && c !== 'System' && !loadedDocCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
+                  loadedDocCategories.push(c);
+                }
+              }
+            });
+
+            // Pastikan kategori default selalu tersedia
+            ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'].forEach(def => {
+              if (!loadedDocCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
+                loadedDocCategories.push(def);
+              }
+            });
+
+            setDocumentCategories(loadedDocCategories);
+            try {
+              localStorage.setItem('korwilcam_document_categories', JSON.stringify(loadedDocCategories));
+            } catch {}
+
+            const mappedActualDocs: DocumentDownload[] = actualDocs.map((d: any) => ({
+              id: String(d.id || `doc-${Date.now()}`),
+              title: String(d.title || d.judul || '').trim(),
+              category: d.category || d.kategori || 'Surat Edaran',
+              fileType: d.file_type || d.fileType || 'PDF',
+              fileSize: d.file_size || d.fileSize || '500 KB',
+              downloadCount: Number(d.download_count || d.downloadCount || 0),
+              date: d.date || d.tanggal || '',
+              description: d.description || d.deskripsi || '',
+              downloadUrl: d.download_url || d.downloadUrl || '#'
+            }));
+
+            // 1. Identifikasi dokumen master (dokumen asli yang diunggah di menu Layanan Unduhan)
+            const masterDocs = mappedActualDocs.filter(
+              (d) => !d.id.startsWith('doc-ann-') && d.id !== 'sop-main' && d.id !== 'system-document-categories'
+            );
+
+            // Kumpulan URL dan judul dokumen master untuk deteksi duplikasi cepat
+            const masterDocUrls = new Set<string>();
+            const masterDocTitles = new Set<string>();
+            masterDocs.forEach((d) => {
+              if (d.downloadUrl && d.downloadUrl !== '#' && !d.downloadUrl.startsWith('#')) {
+                masterDocUrls.add(d.downloadUrl.trim());
+              }
+              if (d.title) {
+                masterDocTitles.add(d.title.trim().toLowerCase());
+              }
+            });
+
+            // 2. Deteksi dan eliminasi dokumen duplikat (doc-ann-*) dari mappedActualDocs yang menduplikat dokumen master
+            const duplicateDocIdsToDelete: string[] = [];
+            const cleanActualDocs = mappedActualDocs.filter((d) => {
+              if (d.id.startsWith('doc-ann-')) {
+                const annId = d.id.replace(/^doc-ann-/, '');
+                const matchingAnn = (anns || loadedAnnouncements).find(
+                  (a) => a.id === annId || `doc-ann-${a.id}` === d.id
+                );
+
+                const isUrlDup = Boolean(
+                  d.downloadUrl && d.downloadUrl !== '#' && masterDocUrls.has(d.downloadUrl.trim())
+                );
+                const isTitleDup = masterDocTitles.has(d.title.trim().toLowerCase());
+                const isAnnLinkedToMaster = Boolean(
+                  matchingAnn &&
+                    (matchingAnn.sourceDocumentId ||
+                      (matchingAnn.fileUrl && matchingAnn.fileUrl !== '#' && masterDocUrls.has(matchingAnn.fileUrl.trim())) ||
+                      (matchingAnn.fileName && masterDocTitles.has(matchingAnn.fileName.trim().toLowerCase())))
+                );
+
+                if (isUrlDup || isTitleDup || isAnnLinkedToMaster) {
+                  duplicateDocIdsToDelete.push(d.id);
+                  return false;
+                }
+              }
+              return true;
+            });
+
+            if (duplicateDocIdsToDelete.length > 0 && client) {
+              try {
+                client.from('documents').delete().in('id', duplicateDocIdsToDelete).then(() => {});
+              } catch (_) {}
+            }
+
+            // 3. SINKRONISASI OTOMATIS: HANYA pengumuman dengan BERKAS BARU yang disinkronkan
+            const missingAnnDocs: DocumentDownload[] = [];
+            (anns || loadedAnnouncements).forEach((ann) => {
+              if (ann.fileUrl && ann.fileUrl.trim() !== '' && ann.fileUrl !== '#') {
+                const annFileUrl = ann.fileUrl.trim();
+                const annFileName = ann.fileName?.trim().toLowerCase() || '';
+                const matchedMasterDoc = masterDocs.find(
+                  (m) =>
+                    (ann.sourceDocumentId && m.id === ann.sourceDocumentId) ||
+                    (m.downloadUrl && m.downloadUrl !== '#' && m.downloadUrl.trim() === annFileUrl) ||
+                    (annFileName && m.title.trim().toLowerCase() === annFileName && m.fileSize === ann.fileSize)
+                );
+
+                if (matchedMasterDoc) {
+                  if (!ann.sourceDocumentId) ann.sourceDocumentId = matchedMasterDoc.id;
+                  return;
+                }
+
+                const expectedDocId = `doc-ann-${ann.id}`;
+                const alreadyInDocs = cleanActualDocs.some(
+                  (d) =>
+                    d.id === expectedDocId ||
+                    (d.title.toLowerCase() === ann.title.trim().toLowerCase() && d.category === 'Surat Edaran')
+                );
+
+                if (!alreadyInDocs) {
+                  const ext = (ann.fileType || ann.fileName?.split('.').pop() || 'PDF').toUpperCase();
+                  const detectedType = (ext === 'DOCX' || ext === 'DOC' ? 'DOCX' : ext === 'XLSX' || ext === 'XLS' ? 'XLSX' : 'PDF') as 'PDF' | 'DOCX' | 'XLSX';
+                  const newSyncedDoc: DocumentDownload = {
+                    id: expectedDocId,
+                    title: ann.title.trim(),
+                    category: 'Surat Edaran',
+                    fileType: detectedType,
+                    fileSize: ann.fileSize || '1 MB',
+                    downloadCount: 0,
+                    date: ann.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+                    description: ann.summary || `Berkas lampiran resmi pengumuman: ${ann.title.trim()}`,
+                    downloadUrl: ann.fileUrl
+                  };
+                  missingAnnDocs.push(newSyncedDoc);
+
+                  try {
+                    client.from('documents').upsert({
+                      id: newSyncedDoc.id,
+                      title: newSyncedDoc.title,
+                      category: newSyncedDoc.category,
+                      file_type: newSyncedDoc.fileType,
+                      file_size: newSyncedDoc.fileSize,
+                      download_count: 0,
+                      date: newSyncedDoc.date,
+                      description: newSyncedDoc.description,
+                      download_url: newSyncedDoc.downloadUrl
+                    }).then(() => {});
+                  } catch (_) {}
+                }
+              }
+            });
+
+            const finalDocs = [...missingAnnDocs, ...cleanActualDocs];
+            _inMemoryDocumentsCache = finalDocs;
+            setDocuments(finalDocs);
+            try {
+              sessionStorage.setItem('korwilcam_documents', JSON.stringify(finalDocs));
+            } catch {}
+            try {
+              localStorage.setItem('korwilcam_documents', JSON.stringify(finalDocs));
+            } catch (quotaErr) {
+              try {
+                const lightweight = finalDocs.map((item) => ({
+                  ...item,
+                  downloadUrl: item.downloadUrl && item.downloadUrl.startsWith('data:') ? '#' : item.downloadUrl
+                }));
+                localStorage.setItem('korwilcam_documents', JSON.stringify(lightweight));
+              } catch {}
+            }
+          }
+        } catch (errDoc) {
+          console.warn('Tabel documents parallel fetch warning:', errDoc);
+        }
+      })();
+
       // 1. Fetch office_profile FIRST (Prioritas Utama untuk header & hero pimpinan instansi)
       try {
         const { data: dbProfile } = await client.from('office_profile').select('*').limit(1);
@@ -1288,38 +1676,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // Fetch announcements
-      const { data: dbAnnouncements, error: annErr } = await client.from('announcements').select('*').order('created_at', { ascending: false });
-      if (!annErr && dbAnnouncements) {
-        setAnnouncements(dbAnnouncements.map((a: any) => {
-          let fileSize = a.file_size || a.fileSize || '';
-          let fileName = a.file_name || a.fileName || '';
-          let fileType = a.file_type || a.fileType || '';
-          let fileUrl = a.file_url || a.fileUrl || '';
-
-          if (fileSize && fileSize.includes('|')) {
-            const parts = fileSize.split('|');
-            fileSize = parts[0] || '';
-            fileName = parts[1] || fileName;
-            fileType = parts[2] || fileType;
-            fileUrl = parts[3] || fileUrl;
-          }
-
-          const title = String(a.title || a.judul || '').trim();
-          return {
-            id: String(a.id || `ann-${Date.now()}`),
-            title,
-            date: a.date || a.tanggal || (a.created_at ? new Date(a.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
-            urgency: a.urgency || a.prioritas || 'Biasa',
-            target: a.target || a.sasaran || 'Semua Satuan',
-            fileSize: fileSize || '1 MB',
-            fileUrl: fileUrl || '#',
-            fileName: fileName || 'lampiran.pdf',
-            fileType: fileType || 'PDF',
-            summary: a.summary || a.ringkasan || title || ''
-          };
-        }));
-      }
+      // Announcements sudah di-fetch secara instan dan paralel di awal
+      await announcementsFetchPromise;
 
       // Fetch agenda
       const { data: dbAgenda, error: agErr } = await client.from('agenda').select('*');
@@ -1350,69 +1708,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Fallback jika tabel sop_pelayanan belum dibuat
       }
 
-      // Fetch documents
-      const { data: dbDocs, error: docErr } = await client.from('documents').select('*');
-      if (!docErr && dbDocs) {
-        const sopDoc = dbDocs.find((d: any) => d.id === 'sop-main' || d.category === 'SOP Pelayanan');
-        if (sopDoc && (sopDoc.download_url || sopDoc.downloadUrl)) {
-          const loadedUrl = sopDoc.download_url || sopDoc.downloadUrl;
-          setSopImageUrl((prev) => prev || loadedUrl);
-          if (!localStorage.getItem('korwilcam_sop_image_url')) {
-            localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
-          }
-        }
-
-        // Cari master kategori berkas tersimpan di Supabase
-        const sysDocCat = dbDocs.find((d: any) => d.id === 'system-document-categories');
-        let loadedDocCategories: string[] = ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'];
-        if (sysDocCat) {
-          try {
-            if (sysDocCat.description) {
-              const parsed = JSON.parse(sysDocCat.description);
-              if (Array.isArray(parsed)) loadedDocCategories = parsed;
-            }
-          } catch {}
-        }
-
-        const actualDocs = dbDocs.filter((d: any) => d.id !== 'sop-main' && d.id !== 'system-document-categories');
-
-        // Kumpulkan kategori dari dokumen aktual
-        actualDocs.forEach((d: any) => {
-          if (d.category && typeof d.category === 'string') {
-            const c = d.category.trim();
-            if (c && c !== 'SOP Pelayanan' && c !== 'System' && !loadedDocCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
-              loadedDocCategories.push(c);
-            }
-          }
-        });
-
-        // Pastikan kategori default selalu tersedia
-        ['Kurikulum', 'Surat Edaran', 'Blanko GTK', 'Juknis Lomba'].forEach(def => {
-          if (!loadedDocCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
-            loadedDocCategories.push(def);
-          }
-        });
-
-        setDocumentCategories(loadedDocCategories);
-        try {
-          localStorage.setItem('korwilcam_document_categories', JSON.stringify(loadedDocCategories));
-        } catch {}
-
-        setDocuments(actualDocs.map((d: any) => ({
-          id: String(d.id || `doc-${Date.now()}`),
-          title: String(d.title || d.judul || '').trim(),
-          category: d.category || d.kategori || 'Surat Edaran',
-          fileType: d.file_type || d.fileType || 'PDF',
-          fileSize: d.file_size || d.fileSize || '500 KB',
-          downloadCount: Number(d.download_count || d.downloadCount || 0),
-          date: d.date || d.tanggal || '',
-          description: d.description || d.deskripsi || '',
-          downloadUrl: d.download_url || d.downloadUrl || '#'
-        })));
-      }
-
-      // Await parallel gallery fetch
-      await galleryFetchPromise;
+      // Await parallel gallery & documents fetch
+      await Promise.all([galleryFetchPromise, documentsFetchPromise]);
 
       // Fetch complaints
       const { data: dbComplaints, error: compErr } = await client.from('complaints').select('*').order('created_at', { ascending: false });
@@ -1602,9 +1899,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         title: a.title,
         date: a.date,
         urgency: a.urgency,
-        target: a.target,
-        file_size: [a.fileSize || '', a.fileName || '', a.fileType || '', a.fileUrl || ''].join('|'),
-        summary: a.summary
+        file_size: [
+          a.fileSize || '',
+          a.fileName || '',
+          a.fileType || '',
+          a.fileUrl || '',
+          a.serviceRequirementId || '',
+          a.serviceRequirementTitle || '',
+          a.sourceDocumentId || ''
+        ].join('|'),
       }));
       await client.from('announcements').upsert(annPayload);
 
@@ -3458,13 +3761,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // ANNOUNCEMENTS CRUD (Auto-save to Supabase & local state)
+  // ANNOUNCEMENTS CRUD (Auto-save to Supabase & local state, auto-sync to Layanan Unduhan)
   const addAnnouncement = async (annData: Omit<Announcement, 'id'>) => {
     const newAnn: Announcement = {
       ...annData,
       id: `ann-${Date.now()}`
     };
-    setAnnouncements((prev) => [newAnn, ...prev]);
+    setAnnouncements((prev) => {
+      const updated = [newAnn, ...prev];
+      _inMemoryAnnouncementsCache = updated;
+      try { sessionStorage.setItem('korwilcam_announcements', JSON.stringify(updated)); } catch (_) {}
+      return updated;
+    });
+
+    // SINKRONISASI KE LAYANAN UNDUHAN JIKA PENGUMUMAN MELAMPIRKAN BERKAS BARU:
+    let syncedDoc: DocumentDownload | null = null;
+    const hasFile = Boolean(newAnn.fileUrl && newAnn.fileUrl.trim() !== '' && newAnn.fileUrl !== '#');
+    
+    // Deteksi cerdas: Cek apakah berkas berasal dari dokumen master yang sudah ada di Layanan Unduhan
+    const existingMasterDoc = documents.find((d) => 
+      !d.id.startsWith('doc-ann-') && 
+      d.id !== 'sop-main' && 
+      d.id !== 'system-document-categories' && 
+      (
+        (newAnn.sourceDocumentId && d.id === newAnn.sourceDocumentId) ||
+        (newAnn.fileUrl && d.downloadUrl && d.downloadUrl !== '#' && d.downloadUrl.trim() === newAnn.fileUrl.trim()) ||
+        (newAnn.fileName && d.title.trim().toLowerCase() === newAnn.fileName.trim().toLowerCase() && d.fileSize === newAnn.fileSize)
+      )
+    );
+
+    const isFromExistingDoc = Boolean(newAnn.sourceDocumentId || existingMasterDoc);
+    if (existingMasterDoc && !newAnn.sourceDocumentId) {
+      newAnn.sourceDocumentId = existingMasterDoc.id;
+    }
+
+    if (hasFile && !isFromExistingDoc) {
+      const ext = (newAnn.fileType || newAnn.fileName?.split('.').pop() || 'PDF').toUpperCase();
+      const detectedType = (ext === 'DOCX' || ext === 'DOC' ? 'DOCX' : ext === 'XLSX' || ext === 'XLS' ? 'XLSX' : 'PDF') as 'PDF' | 'DOCX' | 'XLSX';
+      syncedDoc = {
+        id: `doc-ann-${newAnn.id}`,
+        title: newAnn.title.trim(),
+        category: 'Surat Edaran',
+        fileType: detectedType,
+        fileSize: newAnn.fileSize || '1 MB',
+        downloadCount: 0,
+        date: newAnn.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+        description: newAnn.summary || `Berkas lampiran resmi pengumuman: ${newAnn.title.trim()}`,
+        downloadUrl: newAnn.fileUrl!
+      };
+      setDocuments((prev) => [syncedDoc!, ...prev.filter((d) => d.id !== syncedDoc!.id)]);
+    } else {
+      // Jika dari berkas yang sudah ada, pastikan id doc-ann ini tidak ada di Layanan Unduhan
+      const redundantDocId = `doc-ann-${newAnn.id}`;
+      setDocuments((prev) => prev.filter((d) => d.id !== redundantDocId));
+    }
 
     const client = getSupabaseClient();
     if (client) {
@@ -3474,7 +3824,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           newAnn.fileSize || '',
           newAnn.fileName || '',
           newAnn.fileType || '',
-          newAnn.fileUrl || ''
+          newAnn.fileUrl || '',
+          newAnn.serviceRequirementId || '',
+          newAnn.serviceRequirementTitle || '',
+          newAnn.sourceDocumentId || ''
         ].join('|');
 
         const { error } = await client.from('announcements').upsert({
@@ -3486,11 +3839,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           file_size: packedFileSize,
           summary: newAnn.summary
         });
+
+        // Simpan dokumen sinkronisasi ke tabel documents di Supabase (hanya jika berkas baru diunggah)
+        if (syncedDoc) {
+          await client.from('documents').upsert({
+            id: syncedDoc.id,
+            title: syncedDoc.title,
+            category: syncedDoc.category,
+            file_type: syncedDoc.fileType,
+            file_size: syncedDoc.fileSize,
+            download_count: 0,
+            date: syncedDoc.date,
+            description: syncedDoc.description,
+            download_url: syncedDoc.downloadUrl
+          });
+        } else {
+          // Pastikan tidak ada doc-ann ganda yang tersimpan di Supabase
+          try {
+            await client.from('documents').delete().eq('id', `doc-ann-${newAnn.id}`);
+          } catch (_) {}
+        }
+
         if (error) {
           console.error('Supabase addAnnouncement error:', error);
           showToast(`Pengumuman disimpan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
         } else {
-          showToast('Pengumuman resmi & berkas lampiran berhasil disimpan otomatis ke Supabase Cloud!', 'success');
+          showToast(
+            hasFile
+              ? (isFromExistingDoc
+                  ? 'Pengumuman resmi berhasil diterbitkan dengan menautkan berkas dari Layanan Unduhan (bebas duplikasi).'
+                  : 'Pengumuman resmi & berkas lampiran berhasil disimpan dan otomatis masuk ke Layanan Unduhan!')
+              : 'Pengumuman resmi berhasil disimpan otomatis ke Supabase Cloud!',
+            'success'
+          );
         }
       } catch (err: any) {
         showToast(`Pengumuman disimpan lokal. Supabase error: ${err.message || err}`, 'info');
@@ -3498,32 +3879,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSyncStatus('connected');
       }
     } else {
-      showToast('Pengumuman berhasil ditambahkan ke penyimpanan lokal.', 'success');
+      showToast(
+        hasFile
+          ? (isFromExistingDoc
+              ? 'Pengumuman berhasil ditambahkan dengan menautkan berkas dari Layanan Unduhan (bebas duplikasi).'
+              : 'Pengumuman berhasil ditambahkan dan berkas lampiran otomatis masuk ke Layanan Unduhan.')
+          : 'Pengumuman berhasil ditambahkan ke penyimpanan lokal.',
+        'success'
+      );
     }
   };
 
   const updateAnnouncement = async (id: string, updatedData: Partial<Announcement>) => {
     let mergedAnn: Announcement | null = null;
-    setAnnouncements((prev) =>
-      prev.map((a) => {
+    setAnnouncements((prev) => {
+      const updated = prev.map((a) => {
         if (a.id === id) {
           mergedAnn = { ...a, ...updatedData };
           return mergedAnn;
         }
         return a;
-      })
+      });
+      _inMemoryAnnouncementsCache = updated;
+      try { sessionStorage.setItem('korwilcam_announcements', JSON.stringify(updated)); } catch (_) {}
+      return updated;
+    });
+
+    const docId = `doc-ann-${id}`;
+    let syncedDoc: DocumentDownload | null = null;
+    const targetAnn = (mergedAnn || null) as unknown as Announcement | null;
+    const hasFile = Boolean(targetAnn && targetAnn.fileUrl && targetAnn.fileUrl?.trim() !== '' && targetAnn.fileUrl !== '#');
+    
+    // Deteksi cerdas: Cek apakah berkas berasal dari dokumen master yang sudah ada di Layanan Unduhan
+    const existingMasterDoc = documents.find((d) => 
+      !d.id.startsWith('doc-ann-') && 
+      d.id !== 'sop-main' && 
+      d.id !== 'system-document-categories' && 
+      (
+        (targetAnn?.sourceDocumentId && d.id === targetAnn.sourceDocumentId) ||
+        (targetAnn?.fileUrl && d.downloadUrl && d.downloadUrl !== '#' && d.downloadUrl.trim() === targetAnn.fileUrl.trim()) ||
+        (targetAnn?.fileName && d.title.trim().toLowerCase() === targetAnn.fileName.trim().toLowerCase() && d.fileSize === targetAnn.fileSize)
+      )
     );
+
+    const isFromExistingDoc = Boolean((targetAnn && targetAnn.sourceDocumentId) || existingMasterDoc);
+    if (existingMasterDoc && targetAnn && !targetAnn.sourceDocumentId) {
+      targetAnn.sourceDocumentId = existingMasterDoc.id;
+    }
+
+    if (targetAnn && hasFile && !isFromExistingDoc) {
+      const ext = (targetAnn.fileType || targetAnn.fileName?.split('.').pop() || 'PDF').toUpperCase();
+      const detectedType = (ext === 'DOCX' || ext === 'DOC' ? 'DOCX' : ext === 'XLSX' || ext === 'XLS' ? 'XLSX' : 'PDF') as 'PDF' | 'DOCX' | 'XLSX';
+      syncedDoc = {
+        id: docId,
+        title: targetAnn.title.trim(),
+        category: 'Surat Edaran',
+        fileType: detectedType,
+        fileSize: targetAnn.fileSize || '1 MB',
+        downloadCount: 0,
+        date: targetAnn.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+        description: targetAnn.summary || `Berkas lampiran resmi pengumuman: ${targetAnn.title.trim()}`,
+        downloadUrl: targetAnn.fileUrl!
+      };
+      setDocuments((prev) => {
+        const existing = prev.find((d) => d.id === docId);
+        if (existing) {
+          return prev.map((d) => (d.id === docId ? { ...existing, ...syncedDoc!, downloadCount: existing.downloadCount } : d));
+        } else {
+          return [syncedDoc!, ...prev];
+        }
+      });
+    } else {
+      // Jika berkas lampiran dilepas ATAU sekarang menggunakan berkas dari Layanan Unduhan, hapus dokumen sinkronisasi lama (docId)
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    }
 
     const client = getSupabaseClient();
     if (client && mergedAnn) {
       setSyncStatus('syncing');
       try {
-        const target = mergedAnn as Announcement;
+        const target = mergedAnn as unknown as Announcement;
         const packedFileSize = [
           target.fileSize || '',
           target.fileName || '',
           target.fileType || '',
-          target.fileUrl || ''
+          target.fileUrl || '',
+          target.serviceRequirementId || '',
+          target.serviceRequirementTitle || '',
+          target.sourceDocumentId || ''
         ].join('|');
 
         const { error } = await client.from('announcements').upsert({
@@ -3535,11 +3978,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           file_size: packedFileSize,
           summary: target.summary
         });
+
+        // Sinkronkan ke tabel documents di Supabase
+        if (syncedDoc) {
+          await client.from('documents').upsert({
+            id: syncedDoc.id,
+            title: syncedDoc.title,
+            category: syncedDoc.category,
+            file_type: syncedDoc.fileType,
+            file_size: syncedDoc.fileSize,
+            download_count: 0,
+            date: syncedDoc.date,
+            description: syncedDoc.description,
+            download_url: syncedDoc.downloadUrl
+          });
+        } else {
+          try {
+            await client.from('documents').delete().eq('id', docId);
+          } catch (_) {}
+        }
+
         if (error) {
           console.error('Supabase updateAnnouncement error:', error);
           showToast(`Pengumuman diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
         } else {
-          showToast('Pengumuman & berkas berhasil diperbarui di database Supabase Cloud!', 'success');
+          showToast(
+            hasFile
+              ? (isFromExistingDoc
+                  ? 'Pengumuman berhasil diperbarui dengan menautkan berkas dari Layanan Unduhan (bebas duplikasi).'
+                  : 'Pengumuman & sinkronisasi berkas Layanan Unduhan berhasil diperbarui di Supabase Cloud!')
+              : 'Pengumuman berhasil diperbarui di database Supabase Cloud!',
+            'success'
+          );
         }
       } catch (err: any) {
         showToast(`Pengumuman diperbarui lokal.`, 'info');
@@ -3552,17 +4022,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAnnouncement = async (id: string) => {
-    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+    const targetAnn = announcements.find((a) => a.id === id);
+    setAnnouncements((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      _inMemoryAnnouncementsCache = updated;
+      try { sessionStorage.setItem('korwilcam_announcements', JSON.stringify(updated)); } catch (_) {}
+      return updated;
+    });
+
+    // Hapus juga berkas terkait di Layanan Unduhan HANYA jika pengumuman ini mengunggah berkas baru (bukan dari dokumen master Layanan Unduhan)
+    const docId = `doc-ann-${id}`;
+    if (!targetAnn?.sourceDocumentId) {
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    }
 
     const client = getSupabaseClient();
     if (client) {
       setSyncStatus('syncing');
       try {
         const { error } = await client.from('announcements').delete().eq('id', id);
+        if (!targetAnn?.sourceDocumentId) {
+          try {
+            await client.from('documents').delete().eq('id', docId);
+          } catch (_) {}
+        }
+
         if (error) {
           showToast(`Gagal menghapus dari Supabase: ${error.message}`, 'error');
         } else {
-          showToast('Pengumuman berhasil dihapus dari database Supabase.', 'info');
+          showToast('Pengumuman & berkas terkait di Layanan Unduhan berhasil dihapus dari database Supabase.', 'info');
         }
       } catch (err: any) {
         showToast('Pengumuman dihapus lokal.', 'info');

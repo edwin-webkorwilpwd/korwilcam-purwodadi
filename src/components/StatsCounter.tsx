@@ -36,8 +36,7 @@ export const StatsCounter: React.FC = () => {
       icon: School,
       color: "from-blue-600 to-indigo-600",
       accent: "bg-blue-50 text-blue-700",
-      border: "border-blue-100",
-      badge: `${sdCount} Satuan`
+      border: "border-blue-100"
     },
     {
       title: "Taman Kanak-Kanak (TK)",
@@ -46,8 +45,7 @@ export const StatsCounter: React.FC = () => {
       icon: Sparkles,
       color: "from-sky-500 to-blue-600",
       accent: "bg-sky-50 text-sky-700",
-      border: "border-sky-100",
-      badge: `${tkCount} Lembaga`
+      border: "border-sky-100"
     },
     {
       title: "Kelompok Bermain (KB)",
@@ -56,8 +54,7 @@ export const StatsCounter: React.FC = () => {
       icon: Baby,
       color: "from-emerald-500 to-teal-600",
       accent: "bg-emerald-50 text-emerald-700",
-      border: "border-emerald-100",
-      badge: `${paudCount} Lembaga`
+      border: "border-emerald-100"
     },
     {
       title: "Guru & Siswa Terdaftar",
@@ -66,8 +63,7 @@ export const StatsCounter: React.FC = () => {
       icon: Users,
       color: "from-indigo-600 to-purple-600",
       accent: "bg-indigo-50 text-indigo-700",
-      border: "border-indigo-100",
-      badge: `${totalTeachers} Guru`
+      border: "border-indigo-100"
     }
   ];
 
@@ -83,17 +79,9 @@ export const StatsCounter: React.FC = () => {
               className={`bg-white rounded-2xl p-6 shadow-xl shadow-slate-200/50 border ${item.border} hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer`}
               title="Klik untuk membuka Direktori Sekolah"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.accent} group-hover:scale-110 transition-transform shadow-sm`}>
                   <Icon className="w-6 h-6" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono">
-                    {item.badge}
-                  </span>
-                  <span className="text-xs font-bold text-slate-400 font-mono tracking-wider">
-                    0{idx + 1}
-                  </span>
                 </div>
               </div>
               

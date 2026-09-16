@@ -134,7 +134,12 @@ export const DownloadsPage: React.FC = () => {
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide bg-blue-100 text-blue-800">
                         {doc.category}
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-600">
+                      {doc.id.startsWith('doc-ann-') && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          Surat Edaran Resmi
+                        </span>
+                      )}
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-600">
                         {doc.fileType} • {doc.fileSize}
                       </span>
                       <span className="text-xs text-slate-400 font-medium flex items-center gap-1">

@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  FileCheck2
 } from 'lucide-react';
 import { NewsCategory } from '../types';
 import { formatIndonesianDate, compareAgendaDatesDescending } from '../services/googleSheetService';
@@ -277,8 +278,7 @@ export const NewsPage: React.FC = () => {
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-8">
         
         {/* SUBTAB 1: NEWS */}
-        {activeSubTab === 'news' && (
-          <div className="space-y-8">
+        <div className={activeSubTab === 'news' ? 'space-y-8 block' : 'hidden'}>
             {/* Filter and Search Bar */}
             <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-md space-y-4">
               <div className="relative">
@@ -330,25 +330,24 @@ export const NewsPage: React.FC = () => {
                 </p>
               </div>
             )}
-          </div>
-        )}
+        </div>
 
         {/* SUBTAB 2: ANNOUNCEMENTS */}
-        {activeSubTab === 'announcements' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-extrabold text-slate-900">
-                  Daftar Surat Edaran & Instruksi Kedinasan
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Pengumuman resmi dari Koordinator Wilayah Kecamatan Purwodadi
-                </p>
-              </div>
+        <div className={activeSubTab === 'announcements' ? 'space-y-4 block' : 'hidden'}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900">
+                Daftar Surat Edaran & Instruksi Kedinasan
+              </h3>
+              <p className="text-xs text-slate-500">
+                Pengumuman resmi dari Koordinator Wilayah Kecamatan Purwodadi
+              </p>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              {announcements.map((ann) => (
+          <div className="space-y-4">
+            {announcements.length > 0 ? (
+              announcements.map((ann) => (
                 <div
                   key={ann.id}
                   onClick={() => setSelectedAnnouncement(ann)}
@@ -402,6 +401,12 @@ export const NewsPage: React.FC = () => {
                           {ann.fileType}
                         </span>
                       )}
+                      {ann.serviceRequirementTitle && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <FileCheck2 className="w-3 h-3 text-indigo-600" />
+                          <span>Persyaratan: {ann.serviceRequirementTitle}</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
@@ -444,14 +449,23 @@ export const NewsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
+                <BellRing className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-800">
+                  Belum Ada Pengumuman
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Saat ini belum ada surat edaran atau instruksi kedinasan aktif.
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* SUBTAB 3: AGENDA - Rekapitulasi Penggunaan Aula Korwilcam Purwodadi */}
-        {activeSubTab === 'agenda' && (
-          <div ref={agendaContainerRef} className="space-y-6 animate-in fade-in duration-300 scroll-mt-24">
+        <div ref={agendaContainerRef} className={activeSubTab === 'agenda' ? 'space-y-6 scroll-mt-24 block' : 'hidden'}>
             {/* Header & Controls Bar */}
             <div className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] rounded-3xl p-6 sm:p-8 text-white border border-white/20 shadow-2xl space-y-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -835,7 +849,6 @@ export const NewsPage: React.FC = () => {
               </div>
             )}
           </div>
-        )}
 
       </section>
     </div>

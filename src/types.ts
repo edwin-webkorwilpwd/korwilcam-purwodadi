@@ -54,6 +54,9 @@ export interface Announcement {
   fileType?: string;
   fileSize?: string;
   summary: string;
+  serviceRequirementId?: string;
+  serviceRequirementTitle?: string;
+  sourceDocumentId?: string;
 }
 
 export interface AgendaEvent {

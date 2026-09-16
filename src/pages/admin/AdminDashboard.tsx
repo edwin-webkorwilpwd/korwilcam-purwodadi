@@ -30,6 +30,7 @@ import {
   UploadCloud,
   FolderUp,
   FileUp,
+  FileDown,
   Database,
   RefreshCw,
   Copy,
@@ -1663,6 +1664,7 @@ export const AdminDashboard: React.FC = () => {
   const [isDraggingAnn, setIsDraggingAnn] = useState(false);
 
   const [editingAnnId, setEditingAnnId] = useState<string | null>(null);
+  const [annFileMode, setAnnFileMode] = useState<'upload' | 'existing'>('upload');
   const [annForm, setAnnForm] = useState({
     title: '',
     urgency: 'Penting' as 'Penting' | 'Biasa' | 'Mendesak',
@@ -1671,8 +1673,30 @@ export const AdminDashboard: React.FC = () => {
     fileUrl: '',
     fileName: '',
     fileType: '',
-    summary: ''
+    summary: '',
+    serviceRequirementId: '',
+    serviceRequirementTitle: '',
+    sourceDocumentId: ''
   });
+
+  // Daftar berkas master dari Layanan Unduhan yang siap ditautkan ke pengumuman (bebas file ganda)
+  const availableUnduhanDocs = useMemo(() => {
+    const seenUrls = new Set<string>();
+    const seenTitles = new Set<string>();
+    return documents.filter((doc) => {
+      // Hanya tampilkan dokumen master asli (bukan dokumen otomatis dari pengumuman dan bukan dokumen sistem/SOP)
+      if (doc.id.startsWith('doc-ann-') || doc.id === 'sop-main' || doc.id === 'system-document-categories') {
+        return false;
+      }
+      const normTitle = doc.title.trim().toLowerCase();
+      const normUrl = doc.downloadUrl && doc.downloadUrl !== '#' && !doc.downloadUrl.startsWith('#') ? doc.downloadUrl.trim() : '';
+      if (normUrl && seenUrls.has(normUrl)) return false;
+      if (seenTitles.has(normTitle)) return false;
+      if (normUrl) seenUrls.add(normUrl);
+      seenTitles.add(normTitle);
+      return true;
+    });
+  }, [documents]);
 
   const processSelectedAnnFile = (file: File) => {
     if (file.size > 25 * 1024 * 1024) {
@@ -1704,7 +1728,8 @@ export const AdminDashboard: React.FC = () => {
         fileSize: formattedSize,
         fileUrl: dataUrl,
         fileName: file.name,
-        fileType: ext
+        fileType: ext,
+        sourceDocumentId: ''
       }));
 
       showToast(`Berkas lampiran "${file.name}" (${formattedSize}) siap diunggah & disimpan ke database Supabase!`, 'success');
@@ -1742,7 +1767,8 @@ export const AdminDashboard: React.FC = () => {
       fileSize: '',
       fileUrl: '',
       fileName: '',
-      fileType: ''
+      fileType: '',
+      sourceDocumentId: ''
     }));
     showToast('Berkas lampiran pengumuman dilepas.', 'info');
   };
@@ -1775,9 +1801,15 @@ export const AdminDashboard: React.FC = () => {
 
       await updateAnnouncement(editingAnnId, annForm);
       setEditingAnnId(null);
+      const hasFile = !!(annForm.fileUrl && annForm.fileUrl !== '#');
+      const isFromUnduhan = Boolean(annForm.sourceDocumentId);
       showNoticePopup({
         title: 'Pengumuman Diperbarui!',
-        message: `Pengumuman "${annForm.title}" berhasil diperbarui.`,
+        message: hasFile
+          ? (isFromUnduhan
+              ? `Pengumuman "${annForm.title}" berhasil diperbarui dengan menautkan berkas "${annForm.fileName}". Berkas ini tidak digandakan ke menu Unduh Berkas.`
+              : `Pengumuman "${annForm.title}" berhasil diperbarui dan lampiran berkas otomatis disinkronkan ke menu Layanan Unduhan (Unduh Berkas di website).`)
+          : `Pengumuman "${annForm.title}" berhasil diperbarui.`,
         type: 'success'
       });
     } else {
@@ -1785,15 +1817,22 @@ export const AdminDashboard: React.FC = () => {
         ...annForm,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
       });
+      const hasFile = !!(annForm.fileUrl && annForm.fileUrl !== '#');
+      const isFromUnduhan = Boolean(annForm.sourceDocumentId);
       showNoticePopup({
         title: 'Pengumuman Diterbitkan!',
-        message: `Pengumuman "${annForm.title}" berhasil diterbitkan dan tayang di website.`,
+        message: hasFile
+          ? (isFromUnduhan
+              ? `Pengumuman "${annForm.title}" berhasil diterbitkan dengan berkas dari Layanan Unduhan "${annForm.fileName}". Bebas dari file ganda.`
+              : `Pengumuman "${annForm.title}" berhasil diterbitkan dan lampiran berkas otomatis disinkronkan ke menu Layanan Unduhan (Unduh Berkas di website).`)
+          : `Pengumuman "${annForm.title}" berhasil diterbitkan dan tayang di website.`,
         type: 'success'
       });
     }
 
     // Reset form
     setUploadedAnnFile(null);
+    setAnnFileMode('upload');
     if (annFileInputRef.current) annFileInputRef.current.value = '';
     setAnnForm({
       title: '',
@@ -1803,7 +1842,10 @@ export const AdminDashboard: React.FC = () => {
       fileUrl: '',
       fileName: '',
       fileType: '',
-      summary: ''
+      summary: '',
+      serviceRequirementId: '',
+      serviceRequirementTitle: '',
+      sourceDocumentId: ''
     });
   };
 
@@ -6128,50 +6170,55 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* File Upload Dropzone / Preview for Announcement */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <FolderUp className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Upload File Lampiran Pengumuman (Tersimpan ke Database Supabase)</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-normal">Format: PDF, Word, Excel, PPT, ZIP, dll. (Maks 25 MB)</span>
-                      </label>
-
-                      {!uploadedAnnFile && (!editingAnnId || !annForm.fileUrl || annForm.fileUrl === '#') ? (
-                        <div
-                          onDragOver={handleAnnDragOver}
-                          onDragLeave={handleAnnDragLeave}
-                          onDrop={handleAnnDrop}
-                          onClick={() => annFileInputRef.current?.click()}
-                          className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer group ${
-                            isDraggingAnn 
-                              ? 'border-blue-500 bg-blue-50 scale-[0.99]' 
-                              : 'border-blue-200/80 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50/70'
-                          }`}
-                        >
-                          <input
-                            ref={annFileInputRef}
-                            type="file"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.png,.jpg,.jpeg,application/*"
-                            onChange={handleAnnFileUpload}
-                            className="hidden"
-                          />
-                          <div className="w-10 h-10 mx-auto rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform shadow-sm">
-                            <UploadCloud className="w-5 h-5" />
-                          </div>
-                          <p className="text-xs font-bold text-slate-800">
-                            Klik untuk memilih file lampiran atau seret (drag & drop) file ke sini
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Mendukung semua format berkas: PDF, DOCX, XLSX, PPTX, arsip ZIP, gambar, dll.
-                          </p>
+                    {/* File Attachment Section: 2 Cara (Upload Baru / Pilih dari Layanan Unduhan) */}
+                    <div className="space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <FolderUp className="w-4 h-4 text-blue-600" />
+                          <span>Lampiran Berkas Pengumuman (Opsional)</span>
+                        </label>
+                        
+                        {/* 2 Metode Tambah Berkas */}
+                        <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs self-start sm:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => setAnnFileMode('upload')}
+                            className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 text-xs ${
+                              annFileMode === 'upload'
+                                ? 'bg-blue-600 text-white shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <UploadCloud className="w-3.5 h-3.5" />
+                            <span>1. Upload Berkas Baru</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAnnFileMode('existing')}
+                            className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 text-xs ${
+                              annFileMode === 'existing'
+                                ? 'bg-blue-600 text-white shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <FileDown className="w-3.5 h-3.5" />
+                            <span>2. Pilih dari Layanan Unduhan ({availableUnduhanDocs.length})</span>
+                          </button>
                         </div>
-                      ) : (
-                        <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                      </div>
+
+                      {/* Jika Berkas SUDAH Dipilih (baik dari upload maupun dari Layanan Unduhan) */}
+                      {uploadedAnnFile || (editingAnnId && annForm.fileUrl && annForm.fileUrl !== '#') ? (
+                        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm ${
+                          annForm.sourceDocumentId 
+                            ? 'bg-indigo-50/80 border-indigo-200' 
+                            : 'bg-blue-50/80 border-blue-200'
+                        }`}>
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                              <Paperclip className="w-5 h-5" />
+                            <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm ${
+                              annForm.sourceDocumentId ? 'bg-indigo-600' : 'bg-blue-600'
+                            }`}>
+                              {annForm.sourceDocumentId ? <FolderOpen className="w-5 h-5" /> : <Paperclip className="w-5 h-5" />}
                             </div>
                             <div className="min-w-0 space-y-0.5">
                               <div className="flex flex-wrap items-center gap-2">
@@ -6180,8 +6227,19 @@ export const AdminDashboard: React.FC = () => {
                                 </span>
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>Berkas Siap Diunduh Pengunjung</span>
+                                  <span>Berkas Siap Digunakan</span>
                                 </span>
+                                {annForm.sourceDocumentId ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                    <FolderOpen className="w-2.5 h-2.5 text-indigo-600" />
+                                    <span>Dari Layanan Unduhan (Bebas Duplikat)</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                    <RefreshCw className="w-2.5 h-2.5 text-blue-600" />
+                                    <span>Otomatis Masuk Layanan Unduhan</span>
+                                  </span>
+                                )}
                               </div>
                               <p className="text-[11px] text-slate-500">
                                 Format: <strong className="text-slate-800">{uploadedAnnFile?.type || annForm.fileType || 'BERKAS'}</strong> • Ukuran: <strong className="text-slate-800">{uploadedAnnFile?.size || annForm.fileSize || 'Otomatis'}</strong>
@@ -6203,7 +6261,7 @@ export const AdminDashboard: React.FC = () => {
                                   link.click();
                                   document.body.removeChild(link);
                                 }}
-                                className="px-3 py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold transition-colors flex items-center gap-1"
+                                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold transition-colors flex items-center gap-1 shadow-xs"
                                 title="Uji coba download berkas"
                               >
                                 <Download className="w-3.5 h-3.5" />
@@ -6213,7 +6271,14 @@ export const AdminDashboard: React.FC = () => {
 
                             <button
                               type="button"
-                              onClick={() => annFileInputRef.current?.click()}
+                              onClick={() => {
+                                if (annForm.sourceDocumentId) {
+                                  setAnnFileMode('existing');
+                                } else {
+                                  setAnnFileMode('upload');
+                                  annFileInputRef.current?.click();
+                                }
+                              }}
                               className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 shadow-sm transition-all"
                             >
                               Ganti Berkas
@@ -6234,6 +6299,185 @@ export const AdminDashboard: React.FC = () => {
                               className="hidden"
                             />
                           </div>
+                        </div>
+                      ) : (
+                        /* Jika BELUM Ada Berkas Dipilih: Tampilkan Form Sesuai Mode */
+                        <div>
+                          {annFileMode === 'upload' ? (
+                            /* Mode 1: Upload Berkas Baru */
+                            <div
+                              onDragOver={handleAnnDragOver}
+                              onDragLeave={handleAnnDragLeave}
+                              onDrop={handleAnnDrop}
+                              onClick={() => annFileInputRef.current?.click()}
+                              className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer group ${
+                                isDraggingAnn 
+                                  ? 'border-blue-500 bg-blue-50 scale-[0.99]' 
+                                  : 'border-blue-200/80 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50/70'
+                              }`}
+                            >
+                              <input
+                                ref={annFileInputRef}
+                                type="file"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.png,.jpg,.jpeg,application/*"
+                                onChange={handleAnnFileUpload}
+                                className="hidden"
+                              />
+                              <div className="w-10 h-10 mx-auto rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform shadow-sm">
+                                <UploadCloud className="w-5 h-5" />
+                              </div>
+                              <p className="text-xs font-bold text-slate-800">
+                                [Cara 1] Klik untuk memilih file lampiran baru atau seret (drag & drop) file ke sini
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Mendukung format: PDF, DOCX, XLSX, PPTX, ZIP, dll. (Maks 25 MB). Berkas baru ini akan otomatis masuk ke Layanan Unduhan.
+                              </p>
+                            </div>
+                          ) : (
+                            /* Mode 2: Pilih dari Layanan Unduhan (Mencegah Duplikasi) */
+                            <div className="p-4 rounded-2xl bg-indigo-50/50 border-2 border-dashed border-indigo-200 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                                  <FolderOpen className="w-4 h-4 text-indigo-600" />
+                                  <span>[Cara 2] Pilih Judul Berkas dari Menu Layanan Unduhan</span>
+                                </span>
+                                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/90 px-2 py-0.5 rounded-full border border-indigo-200">
+                                  Bebas File Ganda
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-relaxed">
+                                Pilih judul file yang sudah pernah diunggah ke menu <strong>Layanan Unduhan</strong>. File terpilih akan langsung ditautkan ke pengumuman ini sehingga tidak ada file ganda yang diunggah ulang ke menu Unduh Berkas.
+                              </p>
+                              <select
+                                value={annForm.sourceDocumentId || ''}
+                                onChange={(e) => {
+                                  const selectedDocId = e.target.value;
+                                  if (!selectedDocId) {
+                                    handleRemoveAnnFile();
+                                    return;
+                                  }
+                                  const doc = availableUnduhanDocs.find((d) => d.id === selectedDocId) || documents.find((d) => d.id === selectedDocId);
+                                  if (doc) {
+                                    setUploadedAnnFile({
+                                      name: doc.title,
+                                      size: doc.fileSize || '1 MB',
+                                      type: (doc.fileType as any) || 'PDF',
+                                      dataUrl: doc.downloadUrl
+                                    });
+                                    setAnnForm((prev) => ({
+                                      ...prev,
+                                      title: prev.title.trim() ? prev.title : doc.title,
+                                      sourceDocumentId: doc.id,
+                                      fileName: doc.title,
+                                      fileSize: doc.fileSize || '1 MB',
+                                      fileType: doc.fileType || 'PDF',
+                                      fileUrl: doc.downloadUrl
+                                    }));
+                                    showToast(`Berkas "${doc.title}" dari Layanan Unduhan berhasil ditautkan ke pengumuman! (Bebas file ganda)`, 'success');
+                                  }
+                                }}
+                                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-indigo-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-600 focus:outline-none shadow-xs"
+                              >
+                                <option value="">-- Pilih Judul Berkas dari Layanan Unduhan ({availableUnduhanDocs.length} Berkas Tersedia) --</option>
+                                {availableUnduhanDocs.map((doc) => (
+                                  <option key={doc.id} value={doc.id}>
+                                    {doc.title} [{doc.fileType || 'PDF'} • {doc.fileSize || 'Tersedia'}] - Kategori: {doc.category || 'Dokumen'}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notice Sinkronisasi Otomatis / Bebas Duplikasi */}
+                    {annForm.sourceDocumentId ? (
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-50/80 border border-indigo-200/80 text-[11px] text-indigo-900 leading-relaxed">
+                        <FolderOpen className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="font-semibold text-indigo-950">Berkas Terhubung ke Layanan Unduhan (Bebas Duplikasi):</strong>
+                          <p className="text-indigo-800/90 mt-0.5">
+                            Pengumuman ini menautkan berkas <strong className="font-semibold text-indigo-950">"{annForm.fileName || 'Layanan Unduhan'}"</strong> yang sudah ada di menu Unduh Berkas. Sistem <strong className="underline font-bold">tidak akan</strong> menduplikat atau membuat file ganda ke menu Layanan Unduhan.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50/80 border border-blue-200/80 text-[11px] text-blue-900 leading-relaxed">
+                        <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="font-semibold text-blue-950">Sinkronisasi Otomatis ke Layanan Unduhan:</strong>
+                          <p className="text-blue-800/90 mt-0.5">
+                            Setiap file/berkas baru yang Anda lampirkan pada pengumuman ini akan otomatis masuk ke menu <strong className="font-semibold">Layanan Unduhan</strong> di CMS serta tayang di website publik pada sub menu <strong className="font-semibold">Unduh Berkas</strong>. Nama file di Layanan Unduhan akan otomatis menggunakan <strong className="font-semibold">Judul Pengumuman / Edaran</strong> yang Anda isikan di atas.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lampiran Persyaratan Pelayanan (Data dari tabel service_requirements) */}
+                    <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <FileCheck2 className="w-4 h-4 text-blue-600" />
+                          <span>Lampiran Persyaratan Pelayanan (Opsional)</span>
+                        </label>
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded">
+                          Tabel service_requirements
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Pilih judul dari data tabel Persyaratan Pelayanan jika pengumuman ini berkaitan dengan suatu layanan/administrasi. Ketika judul lampiran ini diklik oleh pengunjung pada pengumuman website, sistem akan langsung mengarahkan pengunjung ke halaman detail persyaratan pelayanan tersebut.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={annForm.serviceRequirementId || ''}
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const found = serviceRequirements.find((s) => s.id === selectedId);
+                            setAnnForm({
+                              ...annForm,
+                              serviceRequirementId: selectedId,
+                              serviceRequirementTitle: found ? found.title : ''
+                            });
+                          }}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                        >
+                          <option value="">-- Tanpa Tautan Persyaratan Pelayanan --</option>
+                          {serviceRequirements.map((req) => (
+                            <option key={req.id} value={req.id}>
+                              {req.title} {req.category ? `(${req.category})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {annForm.serviceRequirementId && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAnnForm({
+                                ...annForm,
+                                serviceRequirementId: '',
+                                serviceRequirementTitle: ''
+                              })
+                            }
+                            className="px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition-colors shrink-0"
+                            title="Lepas tautan persyaratan"
+                          >
+                            Lepas
+                          </button>
+                        )}
+                      </div>
+
+                      {annForm.serviceRequirementTitle && (
+                        <div className="mt-2 p-2.5 rounded-lg bg-indigo-50/80 border border-indigo-200 text-xs flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                            <span className="text-[11px] text-indigo-950 font-medium truncate">
+                              Terhubung ke: <strong className="font-bold text-indigo-900">{annForm.serviceRequirementTitle}</strong>
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-200/80 text-indigo-800 shrink-0">
+                            Terdirect ke Detail Persyaratan
+                          </span>
                         </div>
                       )}
                     </div>
@@ -6265,6 +6509,7 @@ export const AdminDashboard: React.FC = () => {
                             onClick={() => {
                               setEditingAnnId(null);
                               setUploadedAnnFile(null);
+                              setAnnFileMode('upload');
                               if (annFileInputRef.current) annFileInputRef.current.value = '';
                               setAnnForm({
                                 title: '',
@@ -6274,7 +6519,10 @@ export const AdminDashboard: React.FC = () => {
                                 fileUrl: '',
                                 fileName: '',
                                 fileType: '',
-                                summary: ''
+                                summary: '',
+                                serviceRequirementId: '',
+                                serviceRequirementTitle: '',
+                                sourceDocumentId: ''
                               });
                             }}
                             className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-300 transition-colors"
@@ -6326,6 +6574,17 @@ export const AdminDashboard: React.FC = () => {
                                 {ann.fileType && <span className="uppercase text-emerald-600">[{ann.fileType}]</span>}
                                 {ann.fileSize && <span>({ann.fileSize})</span>}
                               </span>
+                              {ann.sourceDocumentId ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  <FolderOpen className="w-3 h-3 text-indigo-500" />
+                                  <span>Dari Layanan Unduhan</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                  <Sparkles className="w-2.5 h-2.5 text-blue-500" />
+                                  <span>Sinkron Unduhan</span>
+                                </span>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -6346,12 +6605,31 @@ export const AdminDashboard: React.FC = () => {
                               Tanpa lampiran file digital
                             </div>
                           )}
+
+                          {/* Linked Service Requirement Badge */}
+                          {ann.serviceRequirementTitle && (
+                            <div className="pt-1 flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-200">
+                                <FileCheck2 className="w-3 h-3 text-indigo-600 shrink-0" />
+                                <span>Lampiran Persyaratan: <strong className="font-extrabold">{ann.serviceRequirementTitle}</strong></span>
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => {
+                              const matchedDoc = ann.sourceDocumentId
+                                ? availableUnduhanDocs.find((d) => d.id === ann.sourceDocumentId)
+                                : availableUnduhanDocs.find(
+                                    (d) =>
+                                      (d.downloadUrl && d.downloadUrl !== '#' && d.downloadUrl === ann.fileUrl) ||
+                                      (ann.fileName && d.title.trim().toLowerCase() === ann.fileName.trim().toLowerCase() && d.fileSize === ann.fileSize)
+                                  );
+                              const resolvedSourceDocId = ann.sourceDocumentId || matchedDoc?.id || '';
                               setEditingAnnId(ann.id);
+                              setAnnFileMode(resolvedSourceDocId ? 'existing' : 'upload');
                               setAnnForm({
                                 title: ann.title,
                                 urgency: ann.urgency,
@@ -6360,7 +6638,10 @@ export const AdminDashboard: React.FC = () => {
                                 fileUrl: ann.fileUrl || '',
                                 fileName: ann.fileName || '',
                                 fileType: ann.fileType || '',
-                                summary: ann.summary
+                                summary: ann.summary,
+                                serviceRequirementId: ann.serviceRequirementId || '',
+                                serviceRequirementTitle: ann.serviceRequirementTitle || '',
+                                sourceDocumentId: resolvedSourceDocId
                               });
                               if (ann.fileUrl && ann.fileUrl !== '#') {
                                 setUploadedAnnFile({
@@ -8487,9 +8768,17 @@ export const AdminDashboard: React.FC = () => {
                 {documents.map((doc) => (
                   <div key={doc.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="space-y-1">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
-                        {doc.category} • {doc.fileType} ({doc.fileSize})
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                          {doc.category} • {doc.fileType} ({doc.fileSize})
+                        </span>
+                        {doc.id.startsWith('doc-ann-') && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                            <Sparkles className="w-3 h-3 text-amber-600" />
+                            <span>Dari Pengumuman / Edaran</span>
+                          </span>
+                        )}
+                      </div>
                       <h4 className="font-bold text-slate-900 text-sm mt-1">{doc.title}</h4>
                       <p className="text-xs text-slate-500">{doc.description}</p>
                       {doc.downloadUrl && doc.downloadUrl !== '#' && (

@@ -13,6 +13,7 @@ import {
   FileText,
   AlertCircle,
   ArrowUpRight,
+  FileCheck2,
   Image as ImageIcon
 } from 'lucide-react';
 import { getAnnouncementShortUrl } from '../lib/shortLink';
@@ -24,9 +25,24 @@ export const AnnouncementDetailPage: React.FC = () => {
     setSelectedAnnouncement, 
     announcements, 
     officeProfile,
+    serviceRequirements,
+    setSelectedServiceRequirement,
     setActiveTab, 
     showToast 
   } = useApp();
+
+  const linkedServiceReq = React.useMemo(() => {
+    if (!selectedAnnouncement) return null;
+    if (selectedAnnouncement.serviceRequirementId) {
+      const byId = serviceRequirements.find((s) => s.id === selectedAnnouncement.serviceRequirementId);
+      if (byId) return byId;
+    }
+    if (selectedAnnouncement.serviceRequirementTitle) {
+      const cleanTitle = selectedAnnouncement.serviceRequirementTitle.trim().toLowerCase();
+      return serviceRequirements.find((s) => s.title.trim().toLowerCase() === cleanTitle) || null;
+    }
+    return null;
+  }, [selectedAnnouncement, serviceRequirements]);
 
   // Scroll ke paling atas HANYA SEKALI saat pertama kali membuka surat edaran / pengumuman baru
   const lastScrolledAnnouncementIdRef = React.useRef<string | null>(null);
@@ -316,6 +332,73 @@ export const AnnouncementDetailPage: React.FC = () => {
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
               <span>Surat edaran ini merupakan pemberitahuan langsung tanpa lampiran dokumen fisik terpisah.</span>
+            </div>
+          )}
+
+          {/* Lampiran Persyaratan Pelayanan Terkait (Bila ada) */}
+          {(selectedAnnouncement.serviceRequirementId || selectedAnnouncement.serviceRequirementTitle) && (
+            <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-blue-50/40 rounded-2xl p-5 sm:p-6 border border-blue-200/90 shadow-sm space-y-3 print:border print:border-slate-300">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-blue-600 text-white shadow-xs">
+                  <FileCheck2 className="w-3.5 h-3.5" />
+                  <span>Lampiran Persyaratan Pelayanan Terkait</span>
+                </span>
+                {linkedServiceReq?.category && (
+                  <span className="text-[11px] text-slate-600 font-semibold bg-white/80 px-2.5 py-0.5 rounded-md border border-slate-200">
+                    {linkedServiceReq.category}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <h4 
+                    onClick={() => {
+                      if (linkedServiceReq) {
+                        setSelectedServiceRequirement(linkedServiceReq);
+                      } else {
+                        setActiveTab('service-requirements', '/layanan/persyaratan-pelayanan');
+                      }
+                    }}
+                    className="text-base sm:text-lg font-black text-slate-900 hover:text-blue-600 cursor-pointer transition-colors leading-snug flex items-center gap-2 group"
+                    title="Klik untuk membuka detail persyaratan pelayanan"
+                  >
+                    <span className="group-hover:underline underline-offset-2">
+                      {linkedServiceReq?.title || selectedAnnouncement.serviceRequirementTitle}
+                    </span>
+                    <ArrowUpRight className="w-4 h-4 text-blue-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                  </h4>
+                  <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                    {linkedServiceReq?.description || 'Surat edaran ini melampirkan referensi standar persyaratan pelayanan resmi. Klik judul atau tombol di samping untuk membuka panduan alur, rincian formulir, dan persyaratan lengkap pelayanan ini.'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-slate-500">
+                    {linkedServiceReq?.estimatedTime && (
+                      <span>Waktu: <strong className="text-slate-800 font-semibold">{linkedServiceReq.estimatedTime}</strong></span>
+                    )}
+                    {linkedServiceReq?.requirements && linkedServiceReq.requirements.length > 0 && (
+                      <span>
+                        {linkedServiceReq?.estimatedTime ? '• ' : ''}
+                        <strong className="text-slate-800 font-semibold">{linkedServiceReq.requirements.length} Dokumen Syarat</strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (linkedServiceReq) {
+                      setSelectedServiceRequirement(linkedServiceReq);
+                    } else {
+                      setActiveTab('service-requirements', '/layanan/persyaratan-pelayanan');
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 hover:shadow-lg transition-all shrink-0 group print:hidden"
+                >
+                  <span>Buka Persyaratan Pelayanan</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
             </div>
           )}
 

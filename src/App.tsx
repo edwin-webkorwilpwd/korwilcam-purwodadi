@@ -14,11 +14,11 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then(m => ({ 
 const SOPPage = React.lazy(() => import('./pages/SOPPage').then(m => ({ default: m.SOPPage })));
 const SchoolsPage = React.lazy(() => import('./pages/SchoolsPage').then(m => ({ default: m.SchoolsPage })));
 import { NominativePage } from './pages/NominativePage';
-const NewsPage = React.lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
+import { NewsPage } from './pages/NewsPage';
 const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m => ({ default: m.NewsDetailPage })));
-const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
+import { AnnouncementDetailPage } from './pages/AnnouncementDetailPage';
 const OrganizationPage = React.lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
-const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
+import { DownloadsPage } from './pages/DownloadsPage';
 const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage').then(m => ({ default: m.DocumentDetailPage })));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
