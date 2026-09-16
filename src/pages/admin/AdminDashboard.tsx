@@ -5426,12 +5426,12 @@ export const AdminDashboard: React.FC = () => {
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                      <tr>
+                      <tr className="text-center">
                         <th className="py-3 px-3.5 w-14 text-center">No</th>
-                        <th className="py-3 px-4">Nama Lengkap</th>
-                        <th className="py-3 px-4">NIP</th>
-                        <th className="py-3 px-4">Status Pegawai</th>
-                        <th className="py-3 px-4">Instansi</th>
+                        <th className="py-3 px-4 text-center">Nama Lengkap</th>
+                        <th className="py-3 px-4 text-center">NIP</th>
+                        <th className="py-3 px-4 text-center">Status Pegawai</th>
+                        <th className="py-3 px-4 text-center">Instansi</th>
                         <th className="py-3 px-4 text-center w-28">Aksi</th>
                       </tr>
                     </thead>
@@ -5503,10 +5503,10 @@ export const AdminDashboard: React.FC = () => {
                               <td className="py-2.5 px-4 font-semibold text-slate-900">
                                 {t.nama}
                               </td>
-                              <td className="py-2.5 px-4 font-mono text-slate-600">
+                              <td className="py-2.5 px-4 font-mono text-slate-600 text-center">
                                 {t.nip && t.nip !== '-' ? t.nip : <span className="text-slate-400 italic">-</span>}
                               </td>
-                              <td className="py-2.5 px-4">
+                              <td className="py-2.5 px-4 text-center">
                                 <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeBg}`}>
                                   {t.statusPegawai}
                                 </span>

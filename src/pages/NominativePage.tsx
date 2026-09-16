@@ -288,12 +288,12 @@ export const NominativePage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold">
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider font-semibold text-center">
                   <th className="py-3.5 px-4 w-16 text-center">No</th>
-                  <th className="py-3.5 px-6 w-1/4 min-w-[220px]">Nama Lengkap</th>
-                  <th className="py-3.5 px-6 w-52">NIP</th>
-                  <th className="py-3.5 px-6 w-36 text-center">Status Pegawai</th>
-                  <th className="py-3.5 px-6">Instansi</th>
+                  <th className="py-3.5 px-6 w-1/4 min-w-[220px] text-center">Nama Lengkap</th>
+                  <th className="py-3.5 px-6 w-52 text-center">NIP</th>
+                  <th className="py-3.5 px-6 w-44 text-center whitespace-nowrap">Status Pegawai</th>
+                  <th className="py-3.5 px-6 text-center">Instansi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -306,8 +306,8 @@ export const NominativePage: React.FC = () => {
                       <td className="py-4 px-6">
                         <div className="h-4 w-44 bg-slate-200 rounded"></div>
                       </td>
-                      <td className="py-4 px-6">
-                        <div className="h-4 w-32 bg-slate-100 rounded"></div>
+                      <td className="py-4 px-6 text-center">
+                        <div className="h-4 w-32 bg-slate-100 rounded mx-auto"></div>
                       </td>
                       <td className="py-4 px-6 text-center">
                         <div className="h-5 w-20 bg-slate-200 rounded-full mx-auto"></div>
@@ -351,7 +351,7 @@ export const NominativePage: React.FC = () => {
                         </td>
 
                         {/* NIP */}
-                        <td className="py-3.5 px-6 font-mono text-xs sm:text-sm text-slate-600">
+                        <td className="py-3.5 px-6 font-mono text-xs sm:text-sm text-slate-600 text-center">
                           {teacher.nip && teacher.nip !== '-' && teacher.nip.trim() !== '' ? (
                             <span className="font-medium text-slate-800">{teacher.nip}</span>
                           ) : (
