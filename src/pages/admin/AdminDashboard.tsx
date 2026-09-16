@@ -100,7 +100,8 @@ import {
   OrganizationLeader,
   OrganizationOfficial,
   TeacherNominative,
-  ServiceRequirement
+  ServiceRequirement,
+  DataRequestLink
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { 
@@ -114,6 +115,7 @@ import {
 import { getArticleReadingStats } from '../../lib/readingTime';
 import { getGoogleMapsUrl, normalizeToGoogleMapsUrl } from '../../lib/coordinates';
 import { sortGalleryDescending } from '../../lib/galleryHelper';
+import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath, getDataRequestShareUrl } from '../../lib/dataRequestHelper';
 
 export const AdminDashboard: React.FC = () => {
   const { 
@@ -190,6 +192,11 @@ export const AdminDashboard: React.FC = () => {
     resetServiceRequirements,
     addServiceRequirementCategory,
     deleteServiceRequirementCategory,
+    dataRequests,
+    addDataRequest,
+    updateDataRequest,
+    deleteDataRequest,
+    toggleDataRequestActive,
     showConfirmDialog,
     showNoticePopup
   } = useApp();
@@ -205,6 +212,7 @@ export const AdminDashboard: React.FC = () => {
     | 'organization-cms' 
     | 'service-requirements-cms'
     | 'downloads-cms' 
+    | 'data-request-cms'
     | 'gallery-cms' 
     | 'contact-cms' 
     | 'users-cms';
@@ -253,6 +261,131 @@ export const AdminDashboard: React.FC = () => {
       setCurrentSection('overview');
     }
   }, [isWriter, currentSection, canAccessOrganizationCms]);
+
+  // ==========================================================
+  // STATE & HANDLER PERMINTAAN DATA (WEBVIEW) CMS
+  // ==========================================================
+  const [editingDataRequestId, setEditingDataRequestId] = useState<string | null>(null);
+  const [dataReqTitle, setDataReqTitle] = useState<string>('');
+  const [dataReqSlug, setDataReqSlug] = useState<string>('');
+  const [dataReqUrl, setDataReqUrl] = useState<string>('');
+  const [dataReqDesc, setDataReqDesc] = useState<string>('');
+  const [dataReqCropTop, setDataReqCropTop] = useState<number>(0);
+  const [dataReqIsActive, setDataReqIsActive] = useState<boolean>(true);
+  const [dataReqPreviewKey, setDataReqPreviewKey] = useState<number>(0);
+  const [isSavingDataReq, setIsSavingDataReq] = useState<boolean>(false);
+  const [copiedDataReqId, setCopiedDataReqId] = useState<string | null>(null);
+
+  const handleEditDataRequest = (req: DataRequestLink) => {
+    setEditingDataRequestId(req.id);
+    setDataReqTitle(req.title);
+    setDataReqSlug(req.slug || generateDataRequestSlug(req.title));
+    setDataReqUrl(req.url);
+    setDataReqDesc(req.description || '');
+    setDataReqCropTop(req.cropTop || 0);
+    setDataReqIsActive(req.isActive !== false);
+    const formEl = document.getElementById('data-request-form-card');
+    if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleCancelEditDataRequest = () => {
+    setEditingDataRequestId(null);
+    setDataReqTitle('');
+    setDataReqSlug('');
+    setDataReqUrl('');
+    setDataReqDesc('');
+    setDataReqCropTop(0);
+    setDataReqIsActive(true);
+  };
+
+  const handleCopyDataRequestShareLink = async (req: DataRequestLink) => {
+    const shareUrl = getDataRequestShareUrl(req);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedDataReqId(req.id);
+      showToast('Link formulir berhasil disalin!', 'success');
+      setTimeout(() => setCopiedDataReqId(null), 2500);
+    } catch {
+      const input = document.createElement('input');
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopiedDataReqId(req.id);
+      showToast('Link formulir berhasil disalin!', 'success');
+      setTimeout(() => setCopiedDataReqId(null), 2500);
+    }
+  };
+
+  const handleSaveDataRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedTitle = dataReqTitle.trim();
+    const trimmedUrl = dataReqUrl.trim();
+    const cleanSlug = dataReqSlug.trim() ? generateDataRequestSlug(dataReqSlug) : generateDataRequestSlug(trimmedTitle);
+
+    if (!trimmedTitle) {
+      showNoticePopup({
+        title: 'Judul Diperlukan',
+        message: 'Harap masukkan judul atau nama formulir permintaan data!',
+        type: 'warning'
+      });
+      return;
+    }
+
+    if (!trimmedUrl) {
+      showNoticePopup({
+        title: 'URL Diperlukan',
+        message: 'Harap masukkan tautan URL (Google Form, Spreadsheet, atau Web)!',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setIsSavingDataReq(true);
+    try {
+      if (editingDataRequestId) {
+        await updateDataRequest(editingDataRequestId, {
+          title: trimmedTitle,
+          slug: cleanSlug,
+          url: trimmedUrl,
+          description: dataReqDesc.trim(),
+          cropTop: Number(dataReqCropTop) || 0,
+          isActive: dataReqIsActive
+        });
+      } else {
+        await addDataRequest({
+          title: trimmedTitle,
+          slug: cleanSlug,
+          url: trimmedUrl,
+          description: dataReqDesc.trim(),
+          cropTop: Number(dataReqCropTop) || 0,
+          isActive: dataReqIsActive,
+          order: dataRequests.length + 1
+        });
+      }
+      handleCancelEditDataRequest();
+    } finally {
+      setIsSavingDataReq(false);
+    }
+  };
+
+  const handleDeleteDataRequest = async (req: DataRequestLink) => {
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Tautan Permintaan Data',
+      message: `Apakah Anda yakin ingin menghapus tautan "${req.title}"? Pengunjung tidak akan dapat mengakses formulir ini lagi.`,
+      type: 'delete',
+      confirmText: 'Ya, Hapus Tautan',
+      cancelText: 'Batal'
+    });
+
+    if (confirmed) {
+      await deleteDataRequest(req.id);
+      if (editingDataRequestId === req.id) {
+        handleCancelEditDataRequest();
+      }
+    }
+  };
 
   // Supabase Modal & Connection State
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
@@ -3110,6 +3243,42 @@ export const AdminDashboard: React.FC = () => {
                   {documents.length}
                 </span>
               </button>
+
+              {/* 5.5. Permintaan Data (Webview) */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('data-request-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'data-request-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'data-request-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <Database className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'data-request-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Permintaan Data
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'data-request-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Form & Tautan Webview
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'data-request-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {dataRequests.length}
+                </span>
+              </button>
             </>
           )}
 
@@ -3455,6 +3624,7 @@ export const AdminDashboard: React.FC = () => {
                     ...(canAccessOrganizationCms ? [{ id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' }] : []),
                     { id: 'service-requirements-cms', title: 'Persyaratan Pelayanan', desc: 'Atur standar berkas persyaratan pelayanan pendidikan dan kepegawaian', icon: ClipboardList, color: 'text-blue-600 bg-blue-50' },
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
+                    { id: 'data-request-cms', title: 'Permintaan Data', desc: 'Kelola formulir dan tautan webview permintaan data kedinasan', icon: Database, color: 'text-blue-600 bg-blue-50' },
                     { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
                     { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' }
                   ].map((menu, i) => {
@@ -8384,6 +8554,454 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5.5: KELOLA PERMINTAAN DATA (WEBVIEW) */}
+          {currentSection === 'data-request-cms' && (
+            <div className="space-y-8 max-w-5xl">
+              {/* Header Banner */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2.5">
+                    <Database className="w-6 h-6 text-blue-600" />
+                    Kelola Layanan Permintaan Data (Webview)
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Atur formulir online (Google Form, Spreadsheet, dsb.) yang ditampilkan sebagai Webview di website publik.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('service-permintaan-data', '/layanan/permintaan-data')}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 transition-all shadow-sm"
+                  >
+                    <span>Lihat Halaman Publik</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 1. Form Isian Tautan */}
+              <div id="data-request-form-card" className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                      {editingDataRequestId ? <Edit3 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">
+                        {editingDataRequestId ? 'Edit Tautan Formulir Permintaan Data' : 'Tambah Tautan Formulir Baru'}
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        Isi form di bawah ini lalu periksa langsung live preview webview-nya.
+                      </p>
+                    </div>
+                  </div>
+                  {editingDataRequestId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditDataRequest}
+                      className="px-3 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                    >
+                      Batal Edit
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveDataRequest} className="space-y-4">
+                  {/* Judul Formulir */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Judul Layanan / Formulir Permintaan Data <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={dataReqTitle}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        setDataReqTitle(newTitle);
+                        if (!editingDataRequestId || !dataReqSlug) {
+                          setDataReqSlug(generateDataRequestSlug(newTitle));
+                        }
+                      }}
+                      placeholder="Contoh: Formulir Permintaan Data Pendidikan Korwilcam Purwodadi"
+                      required
+                      className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+
+                  {/* Slug URL Link Share */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Kustomisasi Slug URL Link Share (Otomatis Dibuat)
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-3 py-2 rounded-xl select-none font-mono">
+                        /layanan/permintaan-data/
+                      </span>
+                      <input
+                        type="text"
+                        value={dataReqSlug}
+                        onChange={(e) => setDataReqSlug(generateDataRequestSlug(e.target.value))}
+                        placeholder={generateDataRequestSlug(dataReqTitle) || 'slug-link-otomatis'}
+                        className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      🔗 <strong className="text-slate-700">Link Share:</strong> Saat formulir dibagikan, link akan langsung menuju form ini:{' '}
+                      <span className="text-blue-600 font-mono font-semibold">
+                        /layanan/permintaan-data/{dataReqSlug || generateDataRequestSlug(dataReqTitle) || 'slug-link'}
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* URL Tautan Webview */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      URL Link / Webview Formulir <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={dataReqUrl}
+                      onChange={(e) => setDataReqUrl(e.target.value)}
+                      placeholder="Contoh: https://docs.google.com/forms/d/e/.../viewform?embedded=true atau link situs"
+                      required
+                      className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      💡 Tip: Masukkan link formulir online Anda (misal Google Form, Spreadsheet publik, atau website pelayanan terpadu).
+                    </p>
+                  </div>
+
+                  {/* Keterangan Singkat */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Keterangan / Petunjuk Pengisian (Opsional)
+                    </label>
+                    <textarea
+                      value={dataReqDesc}
+                      onChange={(e) => setDataReqDesc(e.target.value)}
+                      placeholder="Tuliskan petunjuk singkat atau peruntukan layanan data ini untuk pengunjung..."
+                      rows={2}
+                      className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Opsi Tambahan: Potong Atas & Status Aktif */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Potong Header Atas / Crop Top (px)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={300}
+                        value={dataReqCropTop}
+                        onChange={(e) => setDataReqCropTop(Number(e.target.value) || 0)}
+                        className="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Opsional. Nilai pixel pemangkasan bagian atas (misal 50px untuk memotong header blog/logo). Default: 0.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">
+                        Status Publikasi
+                      </label>
+                      <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={dataReqIsActive}
+                          onChange={(e) => setDataReqIsActive(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                        />
+                        <span className="text-xs font-semibold text-slate-700">
+                          {dataReqIsActive ? 'Tampilkan di Website Publik (Aktif)' : 'Sembunyikan dari Website Publik (Nonaktif)'}
+                        </span>
+                      </label>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Hanya tautan berstatus aktif yang akan ditampilkan di halaman publik website.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tombol Aksi Form */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingDataReq}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isSavingDataReq ? 'Menyimpan...' : (editingDataRequestId ? 'Perbarui Tautan' : 'Simpan & Tambahkan Tautan')}
+                    </button>
+                    {editingDataRequestId && (
+                      <button
+                        type="button"
+                        onClick={handleCancelEditDataRequest}
+                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all"
+                      >
+                        Batal
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* 2. Live Preview Webview (Tepat di Bawah Form Isian) */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-0">
+                {/* Mockup Browser Toolbar */}
+                <div className="bg-slate-900 text-slate-300 px-4 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Window control dots */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
+                      <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                      <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                    </div>
+                    <span className="text-xs font-bold text-white tracking-wide shrink-0">
+                      Live Preview Webview
+                    </span>
+                    {/* Address Bar */}
+                    <div className="bg-slate-800 text-slate-300 text-[11px] px-3 py-1 rounded-lg font-mono truncate max-w-xs sm:max-w-md border border-slate-700/60 hidden sm:block">
+                      {dataReqUrl.trim() || 'https://... (masukkan link di atas)'}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setDataReqPreviewKey((prev) => prev + 1)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all"
+                      title="Muat ulang preview"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Refresh Preview</span>
+                    </button>
+                    {dataReqUrl.trim() && (
+                      <a
+                        href={dataReqUrl.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all"
+                        title="Tes buka di tab baru"
+                      >
+                        <span>Tes di Tab Baru</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Iframe Preview Container */}
+                <div className="w-full h-[520px] relative bg-slate-100 overflow-hidden">
+                  {dataReqUrl.trim() ? (
+                    <div className="w-full h-full relative overflow-hidden bg-white">
+                      <iframe
+                        key={dataReqPreviewKey}
+                        src={dataReqUrl.trim()}
+                        title="Live Preview Webview Permintaan Data"
+                        style={
+                          dataReqCropTop > 0
+                            ? {
+                                position: 'absolute',
+                                top: `-${dataReqCropTop}px`,
+                                left: 0,
+                                width: '100%',
+                                height: `calc(100% + ${dataReqCropTop}px)`,
+                                border: 'none',
+                                backgroundColor: '#ffffff'
+                              }
+                            : {
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                border: 'none',
+                                backgroundColor: '#ffffff'
+                              }
+                        }
+                        className="w-full h-full border-0 bg-white"
+                        allow="accelerometer; autoplay; clipboard-read; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-slate-50">
+                      <div className="w-14 h-14 rounded-2xl bg-slate-200/60 text-slate-500 flex items-center justify-center mb-3">
+                        <Database className="w-7 h-7" />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-700 mb-1">
+                        Preview Belum Tersedia
+                      </h4>
+                      <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+                        Ketikkan atau tempelkan URL formulir permintaan data pada form isian di atas untuk melihat tampilan live webview secara langsung di kotak ini.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+                  <span>
+                    📌 Status Crop Top: <strong className="text-slate-700">{dataReqCropTop}px</strong>
+                  </span>
+                  <span>
+                    Tampilan ini mensimulasikan webview yang akan dilihat oleh pengunjung website.
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Daftar Tautan Tersimpan */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">
+                      Daftar Tautan Permintaan Data Tersimpan ({dataRequests.length})
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Kelola status aktif, edit URL, atau hapus formulir yang tidak digunakan lagi.
+                    </p>
+                  </div>
+                </div>
+
+                {dataRequests.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs">
+                    Belum ada tautan permintaan data yang tersimpan. Gunakan form di atas untuk menambahkan tautan pertama.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {dataRequests.map((req, idx) => (
+                      <div
+                        key={req.id}
+                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          editingDataRequestId === req.id
+                            ? 'bg-blue-50/50 border-blue-300 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-slate-800">
+                              {idx + 1}. {req.title}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                req.isActive !== false
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-slate-100 text-slate-500'
+                              }`}
+                            >
+                              {req.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                            {req.cropTop && req.cropTop > 0 ? (
+                              <span className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
+                                Crop Top: {req.cropTop}px
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Link Share Publik & Slug */}
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                            <span className="text-slate-400 font-medium text-[10px]">Slug Link:</span>
+                            <span className="font-mono text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded">
+                              /layanan/permintaan-data/{getDataRequestSlug(req)}
+                            </span>
+                          </div>
+
+                          <a
+                            href={req.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-mono text-slate-500 hover:text-blue-600 hover:underline block truncate max-w-xl"
+                            title="Tautan Sumber Webview Asli"
+                          >
+                            Tautan Asli: {req.url}
+                          </a>
+                          {req.description && (
+                            <p className="text-[11px] text-slate-500 line-clamp-1">
+                              {req.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Tombol Salin Link Share */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopyDataRequestShareLink(req)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                              copiedDataReqId === req.id
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                            }`}
+                            title="Salin tautan langsung formulir ini untuk dibagikan"
+                          >
+                            {copiedDataReqId === req.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-white" />
+                                <span>Tersalin!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5 text-slate-600" />
+                                <span>Salin Link</span>
+                              </>
+                            )}
+                          </button>
+
+                          {/* Buka Halaman Publik */}
+                          <a
+                            href={getDataRequestPath(req)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                            title="Buka halaman formulir publik di tab baru"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => toggleDataRequestActive(req.id)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              req.isActive !== false
+                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            }`}
+                            title={req.isActive !== false ? 'Nonaktifkan Tautan' : 'Aktifkan Tautan'}
+                          >
+                            {req.isActive !== false ? 'Nonaktifkan' : 'Aktifkan'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleEditDataRequest(req)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            title="Edit & Tampilkan di Form"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDataRequest(req)}
+                            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                            title="Hapus Tautan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

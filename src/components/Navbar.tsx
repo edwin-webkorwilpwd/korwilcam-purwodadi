@@ -22,8 +22,10 @@ import {
   FileCheck,
   ClipboardCheck,
   ClipboardList,
-  Users
+  Users,
+  Database
 } from 'lucide-react';
+import { getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 
 export const Navbar: React.FC = () => {
   const { 
@@ -36,11 +38,18 @@ export const Navbar: React.FC = () => {
     organizations,
     selectedOrganizationSlug,
     setSelectedOrganizationSlug,
-    setSelectedServiceRequirement 
+    setSelectedServiceRequirement,
+    dataRequests
   } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
+
+  // Path langsung ke formulir permintaan data aktif pertama dengan slug
+  const firstActiveDataReq = (dataRequests || []).find((r) => r.isActive !== false);
+  const dataRequestPath = firstActiveDataReq
+    ? getDataRequestPath(firstActiveDataReq)
+    : '/layanan/permintaan-data';
 
   // Hover grace period timer refs to prevent accidental dropdown closing
   const servicesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -557,6 +566,33 @@ export const Navbar: React.FC = () => {
                           </div>
                         </div>
                       </button>
+
+                      {/* 5. Permintaan Data */}
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
+                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                          activeTab === 'service-permintaan-data' 
+                            ? 'bg-blue-500/20 border border-blue-500/40 text-white' 
+                            : 'hover:bg-white/10 text-slate-200'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                          activeTab === 'service-permintaan-data' 
+                            ? 'bg-blue-600 text-white shadow-sm' 
+                            : 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-600 group-hover:text-white'
+                        }`}>
+                          <Database className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-xs text-white group-hover:text-blue-300 transition-colors">
+                            Permintaan Data
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-normal leading-tight">
+                            Layanan pengajuan & permohonan data kedinasan
+                          </div>
+                        </div>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -737,6 +773,16 @@ export const Navbar: React.FC = () => {
             >
               <ClipboardCheck className="w-3.5 h-3.5" />
               <span>Survey Pelayanan</span>
+            </button>
+
+            <button
+              onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+                activeTab === 'service-permintaan-data' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Permintaan Data</span>
             </button>
           </div>
 

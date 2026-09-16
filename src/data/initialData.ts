@@ -10,7 +10,8 @@ import {
   ComplaintMessage,
   EducationalOrganization,
   TeacherNominative,
-  ServiceRequirement
+  ServiceRequirement,
+  DataRequestLink
 } from '../types';
 
 export const initialOfficeProfile: OfficeProfile = {
@@ -771,5 +772,15 @@ export const initialTeachers: TeacherNominative[] = [];
 
 export const initialServiceRequirements: ServiceRequirement[] = [];
 
-
-
+export const initialDataRequests: DataRequestLink[] = [
+  {
+    id: "req-data-01",
+    title: "Formulir Permintaan Data Pendidikan Korwilcam Purwodadi",
+    slug: "formulir-permintaan-data-pendidikan-korwilcam-purwodadi",
+    url: "https://pelayananterpadupwd.blogspot.com/",
+    description: "Layanan permohonan data sarana prasarana, kelembagaan, dan kesiswaan Korwilcam Bidang Pendidikan Purwodadi.",
+    cropTop: 0,
+    isActive: true,
+    order: 1
+  }
+];

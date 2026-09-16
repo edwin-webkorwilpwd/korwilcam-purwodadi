@@ -255,3 +255,17 @@ export interface ServiceRequirement {
   updatedAt?: string;
 }
 
+export interface DataRequestLink {
+  id: string;
+  title: string;
+  slug?: string;
+  url: string;
+  description?: string;
+  cropTop?: number;
+  isActive: boolean;
+  order?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+

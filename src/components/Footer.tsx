@@ -152,6 +152,15 @@ export const Footer: React.FC = () => {
                 </li>
                 <li>
                   <button 
+                    onClick={() => setActiveTab('service-permintaan-data')}
+                    className="hover:text-blue-400 transition-colors flex items-center gap-1 text-left group w-full"
+                  >
+                    <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0" />
+                    <span className="truncate">Permintaan Data</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
                     onClick={() => setActiveTab('gallery')}
                     className="hover:text-blue-400 transition-colors flex items-center gap-1 text-left group w-full"
                   >

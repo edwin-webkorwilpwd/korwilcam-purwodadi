@@ -23,6 +23,7 @@ const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage')
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
+const DataRequestPage = React.lazy(() => import('./pages/DataRequestPage').then(m => ({ default: m.DataRequestPage })));
 import { WebViewPage } from './pages/WebViewPage';
 import { ServiceRequirementsPage } from './pages/ServiceRequirementsPage';
 const ServiceRequirementDetailPage = React.lazy(() => import('./pages/ServiceRequirementDetailPage').then(m => ({ default: m.ServiceRequirementDetailPage })));
@@ -123,7 +124,7 @@ const MainContent: React.FC = () => {
     );
   }
 
-  const isWebView = WEBVIEW_SERVICES.some((s) => s.id === activeTab);
+  const isWebView = WEBVIEW_SERVICES.some((s) => s.id === activeTab) || activeTab === 'service-permintaan-data';
 
   // Public portal routing
   return (
@@ -145,6 +146,8 @@ const MainContent: React.FC = () => {
             <DocumentDetailPage />
           ) : selectedServiceRequirement ? (
             <ServiceRequirementDetailPage />
+          ) : activeTab === 'service-permintaan-data' ? (
+            <DataRequestPage />
           ) : !isWebView ? (
             <>
               {activeTab === 'home' && <HomePage />}

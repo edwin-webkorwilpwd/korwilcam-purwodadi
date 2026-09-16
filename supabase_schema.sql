@@ -527,3 +527,40 @@ GRANT EXECUTE ON FUNCTION public.increment_news_views(TEXT) TO anon, authenticat
 ALTER TABLE public.organizations
   ADD COLUMN IF NOT EXISTS assigned_username TEXT;
 
+-- ==========================================================
+-- MIGRATION: BUAT TABEL PERMINTAAN DATA WEBVIEW (DATA_REQUESTS)
+-- ==========================================================
+-- Jalankan script ini di menu "SQL Editor" pada dashboard Supabase Anda:
+CREATE TABLE IF NOT EXISTS public.data_requests (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  slug TEXT,
+  url TEXT NOT NULL,
+  description TEXT,
+  crop_top INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 1,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tambah kolom slug jika tabel sudah ada sebelumnya:
+ALTER TABLE public.data_requests ADD COLUMN IF NOT EXISTS slug TEXT;
+CREATE INDEX IF NOT EXISTS idx_data_requests_slug ON public.data_requests(slug);
+
+-- Pengaturan RLS (Row Level Security)
+ALTER TABLE public.data_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read data_requests" ON public.data_requests;
+CREATE POLICY "Public read data_requests" ON public.data_requests FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on data_requests" ON public.data_requests;
+CREATE POLICY "Allow all on data_requests" ON public.data_requests FOR ALL USING (true);
+
+-- Publikasi Realtime untuk Multi-User Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.data_requests;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;

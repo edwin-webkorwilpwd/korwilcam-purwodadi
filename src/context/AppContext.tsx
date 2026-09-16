@@ -15,7 +15,8 @@ import {
   EducationalOrganization,
   OrganizationOfficial,
   TeacherNominative,
-  ServiceRequirement
+  ServiceRequirement,
+  DataRequestLink
 } from '../types';
 import { 
   initialSchools, 
@@ -29,8 +30,10 @@ import {
   initialComplaints,
   initialOrganizations,
   initialTeachers,
-  initialServiceRequirements
+  initialServiceRequirements,
+  initialDataRequests
 } from '../data/initialData';
+
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
@@ -39,6 +42,7 @@ import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } 
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
+import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -155,6 +159,15 @@ interface AppContextType {
   resetServiceRequirements: () => Promise<boolean>;
   addServiceRequirementCategory: (categoryName: string) => Promise<boolean>;
   deleteServiceRequirementCategory: (categoryName: string) => Promise<boolean>;
+  
+  // Permintaan Data (Webview)
+  dataRequests: DataRequestLink[];
+  selectedDataRequestSlug: string | null;
+  setSelectedDataRequestSlug: (slug: string | null) => void;
+  addDataRequest: (item: Omit<DataRequestLink, 'id'>) => Promise<boolean>;
+  updateDataRequest: (id: string, data: Partial<DataRequestLink>) => Promise<boolean>;
+  deleteDataRequest: (id: string) => Promise<boolean>;
+  toggleDataRequestActive: (id: string) => Promise<boolean>;
   
   // Auth & Roles
   isAuthenticated: boolean;
@@ -543,6 +556,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ];
   });
 
+  const [dataRequests, setDataRequests] = useState<DataRequestLink[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_data_requests');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialDataRequests;
+    } catch {
+      return initialDataRequests;
+    }
+  });
+
+  const [selectedDataRequestSlug, setSelectedDataRequestSlug] = useState<string | null>(null);
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -752,6 +780,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [serviceRequirements]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('korwilcam_data_requests', JSON.stringify(dataRequests));
+    } catch (e) {
+      console.warn('localStorage save data_requests quota warning:', e);
+    }
+  }, [dataRequests]);
+
   // Initial fetch from Supabase if connected
   const refreshFromSupabase = async (): Promise<boolean> => {
     const client = getSupabaseClient();
@@ -900,6 +936,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           try {
             localStorage.setItem('korwilcam_service_requirements', JSON.stringify([]));
           } catch {}
+        }
+      })();
+
+      // 0.15 Fetch data_requests (Layanan Permintaan Data Webview)
+      (async () => {
+        try {
+          const { data: dbDataReqs, error: dataReqErr } = await client
+            .from('data_requests')
+            .select('*')
+            .order('sort_order', { ascending: true });
+
+          if (!dataReqErr && Array.isArray(dbDataReqs) && dbDataReqs.length > 0) {
+            const mappedDataReqs: DataRequestLink[] = dbDataReqs.map((d: any, index: number) => {
+              const itemTitle = String(d.title || d.judul || '').trim();
+              return {
+                id: String(d.id || `req-data-${Date.now()}-${index}`),
+                title: itemTitle,
+                slug: d.slug ? String(d.slug).trim() : generateDataRequestSlug(itemTitle),
+                url: String(d.url || d.link || '').trim(),
+                description: d.description || d.keterangan || '',
+                cropTop: typeof d.crop_top === 'number' ? d.crop_top : (d.cropTop || 0),
+                isActive: d.is_active !== false && d.isActive !== false,
+                order: typeof d.sort_order === 'number' ? d.sort_order : (d.order || index + 1),
+                createdAt: d.created_at || d.createdAt,
+                updatedAt: d.updated_at || d.updatedAt
+              };
+            });
+            setDataRequests(mappedDataReqs);
+            try {
+              localStorage.setItem('korwilcam_data_requests', JSON.stringify(mappedDataReqs));
+            } catch {}
+          }
+        } catch (errDataReq) {
+          console.warn('Tabel data_requests belum terbaca:', errDataReq);
         }
       })();
 
@@ -1724,6 +1794,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel service_requirements:', rErr);
       }
 
+      // 14. Export data_requests (Layanan Permintaan Data Webview)
+      try {
+        const dataReqPayload = dataRequests.map((d, index) => ({
+          id: d.id,
+          title: d.title,
+          slug: d.slug || generateDataRequestSlug(d.title),
+          url: d.url,
+          description: d.description || '',
+          crop_top: d.cropTop || 0,
+          is_active: d.isActive !== false,
+          sort_order: d.order || index + 1,
+          created_at: d.createdAt || new Date().toISOString(),
+          updated_at: d.updatedAt || new Date().toISOString()
+        }));
+        await client.from('data_requests').upsert(dataReqPayload);
+      } catch (dErr) {
+        console.warn('Gagal ekspor tabel data_requests:', dErr);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       showToast('Seluruh data berhasil diekspor & disinkronkan ke Supabase!', 'success');
@@ -1841,6 +1930,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'data_requests' },
+        () => {
+          refreshFromSupabase();
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'admin_users' },
         async () => {
           const { data: dbUsers } = await client.from('admin_users').select('*');
@@ -1880,6 +1976,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
     'service-cuti': { path: '/layanan/surat-cuti', title: 'Layanan Surat Cuti GTK Online - Korwilcam Purwodadi' },
     'service-survey': { path: '/layanan/survey-pelayanan', title: 'Survey Kepuasan Pelayanan Terpadu - Korwilcam Purwodadi' },
+    'service-permintaan-data': { path: '/layanan/permintaan-data', title: 'Layanan Permintaan Data - Korwilcam Purwodadi' },
     'gallery': { path: '/galeri', title: 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi' },
     'contact': { path: '/kontak', title: 'Kontak & Layanan Pengaduan - Korwilcam Purwodadi' },
     'admin-login': { path: '/angmin/lugin', title: 'Login Panel Admin - Korwilcam Purwodadi' },
@@ -1911,8 +2008,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const route = TAB_ROUTES[tab];
-    const targetPath = customPath || (route ? route.path : `/${tab}`);
-    const targetTitle = route ? route.title : 'Kantor Korwilcam Bidang Pendidikan Purwodadi';
+    let targetPath = customPath || (route ? route.path : `/${tab}`);
+    let targetTitle = route ? route.title : 'Kantor Korwilcam Bidang Pendidikan Purwodadi';
+
+    if (tab === 'service-permintaan-data') {
+      const activeReqs = (dataRequests || []).filter((r) => r.isActive !== false);
+      if (activeReqs.length > 0) {
+        const matched = activeReqs.find((r) =>
+          selectedDataRequestSlug && (
+            (r.slug && r.slug.toLowerCase() === selectedDataRequestSlug.toLowerCase()) ||
+            getDataRequestSlug(r).toLowerCase() === selectedDataRequestSlug.toLowerCase()
+          )
+        ) || activeReqs[0];
+        const slug = matched.slug || getDataRequestSlug(matched);
+        targetPath = `/layanan/permintaan-data/${encodeURIComponent(slug)}`;
+        targetTitle = `${matched.title} - Korwilcam Purwodadi`;
+      }
+    }
 
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ tab, path: targetPath }, '', targetPath);
@@ -2436,7 +2548,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, selectedSchool, and selectedServiceRequirement if not viewing detail
+      // 8. Support /layanan/permintaan-data/:slug or /permintaan-data/:slug
+      if (
+        (rawPath.startsWith('/layanan/permintaan-data/') && rawPath !== '/layanan/permintaan-data') ||
+        (rawPath.startsWith('/permintaan-data/') && rawPath !== '/permintaan-data') ||
+        (rawPath.startsWith('/layanan/data-request/') && rawPath !== '/layanan/data-request')
+      ) {
+        const slug = decodeURIComponent(
+          rawPath
+            .replace(/^\/layanan\/permintaan-data\//, '')
+            .replace(/^\/permintaan-data\//, '')
+            .replace(/^\/layanan\/data-request\//, '')
+        ).trim().toLowerCase();
+        setActiveTabState('service-permintaan-data');
+        setSelectedDataRequestSlug(slug);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedGalleryState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedOrganizationSlugState(null);
+        setSelectedServiceRequirementState(null);
+        if (dataRequests.length > 0) {
+          const found = dataRequests.find((d) =>
+            d.id === slug ||
+            (d.slug && d.slug.toLowerCase() === slug) ||
+            getDataRequestSlug(d).toLowerCase() === slug ||
+            d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === slug
+          );
+          if (found) {
+            document.title = `${found.title} - Korwilcam Purwodadi`;
+            return;
+          }
+        }
+        document.title = TAB_ROUTES['service-permintaan-data']?.title || 'Permintaan Data - Korwilcam Purwodadi';
+        return;
+      }
+
+      // Query param fallback ?permintaan=slug or ?data=slug
+      const queryPermintaan = searchParams.get('permintaan') || searchParams.get('data');
+      if (queryPermintaan && dataRequests.length > 0) {
+        const cleanQuery = queryPermintaan.trim().toLowerCase();
+        const found = dataRequests.find((d) =>
+          d.id === cleanQuery ||
+          (d.slug && d.slug.toLowerCase() === cleanQuery) ||
+          getDataRequestSlug(d).toLowerCase() === cleanQuery ||
+          d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === cleanQuery
+        );
+        if (found) {
+          setActiveTabState('service-permintaan-data');
+          setSelectedDataRequestSlug(found.slug || getDataRequestSlug(found));
+          setSelectedNewsState(null);
+          setSelectedAnnouncementState(null);
+          setSelectedGalleryState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedOrganizationSlugState(null);
+          setSelectedServiceRequirementState(null);
+          document.title = `${found.title} - Korwilcam Purwodadi`;
+          return;
+        }
+      }
+
+      // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, selectedSchool, selectedServiceRequirement, and selectedDataRequestSlug if not viewing detail
       if (!rawPath.startsWith('/berita/') && !rawPath.startsWith('/b/') && !searchParams.get('berita')) {
         setSelectedNewsState(null);
       }
@@ -2445,6 +2619,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedDocumentState(null);
       setSelectedSchoolState(null);
       setSelectedServiceRequirementState(null);
+      if (!rawPath.includes('permintaan-data') && !rawPath.includes('permintaan') && !rawPath.includes('data-request')) {
+        setSelectedDataRequestSlug(null);
+      }
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
@@ -2500,6 +2677,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else if (rawPath.includes('survey')) {
           setActiveTabState('service-survey');
           document.title = TAB_ROUTES['service-survey'].title;
+        } else if (rawPath.includes('permintaan-data') || rawPath.includes('permintaan') || rawPath.includes('data-request')) {
+          setActiveTabState('service-permintaan-data');
+          const activeReqs = (dataRequests || []).filter((r) => r.isActive !== false);
+          if (activeReqs.length > 0) {
+            const firstReq = activeReqs[0];
+            const targetSlug = firstReq.slug || getDataRequestSlug(firstReq);
+            setSelectedDataRequestSlug(targetSlug);
+            const targetPath = `/layanan/permintaan-data/${encodeURIComponent(targetSlug)}`;
+            if (rawPath !== targetPath.toLowerCase()) {
+              window.history.replaceState({ tab: 'service-permintaan-data', path: targetPath }, '', targetPath);
+            }
+            document.title = `${firstReq.title} - Korwilcam Purwodadi`;
+          } else {
+            document.title = TAB_ROUTES['service-permintaan-data'].title;
+          }
         } else {
           setActiveTabState('downloads');
           document.title = TAB_ROUTES['downloads'].title;
@@ -2532,7 +2724,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
     return () => window.removeEventListener('popstate', handleUrlRoute);
-  }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements]);
+  }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements, dataRequests]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
@@ -4667,6 +4859,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  // ==========================================================
+  // PERMINTAAN DATA (WEBVIEW) CRUD
+  // ==========================================================
+  const addDataRequest = async (item: Omit<DataRequestLink, 'id'>): Promise<boolean> => {
+    const slug = (item.slug && item.slug.trim())
+      ? generateDataRequestSlug(item.slug)
+      : generateDataRequestSlug(item.title);
+
+    const newItem: DataRequestLink = {
+      ...item,
+      id: `req-data-${Date.now()}`,
+      slug,
+      order: item.order || (dataRequests.length + 1),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [...dataRequests, newItem].sort((a, b) => (a.order || 0) - (b.order || 0));
+    setDataRequests(updated);
+    try {
+      localStorage.setItem('korwilcam_data_requests', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('data_requests').upsert({
+          id: newItem.id,
+          title: newItem.title,
+          slug: newItem.slug,
+          url: newItem.url,
+          description: newItem.description || '',
+          crop_top: newItem.cropTop || 0,
+          is_active: newItem.isActive !== false,
+          sort_order: newItem.order,
+          created_at: newItem.createdAt,
+          updated_at: newItem.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase addDataRequest warning:', err);
+      }
+    }
+    showToast(`Tautan "${newItem.title}" berhasil ditambahkan!`, 'success');
+    return true;
+  };
+
+  const updateDataRequest = async (id: string, data: Partial<DataRequestLink>): Promise<boolean> => {
+    const updated = dataRequests.map((d) => {
+      if (d.id === id) {
+        let newSlug = d.slug;
+        if (data.slug !== undefined) {
+          newSlug = data.slug.trim() ? generateDataRequestSlug(data.slug) : generateDataRequestSlug(data.title || d.title);
+        } else if (data.title && (!d.slug || d.slug === generateDataRequestSlug(d.title))) {
+          newSlug = generateDataRequestSlug(data.title);
+        }
+        return {
+          ...d,
+          ...data,
+          slug: newSlug || generateDataRequestSlug(data.title || d.title),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return d;
+    }).sort((a, b) => (a.order || 0) - (b.order || 0));
+    setDataRequests(updated);
+    try {
+      localStorage.setItem('korwilcam_data_requests', JSON.stringify(updated));
+    } catch (e) {}
+
+    const target = updated.find((d) => d.id === id);
+    const client = getSupabaseClient();
+    if (client && target) {
+      try {
+        await client.from('data_requests').upsert({
+          id: target.id,
+          title: target.title,
+          slug: target.slug || generateDataRequestSlug(target.title),
+          url: target.url,
+          description: target.description || '',
+          crop_top: target.cropTop || 0,
+          is_active: target.isActive !== false,
+          sort_order: target.order || 1,
+          created_at: target.createdAt || new Date().toISOString(),
+          updated_at: target.updatedAt
+        });
+      } catch (err) {
+        console.warn('Supabase updateDataRequest warning:', err);
+      }
+    }
+    showToast('Tautan permintaan data berhasil diperbarui!', 'success');
+    return true;
+  };
+
+  const deleteDataRequest = async (id: string): Promise<boolean> => {
+    const target = dataRequests.find((d) => d.id === id);
+    const updated = dataRequests.filter((d) => d.id !== id);
+    setDataRequests(updated);
+    try {
+      localStorage.setItem('korwilcam_data_requests', JSON.stringify(updated));
+    } catch (e) {}
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('data_requests').delete().match({ id });
+      } catch (err) {
+        console.warn('Supabase deleteDataRequest warning:', err);
+      }
+    }
+    showToast(`Tautan "${target?.title || ''}" berhasil dihapus!`, 'info');
+    return true;
+  };
+
+  const toggleDataRequestActive = async (id: string): Promise<boolean> => {
+    const target = dataRequests.find((d) => d.id === id);
+    if (!target) return false;
+    return updateDataRequest(id, { isActive: !target.isActive });
+  };
+
   const resetToDefaultData = () => {
     setSchools(initialSchools);
     setNews(initialNews);
@@ -4680,6 +4990,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOrganizations(initialOrganizations);
     setTeachers(initialTeachers);
     setServiceRequirements(initialServiceRequirements);
+    setDataRequests(initialDataRequests);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
@@ -4724,6 +5035,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetServiceRequirements,
         addServiceRequirementCategory,
         deleteServiceRequirementCategory,
+        dataRequests,
+        selectedDataRequestSlug,
+        setSelectedDataRequestSlug,
+        addDataRequest,
+        updateDataRequest,
+        deleteDataRequest,
+        toggleDataRequestActive,
         activeTab,
         setActiveTab,
         selectedNews,
