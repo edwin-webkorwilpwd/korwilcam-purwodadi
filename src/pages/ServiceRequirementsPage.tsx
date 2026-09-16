@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { getServiceRequirementDetailPath } from '../lib/serviceRequirementHelper';
 import { ServiceRequirement } from '../types';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 export const ServiceRequirementsPage: React.FC = () => {
   const { serviceRequirements, setSelectedServiceRequirement } = useApp();
@@ -62,44 +63,30 @@ export const ServiceRequirementsPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-24">
       {/* Hero Header */}
-      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-14 px-4 sm:px-6 lg:px-8 border-b border-white/20 relative overflow-hidden shadow-md">
+      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden shadow-md">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="w-full max-w-6xl mx-auto text-center space-y-4 relative z-10">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
+        <div className="w-full max-w-6xl mx-auto text-center space-y-3 relative z-10">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <ClipboardList className="w-3.5 h-3.5" />
             <span>Pusat Informasi Standar Pelayanan Terpadu</span>
           </span>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
             Persyaratan Pelayanan Publik
           </h1>
 
-          <p className="text-base sm:text-lg text-blue-100 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm text-blue-100 max-w-2xl mx-auto leading-relaxed">
             Pedoman resmi berkas persyaratan, standar prosedur operasional, dan alur pengajuan pelayanan administrasi bagi pendidik, tenaga kependidikan, serta masyarakat di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi.
           </p>
-
-          {/* Quick Highlight Cards */}
-          <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-2xl mx-auto">
-            <div className="bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl p-3 text-center shadow-sm">
-              <div className="text-2xl font-bold text-white">{serviceRequirements.length}</div>
-              <div className="text-xs text-slate-400 font-medium mt-0.5">Jenis Layanan</div>
-            </div>
-            <div className="bg-slate-900/80 backdrop-blur border border-blue-900/40 rounded-xl p-3 text-center shadow-sm">
-              <div className="text-2xl font-bold text-blue-400">{categories.length}</div>
-              <div className="text-xs text-blue-300/80 font-medium mt-0.5">Bidang Kategori</div>
-            </div>
-            <div className="bg-slate-900/80 backdrop-blur border border-purple-900/40 rounded-xl p-3 text-center shadow-sm">
-              <div className="text-2xl font-bold text-purple-400">100% Bebas Biaya</div>
-              <div className="text-xs text-purple-300/80 font-medium mt-0.5">Pelayanan Resmi</div>
-            </div>
-          </div>
+          <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto mt-2 shadow-xs" />
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Main Content Area - Full Screen Width */}
-      <main className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6">
+      <main className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-7 sm:-mt-9 relative z-20">
         
         {/* Filter and Search Bar */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 space-y-4">

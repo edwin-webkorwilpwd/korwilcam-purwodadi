@@ -31,6 +31,7 @@ import {
   WebsiteIcon, 
   formatExternalUrl 
 } from '../components/SocialIcons';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 export const OrganizationPage: React.FC = () => {
   const { organizations, selectedOrganizationSlug, setSelectedOrganizationSlug, setActiveTab } = useApp();
@@ -147,14 +148,14 @@ export const OrganizationPage: React.FC = () => {
       <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
         
         {/* Hero Banner Header */}
-        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
+        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
           {/* Background decorative elements */}
           <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
 
           <div className="w-full relative z-10">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs font-medium text-blue-100/90 mb-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-blue-100/90 mb-2.5">
               <button 
                 onClick={() => setActiveTab('home', '/beranda')} 
                 className="hover:text-white transition-colors"
@@ -165,21 +166,22 @@ export const OrganizationPage: React.FC = () => {
               <span className="text-white font-semibold">Organisasi Mitra & Profesi</span>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-bold mb-4 border border-white/30 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-bold mb-3 border border-white/30 backdrop-blur-sm">
               <Users className="w-3.5 h-3.5" />
               <span>PORTAL ORGANISASI PENDIDIKAN PURWODADI</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight text-white max-w-5xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight text-white max-w-5xl">
               Organisasi Mitra & Profesi Pendidikan
             </h1>
 
-            <p className="text-sm sm:text-base text-blue-100/90 mt-4 max-w-4xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-blue-100/90 mt-2 max-w-4xl leading-relaxed">
               Wadah persatuan, koordinasi profesi pendidik, gugus kepanduan, serta forum musyawarah strategis di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi, Kabupaten Grobogan.
             </p>
+            <div className="w-12 h-1 bg-amber-400 rounded-full mt-2.5 shadow-xs" />
 
             {/* Search & Statistics Bar */}
-            <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div className="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               {/* Search Box */}
               <div className="relative flex-1 max-w-lg">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -209,10 +211,11 @@ export const OrganizationPage: React.FC = () => {
             </div>
 
           </div>
+          <CurvedHeaderArch />
         </section>
 
         {/* Directory Cards Grid */}
-        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 -mt-6 relative z-20">
+        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 -mt-6 sm:-mt-8 relative z-20">
           {filteredOrganizations.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center shadow-md border border-slate-200">
               <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
@@ -345,7 +348,7 @@ export const OrganizationPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
 
       {/* Hero Header Section */}
-      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
+      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
         {/* Background decorative circles */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
@@ -484,10 +487,11 @@ export const OrganizationPage: React.FC = () => {
 
           </div>
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Main Content Area */}
-      <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 space-y-12">
+      <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 pt-2 pb-10 space-y-8 -mt-6 sm:-mt-8 relative z-20">
         
         {/* SECTION 1: SAMBUTAN KETUA ORGANISASI */}
         <section id="sambutan" className="scroll-mt-28">

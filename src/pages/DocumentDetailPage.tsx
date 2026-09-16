@@ -16,6 +16,7 @@ import {
   Info
 } from 'lucide-react';
 import { triggerDocumentDownload } from '../lib/documentHelper';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 export const DocumentDetailPage: React.FC = () => {
   const { 
@@ -96,11 +97,11 @@ export const DocumentDetailPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-20 bg-slate-50 min-h-screen">
       {/* Top Banner Header */}
-      <section className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 px-4 sm:px-8 lg:px-12 xl:px-16 border-b border-white/20 shadow-md">
-        <div className="w-full space-y-5">
+      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-7 pb-14 sm:pt-8 sm:pb-16 px-4 sm:px-8 lg:px-12 xl:px-16 shadow-md overflow-hidden">
+        <div className="w-full space-y-3.5 relative z-10">
           
           {/* Back Button & Breadcrumbs */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/15">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-white/15">
             <button
               onClick={() => {
                 setSelectedDocument(null);
@@ -158,14 +159,15 @@ export const DocumentDetailPage: React.FC = () => {
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-snug tracking-tight">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white leading-snug tracking-tight">
             {selectedDocument.title}
           </h1>
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Main Content Body: Berkas Unduhan & Deskripsi Saja (Full Screen Width) */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6">
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-6 sm:-mt-8 relative z-20">
         
         {/* 1. KOTAK BERKAS UNDUHAN */}
         <div className="w-full bg-white rounded-3xl p-6 sm:p-8 border border-blue-200/80 shadow-xl shadow-blue-900/5 relative overflow-hidden">

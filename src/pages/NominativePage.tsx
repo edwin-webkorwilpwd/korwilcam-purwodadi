@@ -11,6 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 // Helper matching status filter reliably
 const matchesStatus = (teacherStatus: string = '', filter: string): boolean => {
@@ -116,77 +117,79 @@ export const NominativePage: React.FC = () => {
   return (
     <div className="space-y-6 pb-20 print:p-0 print:space-y-4">
       {/* Hero Header */}
-      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md print:hidden">
-        <div className="w-full max-w-6xl mx-auto text-center space-y-4">
+      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-6 lg:px-8 shadow-md print:hidden overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto text-center space-y-3 relative z-10">
           <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <Users className="w-3.5 h-3.5" />
             <span>Pangkalan Data Tenaga Pendidik</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
             Daftar Nominatif Guru
           </h1>
-          <p className="text-base sm:text-lg text-blue-100 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm text-blue-100 max-w-2xl mx-auto leading-relaxed">
             Pangkalan data dan daftar nominatif resmi seluruh guru dan pendidik di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi, Kabupaten Grobogan.
           </p>
+          <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto mt-2 shadow-xs" />
 
           {/* Quick Statistics */}
-          <div className="pt-4 grid grid-cols-2 sm:grid-cols-5 gap-3 max-w-4xl mx-auto">
-            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
-              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
+          <div className="pt-2 grid grid-cols-2 sm:grid-cols-5 gap-2.5 max-w-4xl mx-auto">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-2.5 text-center shadow-md">
+              <div className="text-lg sm:text-xl font-bold text-white flex items-center justify-center min-h-[28px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-6 w-10 rounded"></span>
                 ) : (
                   countTotal
                 )}
               </div>
-              <div className="text-xs text-blue-100 font-medium mt-0.5">Total Guru</div>
+              <div className="text-[11px] text-blue-100 font-medium mt-0.5">Total Guru</div>
             </div>
-            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
-              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-2.5 text-center shadow-md">
+              <div className="text-lg sm:text-xl font-bold text-white flex items-center justify-center min-h-[28px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-6 w-10 rounded"></span>
                 ) : (
                   countPNS
                 )}
               </div>
-              <div className="text-xs text-blue-100 font-medium mt-0.5">Guru PNS</div>
+              <div className="text-[11px] text-blue-100 font-medium mt-0.5">Guru PNS</div>
             </div>
-            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
-              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-2.5 text-center shadow-md">
+              <div className="text-lg sm:text-xl font-bold text-white flex items-center justify-center min-h-[28px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-6 w-10 rounded"></span>
                 ) : (
                   countPPPK
                 )}
               </div>
-              <div className="text-xs text-blue-100 font-medium mt-0.5">Guru PPPK</div>
+              <div className="text-[11px] text-blue-100 font-medium mt-0.5">Guru PPPK</div>
             </div>
-            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
-              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-2.5 text-center shadow-md">
+              <div className="text-lg sm:text-xl font-bold text-white flex items-center justify-center min-h-[28px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-6 w-10 rounded"></span>
                 ) : (
                   countPPPKParuhWaktu
                 )}
               </div>
-              <div className="text-xs text-blue-100 font-medium mt-0.5">PPPK Paruh Waktu</div>
+              <div className="text-[11px] text-blue-100 font-medium mt-0.5">PPPK Paruh Waktu</div>
             </div>
-            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
-              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-2.5 text-center shadow-md">
+              <div className="text-lg sm:text-xl font-bold text-white flex items-center justify-center min-h-[28px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-6 w-10 rounded"></span>
                 ) : (
                   countHonorer
                 )}
               </div>
-              <div className="text-xs text-blue-100 font-medium mt-0.5">Honorer</div>
+              <div className="text-[11px] text-blue-100 font-medium mt-0.5">Honorer</div>
             </div>
           </div>
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Main Content Area - Full Screen Width */}
-      <main className="w-full px-3 sm:px-6 lg:px-8 xl:px-10 space-y-5">
+      <main className="w-full px-3 sm:px-6 lg:px-8 xl:px-10 space-y-5 -mt-6 sm:-mt-8 relative z-20">
         {/* Filter and Search Bar */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 print:hidden">
           <div className="flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between">

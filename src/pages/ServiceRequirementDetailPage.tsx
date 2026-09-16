@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { getServiceRequirementDetailPath } from '../lib/serviceRequirementHelper';
 import { ServiceRequirement } from '../types';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 export const ServiceRequirementDetailPage: React.FC = () => {
   const { 
@@ -116,10 +117,10 @@ export const ServiceRequirementDetailPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-24 bg-slate-50 min-h-screen print:bg-white print:p-0 print:space-y-4">
       {/* Hero Header Banner */}
-      <section className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 px-4 sm:px-8 lg:px-12 xl:px-16 border-b border-white/20 shadow-md print:hidden">
-        <div className="w-full space-y-5">
+      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-7 pb-14 sm:pt-8 sm:pb-16 px-4 sm:px-8 lg:px-12 xl:px-16 shadow-md print:hidden overflow-hidden">
+        <div className="w-full space-y-3.5 relative z-10">
           {/* Back Button & Breadcrumbs */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/15">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-white/15">
             <button
               onClick={() => {
                 setSelectedServiceRequirement(null);
@@ -161,8 +162,8 @@ export const ServiceRequirementDetailPage: React.FC = () => {
           </div>
 
           {/* Badges & Title */}
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2.5">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
                 <ClipboardList className="w-3.5 h-3.5" />
                 <span>{service.category || 'Pelayanan Umum'}</span>
@@ -181,17 +182,18 @@ export const ServiceRequirementDetailPage: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight leading-snug">
               {service.title}
             </h1>
 
             {service.description && (
-              <p className="text-sm sm:text-base text-slate-300 max-w-4xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-200 max-w-4xl leading-relaxed">
                 {service.description}
               </p>
             )}
           </div>
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Printable Official Header */}
@@ -213,7 +215,7 @@ export const ServiceRequirementDetailPage: React.FC = () => {
       </div>
 
       {/* Main Container */}
-      <main className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
+      <main className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-6 sm:-mt-8 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Column: Requirements & Notes */}

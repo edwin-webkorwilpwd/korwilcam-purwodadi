@@ -11,6 +11,7 @@ import {
   ExternalLink,
   ShieldAlert
 } from 'lucide-react';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 export const ContactPage: React.FC = () => {
   const { officeProfile, showToast, addComplaint } = useApp();
@@ -57,23 +58,25 @@ export const ContactPage: React.FC = () => {
   return (
     <div className="space-y-12 pb-20">
       {/* Header Banner */}
-      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md">
-        <div className="max-w-5xl mx-auto text-center space-y-4">
+      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
+        <div className="max-w-5xl mx-auto text-center space-y-3 relative z-10">
           <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <Phone className="w-3.5 h-3.5" />
             <span>Pusat Layanan Terpadu</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
             Kontak & Pengaduan Masyarakat
           </h1>
-          <p className="text-blue-100 text-sm sm:text-base max-w-2xl mx-auto">
+          <p className="text-blue-100 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
             Sampaikan konsultasi kedinasan, permohonan informasi, maupun aspirasi perbaikan layanan pendidikan di Kecamatan Purwodadi.
           </p>
+          <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto mt-2 shadow-xs" />
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Main Container */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-6 sm:-mt-8 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           
           {/* Kolom Kiri: Kontak & Peta */}

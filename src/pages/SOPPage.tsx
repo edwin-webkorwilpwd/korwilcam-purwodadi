@@ -22,6 +22,7 @@ import {
   extractGoogleDriveId,
   getGoogleDrivePreviewUrl
 } from '../lib/driveHelper';
+import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
 export const SOPPage: React.FC = () => {
   const { sopImageUrl, setActiveTab, showToast, officeProfile } = useApp();
@@ -87,11 +88,11 @@ export const SOPPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
       {/* Header Banner */}
-      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-14 px-4 sm:px-8 lg:px-12 xl:px-16 overflow-hidden shadow-md">
+      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-7 pb-14 sm:pt-8 sm:pb-16 px-4 sm:px-8 lg:px-12 xl:px-16 overflow-hidden shadow-md">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
         
         <div className="w-full relative z-10">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-100/90 mb-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-100/90 mb-2.5">
             <button 
               onClick={() => setActiveTab('home', '/beranda')} 
               className="hover:text-white transition-colors"
@@ -102,8 +103,8 @@ export const SOPPage: React.FC = () => {
             <span className="text-white font-bold">SOP Pelayanan</span>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="space-y-2 max-w-4xl">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="space-y-1.5 max-w-4xl">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white border border-white/30 text-xs font-bold backdrop-blur-sm">
                 <FileCheck2 className="w-3.5 h-3.5 text-blue-200" />
                 <span>Standar Operasional Prosedur (SOP)</span>
@@ -111,16 +112,18 @@ export const SOPPage: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight drop-shadow-sm">
                 Bagan Alur & SOP Pelayanan Pendidikan
               </h1>
-              <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
+              <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
                 Pedoman resmi mekanisme alur pelayanan prima, administrasi kepegawaian, serta konsultasi pendidikan di lingkungan Kantor Korwilcam Bidang Pendidikan Kecamatan Purwodadi.
               </p>
+              <div className="w-12 h-1 bg-amber-400 rounded-full mt-2 shadow-xs" />
             </div>
           </div>
         </div>
+        <CurvedHeaderArch />
       </section>
 
       {/* Main Content Area: Full Screen Width */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-6 relative z-20">
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-7 sm:-mt-9 relative z-20">
         <div className="w-full bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-4 sm:p-6 lg:p-8 space-y-6">
           
           {/* Action Bar & Info */}
