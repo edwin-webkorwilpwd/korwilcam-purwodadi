@@ -160,12 +160,12 @@ export const DataRequestPage: React.FC = () => {
   return (
     <div className="w-full h-full flex-1 flex flex-col relative overflow-hidden bg-white">
       {/* Top Header / Clean Bar: Tampilan Bersih dengan Tombol Refresh di Paling Kanan */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 py-2.5 shrink-0 z-20 shadow-md">
+      <header className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white border-b border-white/20 px-4 sm:px-6 py-2.5 shrink-0 z-20 shadow-md">
         <div className="w-full flex items-center justify-between gap-3">
           
           {/* Sisi Kiri: Judul Formulir (Tampilan Bersih & Minimalis) */}
           <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-xs sm:text-sm font-bold text-white truncate leading-tight">
+            <h1 className="text-xs sm:text-sm font-bold text-white truncate leading-tight drop-shadow-sm">
               {currentRequest.title}
             </h1>
           </div>
@@ -174,7 +174,7 @@ export const DataRequestPage: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0 ml-auto">
             {/* Multi-link selector pills jika terdapat lebih dari 1 formulir */}
             {activeRequests.length > 1 && (
-              <div className="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700/60 overflow-x-auto max-w-xs sm:max-w-md no-scrollbar">
+              <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/20 overflow-x-auto max-w-xs sm:max-w-md no-scrollbar backdrop-blur-sm">
                 {activeRequests.map((req) => {
                   const isSelected = req.id === currentRequest.id;
                   return (
@@ -184,8 +184,8 @@ export const DataRequestPage: React.FC = () => {
                       onClick={() => handleSelectRequest(req)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                          ? 'bg-white text-[#1b56ce] shadow-sm font-bold'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
                       }`}
                       title={req.title}
                     >
@@ -200,10 +200,10 @@ export const DataRequestPage: React.FC = () => {
             <button
               type="button"
               onClick={handleReload}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700/60 transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-semibold border border-white/30 transition-all shadow-sm backdrop-blur-sm"
               title="Muat Ulang Halaman Webview"
             >
-              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-blue-400' : ''}`} />
+              <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-white' : ''}`} />
               <span>Refresh</span>
             </button>
           </div>

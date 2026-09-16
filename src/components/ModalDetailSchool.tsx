@@ -136,8 +136,8 @@ export const ModalDetailSchool: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="relative bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 p-6 sm:p-8 overflow-hidden border-b border-blue-900/30">
-            <div className="absolute -right-6 -bottom-6 text-white/[0.05] pointer-events-none">
+          <div className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] p-6 sm:p-8 overflow-hidden border-b border-white/20">
+            <div className="absolute -right-6 -bottom-6 text-white/[0.1] pointer-events-none">
               <Building2 className="w-44 h-44 stroke-[1]" />
             </div>
 

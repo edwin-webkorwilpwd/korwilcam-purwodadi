@@ -68,7 +68,7 @@ export const HeroSection: React.FC = () => {
     <section 
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="group relative overflow-hidden bg-slate-950 text-white py-16 lg:py-24 border-b border-blue-900/40 select-none"
+      className="group relative overflow-hidden bg-[#133282] text-white py-16 lg:py-24 border-b border-white/20 select-none"
     >
       {/* 1. Dynamic Photo Slideshow Background (Google Drive / Photos) */}
       {slides.length > 0 ? (
@@ -104,8 +104,8 @@ export const HeroSection: React.FC = () => {
           })}
         </div>
       ) : (
-        /* Fallback: Deep Blue Gradient */
-        <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 pointer-events-none" />
+        /* Fallback: Grobogan Blue Gradient */
+        <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] pointer-events-none" />
       )}
 
       {/* 2. Balanced Medium Scrim - Foto terlihat sedikit lebih cerah & jelas, tulisan tetap kontras */}
@@ -117,8 +117,8 @@ export const HeroSection: React.FC = () => {
         <div className="flex flex-col items-center space-y-6">
           
           {/* Top Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-950/70 border border-blue-400/40 text-blue-300 text-xs sm:text-sm font-semibold tracking-wide shadow-md shadow-black/40 backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-blue-400" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#143794]/80 border border-white/30 text-white text-xs sm:text-sm font-semibold tracking-wide shadow-md backdrop-blur-md">
+            <Sparkles className="w-4 h-4 text-amber-300" />
             <span>{officeProfile.heroBadge || "Portal Resmi Pendidikan Kecamatan Purwodadi"}</span>
           </div>
 
@@ -127,7 +127,7 @@ export const HeroSection: React.FC = () => {
             {officeProfile.heroTitle && (officeProfile.heroTitle.includes('SD, TK, & PAUD') || officeProfile.heroTitle.includes('SD, TK, & KB')) ? (
               <>
                 <span>Sinergi Membangun Generasi Cerdas & Berkarakter</span>
-                <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-sky-200 to-indigo-200">
+                <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-sky-100 to-white drop-shadow-sm">
                   SD, TK, & KB Kecamatan Purwodadi
                 </span>
               </>
@@ -137,7 +137,7 @@ export const HeroSection: React.FC = () => {
           </h1>
 
           {/* Sub-headline / Deskripsi */}
-          <p className="text-slate-100 text-xs sm:text-sm lg:text-base leading-relaxed max-w-2xl mx-auto font-normal drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+          <p className="text-blue-50 text-xs sm:text-sm lg:text-base leading-relaxed max-w-2xl mx-auto font-normal drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
             {(officeProfile.heroSubtitle || "Selamat datang di pusat informasi dan layanan terpadu Kantor Korwilcam Purwodadi. Kami hadir mendampingi seluruh satuan pendidikan dasar dan anak usia dini demi terciptanya proses belajar yang merdeka, aman, berkarakter, dan berprestasi.").replace(/\bPAUD\b/gi, 'KB')}
           </p>
 
@@ -145,7 +145,7 @@ export const HeroSection: React.FC = () => {
           <div className="pt-2 flex flex-wrap items-center justify-center gap-3.5">
             <button
               onClick={() => setActiveTab('schools')}
-              className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-xl shadow-black/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#1b56ce] to-[#109de8] hover:brightness-110 text-white font-bold text-sm shadow-xl shadow-blue-950/40 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border border-white/25"
             >
               <Search className="w-4 h-4" />
               <span>Jelajahi Sekolah</span>
@@ -154,25 +154,25 @@ export const HeroSection: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('downloads')}
-              className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/20 text-white font-semibold text-sm hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-md shadow-xl cursor-pointer"
+              className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 text-white font-semibold text-sm hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-md shadow-xl cursor-pointer"
             >
-              <Download className="w-4 h-4 text-blue-400" />
+              <Download className="w-4 h-4 text-blue-200" />
               <span>Pusat Unduhan & Blanko</span>
             </button>
           </div>
 
-          {/* Quick Badges under CTAs dengan background semi-transparan elegan agar terbaca jelas di atas foto terang */}
-          <div className="pt-6 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-white border-t border-white/15 w-full max-w-3xl">
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/15 shadow-md">
-              <Award className="w-4 h-4 text-amber-400" />
+          {/* Quick Badges under CTAs dengan background semi-transparan elegan */}
+          <div className="pt-6 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-white border-t border-white/20 w-full max-w-3xl">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-md">
+              <Award className="w-4 h-4 text-amber-300" />
               <span className="font-medium">Akreditasi Unggul & Transparan</span>
             </div>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/15 shadow-md">
-              <BookOpen className="w-4 h-4 text-sky-400" />
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-md">
+              <BookOpen className="w-4 h-4 text-sky-300" />
               <span className="font-medium">Dukungan Kurikulum Merdeka</span>
             </div>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/15 shadow-md">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-md">
+              <ShieldCheck className="w-4 h-4 text-emerald-300" />
               <span className="font-medium">Pelayanan Terpadu & Terpercaya</span>
             </div>
           </div>

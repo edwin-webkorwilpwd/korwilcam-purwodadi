@@ -13,9 +13,9 @@ export const Footer: React.FC = () => {
   const { officeProfile, setActiveTab, isAuthenticated } = useApp();
 
   return (
-    <footer className="bg-slate-950 text-slate-300 pt-5 pb-3.5 border-t-2 border-blue-600">
+    <footer className="bg-gradient-to-b from-[#133c9e] via-[#0d2a74] to-[#091b4a] text-blue-100/90 pt-6 pb-4 border-t-4 border-[#109de8] shadow-2xl">
       <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 lg:gap-6 pb-3.5 border-b border-slate-800/80">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 lg:gap-6 pb-4 border-b border-white/15">
           
           {/* Kolom 1: Profil Instansi */}
           <div className="lg:col-span-3 space-y-2">
@@ -31,22 +31,22 @@ export const Footer: React.FC = () => {
                 <h4 className="font-extrabold text-white text-xs sm:text-sm leading-tight">
                   KORWILCAM PURWODADI
                 </h4>
-                <p className="text-[10px] text-blue-400 font-semibold leading-tight">
+                <p className="text-[10px] text-blue-300 font-semibold leading-tight">
                   Dinas Pendidikan Kab. Grobogan
                 </p>
               </div>
             </div>
             
-            <p className="text-[10px] text-slate-400 leading-relaxed">
+            <p className="text-[10px] text-blue-100/80 leading-relaxed">
               Unit koordinasi pembinaan & mutu pendidikan jenjang SD, TK, dan KB di Kecamatan Purwodadi.
             </p>
 
-            <div className="pt-0.5 space-y-1 text-[10px] text-slate-300">
+            <div className="pt-0.5 space-y-1 text-[10px] text-blue-100">
               <div className="flex items-start gap-1.5">
                 <button
                   type="button"
                   onClick={() => setActiveTab(isAuthenticated ? 'admin-dashboard' : 'admin-login')}
-                  className="text-blue-400 shrink-0 mt-0.5 p-0.5 -m-0.5 focus:outline-none cursor-default"
+                  className="text-blue-300 shrink-0 mt-0.5 p-0.5 -m-0.5 focus:outline-none cursor-default"
                   tabIndex={-1}
                   aria-hidden="true"
                 >
@@ -55,11 +55,11 @@ export const Footer: React.FC = () => {
                 <span className="leading-tight">{officeProfile.address}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Phone className="w-3 h-3 text-blue-400 shrink-0" />
+                <Phone className="w-3 h-3 text-blue-300 shrink-0" />
                 <span>{officeProfile.phone} / WA: {officeProfile.whatsapp}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Mail className="w-3 h-3 text-blue-400 shrink-0" />
+                <Mail className="w-3 h-3 text-blue-300 shrink-0" />
                 <span className="truncate">{officeProfile.email}</span>
               </div>
             </div>
@@ -276,7 +276,7 @@ export const Footer: React.FC = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
               Jam Pelayanan
             </h4>
-            <div className="bg-slate-900/90 rounded-lg p-2.5 border border-slate-800 space-y-1.5 text-[11px]">
+            <div className="bg-white/10 rounded-xl p-3 border border-white/20 backdrop-blur-md space-y-1.5 text-[11px] shadow-sm">
               {(() => {
                 const parts = (officeProfile.workingHours || '')
                   .split(/[\n|]/)
@@ -290,18 +290,18 @@ export const Footer: React.FC = () => {
                       const label = part.slice(0, colonIdx).trim();
                       const time = part.slice(colonIdx + 1).trim();
                       return (
-                        <div key={idx} className="flex items-center justify-between text-slate-300">
+                        <div key={idx} className="flex items-center justify-between text-blue-100">
                           <div className="flex items-center gap-1.5">
-                            <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                            <Clock className="w-3 h-3 text-blue-300 shrink-0" />
                             <span className="font-semibold text-white">{label}</span>
                           </div>
-                          <span className="text-slate-400 font-mono text-[10px]">{time}</span>
+                          <span className="text-blue-200 font-mono text-[10px]">{time}</span>
                         </div>
                       );
                     }
                     return (
-                      <div key={idx} className="flex items-center gap-1.5 text-slate-300">
-                        <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                      <div key={idx} className="flex items-center gap-1.5 text-blue-100">
+                        <Clock className="w-3 h-3 text-blue-300 shrink-0" />
                         <span className="text-white">{part}</span>
                       </div>
                     );
@@ -310,24 +310,24 @@ export const Footer: React.FC = () => {
 
                 return (
                   <>
-                    <div className="flex items-center justify-between text-slate-300">
+                    <div className="flex items-center justify-between text-blue-100">
                       <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                        <Clock className="w-3 h-3 text-blue-300 shrink-0" />
                         <span className="font-semibold text-white">Senin - Kamis</span>
                       </div>
-                      <span className="text-slate-400 font-mono text-[10px]">07.30 - 14.30 WIB</span>
+                      <span className="text-blue-200 font-mono text-[10px]">07.30 - 14.30 WIB</span>
                     </div>
-                    <div className="flex items-center justify-between text-slate-300">
+                    <div className="flex items-center justify-between text-blue-100">
                       <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-blue-400 shrink-0" />
+                        <Clock className="w-3 h-3 text-blue-300 shrink-0" />
                         <span className="font-semibold text-white">Jumat</span>
                       </div>
-                      <span className="text-slate-400 font-mono text-[10px]">07.30 - 13.00 WIB</span>
+                      <span className="text-blue-200 font-mono text-[10px]">07.30 - 13.00 WIB</span>
                     </div>
                   </>
                 );
               })()}
-              <p className="text-[10px] text-amber-400/90 pt-1 border-t border-slate-800 leading-tight">
+              <p className="text-[10px] text-amber-300 pt-1 border-t border-white/15 leading-tight font-medium">
                 *Sabtu, Minggu & Libur Nasional tutup.
               </p>
             </div>
@@ -336,9 +336,9 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom copyright & attribution */}
-        <div className="pt-2.5 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 gap-1.5">
+        <div className="pt-3 flex flex-col sm:flex-row items-center justify-between text-[10px] text-blue-200/70 gap-1.5">
           <p>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</p>
-          <div className="flex items-center gap-1 text-slate-400">
+          <div className="flex items-center gap-1 text-blue-200/90">
             <span>Website ini dikembangkan oleh Tim IT Korwilcam Purwodadi</span>
           </div>
         </div>

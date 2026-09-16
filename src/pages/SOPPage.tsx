@@ -87,11 +87,11 @@ export const SOPPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
       {/* Header Banner */}
-      <section className="relative bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-14 px-4 sm:px-8 lg:px-12 xl:px-16 overflow-hidden shadow-md">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-600/15 via-transparent to-transparent pointer-events-none" />
+      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-14 px-4 sm:px-8 lg:px-12 xl:px-16 overflow-hidden shadow-md">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
         
         <div className="w-full relative z-10">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-300 mb-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-100/90 mb-3">
             <button 
               onClick={() => setActiveTab('home', '/beranda')} 
               className="hover:text-white transition-colors"
@@ -104,14 +104,14 @@ export const SOPPage: React.FC = () => {
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="space-y-2 max-w-4xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold">
-                <FileCheck2 className="w-3.5 h-3.5 text-blue-400" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white border border-white/30 text-xs font-bold backdrop-blur-sm">
+                <FileCheck2 className="w-3.5 h-3.5 text-blue-200" />
                 <span>Standar Operasional Prosedur (SOP)</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight drop-shadow-sm">
                 Bagan Alur & SOP Pelayanan Pendidikan
               </h1>
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+              <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
                 Pedoman resmi mekanisme alur pelayanan prima, administrasi kepegawaian, serta konsultasi pendidikan di lingkungan Kantor Korwilcam Bidang Pendidikan Kecamatan Purwodadi.
               </p>
             </div>

@@ -130,7 +130,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const textColors = [
     { name: 'Default', value: '#1e293b' },
-    { name: 'Biru Korwil', value: '#1d4ed8' },
+    { name: 'Biru Korwil', value: '#2467ea' },
     { name: 'Merah Dinas', value: '#b91c1c' },
     { name: 'Hijau', value: '#15803d' },
     { name: 'Abu-abu', value: '#64748b' }

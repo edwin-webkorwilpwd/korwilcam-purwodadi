@@ -159,16 +159,16 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="space-y-16 pb-20">
       {/* Header Banner */}
-      <section className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40">
+      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md">
         <div className="max-w-5xl mx-auto text-center space-y-4">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs font-semibold border border-blue-400/20">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <Building2 className="w-3.5 h-3.5" />
             <span>Tentang Kami</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
             Profil Kantor Korwilcam Purwodadi
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
+          <p className="text-blue-100 text-sm sm:text-base max-w-2xl mx-auto">
             Koordinator Wilayah Bidang Pendidikan Kecamatan Purwodadi, Dinas Pendidikan Kabupaten Grobogan.
           </p>
         </div>
@@ -441,15 +441,15 @@ export const ProfilePage: React.FC = () => {
 
       {/* Wilayah Kerja & Satuan Pendidikan yang Dinaungi */}
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
-        <div className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 border border-slate-800 shadow-xl space-y-6">
+        <div className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white rounded-3xl p-8 sm:p-12 border border-white/20 shadow-2xl space-y-6">
           <div className="max-w-2xl space-y-2">
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+            <span className="text-xs font-bold text-blue-100 uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm inline-block">
               Wilayah Kerja Koordinasi
             </span>
             <h3 className="text-2xl font-extrabold text-white">
               Cakupan Pembinaan Satuan Pendidikan Purwodadi
             </h3>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-blue-100/90">
               Kantor Korwilcam Purwodadi membina 17 Desa dan Kelurahan di Kecamatan Purwodadi dengan ratusan lembaga pendidikan formal maupun nonformal.
             </p>
           </div>
@@ -458,14 +458,14 @@ export const ProfilePage: React.FC = () => {
             {/* Kelompok Kelurahan */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-blue-300 uppercase tracking-wider bg-blue-500/20 px-3 py-1 rounded-full border border-blue-400/30">
+                <span className="text-xs font-bold text-white uppercase tracking-wider bg-white/25 px-3 py-1 rounded-full border border-white/30 shadow-sm backdrop-blur-sm">
                   Daftar Kelurahan (4)
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 {['Kel. Danyang', 'Kel. Kalongan', 'Kel. Kuripan', 'Kel. Purwodadi'].map((kel, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/50 text-blue-100 font-medium hover:border-blue-400/50 transition-colors">
-                    <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/15 border border-white/25 text-white font-semibold backdrop-blur-md hover:bg-white/25 transition-all shadow-sm">
+                    <MapPin className="w-3.5 h-3.5 text-blue-200 shrink-0" />
                     <span className="truncate">{kel}</span>
                   </div>
                 ))}
@@ -475,7 +475,7 @@ export const ProfilePage: React.FC = () => {
             {/* Kelompok Desa */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
+                <span className="text-xs font-bold text-white uppercase tracking-wider bg-white/25 px-3 py-1 rounded-full border border-white/30 shadow-sm backdrop-blur-sm">
                   Daftar Desa (13)
                 </span>
               </div>
@@ -495,8 +495,8 @@ export const ProfilePage: React.FC = () => {
                   'Desa Putat',
                   'Desa Warukaranganyar'
                 ].map((desa, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-300 font-medium hover:border-slate-600 transition-colors">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/15 border border-white/25 text-white font-medium backdrop-blur-md hover:bg-white/25 transition-all shadow-sm">
+                    <MapPin className="w-3.5 h-3.5 text-blue-200 shrink-0" />
                     <span className="truncate">{desa}</span>
                   </div>
                 ))}

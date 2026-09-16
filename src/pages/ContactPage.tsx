@@ -57,16 +57,16 @@ export const ContactPage: React.FC = () => {
   return (
     <div className="space-y-12 pb-20">
       {/* Header Banner */}
-      <section className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40">
+      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md">
         <div className="max-w-5xl mx-auto text-center space-y-4">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs font-semibold border border-blue-400/20">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <Phone className="w-3.5 h-3.5" />
             <span>Pusat Layanan Terpadu</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
             Kontak & Pengaduan Masyarakat
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
+          <p className="text-blue-100 text-sm sm:text-base max-w-2xl mx-auto">
             Sampaikan konsultasi kedinasan, permohonan informasi, maupun aspirasi perbaikan layanan pendidikan di Kecamatan Purwodadi.
           </p>
         </div>

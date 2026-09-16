@@ -62,21 +62,21 @@ export const ServiceRequirementsPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-24">
       {/* Hero Header */}
-      <section className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-14 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40 relative overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-14 px-4 sm:px-6 lg:px-8 border-b border-white/20 relative overflow-hidden shadow-md">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="w-full max-w-6xl mx-auto text-center space-y-4 relative z-10">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/15 text-blue-300 text-xs font-semibold border border-blue-400/25">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <ClipboardList className="w-3.5 h-3.5" />
             <span>Pusat Informasi Standar Pelayanan Terpadu</span>
           </span>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
             Persyaratan Pelayanan Publik
           </h1>
 
-          <p className="text-base sm:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-blue-100 max-w-3xl mx-auto leading-relaxed">
             Pedoman resmi berkas persyaratan, standar prosedur operasional, dan alur pengajuan pelayanan administrasi bagi pendidik, tenaga kependidikan, serta masyarakat di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi.
           </p>
 

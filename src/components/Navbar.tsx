@@ -157,9 +157,9 @@ export const Navbar: React.FC = () => {
   const currentNews = topThreeNews[currentTickerIndex];
 
   return (
-    <header ref={navbarRef} className="sticky top-0 z-40 w-full shadow-lg bg-slate-950">
+    <header ref={navbarRef} className="sticky top-0 z-40 w-full shadow-lg bg-[#163fa8]">
       {/* Top Notification & Contact Bar */}
-      <div className="bg-slate-950 text-slate-300 text-[11px] py-1.5 px-4 border-b border-white/10 select-none">
+      <div className="bg-[#143794] text-blue-100 text-[11px] py-1.5 px-4 border-b border-white/15 select-none">
         <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 flex flex-col md:flex-row justify-between items-center gap-2">
           
           {/* Announcement ticker: 3 Berita & Informasi Terbaru */}
@@ -169,14 +169,14 @@ export const Navbar: React.FC = () => {
             onMouseLeave={() => setIsTickerHovered(false)}
           >
             {/* Badge Info Terkini */}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-600 text-white font-bold shrink-0 uppercase text-[10px] tracking-wider shadow-sm">
-              <BellRing className="w-3 h-3 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white text-[#163fa8] font-bold shrink-0 uppercase text-[10px] tracking-wider shadow-sm">
+              <BellRing className="w-3 h-3 animate-pulse text-[#163fa8]" />
               <span>Info Terkini</span>
             </span>
 
             {/* Counter: 1/3, 2/3, 3/3 */}
             {topThreeNews.length > 0 && (
-              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono text-[10px] shrink-0 border border-slate-700/60 font-semibold">
+              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-white/15 text-white font-mono text-[10px] shrink-0 border border-white/20 font-semibold">
                 {currentTickerIndex + 1}/{topThreeNews.length}
               </span>
             )}
@@ -187,7 +187,7 @@ export const Navbar: React.FC = () => {
                 <button
                   type="button"
                   onClick={handlePrevTicker}
-                  className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  className="p-0.5 rounded hover:bg-white/15 text-blue-200 hover:text-white transition-colors"
                   title="Berita sebelumnya"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -195,7 +195,7 @@ export const Navbar: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleNextTicker}
-                  className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  className="p-0.5 rounded hover:bg-white/15 text-blue-200 hover:text-white transition-colors"
                   title="Berita selanjutnya"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -210,21 +210,21 @@ export const Navbar: React.FC = () => {
                   type="button"
                   key={currentNews.id}
                   onClick={handleTickerClick}
-                  className="text-left truncate text-slate-300 hover:text-blue-300 font-medium text-xs transition-all flex items-center gap-2 group max-w-full"
+                  className="text-left truncate text-blue-100 hover:text-white font-medium text-xs transition-all flex items-center gap-2 group max-w-full"
                   title={`Klik untuk membaca selengkapnya: "${currentNews.title}"`}
                 >
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 shrink-0 hidden md:inline-block">
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-white/20 text-white border border-white/30 shrink-0 hidden md:inline-block">
                     {currentNews.category}
                   </span>
                   <span className="truncate group-hover:underline">
                     {currentNews.title}
                   </span>
-                  <span className="hidden xl:inline-flex items-center text-[10px] font-semibold text-blue-400 group-hover:translate-x-0.5 transition-transform shrink-0">
+                  <span className="hidden xl:inline-flex items-center text-[10px] font-semibold text-blue-200 group-hover:translate-x-0.5 transition-transform shrink-0">
                     Baca <ArrowRight className="w-3 h-3 ml-0.5" />
                   </span>
                 </button>
               ) : (
-                <p className="truncate text-slate-400">
+                <p className="truncate text-blue-200">
                   Selamat datang di Portal Resmi Kantor Korwilcam Purwodadi
                 </p>
               )}
@@ -232,25 +232,25 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Quick info contacts */}
-          <div className="hidden lg:flex items-center gap-5 text-slate-300 shrink-0">
+          <div className="hidden lg:flex items-center gap-5 text-blue-100 shrink-0">
             <div className="flex items-center gap-1.5 hover:text-white transition-colors">
-              <Phone className="w-3.5 h-3.5 text-blue-400" />
+              <Phone className="w-3.5 h-3.5 text-sky-300" />
               <span>{officeProfile.phone}</span>
             </div>
             <div className="flex items-center gap-1.5 hover:text-white transition-colors">
-              <Mail className="w-3.5 h-3.5 text-blue-400" />
+              <Mail className="w-3.5 h-3.5 text-sky-300" />
               <span>{officeProfile.email}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-400" title={officeProfile.workingHours}>
-              <Clock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <div className="flex items-center gap-1.5 text-blue-200" title={officeProfile.workingHours}>
+              <Clock className="w-3.5 h-3.5 text-sky-300 shrink-0" />
               <span className="truncate max-w-[360px] 2xl:max-w-none">{officeProfile.workingHours || 'Senin - Kamis: 07.30 - 14.30 WIB | Jumat: 07.30 - 13.00 WIB'}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Navbar - Compact Blue Gradient Box */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 text-white border-b border-blue-700/40 shadow-xl">
+      {/* Main Navbar - Vibrant Cendikia Blue Gradient */}
+      <div className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white border-b border-white/20 shadow-xl">
         <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
           <div className="flex items-center justify-between h-16 sm:h-18 py-1.5 gap-3 xl:gap-6">
             
@@ -267,23 +267,23 @@ export const Navbar: React.FC = () => {
                 />
               </div>
               <div className="flex flex-col justify-center">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-white leading-tight group-hover:text-blue-200 transition-colors whitespace-nowrap">
+                <span className="font-extrabold text-sm sm:text-base tracking-tight text-white leading-tight group-hover:text-blue-100 transition-colors whitespace-nowrap">
                   KORWILCAM PURWODADI
                 </span>
-                <span className="text-[10px] text-blue-200/80 font-medium leading-tight whitespace-nowrap mt-0.5">
+                <span className="text-[10px] text-blue-100 font-medium leading-tight whitespace-nowrap mt-0.5">
                   Dinas Pendidikan Kabupaten Grobogan
                 </span>
               </div>
             </div>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 font-semibold text-[13.5px] xl:text-[14.5px] text-slate-100 shrink-0">
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 font-semibold text-[13.5px] xl:text-[14.5px] text-white shrink-0">
               <button
                 onClick={() => handleNavClick('home', '/beranda')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'home' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 Beranda
@@ -300,12 +300,12 @@ export const Navbar: React.FC = () => {
                   onClick={() => setProfileDropdownOpen((prev) => !prev)}
                   className={`flex items-center gap-1 px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                     activeTab === 'profile' 
-                      ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                      : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                      : 'text-white/90 hover:text-white hover:bg-white/15'
                   }`}
                 >
                   <span>Profil</span>
-                  <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-blue-300' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-white' : ''}`} />
                 </button>
 
                 {profileDropdownOpen && (
@@ -318,19 +318,19 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-slate-900 rounded-xl shadow-2xl border border-blue-800/60 p-1.5 space-y-1">
+                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
                       <button
                         onClick={() => handleNavClick('profile', '/profil#sambutan')}
-                        className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-lg flex items-center gap-2.5 transition-colors"
+                        className="w-full text-left px-3.5 py-2 text-xs text-white hover:bg-white/20 rounded-lg flex items-center gap-2.5 transition-colors font-medium"
                       >
-                        <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
+                        <Building2 className="w-4 h-4 text-sky-300 shrink-0" />
                         <span>Sambutan & Visi Misi</span>
                       </button>
                       <button
                         onClick={() => handleNavClick('profile', '/profil#struktur')}
-                        className="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-blue-600 hover:text-white rounded-lg flex items-center gap-2.5 transition-colors"
+                        className="w-full text-left px-3.5 py-2 text-xs text-white hover:bg-white/20 rounded-lg flex items-center gap-2.5 transition-colors font-medium"
                       >
-                        <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
+                        <Building2 className="w-4 h-4 text-sky-300 shrink-0" />
                         <span>Struktur Organisasi</span>
                       </button>
                     </div>
@@ -342,8 +342,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'sop-pelayanan' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 SOP Pelayanan
@@ -353,8 +353,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => handleNavClick('schools', '/sekolah')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all relative whitespace-nowrap ${
                   activeTab === 'schools' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 <span>Sekolah</span>
@@ -364,8 +364,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => handleNavClick('nominatif', '/nominatif')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'nominatif' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 Nominatif
@@ -375,8 +375,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => handleNavClick('news', '/berita')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'news' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 Berita & Informasi
@@ -391,8 +391,8 @@ export const Navbar: React.FC = () => {
                 }}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'organization'
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 Organisasi
@@ -409,12 +409,12 @@ export const Navbar: React.FC = () => {
                   onClick={() => setServicesDropdownOpen((prev) => !prev)}
                   className={`flex items-center gap-1 px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                     activeTab === 'downloads' || activeTab.startsWith('service-')
-                      ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                      : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                      : 'text-white/90 hover:text-white hover:bg-white/15'
                   }`}
                 >
                   <span>Layanan</span>
-                  <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${servicesDropdownOpen ? 'rotate-180 text-blue-300' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${servicesDropdownOpen ? 'rotate-180 text-white' : ''}`} />
                 </button>
 
                 {servicesDropdownOpen && (
@@ -427,8 +427,8 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-blue-800/60 p-2 space-y-1">
-                      <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-blue-300/80">
+                    <div className="relative bg-[#163fa8] rounded-2xl shadow-2xl border border-white/20 p-2 space-y-1 backdrop-blur-md">
+                      <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
                         Pusat Layanan Terpadu Korwilcam
                       </div>
 
@@ -602,8 +602,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => handleNavClick('gallery', '/galeri')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'gallery' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 Galeri
@@ -613,8 +613,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => handleNavClick('contact', '/kontak')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'contact' 
-                    ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30' 
-                    : 'text-blue-100/90 hover:text-white hover:bg-white/10'
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
                 Kontak & Aduan
@@ -637,7 +637,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-slate-900 border-b border-blue-800/50 px-4 pt-2 pb-6 space-y-1.5 shadow-2xl animate-in fade-in slide-in-from-top-4 text-slate-200">
+        <div className="lg:hidden bg-gradient-to-b from-[#1b56ce] to-[#163fa8] border-b border-white/20 px-4 pt-2 pb-6 space-y-1.5 shadow-2xl animate-in fade-in slide-in-from-top-4 text-white">
           <button
             onClick={() => handleNavClick('home', '/beranda')}
             className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
@@ -706,22 +706,22 @@ export const Navbar: React.FC = () => {
             }}
             className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors border ${
               activeTab === 'organization'
-                ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                : 'bg-slate-950/60 text-slate-200 border-blue-900/40 hover:bg-white/10'
+                ? 'bg-white text-[#1b56ce] border-white shadow-sm'
+                : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
             }`}
           >
             <span className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-400" />
+              <Users className="w-4 h-4 text-sky-300" />
               <span>Organisasi Mitra & Profesi</span>
             </span>
-            <span className="text-[10px] bg-blue-900/80 text-blue-200 px-2 py-0.5 rounded-full font-mono font-bold">
+            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-mono font-bold">
               {organizations.length}
             </span>
           </button>
 
           {/* Menu Layanan Terpadu Mobile */}
-          <div className="space-y-1 py-1.5 px-1 bg-slate-950/60 rounded-xl border border-blue-900/40">
-            <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-blue-300">
+          <div className="space-y-1 py-1.5 px-1 bg-white/10 rounded-xl border border-white/20">
+            <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
               Layanan Terpadu
             </div>
 

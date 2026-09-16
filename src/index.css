@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+@theme {
+  --color-blue-50: #eff8ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #b9e1fe;
+  --color-blue-300: #7ec7fd;
+  --color-blue-400: #38a8f8;
+  --color-blue-500: #109de8;
+  --color-blue-600: #2467ea;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1a3fa8;
+  --color-blue-900: #162f7d;
+  --color-blue-950: #0d1a45;
+
+  --color-indigo-50: #eef7ff;
+  --color-indigo-100: #d8eeff;
+  --color-indigo-200: #b5e0fe;
+  --color-indigo-300: #77c5fd;
+  --color-indigo-400: #30a3f7;
+  --color-indigo-500: #148fe6;
+  --color-indigo-600: #2059d0;
+  --color-indigo-700: #1a47b0;
+  --color-indigo-800: #15378c;
+  --color-indigo-900: #11296a;
+  --color-indigo-950: #0a173d;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -17,16 +43,20 @@
 
 /* Custom styles for luxury government look */
 .bg-grid-pattern {
-  background-image: radial-gradient(rgba(37, 99, 235, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(36, 103, 234, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .gradient-blue-navy {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #172554 100%);
+  background: linear-gradient(135deg, #0d1a45 0%, #1a3fa8 50%, #109de8 100%);
 }
 
 .gradient-royal {
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+  background: linear-gradient(135deg, #1f3e92 0%, #2467ea 50%, #109de8 100%);
+}
+
+.gradient-cendikia {
+  background: linear-gradient(135deg, #1f3e92 0%, #2467ea 45%, #109de8 100%);
 }
 
 .gradient-card-hover {

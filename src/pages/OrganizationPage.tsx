@@ -147,25 +147,25 @@ export const OrganizationPage: React.FC = () => {
       <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
         
         {/* Hero Banner Header */}
-        <section className="relative bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden">
+        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
           {/* Background decorative elements */}
-          <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
 
           <div className="w-full relative z-10">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs font-medium text-blue-200/80 mb-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-blue-100/90 mb-4">
               <button 
                 onClick={() => setActiveTab('home', '/beranda')} 
                 className="hover:text-white transition-colors"
               >
                 Beranda
               </button>
-              <ChevronRight className="w-3.5 h-3.5 text-blue-400/60" />
+              <ChevronRight className="w-3.5 h-3.5 text-blue-200" />
               <span className="text-white font-semibold">Organisasi Mitra & Profesi</span>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold mb-4 border border-blue-400/30">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-bold mb-4 border border-white/30 backdrop-blur-sm">
               <Users className="w-3.5 h-3.5" />
               <span>PORTAL ORGANISASI PENDIDIKAN PURWODADI</span>
             </div>
@@ -345,28 +345,28 @@ export const OrganizationPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
 
       {/* Hero Header Section */}
-      <section className="relative bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
         {/* Background decorative circles */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-blue-600/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-indigo-600/10 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
 
         <div className="w-full relative z-10">
           {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-xs font-medium text-blue-200/80 mb-5">
+          <div className="flex items-center gap-2 text-xs font-medium text-blue-100/90 mb-5">
             <button 
               onClick={() => setActiveTab('home', '/beranda')} 
               className="hover:text-white transition-colors"
             >
               Beranda
             </button>
-            <ChevronRight className="w-3.5 h-3.5 text-blue-400/60" />
+            <ChevronRight className="w-3.5 h-3.5 text-blue-200" />
             <button 
               onClick={() => setSelectedOrganizationSlug(null)} 
               className="hover:text-white transition-colors"
             >
               Organisasi
             </button>
-            <ChevronRight className="w-3.5 h-3.5 text-blue-400/60" />
+            <ChevronRight className="w-3.5 h-3.5 text-blue-200" />
             <span className="text-white font-semibold">{currentOrg.shortName}</span>
           </div>
 

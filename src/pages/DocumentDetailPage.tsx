@@ -96,23 +96,23 @@ export const DocumentDetailPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-20 bg-slate-50 min-h-screen">
       {/* Top Banner Header */}
-      <section className="bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-12 px-4 sm:px-8 lg:px-12 xl:px-16 border-b border-blue-900/40">
+      <section className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 px-4 sm:px-8 lg:px-12 xl:px-16 border-b border-white/20 shadow-md">
         <div className="w-full space-y-5">
           
           {/* Back Button & Breadcrumbs */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/15">
             <button
               onClick={() => {
                 setSelectedDocument(null);
                 setActiveTab('downloads', '/layanan/unduh-berkas');
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-sm transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold backdrop-blur-sm transition-all active:scale-95 cursor-pointer border border-white/20 shadow-sm"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Kembali ke Pusat Unduhan</span>
             </button>
 
-            <nav className="flex items-center gap-2 text-xs text-slate-400">
+            <nav className="flex items-center gap-2 text-xs text-blue-100/90">
               <span 
                 onClick={() => {
                   setSelectedDocument(null);
@@ -122,7 +122,7 @@ export const DocumentDetailPage: React.FC = () => {
               >
                 Beranda
               </span>
-              <ChevronRight className="w-3 h-3 text-slate-500" />
+              <ChevronRight className="w-3 h-3 text-blue-200" />
               <span 
                 onClick={() => {
                   setSelectedDocument(null);
@@ -132,8 +132,8 @@ export const DocumentDetailPage: React.FC = () => {
               >
                 Unduh Berkas
               </span>
-              <ChevronRight className="w-3 h-3 text-slate-500" />
-              <span className="text-blue-300 font-bold truncate max-w-[200px] sm:max-w-xs">
+              <ChevronRight className="w-3 h-3 text-blue-200" />
+              <span className="text-white font-bold truncate max-w-[200px] sm:max-w-xs">
                 {selectedDocument.category}
               </span>
             </nav>

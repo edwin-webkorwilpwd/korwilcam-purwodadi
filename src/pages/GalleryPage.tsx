@@ -39,16 +39,16 @@ export const GalleryPage: React.FC = () => {
   return (
     <div className="space-y-12 pb-20">
       {/* Header Banner */}
-      <section className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40">
+      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md">
         <div className="max-w-5xl mx-auto text-center space-y-4">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs font-semibold border border-blue-400/20">
-            <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
+            <FolderOpen className="w-3.5 h-3.5 text-amber-300" />
             <span>Folder Dokumentasi Visual</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
             Galeri Kegiatan Pendidikan Purwodadi
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
+          <p className="text-blue-100 text-sm sm:text-base max-w-2xl mx-auto">
             Dokumentasi lengkap momen penting, kegiatan pembelajaran, dan prestasi pendidikan se-Kecamatan Purwodadi dalam album folder visual.
           </p>
 
@@ -60,8 +60,8 @@ export const GalleryPage: React.FC = () => {
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   selectedCategory === cat.id
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 ring-2 ring-blue-400/30'
-                    : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    ? 'bg-white text-[#1b56ce] shadow-lg shadow-blue-950/20 ring-2 ring-white/50'
+                    : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
                 }`}
               >
                 {cat.label}

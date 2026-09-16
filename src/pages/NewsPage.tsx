@@ -219,16 +219,16 @@ export const NewsPage: React.FC = () => {
   return (
     <div className="space-y-12 pb-20">
       {/* Header Banner */}
-      <section className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40">
+      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-16 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md">
         <div className="max-w-5xl mx-auto text-center space-y-4">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs font-semibold border border-blue-400/20">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <FileText className="w-3.5 h-3.5" />
             <span>Pusat Publikasi & Informasi</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
             Warta, Pengumuman & Agenda
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
+          <p className="text-blue-100 text-sm sm:text-base max-w-2xl mx-auto">
             Ikuti perkembangan terkini seputar kebijakan pendidikan, kegiatan sekolah, surat edaran resmi, dan prestasi gemilang siswa-guru di Kecamatan Purwodadi.
           </p>
 
@@ -238,8 +238,8 @@ export const NewsPage: React.FC = () => {
               onClick={() => handleSubTabChange('news')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeSubTab === 'news'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  ? 'bg-white text-[#1b56ce] shadow-lg shadow-blue-950/20'
+                  : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -250,8 +250,8 @@ export const NewsPage: React.FC = () => {
               onClick={() => handleSubTabChange('announcements')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeSubTab === 'announcements'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  ? 'bg-white text-[#1b56ce] shadow-lg shadow-blue-950/20'
+                  : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
               }`}
             >
               <BellRing className="w-4 h-4" />
@@ -262,8 +262,8 @@ export const NewsPage: React.FC = () => {
               onClick={() => handleSubTabChange('agenda')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeSubTab === 'agenda'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  ? 'bg-white text-[#1b56ce] shadow-lg shadow-blue-950/20'
+                  : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
               }`}
             >
               <Calendar className="w-4 h-4" />
@@ -453,24 +453,24 @@ export const NewsPage: React.FC = () => {
         {activeSubTab === 'agenda' && (
           <div ref={agendaContainerRef} className="space-y-6 animate-in fade-in duration-300 scroll-mt-24">
             {/* Header & Controls Bar */}
-            <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-blue-800/40 shadow-xl space-y-6">
+            <div className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] rounded-3xl p-6 sm:p-8 text-white border border-white/20 shadow-2xl space-y-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="space-y-2 max-w-2xl">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-bold">
-                      <Building className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-white border border-white/30 text-xs font-bold backdrop-blur-sm">
+                      <Building className="w-3.5 h-3.5 text-blue-200" />
                       <span>Aula Korwilcam Purwodadi</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/25 text-white border border-emerald-300/40 text-xs font-semibold backdrop-blur-sm">
+                      <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
                       <span>Sinkronisasi database Korwilcam Purwodadi Real-Time</span>
                     </span>
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
                     Rekapitulasi Agenda Penggunaan Aula
                   </h3>
-                  <p className="text-sm text-slate-300 leading-relaxed">
+                  <p className="text-sm text-blue-100 leading-relaxed">
                     Menampilkan seluruh rekap jadwal pemakaian dan peminjaman aula pertemuan Korwilcam Purwodadi yang tersinkronisasi langsung dengan database Korwilcam Purwodadi.
                   </p>
                 </div>
@@ -480,16 +480,16 @@ export const NewsPage: React.FC = () => {
                   <button
                     onClick={() => refreshAulaBookings()}
                     disabled={loadingAulaBookings}
-                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md shadow-blue-500/25 disabled:opacity-50"
+                    className="px-4 py-2.5 rounded-xl bg-white text-[#1b56ce] font-bold text-xs flex items-center gap-2 transition-all shadow-md shadow-blue-950/20 hover:bg-blue-50 disabled:opacity-50 cursor-pointer"
                     title="Muat ulang data dari database Korwilcam Purwodadi"
                   >
-                    <RefreshCw className={`w-4 h-4 ${loadingAulaBookings ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-4 h-4 text-[#1b56ce] ${loadingAulaBookings ? 'animate-spin' : ''}`} />
                     <span>{loadingAulaBookings ? 'Memuat Data...' : 'Sinkronkan Data'}</span>
                   </button>
 
                   <button
                     onClick={() => setActiveTab('service-aula', '/layanan/peminjaman-aula')}
-                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20"
+                    className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-black/20 cursor-pointer"
                   >
                     <CalendarCheck className="w-4 h-4" />
                     <span>Formulir Peminjaman</span>
@@ -498,21 +498,21 @@ export const NewsPage: React.FC = () => {
               </div>
 
               {/* Search & Category Filter */}
-              <div className="pt-4 border-t border-white/10 flex flex-col md:flex-row items-center gap-3">
+              <div className="pt-4 border-t border-white/15 flex flex-col md:flex-row items-center gap-3">
                 {/* Search Input */}
                 <div className="relative w-full md:w-80">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-blue-200 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={agendaSearch}
                     onChange={(e) => setAgendaSearch(e.target.value)}
                     placeholder="Cari nama PJ, organisasi, atau keterangan..."
-                    className="w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full pl-10 pr-4 py-2 bg-white/15 border border-white/25 rounded-xl text-xs text-white placeholder-blue-200 focus:outline-none focus:border-white transition-colors backdrop-blur-sm"
                   />
                   {agendaSearch && (
                     <button 
                       onClick={() => setAgendaSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white text-xs font-bold"
                     >
                       ×
                     </button>
@@ -527,8 +527,8 @@ export const NewsPage: React.FC = () => {
                       onClick={() => setAgendaCategory(cat.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                         agendaCategory === cat.id
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/50'
+                          ? 'bg-white text-[#1b56ce] shadow-sm font-bold'
+                          : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
                       }`}
                     >
                       {cat.label}
@@ -538,7 +538,7 @@ export const NewsPage: React.FC = () => {
 
                 {/* Status Filter */}
                 <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                  <span className="text-[11px] text-slate-400 font-medium">Status:</span>
+                  <span className="text-[11px] text-blue-100 font-medium">Status:</span>
                   {(['ALL', 'Disetujui', 'Ditolak'] as const).map((st) => (
                     <button
                       key={st}
@@ -546,11 +546,11 @@ export const NewsPage: React.FC = () => {
                       className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
                         agendaStatus === st
                           ? st === 'Disetujui'
-                            ? 'bg-emerald-600 text-white'
+                            ? 'bg-emerald-500 text-white shadow-sm'
                             : st === 'Ditolak'
-                            ? 'bg-rose-600 text-white'
-                            : 'bg-blue-600 text-white'
-                          : 'bg-slate-800/50 text-slate-400 hover:text-white'
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : 'bg-white text-[#1b56ce] shadow-sm'
+                          : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
                       }`}
                     >
                       {st === 'ALL' ? 'Semua' : st}

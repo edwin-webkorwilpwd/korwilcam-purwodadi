@@ -237,12 +237,12 @@ export async function generateAnnouncementJpegBlob(
 
   // Line 4: BIDANG PENDIDIKAN
   ctx.font = '900 26px "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif';
-  ctx.fillStyle = '#1e3a8a';
+  ctx.fillStyle = '#162f7d';
   ctx.fillText('BIDANG PENDIDIKAN', centerX, 172);
 
   // Line 5: KECAMATAN PURWODADI
   ctx.font = '900 28px "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif';
-  ctx.fillStyle = '#1e3a8a';
+  ctx.fillStyle = '#162f7d';
   ctx.fillText('KECAMATAN PURWODADI', centerX, 208);
 
   // Line 6 & 7: Alamat, Pos-el, Kontak
@@ -269,9 +269,9 @@ export async function generateAnnouncementJpegBlob(
   const metaY = 338;
 
   // Badge 1: Urgency
-  let badgeBg = '#eff6ff';
-  let badgeBorder = '#bfdbfe';
-  let badgeText = '#1d4ed8';
+  let badgeBg = '#eff8ff';
+  let badgeBorder = '#b9e1fe';
+  let badgeText = '#2467ea';
   if (urgency.toLowerCase().includes('mendesak')) {
     badgeBg = '#fff1f2';
     badgeBorder = '#fecdd3';
@@ -309,7 +309,7 @@ export async function generateAnnouncementJpegBlob(
   const perihalY = metaY + 54;
   ctx.textAlign = 'left';
   ctx.font = '800 12.5px "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif';
-  ctx.fillStyle = '#2563eb';
+  ctx.fillStyle = '#2467ea';
   ctx.fillText('PERIHAL / JUDUL SURAT EDARAN', 95, perihalY);
 
   // 8. Judul Surat Edaran
@@ -382,7 +382,7 @@ export async function generateAnnouncementJpegBlob(
 
   // Link Verifikasi
   ctx.font = '500 12px "Consolas", monospace';
-  ctx.fillStyle = '#2563eb';
+  ctx.fillStyle = '#2467ea';
   ctx.fillText(`🔗 Tautan Dokumen Resmi: ${shareUrl}`, 95, footerY + 96);
 
   // Right Column: Tanggal & Tanda Tangan Pimpinan Korwil

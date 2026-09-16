@@ -116,22 +116,22 @@ export const ServiceRequirementDetailPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-24 bg-slate-50 min-h-screen print:bg-white print:p-0 print:space-y-4">
       {/* Hero Header Banner */}
-      <section className="bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white py-12 px-4 sm:px-8 lg:px-12 xl:px-16 border-b border-blue-900/40 print:hidden">
+      <section className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 px-4 sm:px-8 lg:px-12 xl:px-16 border-b border-white/20 shadow-md print:hidden">
         <div className="w-full space-y-5">
           {/* Back Button & Breadcrumbs */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/15">
             <button
               onClick={() => {
                 setSelectedServiceRequirement(null);
                 setActiveTab('service-requirements', '/layanan/persyaratan-pelayanan');
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-sm transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold backdrop-blur-sm transition-all active:scale-95 cursor-pointer border border-white/20 shadow-sm"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Kembali ke Daftar Persyaratan</span>
             </button>
 
-            <nav className="flex items-center gap-2 text-xs text-slate-400">
+            <nav className="flex items-center gap-2 text-xs text-blue-100/90">
               <span 
                 onClick={() => {
                   setSelectedServiceRequirement(null);
@@ -141,9 +141,9 @@ export const ServiceRequirementDetailPage: React.FC = () => {
               >
                 Beranda
               </span>
-              <ChevronRight className="w-3 h-3 text-slate-600" />
-              <span className="text-slate-400">Layanan</span>
-              <ChevronRight className="w-3 h-3 text-slate-600" />
+              <ChevronRight className="w-3 h-3 text-blue-200" />
+              <span className="text-blue-100/80">Layanan</span>
+              <ChevronRight className="w-3 h-3 text-blue-200" />
               <span 
                 onClick={() => {
                   setSelectedServiceRequirement(null);
@@ -153,8 +153,8 @@ export const ServiceRequirementDetailPage: React.FC = () => {
               >
                 Persyaratan Pelayanan
               </span>
-              <ChevronRight className="w-3 h-3 text-slate-600" />
-              <span className="text-blue-300 font-semibold truncate max-w-[200px] sm:max-w-[300px]">
+              <ChevronRight className="w-3 h-3 text-blue-200" />
+              <span className="text-white font-bold truncate max-w-[200px] sm:max-w-[300px]">
                 {service.title}
               </span>
             </nav>

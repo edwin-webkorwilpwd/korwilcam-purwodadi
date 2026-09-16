@@ -116,70 +116,70 @@ export const NominativePage: React.FC = () => {
   return (
     <div className="space-y-6 pb-20 print:p-0 print:space-y-4">
       {/* Hero Header */}
-      <section className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white py-12 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40 print:hidden">
+      <section className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white py-12 px-4 sm:px-6 lg:px-8 border-b border-white/20 shadow-md print:hidden">
         <div className="w-full max-w-6xl mx-auto text-center space-y-4">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs font-semibold border border-blue-400/20">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
             <Users className="w-3.5 h-3.5" />
             <span>Pangkalan Data Tenaga Pendidik</span>
           </span>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight drop-shadow-sm">
             Daftar Nominatif Guru
           </h1>
-          <p className="text-base sm:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-blue-100 max-w-3xl mx-auto leading-relaxed">
             Pangkalan data dan daftar nominatif resmi seluruh guru dan pendidik di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi, Kabupaten Grobogan.
           </p>
 
           {/* Quick Statistics */}
           <div className="pt-4 grid grid-cols-2 sm:grid-cols-5 gap-3 max-w-4xl mx-auto">
-            <div className="bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl p-3.5 text-center shadow-sm">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
               <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-slate-700/60 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
                 ) : (
                   countTotal
                 )}
               </div>
-              <div className="text-xs text-slate-400 font-medium mt-0.5">Total Guru</div>
+              <div className="text-xs text-blue-100 font-medium mt-0.5">Total Guru</div>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur border border-blue-900/40 rounded-xl p-3.5 text-center shadow-sm">
-              <div className="text-xl sm:text-2xl font-bold text-blue-400 flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
+              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-blue-900/50 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
                 ) : (
                   countPNS
                 )}
               </div>
-              <div className="text-xs text-blue-300/80 font-medium mt-0.5">Guru PNS</div>
+              <div className="text-xs text-blue-100 font-medium mt-0.5">Guru PNS</div>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur border border-emerald-900/40 rounded-xl p-3.5 text-center shadow-sm">
-              <div className="text-xl sm:text-2xl font-bold text-emerald-400 flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
+              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-emerald-900/50 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
                 ) : (
                   countPPPK
                 )}
               </div>
-              <div className="text-xs text-emerald-300/80 font-medium mt-0.5">Guru PPPK</div>
+              <div className="text-xs text-blue-100 font-medium mt-0.5">Guru PPPK</div>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur border border-teal-900/40 rounded-xl p-3.5 text-center shadow-sm">
-              <div className="text-xl sm:text-2xl font-bold text-teal-400 flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
+              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-teal-900/50 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
                 ) : (
                   countPPPKParuhWaktu
                 )}
               </div>
-              <div className="text-xs text-teal-300/80 font-medium mt-0.5">PPPK Paruh Waktu</div>
+              <div className="text-xs text-blue-100 font-medium mt-0.5">PPPK Paruh Waktu</div>
             </div>
-            <div className="bg-slate-900/80 backdrop-blur border border-amber-900/40 rounded-xl p-3.5 text-center shadow-sm">
-              <div className="text-xl sm:text-2xl font-bold text-amber-400 flex items-center justify-center min-h-[32px]">
+            <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded-xl p-3.5 text-center shadow-md">
+              <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center min-h-[32px]">
                 {isInitialLoading ? (
-                  <span className="inline-block animate-pulse bg-amber-900/50 h-7 w-12 rounded"></span>
+                  <span className="inline-block animate-pulse bg-white/30 h-7 w-12 rounded"></span>
                 ) : (
                   countHonorer
                 )}
               </div>
-              <div className="text-xs text-amber-300/80 font-medium mt-0.5">Honorer</div>
+              <div className="text-xs text-blue-100 font-medium mt-0.5">Honorer</div>
             </div>
           </div>
         </div>
