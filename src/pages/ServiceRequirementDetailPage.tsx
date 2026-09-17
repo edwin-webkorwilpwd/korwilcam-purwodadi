@@ -7,7 +7,6 @@ import {
   ClipboardList, 
   Copy, 
   Check, 
-  MessageSquare, 
   Share2, 
   ChevronRight, 
   AlertCircle, 
@@ -102,16 +101,6 @@ export const ServiceRequirementDetailPage: React.FC = () => {
       showToast('Tautan link halaman persyaratan berhasil disalin!', 'success');
       setTimeout(() => setLinkCopied(false), 2500);
     });
-  };
-
-  const handleWhatsAppConsult = () => {
-    const rawNumber = officeProfile.whatsapp || officeProfile.phone || '';
-    const cleanNumber = rawNumber.replace(/[^0-9]/g, '').replace(/^0/, '62');
-    const msg = `Halo Admin Pelayanan Korwilcam Purwodadi, saya ingin berkonsultasi mengenai persyaratan: "${service.title}".`;
-    const waUrl = cleanNumber 
-      ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`
-      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, '_blank');
   };
 
   return (
@@ -304,16 +293,6 @@ export const ServiceRequirementDetailPage: React.FC = () => {
                 >
                   {linkCopied ? <Check className="w-4 h-4 text-blue-600" /> : <Share2 className="w-4 h-4 text-slate-500" />}
                   <span>{linkCopied ? 'Tautan Disalin' : 'Bagikan Link'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleWhatsAppConsult}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-600/30 transition-all active:scale-95 cursor-pointer ml-auto"
-                  title="Tanyakan syarat lebih lanjut ke petugas kami melalui WhatsApp"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Konsultasi WhatsApp</span>
                 </button>
               </div>
             </section>

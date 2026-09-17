@@ -117,12 +117,8 @@ export const NominativePage: React.FC = () => {
   return (
     <div className="space-y-6 pb-20 print:p-0 print:space-y-4">
       {/* Hero Header */}
-      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-6 lg:px-8 shadow-md print:hidden overflow-hidden">
-        <div className="w-full max-w-6xl mx-auto text-center space-y-3 relative z-10">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
-            <Users className="w-3.5 h-3.5" />
-            <span>Pangkalan Data Tenaga Pendidik</span>
-          </span>
+      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-6 lg:px-8 shadow-md print:hidden overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto text-center space-y-2.5 relative z-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
             Daftar Nominatif Guru
           </h1>
@@ -189,7 +185,7 @@ export const NominativePage: React.FC = () => {
       </section>
 
       {/* Main Content Area - Full Screen Width */}
-      <main className="w-full px-3 sm:px-6 lg:px-8 xl:px-10 space-y-5 -mt-6 sm:-mt-8 relative z-20">
+      <main className="w-full px-3 sm:px-6 lg:px-8 xl:px-10 space-y-5 -mt-8 sm:-mt-10 relative z-20">
         {/* Filter and Search Bar */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 print:hidden">
           <div className="flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between">

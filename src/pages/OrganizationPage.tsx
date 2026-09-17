@@ -148,29 +148,12 @@ export const OrganizationPage: React.FC = () => {
       <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
         
         {/* Hero Banner Header */}
-        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
+        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
           {/* Background decorative elements */}
           <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
 
           <div className="w-full relative z-10">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs font-medium text-blue-100/90 mb-2.5">
-              <button 
-                onClick={() => setActiveTab('home', '/beranda')} 
-                className="hover:text-white transition-colors"
-              >
-                Beranda
-              </button>
-              <ChevronRight className="w-3.5 h-3.5 text-blue-200" />
-              <span className="text-white font-semibold">Organisasi Mitra & Profesi</span>
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-bold mb-3 border border-white/30 backdrop-blur-sm">
-              <Users className="w-3.5 h-3.5" />
-              <span>PORTAL ORGANISASI PENDIDIKAN PURWODADI</span>
-            </div>
-
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight text-white max-w-5xl">
               Organisasi Mitra & Profesi Pendidikan
             </h1>
@@ -215,7 +198,7 @@ export const OrganizationPage: React.FC = () => {
         </section>
 
         {/* Directory Cards Grid */}
-        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 -mt-6 sm:-mt-8 relative z-20">
+        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 -mt-8 sm:-mt-10 relative z-20">
           {filteredOrganizations.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center shadow-md border border-slate-200">
               <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />

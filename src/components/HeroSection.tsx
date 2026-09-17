@@ -68,7 +68,7 @@ export const HeroSection: React.FC = () => {
     <section 
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="group relative overflow-hidden bg-[#133282] text-white py-16 lg:py-24 border-b border-white/20 select-none"
+      className="group relative overflow-hidden bg-[#133282] text-white py-12 sm:py-14 lg:py-18 border-b border-white/20 select-none"
     >
       {/* 1. Dynamic Photo Slideshow Background (Google Drive / Photos) */}
       {slides.length > 0 ? (
@@ -114,13 +114,7 @@ export const HeroSection: React.FC = () => {
 
       {/* 3. Hero Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-8 text-center">
-        <div className="flex flex-col items-center space-y-6">
-          
-          {/* Top Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#143794]/80 border border-white/30 text-white text-xs sm:text-sm font-semibold tracking-wide shadow-md backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>{officeProfile.heroBadge || "Portal Resmi Pendidikan Kecamatan Purwodadi"}</span>
-          </div>
+        <div className="flex flex-col items-center space-y-4 sm:space-y-5">
 
           {/* Headline Utama dengan drop shadow bersih dan elegan */}
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight max-w-4xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">

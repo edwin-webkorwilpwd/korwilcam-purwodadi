@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { SchoolCard } from '../components/SchoolCard';
 import { 
-  GraduationCap, 
   Search, 
   Filter, 
   RotateCcw, 
@@ -83,12 +82,8 @@ export const SchoolsPage: React.FC = () => {
   return (
     <div className="space-y-12 pb-20">
       {/* Header Banner */}
-      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-8 pb-14 sm:pt-10 sm:pb-16 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
-        <div className="max-w-5xl mx-auto text-center space-y-3 relative z-10">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 text-white text-xs font-semibold border border-white/30 backdrop-blur-sm">
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Pangkalan Data Satuan Pendidikan</span>
-          </span>
+      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
+        <div className="max-w-5xl mx-auto text-center space-y-2.5 relative z-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
             Daftar Sekolah SD, TK & KB
           </h1>
@@ -114,7 +109,7 @@ export const SchoolsPage: React.FC = () => {
       </section>
 
       {/* Main Container */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-6 sm:-mt-8 relative z-20">
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-8 sm:-mt-10 relative z-20">
         
         {/* Filter and Search Box */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-lg space-y-6">
