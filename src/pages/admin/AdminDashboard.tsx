@@ -81,6 +81,7 @@ import {
   clearCustomSupabaseConfig, 
   testSupabaseConnection 
 } from '../../lib/supabase';
+import { stripHtml, generateSummary } from '../../lib/stripHtml';
 import { 
   School, 
   NewsArticle, 
@@ -1599,10 +1600,20 @@ export const AdminDashboard: React.FC = () => {
       });
       if (!confirmed) return;
 
+      const cleanSummary = newsForm.summary && newsForm.summary.trim()
+        ? stripHtml(newsForm.summary)
+        : generateSummary(newsForm.content, 180);
+
+      const cleanSlug = newsForm.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || `berita-${editingNewsId}`;
+
       await updateNews(editingNewsId, {
-        title: newsForm.title,
+        title: newsForm.title.trim(),
+        slug: cleanSlug,
         category: newsForm.category,
-        summary: newsForm.summary || newsForm.content.slice(0, 150) + '...',
+        summary: cleanSummary,
         content: newsForm.content,
         author: newsForm.author,
         authorId: newsForm.authorId || currentUser?.id || '',
@@ -1618,11 +1629,20 @@ export const AdminDashboard: React.FC = () => {
         type: 'success'
       });
     } else {
+      const cleanSummary = newsForm.summary && newsForm.summary.trim()
+        ? stripHtml(newsForm.summary)
+        : generateSummary(newsForm.content, 180);
+
+      const cleanSlug = newsForm.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || `berita-${Date.now()}`;
+
       await addNews({
-        title: newsForm.title,
-        slug: newsForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        title: newsForm.title.trim(),
+        slug: cleanSlug,
         category: newsForm.category,
-        summary: newsForm.summary || newsForm.content.slice(0, 150) + '...',
+        summary: cleanSummary,
         content: newsForm.content,
         author: newsForm.author || activeAuthorName,
         authorId: currentUser?.id || '',
@@ -1783,7 +1803,8 @@ export const AdminDashboard: React.FC = () => {
       });
       return;
     }
-    if (!annForm.title || !annForm.summary) {
+    const cleanAnnSummary = stripHtml(annForm.summary);
+    if (!annForm.title || !cleanAnnSummary) {
       showToast('Judul dan ringkasan pengumuman wajib diisi!', 'error');
       return;
     }
@@ -1799,7 +1820,10 @@ export const AdminDashboard: React.FC = () => {
       });
       if (!confirmed) return;
 
-      await updateAnnouncement(editingAnnId, annForm);
+      await updateAnnouncement(editingAnnId, {
+        ...annForm,
+        summary: cleanAnnSummary
+      });
       setEditingAnnId(null);
       const hasFile = !!(annForm.fileUrl && annForm.fileUrl !== '#');
       const isFromUnduhan = Boolean(annForm.sourceDocumentId);
@@ -1815,6 +1839,7 @@ export const AdminDashboard: React.FC = () => {
     } else {
       await addAnnouncement({
         ...annForm,
+        summary: cleanAnnSummary,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
       });
       const hasFile = !!(annForm.fileUrl && annForm.fileUrl !== '#');
@@ -5849,14 +5874,33 @@ export const AdminDashboard: React.FC = () => {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700">Ringkasan Singkat Berita</label>
-                        <input
-                          type="text"
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Ringkasan Singkat Berita</label>
+                          {newsForm.content && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const generated = generateSummary(newsForm.content, 180);
+                                setNewsForm({ ...newsForm, summary: generated });
+                              }}
+                              className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold hover:underline flex items-center gap-1"
+                              title="Ekstrak ringkasan teks bersih otomatis dari isi berita"
+                            >
+                              <Sparkles className="w-3 h-3 text-blue-600" />
+                              <span>Buat Otomatis dari Konten</span>
+                            </button>
+                          )}
+                        </div>
+                        <textarea
+                          rows={2}
                           value={newsForm.summary}
-                          onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })}
-                          placeholder="Ringkasan 1-2 kalimat untuk pratinjau kartu berita..."
-                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          onChange={(e) => setNewsForm({ ...newsForm, summary: stripHtml(e.target.value) })}
+                          placeholder="Ringkasan 1-2 kalimat (otomatis dibuat dari isi jika dikosongkan, bebas tag HTML)..."
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none resize-none leading-relaxed"
                         />
+                        <p className="text-[10px] text-slate-400">
+                          Tip: Boleh dikosongkan, sistem akan otomatis mengambil kutipan teks bersih dari konten artikel tanpa tag HTML.
+                        </p>
                       </div>
 
                       <div className="space-y-1.5">
@@ -6058,7 +6102,7 @@ export const AdminDashboard: React.FC = () => {
                                         setNewsForm({
                                           title: item.title,
                                           category: item.category,
-                                          summary: item.summary,
+                                          summary: stripHtml(item.summary) || generateSummary(item.content, 180),
                                           content: item.content,
                                           author: item.author,
                                           authorId: item.authorId || '',

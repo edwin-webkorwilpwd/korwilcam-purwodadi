@@ -14,7 +14,10 @@ import {
   CheckCircle2,
   Share2,
   Info,
-  Eye
+  Eye,
+  MapPin,
+  Calendar,
+  Headphones
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -252,44 +255,190 @@ export const SOPPage: React.FC = () => {
             </div>
           )}
 
-          {/* Institutional Service Details Grid */}
-          <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
-                <Clock className="w-4 h-4" />
+          {/* Institutional Service Details Grid - Modern Style matching Image 2 */}
+          <div className="pt-6 border-t border-slate-100">
+            <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#ebf5fe] via-[#f4faff] to-[#e2f1fd] border border-blue-100/90 p-3 sm:p-5 lg:p-6 shadow-sm">
+              {/* Top-Left Wave Accent */}
+              <div className="absolute -top-10 -left-10 w-44 h-44 pointer-events-none opacity-40 select-none">
+                <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                  <path d="M0,0 C70,10 130,60 150,130 C160,165 140,200 140,200 L0,200 Z" fill="#93c5fd" />
+                </svg>
               </div>
-              <h4 className="text-xs font-bold text-slate-900">Jam Layanan Kantor</h4>
-              <div className="text-[11px] text-slate-600 leading-relaxed space-y-0.5">
-                {(officeProfile.workingHours || '')
-                  .split(/[\n|]/)
-                  .map((p) => p.trim())
-                  .filter(Boolean)
-                  .map((line, idx) => (
-                    <div key={idx}>{line}</div>
-                  ))}
-                <div className="text-[10px] text-slate-500 italic pt-0.5">Sabtu, Minggu & Libur Nasional: Tutup</div>
-              </div>
-            </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                <Building2 className="w-4 h-4" />
+              {/* Top-Right Dot Matrix Pattern */}
+              <div className="absolute top-3 right-4 sm:top-4 sm:right-6 pointer-events-none opacity-40 select-none">
+                <svg width="60" height="32" viewBox="0 0 60 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <pattern id="sop-dot-grid-tr" x="0" y="0" width="12" height="11" patternUnits="userSpaceOnUse">
+                    <circle cx="2.5" cy="2.5" r="1.5" fill="#60a5fa" />
+                  </pattern>
+                  <rect width="60" height="32" fill="url(#sop-dot-grid-tr)" />
+                </svg>
               </div>
-              <h4 className="text-xs font-bold text-slate-900">Lokasi Pelayanan</h4>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Ruang Tata Usaha & Pelayanan Terpadu<br />
-                Kantor Korwilcam Bidang Pendidikan Purwodadi, Kab. Grobogan
-              </p>
-            </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <HelpCircle className="w-4 h-4" />
+              {/* Bottom-Left Dot Matrix Pattern */}
+              <div className="absolute bottom-3 left-4 sm:bottom-4 sm:left-6 pointer-events-none opacity-40 select-none">
+                <svg width="60" height="32" viewBox="0 0 60 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <pattern id="sop-dot-grid-bl" x="0" y="0" width="12" height="11" patternUnits="userSpaceOnUse">
+                    <circle cx="2.5" cy="2.5" r="1.5" fill="#60a5fa" />
+                  </pattern>
+                  <rect width="60" height="32" fill="url(#sop-dot-grid-bl)" />
+                </svg>
               </div>
-              <h4 className="text-xs font-bold text-slate-900">Pengaduan & Bantuan</h4>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Jika terdapat kendala atau pertanyaan seputar prosedur, sampaikan melalui formulir pengaduan online atau WhatsApp resmi.
-              </p>
+
+              {/* Bottom-Right Sweeping Flow Waves */}
+              <div className="absolute -bottom-4 -right-4 w-72 sm:w-96 h-36 pointer-events-none opacity-60 select-none">
+                <svg viewBox="0 0 380 140" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                  <path d="M60,140 C140,90 230,80 340,115 C365,125 375,135 380,140 Z" fill="#93c5fd" fillOpacity="0.4" />
+                  <path d="M140,140 C200,100 280,95 380,125 L380,140 Z" fill="#60a5fa" fillOpacity="0.3" />
+                  <path d="M0,140 C90,110 200,105 320,140 Z" fill="#38bdf8" fillOpacity="0.25" />
+                </svg>
+              </div>
+
+              {/* 3 Interactive Cards Grid - Native Vector Typography & Ultra HD 3D Renders */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 relative z-10">
+                {/* Card 1: Jam Layanan Kantor */}
+                <div className="group relative bg-white rounded-2xl sm:rounded-[22px] overflow-hidden border border-blue-100/90 shadow-[0_4px_24px_rgba(0,102,255,0.06)] hover:shadow-[0_8px_32px_rgba(59,130,246,0.15)] transition-all duration-300 hover:-translate-y-1 p-5 sm:p-6 min-h-[195px] sm:min-h-[210px] flex flex-col justify-between">
+                  {/* Subtle Wave Corner */}
+                  <div className="absolute -bottom-1 -right-1 w-32 h-24 pointer-events-none opacity-40 select-none">
+                    <svg viewBox="0 0 140 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      <path d="M0,100 C40,75 85,60 140,80 L140,100 Z" fill="#93c5fd" />
+                      <path d="M40,100 C70,75 110,65 140,70 L140,100 Z" fill="#38bdf8" fillOpacity="0.5" />
+                    </svg>
+                  </div>
+
+                  {/* 3D Illustration */}
+                  <img 
+                    src="/sop_3d_clock.png" 
+                    alt="Ilustrasi Jam Layanan" 
+                    className="absolute right-0 sm:right-1 bottom-1 sm:bottom-2 w-28 sm:w-32 md:w-36 max-h-[145px] object-contain pointer-events-none select-none drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+
+                  {/* Content */}
+                  <div className="relative z-10 pr-24 sm:pr-28 md:pr-24 lg:pr-28">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#38bdf8] via-[#2563eb] to-[#1d4ed8] shadow-md shadow-blue-500/25 flex items-center justify-center text-white">
+                      <Clock className="w-5 h-5 text-white" />
+                    </div>
+                    <h4 className="text-[15px] sm:text-[17px] font-bold text-[#0c244b] tracking-tight mt-3">
+                      Jam Layanan Kantor
+                    </h4>
+                    <div className="text-[12px] sm:text-[12.5px] text-slate-600 font-medium leading-relaxed space-y-0.5 mt-1.5">
+                      <p>Senin - Kamis: 07.30 - 14.30 WIB</p>
+                      <p>Jumat: 07.30 - 13.00 WIB</p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Pill Badge */}
+                  <div className="relative z-10 mt-3 pt-2 border-t border-slate-100/80 pr-24 sm:pr-28 md:pr-24 lg:pr-28">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50/90 border border-blue-200/70 text-[10.5px] sm:text-[11px] font-medium text-slate-700 shadow-2xs">
+                      <Calendar className="w-3 h-3 text-blue-600 shrink-0" />
+                      <span>Sabtu, Minggu & Libur Nasional: <strong className="text-blue-700 font-bold">Tutup</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Lokasi Pelayanan */}
+                <a 
+                  href={`https://maps.google.com/?q=${encodeURIComponent(officeProfile.address || 'Kantor Korwilcam Bidang Pendidikan Purwodadi Grobogan')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative bg-white rounded-2xl sm:rounded-[22px] overflow-hidden border border-blue-100/90 shadow-[0_4px_24px_rgba(0,102,255,0.06)] hover:shadow-[0_8px_32px_rgba(59,130,246,0.15)] transition-all duration-300 hover:-translate-y-1 p-5 sm:p-6 min-h-[195px] sm:min-h-[210px] flex flex-col justify-between block cursor-pointer"
+                  title="Buka Lokasi Kantor di Google Maps"
+                >
+                  {/* Subtle Wave Corner */}
+                  <div className="absolute -bottom-1 -right-1 w-32 h-24 pointer-events-none opacity-40 select-none">
+                    <svg viewBox="0 0 140 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      <path d="M0,100 C40,75 85,60 140,80 L140,100 Z" fill="#93c5fd" />
+                      <path d="M40,100 C70,75 110,65 140,70 L140,100 Z" fill="#38bdf8" fillOpacity="0.5" />
+                    </svg>
+                  </div>
+
+                  {/* 3D Illustration */}
+                  <img 
+                    src="/sop_3d_map.png" 
+                    alt="Ilustrasi Lokasi Pelayanan" 
+                    className="absolute right-0 sm:right-1 bottom-1 sm:bottom-2 w-28 sm:w-32 md:w-36 max-h-[145px] object-contain pointer-events-none select-none drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+
+                  {/* External Link Action Badge */}
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 backdrop-blur-xs z-20">
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    <span>Buka Maps</span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="relative z-10 pr-24 sm:pr-28 md:pr-24 lg:pr-28">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#38bdf8] via-[#2563eb] to-[#1d4ed8] shadow-md shadow-blue-500/25 flex items-center justify-center text-white">
+                      <MapPin className="w-5 h-5 text-white" />
+                    </div>
+                    <h4 className="text-[15px] sm:text-[17px] font-bold text-[#0c244b] tracking-tight mt-3">
+                      Lokasi Pelayanan
+                    </h4>
+                    <div className="text-[12px] sm:text-[12.5px] text-slate-600 font-medium leading-relaxed space-y-1 mt-1.5">
+                      <p className="font-semibold text-slate-800">Ruang Tata Usaha & Pelayanan Terpadu</p>
+                      <p className="text-slate-500 text-[11.5px]">Kantor Korwilcam Bidang Pendidikan Purwodadi, Kab. Grobogan</p>
+                    </div>
+                  </div>
+
+                  <div className="relative z-10 mt-3 pt-2 border-t border-slate-100/80 pr-24 sm:pr-28 md:pr-24 lg:pr-28 text-[11px] text-blue-600 font-medium flex items-center gap-1">
+                    <span>Lihat di Peta & Navigasi</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </div>
+                </a>
+
+                {/* Card 3: Pengaduan & Bantuan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const waNumber = (officeProfile.whatsapp || officeProfile.phone || '082170774341').replace(/[^0-9]/g, '');
+                    const cleanWa = waNumber.startsWith('0') ? '62' + waNumber.slice(1) : waNumber;
+                    window.open(`https://wa.me/${cleanWa}?text=${encodeURIComponent('Halo Admin Korwilcam Purwodadi, saya ingin berkonsultasi seputar SOP Pelayanan.')}`, '_blank');
+                  }}
+                  className="group relative bg-white rounded-2xl sm:rounded-[22px] overflow-hidden border border-blue-100/90 shadow-[0_4px_24px_rgba(0,102,255,0.06)] hover:shadow-[0_8px_32px_rgba(16,185,129,0.18)] transition-all duration-300 hover:-translate-y-1 p-5 sm:p-6 min-h-[195px] sm:min-h-[210px] flex flex-col justify-between text-left block w-full cursor-pointer"
+                  title="Hubungi Layanan Pengaduan & Bantuan via WhatsApp"
+                >
+                  {/* Subtle Wave Corner */}
+                  <div className="absolute -bottom-1 -right-1 w-32 h-24 pointer-events-none opacity-40 select-none">
+                    <svg viewBox="0 0 140 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                      <path d="M0,100 C40,75 85,60 140,80 L140,100 Z" fill="#86efac" />
+                      <path d="M40,100 C70,75 110,65 140,70 L140,100 Z" fill="#34d399" fillOpacity="0.5" />
+                    </svg>
+                  </div>
+
+                  {/* 3D Illustration */}
+                  <img 
+                    src="/sop_3d_help.png" 
+                    alt="Ilustrasi Pengaduan & Bantuan" 
+                    className="absolute right-0 sm:right-1 bottom-1 sm:bottom-2 w-28 sm:w-32 md:w-36 max-h-[145px] object-contain pointer-events-none select-none drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+
+                  {/* External Link Action Badge */}
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 backdrop-blur-xs z-20">
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    <span>Chat WA</span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="relative z-10 pr-24 sm:pr-28 md:pr-24 lg:pr-28">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#34d399] via-[#10b981] to-[#059669] shadow-md shadow-emerald-500/25 flex items-center justify-center text-white">
+                      <Headphones className="w-5 h-5 text-white" />
+                    </div>
+                    <h4 className="text-[15px] sm:text-[17px] font-bold text-[#0c244b] tracking-tight mt-3">
+                      Pengaduan & Bantuan
+                    </h4>
+                    <p className="text-[12px] sm:text-[12.5px] text-slate-600 font-medium leading-relaxed mt-1.5">
+                      Jika terdapat kendala atau pertanyaan seputar prosedur, sampaikan melalui formulir pengaduan online atau WhatsApp resmi.
+                    </p>
+                  </div>
+
+                  <div className="relative z-10 mt-3 pt-2 border-t border-slate-100/80 pr-24 sm:pr-28 md:pr-24 lg:pr-28 text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                    <span>Hubungi Admin Layanan</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
 

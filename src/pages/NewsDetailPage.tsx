@@ -21,6 +21,7 @@ import { NewsCard } from '../components/NewsCard';
 import { getArticleReadingStats } from '../lib/readingTime';
 import { paginateArticleContent } from '../lib/articlePaginator';
 import { getNewsShortUrl, getNewsShortCode } from '../lib/shortLink';
+import { stripHtml } from '../lib/stripHtml';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -482,7 +483,7 @@ export const NewsDetailPage: React.FC = () => {
           {/* Summary Quote */}
           {selectedNews.summary && (
             <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/50 border-l-4 border-blue-600 text-slate-800 text-base sm:text-lg font-medium italic leading-relaxed shadow-xs">
-              "{selectedNews.summary}"
+              "{stripHtml(selectedNews.summary)}"
             </div>
           )}
 

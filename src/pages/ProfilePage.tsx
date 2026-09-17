@@ -16,7 +16,8 @@ import {
   ChevronRight,
   Building,
   Home,
-  ArrowRight
+  ArrowRight,
+  Crown
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
@@ -472,7 +473,7 @@ export const ProfilePage: React.FC = () => {
       </section>
 
       {/* Struktur Organisasi & Pengawas/Penilik */}
-      <section id="struktur" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 scroll-mt-24">
+      <section id="struktur" className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 scroll-mt-24">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
           <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
             Struktur Organisasi
@@ -502,7 +503,7 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        <div id="pegawai" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 scroll-mt-24">
+        <div id="pegawai" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4.5 sm:gap-5.5 lg:gap-6 scroll-mt-24">
           {filteredStaff.length === 0 ? (
             <div className="col-span-full py-12 px-6 text-center bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm space-y-3">
               <Users className="w-12 h-12 text-slate-300 mx-auto" />
@@ -525,72 +526,102 @@ export const ProfilePage: React.FC = () => {
                 <div
                   key={person.id}
                   onClick={() => setPreviewStaff(person)}
-                  className="card-deferred bg-white rounded-2xl p-5 border border-slate-200/80 shadow-md hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex items-center gap-4 group cursor-pointer relative"
-                  title="Klik untuk melihat foto lebih besar"
+                  className="card-deferred bg-white rounded-[24px] border-2 border-blue-100/90 shadow-sm hover:shadow-xl hover:border-[#0062f5] hover:-translate-y-1.5 transition-all duration-300 flex flex-col group cursor-pointer overflow-hidden"
+                  title="Klik untuk melihat foto & profil lebih besar"
                 >
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-2 ring-blue-100 group-hover:ring-blue-500 transition-all shrink-0 overflow-hidden relative bg-slate-100 flex items-center justify-center shadow-sm">
+                  {/* Bagian Atas: Foto Full Setengah Kartu (Dual-Layer Uncropped Composition) */}
+                  <div className="relative w-full h-56 sm:h-60 md:h-64 bg-slate-900 overflow-hidden shrink-0">
                     {hasValidPhoto ? (
-                      <img
-                        src={person.photo}
-                        alt={person.name}
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          const fallback = e.currentTarget.nextElementSibling;
-                          if (fallback) (fallback as HTMLElement).classList.remove('hidden');
-                        }}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      />
+                      <>
+                        {/* Layer 1: Ambient Backdrop Blur (Menutupi Sisi Kiri & Kanan Tanpa Celah) */}
+                        <img
+                          src={person.photo}
+                          alt=""
+                          aria-hidden="true"
+                          className="photo-ambient-bg absolute inset-0 w-full h-full object-cover blur-xl scale-125 opacity-80 pointer-events-none select-none"
+                        />
+                        {/* Layer 2: Foto Utuh Pejabat 100% Tidak Terpotong (Wajah, Peci/Jilbab, Dagu & Seragam Utuh) */}
+                        <img
+                          src={person.photo}
+                          alt={person.name}
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              const ambient = parent.querySelector('.photo-ambient-bg') as HTMLElement;
+                              if (ambient) ambient.style.display = 'none';
+                              const fallback = parent.querySelector('.photo-fallback') as HTMLElement;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }
+                          }}
+                          className="relative z-10 w-full h-full object-contain object-bottom drop-shadow-md transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </>
                     ) : null}
-                    <div className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 text-slate-400 ${hasValidPhoto ? 'hidden' : 'flex'}`}>
-                      <User className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" />
-                      <span className="text-[9px] font-bold text-slate-400 mt-0.5">ASN</span>
+                    <div className={`photo-fallback w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-sky-100 to-indigo-100 text-blue-600 ${hasValidPhoto ? 'hidden' : 'flex'}`}>
+                      <User className="w-16 h-16 sm:w-20 sm:h-20 text-blue-500/80" />
+                      <span className="text-xs font-extrabold text-blue-600 mt-1 uppercase tracking-wider">ASN</span>
                     </div>
-                    {/* Hover Zoom Icon overlay on photo */}
-                    <div className="absolute inset-0 bg-slate-950/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                      <div className="p-1.5 rounded-full bg-white/95 text-blue-600 shadow-md transform scale-75 group-hover:scale-100 transition-transform">
-                        <ZoomIn className="w-4 h-4" />
+
+                    {/* Efek Vignette Lembut di Bawah Foto */}
+                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/30 to-transparent z-10 pointer-events-none" />
+
+                    {/* Badge Kategori / Jabatan Pojok Kanan Atas Foto */}
+                    <div className="absolute top-3 right-3 z-20">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0062f5] text-white text-[10.5px] sm:text-[11.5px] font-bold shadow-md shadow-black/20 tracking-tight backdrop-blur-xs">
+                        {person.division === 'Pimpinan Korwilcam Purwodadi' || person.division === 'Pimpinan' ? (
+                          <>
+                            <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                            <span>Pimpinan</span>
+                          </>
+                        ) : person.division === 'Pengawas SD' ? (
+                          <span>Pengawas SD</span>
+                        ) : person.division === 'Pengawas TK' ? (
+                          <span>Pengawas TK</span>
+                        ) : person.division === 'Penilik KB' || person.division === 'Penilik KB/TK' || person.division === 'Penilik PAUD' || person.division === 'Penilik PAUD/TK' ? (
+                          <span>Penilik KB</span>
+                        ) : (
+                          <span>Staf</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Ikon Zoom Hover di Tengah Foto */}
+                    <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                      <div className="p-2.5 rounded-full bg-white/95 text-[#0062f5] shadow-lg transform scale-75 group-hover:scale-100 transition-transform">
+                        <ZoomIn className="w-5 h-5" />
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
-                      person.division === 'Pimpinan Korwilcam Purwodadi' || person.division === 'Pimpinan'
-                        ? 'bg-purple-50 text-purple-700 border-purple-200'
-                        : person.division === 'Pengawas SD'
-                        ? 'bg-blue-50 text-blue-700 border-blue-200'
-                        : person.division === 'Pengawas TK'
-                        ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
-                        : person.division === 'Penilik KB' || person.division === 'Penilik KB/TK' || person.division === 'Penilik PAUD' || person.division === 'Penilik PAUD/TK'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }`}>
-                      {person.division === 'Pimpinan'
-                        ? 'Pimpinan Korwilcam Purwodadi'
-                        : person.division === 'Penilik PAUD/TK' || person.division === 'Penilik PAUD' || person.division === 'Penilik KB/TK'
-                        ? 'Penilik KB'
-                        : person.division === 'Tata Usaha'
-                        ? 'Staf'
-                        : person.division}
-                    </span>
-                    <h4 className="font-bold text-slate-900 text-sm leading-snug group-hover:text-blue-600 transition-colors truncate">
-                      {person.name}
-                    </h4>
-                    <p className="text-xs text-slate-600 font-medium truncate">
-                      {person.role}
-                    </p>
-                    <p className="text-[11px] font-mono text-slate-400">
-                      {person.nip ? `NIP. ${person.nip}` : 'NIP. -'}
-                    </p>
-                  </div>
-                  <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-xl bg-blue-50 text-blue-600 shrink-0 self-center">
-                    <ZoomIn className="w-4 h-4" />
+
+                  {/* Bagian Bawah: Informasi Detail (Nama, NIP, & Pill Jabatan) */}
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 gap-3 bg-white">
+                    {/* Nama & NIP (Rata Kiri, Bold Navy Bersih Sesuai Gambar 2) */}
+                    <div className="text-left space-y-1">
+                      <h4 className="font-black text-[#0a2540] text-xs sm:text-[14px] leading-snug group-hover:text-[#0062f5] transition-colors uppercase tracking-tight line-clamp-2 min-h-[36px] flex items-center">
+                        {person.name}
+                      </h4>
+                      <p className="text-[11px] font-mono text-slate-400 truncate">
+                        {person.nip ? `NIP. ${person.nip}` : 'NIP. -'}
+                      </p>
+                    </div>
+
+                    {/* Wadah Pill Jabatan Bagian Bawah (Sesuai Desain Gambar 2) */}
+                    <div className="w-full bg-[#eef5ff] border border-blue-200/70 rounded-full px-3 py-2 flex items-center gap-2.5 group-hover:bg-[#e0edff] group-hover:border-blue-300 transition-colors">
+                      <div className="w-6 h-6 rounded-full bg-[#0062f5] text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <User className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-[10.5px] sm:text-[11.5px] font-extrabold text-[#0062f5] uppercase tracking-tight line-clamp-1 flex-1 leading-none text-left">
+                        {person.role}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
             })
-            )}
+          )}
         </div>
       </section>
 

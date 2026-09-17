@@ -10,6 +10,7 @@ import {
   GraduationCap 
 } from 'lucide-react';
 import { getArticleReadingStats } from '../lib/readingTime';
+import { stripHtml } from '../lib/stripHtml';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -127,7 +128,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
 
           {/* Excerpt / Summary */}
           <p className="text-xs sm:text-sm text-slate-500 leading-relaxed line-clamp-2">
-            {article.summary}
+            {stripHtml(article.summary)}
           </p>
         </div>
 

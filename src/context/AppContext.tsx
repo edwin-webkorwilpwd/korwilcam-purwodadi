@@ -43,6 +43,7 @@ import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper'
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
+import { stripHtml, generateSummary } from '../lib/stripHtml';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -1573,46 +1574,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('korwilcam_news_categories', JSON.stringify(loadedCategories));
         } catch {}
 
-        setNews((prevNews) => {
-          return actualArticles.map((n: any) => {
-            const id = String(n.id || `news-${Date.now()}`);
-            const title = String(n.title || n.judul || '').trim();
-            const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
-            let parsedTags: string[] = [];
-            if (Array.isArray(n.tags)) {
-              parsedTags = n.tags;
-            } else if (typeof n.tags === 'string') {
-              try {
-                const p = JSON.parse(n.tags);
-                if (Array.isArray(p)) parsedTags = p;
-                else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-              } catch {
-                parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-              }
+        const mappedArticles: NewsArticle[] = actualArticles.map((n: any) => {
+          const id = String(n.id || `news-${Date.now()}`);
+          const title = String(n.title || n.judul || '').trim();
+          const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
+          let parsedTags: string[] = [];
+          if (Array.isArray(n.tags)) {
+            parsedTags = n.tags;
+          } else if (typeof n.tags === 'string') {
+            try {
+              const p = JSON.parse(n.tags);
+              if (Array.isArray(p)) parsedTags = p;
+              else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            } catch {
+              parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
             }
-            const existingLocal = prevNews.find((p) => p.id === id || p.slug === slug);
-            const serverViews = Number(n.views || 0);
-            const localViews = existingLocal ? Number(existingLocal.views || 0) : 0;
-            const finalViews = Math.max(serverViews, localViews);
+          }
+          const existingLocal = _inMemoryNewsCache?.find((p) => p.id === id || p.slug === slug);
+          const serverViews = Number(n.views || 0);
+          const localViews = existingLocal ? Number(existingLocal.views || 0) : 0;
+          const finalViews = Math.max(serverViews, localViews);
 
-            return {
-              id,
-              title,
-              slug,
-              category: n.category || n.kategori || 'Kedinasan',
-              summary: n.summary || n.ringkasan || (n.content ? String(n.content).substring(0, 150) : ''),
-              content: n.content || n.isi || n.konten || '',
-              author: n.author || n.penulis || 'Humas Korwilcam',
-              authorId: n.author_id || n.authorId || undefined,
-              authorRole: n.author_role || n.authorRole || undefined,
-              date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
-              image: n.image || n.gambar || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
-              views: finalViews,
-              totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
-              readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),
-              tags: parsedTags
-            };
-          });
+          const rawSummary = String(n.summary || n.ringkasan || '').trim();
+          const strippedSummary = stripHtml(rawSummary);
+          const plainContent = stripHtml(String(n.content || n.isi || n.konten || ''));
+          const fallbackSummary = plainContent.length > 180 ? plainContent.slice(0, 180).trim() + '...' : plainContent;
+          const safeSummary = strippedSummary || fallbackSummary;
+
+          return {
+            id,
+            title,
+            slug,
+            category: n.category || n.kategori || 'Kedinasan',
+            summary: safeSummary,
+            content: n.content || n.isi || n.konten || '',
+            author: n.author || n.penulis || 'Humas Korwilcam',
+            authorId: n.author_id || n.authorId || undefined,
+            authorRole: n.author_role || n.authorRole || undefined,
+            date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
+            image: n.image || n.gambar || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+            views: finalViews,
+            totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
+            readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),
+            tags: parsedTags
+          };
+        });
+
+        _inMemoryNewsCache = mappedArticles;
+        setNews(mappedArticles);
+        try {
+          sessionStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
+          localStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
+        } catch {}
+
+        setSelectedNewsState((current) => {
+          if (!current) return null;
+          const updated = mappedArticles.find((a) => a.id === current.id || a.slug === current.slug);
+          return updated || current;
         });
       }
 
@@ -3243,6 +3261,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
+    if (mergedSchool) {
+      setSelectedSchoolState((curr) => (curr?.id === id ? mergedSchool : curr));
+    }
+
     const client = getSupabaseClient();
     if (client && mergedSchool) {
       setSyncStatus('syncing');
@@ -3292,6 +3314,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteSchool = async (id: string) => {
     setSchools((prev) => prev.filter((s) => s.id !== id));
+    setSelectedSchoolState((curr) => (curr?.id === id ? null : curr));
 
     const client = getSupabaseClient();
     if (client) {
@@ -3315,18 +3338,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // NEWS CRUD (Auto-save to Supabase & local state)
   const addNews = async (newsData: Omit<NewsArticle, 'id'>) => {
+    const cleanContent = newsData.content || '';
+    const cleanSummary = newsData.summary && newsData.summary.trim()
+      ? stripHtml(newsData.summary)
+      : generateSummary(cleanContent, 180);
+    const title = (newsData.title || '').trim();
+    const cleanSlug = newsData.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `berita-${Date.now()}`;
+
     const newArticle: NewsArticle = {
       ...newsData,
       id: `news-${Date.now()}`,
-      views: 0
+      title,
+      slug: cleanSlug,
+      summary: cleanSummary,
+      views: newsData.views || 0
     };
-    setNews((prev) => [newArticle, ...prev]);
+
+    setNews((prev) => {
+      const updated = [newArticle, ...prev];
+      _inMemoryNewsCache = updated;
+      try {
+        sessionStorage.setItem('korwilcam_news', JSON.stringify(updated));
+        localStorage.setItem('korwilcam_news', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     const client = getSupabaseClient();
     if (client) {
       setSyncStatus('syncing');
       try {
-        let { error } = await client.from('news').upsert({
+        const supabasePayload = {
           id: newArticle.id,
           title: newArticle.title,
           slug: newArticle.slug,
@@ -3334,30 +3376,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           summary: newArticle.summary,
           content: newArticle.content,
           author: newArticle.author,
-          author_id: newArticle.authorId,
-          author_role: newArticle.authorRole,
           date: newArticle.date,
           image: newArticle.image,
-          views: newArticle.views,
-          tags: newArticle.tags
-        });
+          views: Number(newArticle.views || 0),
+          tags: Array.isArray(newArticle.tags) ? newArticle.tags : []
+        };
 
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const retry = await client.from('news').upsert({
-            id: newArticle.id,
-            title: newArticle.title,
-            slug: newArticle.slug,
-            category: newArticle.category,
-            summary: newArticle.summary,
-            content: newArticle.content,
-            author: newArticle.author,
-            date: newArticle.date,
-            image: newArticle.image,
-            views: newArticle.views,
-            tags: newArticle.tags
-          });
-          error = retry.error;
-        }
+        const { error } = await client.from('news').upsert(supabasePayload);
 
         if (error) {
           console.error('Supabase addNews error:', error);
@@ -3376,53 +3401,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateNews = async (id: string, updatedData: Partial<NewsArticle>) => {
+    const cleanSummary = updatedData.summary !== undefined
+      ? (stripHtml(updatedData.summary) || (updatedData.content ? generateSummary(updatedData.content, 180) : ''))
+      : undefined;
+
     let mergedNews: NewsArticle | null = null;
-    setNews((prev) =>
-      prev.map((n) => {
+    setNews((prev) => {
+      const updated = prev.map((n) => {
         if (n.id === id) {
-          mergedNews = { ...n, ...updatedData };
+          const itemSummary = cleanSummary !== undefined ? cleanSummary : (stripHtml(n.summary) || generateSummary(n.content, 180));
+          const itemSlug = updatedData.slug || n.slug || (updatedData.title || n.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `berita-${id}`;
+          mergedNews = {
+            ...n,
+            ...updatedData,
+            summary: itemSummary,
+            slug: itemSlug
+          };
           return mergedNews;
         }
         return n;
-      })
-    );
+      });
+      _inMemoryNewsCache = updated;
+      try {
+        sessionStorage.setItem('korwilcam_news', JSON.stringify(updated));
+        localStorage.setItem('korwilcam_news', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (mergedNews) {
+      setSelectedNewsState((current) => {
+        if (current && (current.id === id || current.slug === (mergedNews as NewsArticle).slug)) {
+          return mergedNews;
+        }
+        return current;
+      });
+    }
 
     const client = getSupabaseClient();
     if (client && mergedNews) {
       setSyncStatus('syncing');
       try {
         const n = mergedNews as NewsArticle;
-        let { error } = await client.from('news').upsert({
-          id: n.id,
-          title: n.title,
-          slug: n.slug,
-          category: n.category,
-          summary: n.summary,
-          content: n.content,
-          author: n.author,
-          author_id: n.authorId,
-          author_role: n.authorRole,
-          date: n.date,
-          image: n.image,
-          views: n.views,
-          tags: n.tags
-        });
+        const safeSlug = n.slug || (n.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `berita-${Date.now()}`;
+        const safeSummary = stripHtml(n.summary) || generateSummary(n.content, 180);
 
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const retry = await client.from('news').upsert({
-            id: n.id,
-            title: n.title,
-            slug: n.slug,
-            category: n.category,
-            summary: n.summary,
-            content: n.content,
-            author: n.author,
-            date: n.date,
-            image: n.image,
-            views: n.views,
-            tags: n.tags
-          });
-          error = retry.error;
+        const supabasePayload = {
+          title: n.title,
+          slug: safeSlug,
+          category: n.category || 'Kedinasan',
+          summary: safeSummary,
+          content: n.content || '',
+          author: n.author || 'Humas Korwilcam',
+          date: n.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+          image: n.image,
+          views: Number(n.views || 0),
+          tags: Array.isArray(n.tags) ? n.tags : []
+        };
+
+        // 1. Try update first:
+        let { error, data } = await client.from('news').update(supabasePayload).eq('id', id).select();
+
+        // 2. If row was not found in Supabase (e.g. created offline), fallback to upsert with id:
+        if (!error && (!data || data.length === 0)) {
+          const upsertRes = await client.from('news').upsert({ id: n.id, ...supabasePayload }).select();
+          error = upsertRes.error;
         }
 
         if (error) {
@@ -3442,7 +3485,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteNews = async (id: string) => {
-    setNews((prev) => prev.filter((n) => n.id !== id));
+    setNews((prev) => {
+      const updated = prev.filter((n) => n.id !== id);
+      _inMemoryNewsCache = updated;
+      try {
+        sessionStorage.setItem('korwilcam_news', JSON.stringify(updated));
+        localStorage.setItem('korwilcam_news', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    setSelectedNewsState((current) => (current?.id === id ? null : current));
 
     const client = getSupabaseClient();
     if (client) {
@@ -3877,6 +3930,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     }
 
+    if (mergedAnn) {
+      setSelectedAnnouncementState((curr) => (curr?.id === id ? mergedAnn : curr));
+    }
+
     const client = getSupabaseClient();
     if (client && mergedAnn) {
       setSyncStatus('syncing');
@@ -3952,6 +4009,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try { sessionStorage.setItem('korwilcam_announcements', JSON.stringify(updated)); } catch (_) {}
       return updated;
     });
+    setSelectedAnnouncementState((curr) => (curr?.id === id ? null : curr));
 
     // Hapus juga berkas terkait di Layanan Unduhan HANYA jika pengumuman ini mengunggah berkas baru (bukan dari dokumen master Layanan Unduhan)
     const docId = `doc-ann-${id}`;
@@ -4037,6 +4095,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
+    if (mergedDoc) {
+      setSelectedDocumentState((curr) => (curr?.id === id ? mergedDoc : curr));
+    }
+
     const client = getSupabaseClient();
     if (client && mergedDoc) {
       setSyncStatus('syncing');
@@ -4070,6 +4132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteDocument = async (id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
+    setSelectedDocumentState((curr) => (curr?.id === id ? null : curr));
 
     const client = getSupabaseClient();
     if (client) {
@@ -4310,22 +4373,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           images: newItem.images,
           description: newItem.description,
           date: newItem.date,
-          created_at: newItem.createdAt,
-          author_id: newItem.authorId,
-          author_name: newItem.authorName,
-          author_role: newItem.authorRole
+          created_at: newItem.createdAt
         });
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const retry = await client.from('gallery').upsert({
-            id: newItem.id,
-            title: newItem.title,
-            category: newItem.category,
-            image: newItem.image,
-            description: newItem.description,
-            date: newItem.date
-          });
-          error = retry.error;
-        }
         if (error) {
           console.error('Supabase addGallery error:', error);
           showToast(`Galeri disimpan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
@@ -4362,34 +4411,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
+    if (mergedGallery) {
+      setSelectedGalleryState((curr) => (curr?.id === id ? mergedGallery : curr));
+    }
+
     const client = getSupabaseClient();
     if (client && mergedGallery) {
       setSyncStatus('syncing');
       try {
         const g = mergedGallery as GalleryItem;
-        let { error } = await client.from('gallery').upsert({
+        const { error } = await client.from('gallery').upsert({
           id: g.id,
           title: g.title,
           category: g.category,
           image: g.image,
           images: g.images,
           description: g.description,
-          date: g.date,
-          author_id: g.authorId,
-          author_name: g.authorName,
-          author_role: g.authorRole
+          date: g.date
         });
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const retry = await client.from('gallery').upsert({
-            id: g.id,
-            title: g.title,
-            category: g.category,
-            image: g.image,
-            description: g.description,
-            date: g.date
-          });
-          error = retry.error;
-        }
         if (error) {
           showToast(`Galeri diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
         } else {
@@ -4412,6 +4451,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
       return updated;
     });
+    setSelectedGalleryState((curr) => (curr?.id === id ? null : curr));
 
     const client = getSupabaseClient();
     if (client) {
@@ -5151,6 +5191,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
 
     const target = updated.find((r) => r.id === id);
+    if (target) {
+      setSelectedServiceRequirementState((curr) => (curr?.id === id ? target : curr));
+    }
     const client = getSupabaseClient();
     if (client && target) {
       try {
@@ -5179,6 +5222,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const target = serviceRequirements.find((r) => r.id === id);
     const updated = serviceRequirements.filter((r) => r.id !== id);
     setServiceRequirements(updated);
+    setSelectedServiceRequirementState((curr) => (curr?.id === id ? null : curr));
     try {
       localStorage.setItem('korwilcam_service_requirements', JSON.stringify(updated));
     } catch (e) {}

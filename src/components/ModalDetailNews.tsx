@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { X, Calendar, Eye, User, Share2, Tag, BookOpen, Clock } from 'lucide-react';
 import { getArticleReadingStats } from '../lib/readingTime';
+import { stripHtml } from '../lib/stripHtml';
 
 export const ModalDetailNews: React.FC = () => {
   const { selectedNews, setSelectedNews, showToast } = useApp();
@@ -91,7 +92,7 @@ export const ModalDetailNews: React.FC = () => {
 
           {/* Article Summary Quote */}
           <div className="p-4 rounded-xl bg-blue-50/80 border-l-4 border-blue-600 text-slate-800 text-sm font-medium italic leading-relaxed">
-            "{selectedNews.summary}"
+            "{stripHtml(selectedNews.summary)}"
           </div>
 
           {/* Full Content */}
