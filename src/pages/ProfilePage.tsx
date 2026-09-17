@@ -13,9 +13,64 @@ import {
   X,
   ZoomIn,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Building,
+  Home,
+  ArrowRight
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
+
+// 1. Bottom-Left Corner Ribbon Accent (Dark Blue Geometric Cut matching Gambar 2)
+const CardCornerRibbon: React.FC = () => (
+  <svg 
+    className="absolute bottom-0 left-0 w-20 h-20 sm:w-24 sm:h-24 pointer-events-none z-0 select-none" 
+    viewBox="0 0 100 100" 
+    fill="none"
+  >
+    <polygon points="0,100 100,100 0,0" fill="#0d3b9e" opacity="0.95" />
+    <polygon points="0,100 60,100 0,40" fill="#092a72" opacity="0.45" />
+  </svg>
+);
+
+// 2. Far-Right Background Watermark (Education Book & Rising Ribbon Vector matching Gambar 2)
+const CardEducationWatermark: React.FC = () => (
+  <div className="absolute right-0 bottom-0 top-0 w-64 sm:w-80 lg:w-96 pointer-events-none select-none z-0 overflow-hidden">
+    <svg viewBox="0 0 400 360" fill="none" className="w-full h-full object-cover">
+      {/* Flowing blue ribbon curves on the right */}
+      <path d="M400 0 C320 60 300 180 340 280 C360 330 380 350 400 360 L400 0 Z" fill="url(#blueRibbonGrad)" opacity="0.14" />
+      <path d="M400 40 C340 100 320 220 360 300 C380 340 390 355 400 360 L400 40 Z" fill="url(#blueRibbonGrad2)" opacity="0.2" />
+      
+      {/* Open Book & Rising Figures (Symbol of Education) */}
+      <g transform="translate(230, 150)" stroke="url(#eduGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none">
+        {/* Left Book Page */}
+        <path d="M10 135 C-45 115 -85 75 -95 15 C-45 30 0 75 10 135 Z" fill="#eff6ff" fillOpacity="0.45" stroke="#93c5fd" strokeWidth="2.5" />
+        {/* Right Book Page */}
+        <path d="M10 135 C65 115 105 75 115 15 C65 30 20 75 10 135 Z" fill="#eff6ff" fillOpacity="0.45" stroke="#93c5fd" strokeWidth="2.5" />
+        {/* Center Spine */}
+        <path d="M10 135 V25" stroke="#60a5fa" strokeWidth="3" />
+        {/* Rising Figure / Youth */}
+        <circle cx="10" cy="-22" r="9" fill="#93c5fd" stroke="#3b82f6" strokeWidth="2" opacity="0.85" />
+        <path d="M-12 -2 C-5 -12 25 -12 32 -2 C25 15 -5 15 -12 -2 Z" fill="#bae6fd" opacity="0.6" />
+        <path d="M-15 0 C-3 10 23 10 35 0" stroke="#3b82f6" strokeWidth="2.5" />
+      </g>
+
+      <defs>
+        <linearGradient id="blueRibbonGrad" x1="400" y1="0" x2="300" y2="360" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#38bdf8" />
+        </linearGradient>
+        <linearGradient id="blueRibbonGrad2" x1="400" y1="40" x2="320" y2="360" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3b82f6" />
+          <stop offset="100%" stopColor="#60a5fa" />
+        </linearGradient>
+        <linearGradient id="eduGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#38bdf8" />
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+);
 
 export const ProfilePage: React.FC = () => {
   const { officeProfile, staff } = useApp();
@@ -172,11 +227,19 @@ export const ProfilePage: React.FC = () => {
         <CurvedHeaderArch />
       </section>
 
-      {/* Sambutan Resmi Pimpinan */}
+      {/* Sambutan Resmi Pimpinan (Desain Modern Sesuai Gambar 2) */}
       <section id="sambutan" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 scroll-mt-24 -mt-8 sm:-mt-10 relative z-20">
-        <div className="bg-white rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/80 shadow-xl grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+        <div className="bg-white rounded-3xl sm:rounded-[32px] border border-blue-100/90 shadow-xl shadow-blue-500/5 relative overflow-hidden flex flex-col lg:flex-row items-stretch p-4 sm:p-6 lg:p-7 gap-6 lg:gap-8">
           
-          <div className="lg:col-span-4 flex flex-col items-center text-center space-y-4">
+          {/* Bottom-left dark blue ribbon & Right education watermark */}
+          <CardCornerRibbon />
+          <CardEducationWatermark />
+
+          {/* Kolom Kiri: Kartu Profil Pod Biru Mewah */}
+          <div className="w-full lg:w-[320px] bg-gradient-to-b from-[#1b56ce] via-[#1d5ee6] to-[#1546b8] rounded-[26px] p-5 sm:p-6 text-white flex flex-col items-center justify-between text-center relative overflow-hidden shadow-lg shrink-0 z-10">
+            <div className="absolute -top-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
+
+            {/* Bingkai Foto Resmi Pimpinan dengan Border Putih Tebal */}
             <div 
               onClick={() => setPreviewStaff({
                 name: officeProfile.korwilName,
@@ -185,7 +248,7 @@ export const ProfilePage: React.FC = () => {
                 photo: officeProfile.korwilPhoto,
                 division: 'Pimpinan Korwilcam Purwodadi'
               })}
-              className="relative cursor-pointer group/korwil"
+              className="relative cursor-pointer group/korwil mt-1"
               title="Klik untuk melihat foto pimpinan lebih besar"
             >
               {officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? (
@@ -199,15 +262,12 @@ export const ProfilePage: React.FC = () => {
                     const fallback = e.currentTarget.nextElementSibling;
                     if (fallback) (fallback as HTMLElement).classList.remove('hidden');
                   }}
-                  className="w-48 h-56 sm:w-56 sm:h-64 rounded-2xl object-cover ring-4 ring-blue-600/20 group-hover/korwil:ring-blue-600 shadow-2xl shadow-blue-500/20 bg-slate-100 transition-all duration-300 group-hover/korwil:scale-[1.02]"
+                  className="w-48 h-56 sm:w-52 sm:h-60 rounded-2xl object-cover border-4 border-white shadow-xl bg-slate-100 transition-all duration-300 group-hover/korwil:scale-[1.02]"
                 />
               ) : null}
-              <div className={`w-48 h-56 sm:w-56 sm:h-64 rounded-2xl ring-4 ring-blue-600/20 shadow-2xl shadow-blue-500/20 bg-gradient-to-b from-slate-100 to-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 ${officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? 'hidden' : 'flex'}`}>
+              <div className={`w-48 h-56 sm:w-52 sm:h-60 rounded-2xl border-4 border-white shadow-xl bg-gradient-to-b from-slate-100 to-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 ${officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? 'hidden' : 'flex'}`}>
                 <User className="w-20 h-20 text-slate-400 stroke-1" />
                 <span className="text-xs font-bold text-slate-500">Foto Resmi Pimpinan</span>
-              </div>
-              <div className="absolute -bottom-3 -right-3 p-2 rounded-xl bg-blue-600 text-white shadow-lg">
-                <ShieldCheck className="w-6 h-6" />
               </div>
               <div className="absolute inset-0 rounded-2xl bg-slate-950/20 opacity-0 group-hover/korwil:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                 <div className="p-2 rounded-full bg-white/95 text-blue-600 shadow-md transform scale-90 group-hover/korwil:scale-100 transition-transform">
@@ -216,98 +276,195 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900">
+            {/* Nama, Jabatan, & Badge Pill NIP Putih */}
+            <div className="mt-3.5 mb-1 w-full flex flex-col items-center">
+              <h3 className="text-base sm:text-lg font-black text-white tracking-wide">
                 {officeProfile.korwilName}
               </h3>
-              <p className="text-xs font-bold text-blue-600">
+              <p className="text-xs text-blue-100/90 font-medium mt-0.5">
                 Koordinator Wilayah Kecamatan Purwodadi
               </p>
-              <p className="text-xs font-mono text-slate-400 mt-1">
+              <span className="bg-white text-blue-700 font-bold text-[11px] sm:text-xs px-4 py-1 rounded-full mt-2.5 shadow-sm inline-block tracking-wide">
                 NIP. {officeProfile.korwilNip}
-              </p>
+              </span>
             </div>
           </div>
 
-          <div className="lg:col-span-8 space-y-5">
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full">
-                Sambutan Koordinator Wilayah
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-                {officeProfile.greetingTitle}
-              </h2>
+          {/* Kolom Kanan: Teks Sambutan & Kutipan */}
+          <div className="flex-1 flex flex-col justify-between py-2 sm:py-3 lg:pr-3 relative z-10">
+            <div>
+              {/* Baris Atas: Pill Badge Kiri & Quote Kanan */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="inline-flex items-center gap-2 bg-blue-50/90 text-blue-600 border border-blue-200/70 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider shadow-2xs w-fit">
+                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                    <User className="w-3 h-3 text-white" />
+                  </div>
+                  <span>Sambutan Koordinator Wilayah</span>
+                </div>
+
+                <div className="flex items-start gap-2 max-w-xs self-start sm:self-auto text-left">
+                  <span className="text-2xl sm:text-3xl font-serif text-blue-600 leading-none shrink-0 font-black">
+                    “
+                  </span>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-slate-700 italic leading-snug">
+                      Bersama Maju Mewujudkan Pendidikan yang Berkualitas
+                    </p>
+                    <div className="w-full h-0.5 bg-blue-400/30 rounded-full mt-1.5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Judul Sambutan & Garis Aksen */}
+              <div className="mt-4 mb-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight tracking-tight">
+                  {officeProfile.greetingTitle}
+                </h2>
+                <div className="w-12 h-1 bg-blue-600 rounded-full mt-2.5" />
+              </div>
+
+              {/* Paragraf Sambutan */}
+              <div className="text-slate-600 text-xs sm:text-sm leading-relaxed space-y-3.5 my-3">
+                <p>{officeProfile.greetingText}</p>
+                <p>
+                  Dalam era transformasi Merdeka Belajar, peran satuan pendidikan di tingkat dasar dan usia dini sangatlah fundamental. Kami terus berkomitmen mempererat sinergi antara kepala sekolah, guru, pengawas, dan orang tua agar tercipta iklim belajar yang aman, menyenangkan, serta berorientasi pada kemajuan karakter dan kompetensi anak didik.
+                </p>
+              </div>
             </div>
 
-            <div className="text-slate-700 text-sm sm:text-base leading-relaxed space-y-4">
-              <p>
-                {officeProfile.greetingText}
-              </p>
-              <p>
-                Dalam era transformasi Merdeka Belajar, peran satuan pendidikan di tingkat dasar dan usia dini sangatlah fundamental. Kami terus berkomitmen mempererat sinergi antara kepala sekolah, guru, pengawas, dan orang tua agar tercipta iklim belajar yang aman, menyenangkan, serta berorientasi pada kemajuan karakter dan kompetensi anak didik.
-              </p>
-            </div>
+            {/* Footer Sambutan */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-blue-600 rounded-full shrink-0" />
+                <div>
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+                    {officeProfile.korwilName}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-slate-500 font-medium">
+                    Koordinator Wilayah Kecamatan Purwodadi
+                  </div>
+                </div>
+              </div>
 
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">{officeProfile.korwilName}</span>
-              <span className="italic">Purwodadi, Grobogan</span>
+              <div className="flex items-center gap-1.5 text-blue-600 font-semibold italic text-xs sm:text-sm tracking-wide self-end sm:self-auto">
+                <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>Purwodadi, Grobogan</span>
+              </div>
             </div>
           </div>
 
         </div>
       </section>
 
-      {/* Visi dan Misi */}
+      {/* Visi dan Misi (Desain Modern Senada Gambar 2) */}
       <section id="visi-misi" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 scroll-mt-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="bg-white rounded-3xl sm:rounded-[32px] border border-blue-100/90 shadow-xl shadow-blue-500/5 relative overflow-hidden flex flex-col lg:flex-row items-stretch p-4 sm:p-6 lg:p-7 gap-6 lg:gap-8">
           
-          {/* Visi */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
+          {/* Bottom-left dark blue ribbon & Right education watermark */}
+          <CardCornerRibbon />
+          <CardEducationWatermark />
 
-            <div className="space-y-4 relative z-10">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+          {/* Kolom Kiri: Pod Biru Visi Korwilcam */}
+          <div className="w-full lg:w-[320px] bg-gradient-to-b from-[#1b56ce] via-[#1d5ee6] to-[#1546b8] rounded-[26px] p-5 sm:p-6 text-white flex flex-col justify-between relative overflow-hidden shadow-lg shrink-0 z-10">
+            <div className="absolute -top-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
+
+            <div>
+              {/* Ikon Target Visi */}
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/25 flex items-center justify-center text-white shadow-xs mb-3.5">
                 <Target className="w-6 h-6" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-widest text-blue-300">
-                Visi Korwilcam
+
+              <span className="bg-white/20 text-white border border-white/30 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest inline-block mb-2.5">
+                Visi Korwilcam Purwodadi
               </span>
-              <h3 className="text-xl sm:text-2xl font-extrabold leading-snug">
+
+              <h3 className="text-xl sm:text-2xl font-black text-white leading-snug tracking-tight">
                 Visi Pendidikan Kecamatan Purwodadi
               </h3>
-              <p className="text-sm sm:text-base text-blue-100 leading-relaxed font-light italic">
-                "{officeProfile.vision}"
-              </p>
+
+              {/* Kotak Naskah Visi */}
+              <div className="mt-4 p-4 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/15 text-white">
+                <p className="text-xs sm:text-sm leading-relaxed text-blue-50 font-medium italic">
+                  "{officeProfile.vision}"
+                </p>
+              </div>
             </div>
 
-            <div className="pt-6 border-t border-blue-800/60 text-xs text-blue-300 font-medium">
-              Landasan Pijak Pembangunan Pendidikan SD, TK, & KB
+            {/* Badge Pill Putih Bawah */}
+            <div className="mt-6">
+              <span className="bg-white text-blue-700 font-bold text-[11px] sm:text-xs px-3.5 py-1.5 rounded-full shadow-sm inline-block tracking-wide">
+                Landasan Mutu Pendidikan SD, TK, & KB
+              </span>
             </div>
           </div>
 
-          {/* Misi */}
-          <div className="lg:col-span-7 bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/80 shadow-xl space-y-6">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Peta Jalan Misi</span>
+          {/* Kolom Kanan: Peta Jalan Misi Satuan Kerja */}
+          <div className="flex-1 flex flex-col justify-between py-2 sm:py-3 lg:pr-3 relative z-10">
+            <div>
+              {/* Baris Atas: Pill Badge Kiri & Slogan Misi Kanan */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="inline-flex items-center gap-2 bg-blue-50/90 text-blue-600 border border-blue-200/70 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider shadow-2xs w-fit">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span>Peta Jalan Misi Korwilcam</span>
+                </div>
+
+                <div className="flex items-start gap-2 max-w-xs self-start sm:self-auto text-left">
+                  <span className="text-2xl sm:text-3xl font-serif text-blue-600 leading-none shrink-0 font-black">
+                    “
+                  </span>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-slate-700 italic leading-snug">
+                      Terarah, Terukur, & Berkelanjutan
+                    </p>
+                    <div className="w-full h-0.5 bg-blue-400/30 rounded-full mt-1.5" />
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                Misi Satuan Kerja
-              </h3>
+
+              {/* Judul Misi & Garis Aksen */}
+              <div className="mt-4 mb-3">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight tracking-tight">
+                  Misi Satuan Kerja Korwilcam Purwodadi
+                </h2>
+                <div className="w-12 h-1 bg-blue-600 rounded-full mt-2.5 mb-4" />
+              </div>
+
+              {/* Daftar Butir Misi */}
+              <div className="space-y-3 relative z-10">
+                {officeProfile.missions.map((misi, idx) => (
+                  <div 
+                    key={idx} 
+                    className="group/misi flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-blue-50/40 hover:bg-blue-50/80 border border-blue-100/70 hover:border-blue-200 transition-all duration-200 shadow-2xs"
+                  >
+                    <span className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5 shadow-sm group-hover/misi:scale-105 transition-transform">
+                      0{idx + 1}
+                    </span>
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium pt-0.5">
+                      {misi}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="space-y-3.5">
-              {officeProfile.missions.map((misi, idx) => (
-                <div key={idx} className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                  <span className="w-7 h-7 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                    0{idx + 1}
-                  </span>
-                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
-                    {misi}
-                  </p>
+            {/* Footer Misi */}
+            <div className="pt-5 mt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-blue-600 rounded-full shrink-0" />
+                <div>
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+                    Dinas Pendidikan Kabupaten Grobogan
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-slate-500 font-medium">
+                    Koordinator Wilayah Bidang Pendidikan Purwodadi
+                  </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-blue-600 font-semibold italic text-xs sm:text-sm tracking-wide self-end sm:self-auto">
+                <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>Purwodadi, Grobogan</span>
+              </div>
             </div>
           </div>
 
@@ -437,47 +594,140 @@ export const ProfilePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Wilayah Kerja & Satuan Pendidikan yang Dinaungi */}
+      {/* Wilayah Kerja & Satuan Pendidikan yang Dinaungi (Desain Gambar 2 - Kompak & Modern) */}
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16">
-        <div className="bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white rounded-3xl p-8 sm:p-12 border border-white/20 shadow-2xl space-y-6">
-          <div className="max-w-2xl space-y-2">
-            <span className="text-xs font-bold text-blue-100 uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm inline-block">
-              Wilayah Kerja Koordinasi
+        <div className="bg-white rounded-3xl sm:rounded-[28px] p-5 sm:p-7 border border-blue-100/90 shadow-xl shadow-blue-500/5 relative overflow-hidden space-y-4 sm:space-y-5">
+          
+          {/* Top-Left Corner Blue Curved Accent Ribbon */}
+          <svg className="absolute top-0 left-0 w-20 h-20 sm:w-24 sm:h-24 pointer-events-none z-0 select-none" viewBox="0 0 100 100" fill="none">
+            <path d="M0 0 L36 0 C36 32 24 58 0 74 Z" fill="url(#topLeftWaveGrad)" />
+            <path d="M0 0 L18 0 C18 42 8 72 0 88 Z" fill="#2563eb" opacity="0.9" />
+            <defs>
+              <linearGradient id="topLeftWaveGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="100%" stopColor="#0284c7" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          {/* Top-Right Decorative Map & School Building Illustration Vector */}
+          <div className="absolute top-0 right-0 h-36 sm:h-44 w-64 sm:w-80 lg:w-96 pointer-events-none select-none z-0 overflow-hidden">
+            <svg viewBox="0 0 380 200" fill="none" className="w-full h-full object-cover">
+              <path d="M120 0 C180 80 260 120 380 130 L380 0 Z" fill="url(#mapSkyGrad)" opacity="0.45" />
+              <path d="M220 0 C270 50 330 75 380 80 L380 0 Z" fill="url(#mapSkyGrad2)" opacity="0.6" />
+
+              {/* School / Government Office Building Silhouette */}
+              <g transform="translate(260, 20)" opacity="0.45">
+                <line x1="50" y1="0" x2="50" y2="25" stroke="#0284c7" strokeWidth="1.8" />
+                <polygon points="50,0 66,5 50,11" fill="#38bdf8" />
+                <polygon points="50,25 15,48 85,48" fill="#bae6fd" stroke="#0284c7" strokeWidth="1.5" />
+                <rect x="22" y="48" width="56" height="52" fill="#e0f2fe" stroke="#0284c7" strokeWidth="1.5" rx="3" />
+                <rect x="30" y="55" width="10" height="12" fill="#ffffff" stroke="#0284c7" strokeWidth="1" rx="1.5" />
+                <rect x="60" y="55" width="10" height="12" fill="#ffffff" stroke="#0284c7" strokeWidth="1" rx="1.5" />
+                <rect x="44" y="74" width="12" height="26" fill="#0284c7" rx="1.5" />
+                <rect x="0" y="56" width="22" height="44" fill="#f0f9ff" stroke="#0284c7" strokeWidth="1.2" rx="2" />
+                <rect x="78" y="56" width="22" height="44" fill="#f0f9ff" stroke="#0284c7" strokeWidth="1.2" rx="2" />
+              </g>
+
+              {/* Folded Map 3D Graphic */}
+              <g transform="translate(160, 50)" opacity="0.95">
+                <polygon points="12,110 55,122 98,112 142,125 130,132 88,122 45,130 0,118" fill="#93c5fd" opacity="0.3" />
+                <polygon points="10,25 55,42 45,115 0,98" fill="#ffffff" stroke="#93c5fd" strokeWidth="2" strokeLinejoin="round" />
+                <polygon points="55,42 98,28 88,102 45,115" fill="#f0f9ff" stroke="#93c5fd" strokeWidth="2" strokeLinejoin="round" />
+                <polygon points="98,28 142,45 132,120 88,102" fill="#ffffff" stroke="#93c5fd" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M15 60 Q35 75 52 82 T92 65 T135 85" stroke="#60a5fa" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.75" />
+                <path d="M25 80 Q60 55 90 90 T130 55" stroke="#93c5fd" strokeWidth="2" strokeDasharray="3 3" fill="none" opacity="0.8" />
+              </g>
+
+              {/* Prominent Large Location Pin 3D */}
+              <g transform="translate(235, 30)">
+                <ellipse cx="22" cy="72" rx="14" ry="5" fill="#1e3a8a" opacity="0.25" />
+                <path d="M22 68 C22 68 0 42 0 22 C0 9.8 9.8 0 22 0 C34.2 0 44 9.8 44 22 C44 42 22 68 22 68 Z" fill="url(#pinGrad)" filter="drop-shadow(0px 6px 8px rgba(37,99,235,0.35))" />
+                <circle cx="22" cy="22" r="9" fill="#ffffff" />
+              </g>
+
+              <defs>
+                <linearGradient id="mapSkyGrad" x1="120" y1="0" x2="380" y2="130" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#bae6fd" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.7" />
+                </linearGradient>
+                <linearGradient id="mapSkyGrad2" x1="220" y1="0" x2="380" y2="80" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#38bdf8" />
+                  <stop offset="100%" stopColor="#0284c7" />
+                </linearGradient>
+                <linearGradient id="pinGrad" x1="0" y1="0" x2="44" y2="68" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#38bdf8" />
+                  <stop offset="40%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#1d4ed8" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          {/* Header Info Area */}
+          <div className="max-w-2xl relative z-10">
+            <span className="text-[11px] font-extrabold text-white uppercase tracking-wider bg-blue-900 px-3 py-1 rounded-full shadow-xs inline-flex items-center gap-1.5">
+              <MapPin className="w-3 h-3 text-sky-400" />
+              <span>Wilayah Kerja Koordinasi</span>
             </span>
-            <h3 className="text-2xl font-extrabold text-white">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-2.5">
               Cakupan Pembinaan Satuan Pendidikan Purwodadi
             </h3>
-            <p className="text-sm text-blue-100/90">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed max-w-xl">
               Kantor Korwilcam Purwodadi membina 17 Desa dan Kelurahan di Kecamatan Purwodadi dengan ratusan lembaga pendidikan formal maupun nonformal.
             </p>
           </div>
 
-          <div className="space-y-6">
-            {/* Kelompok Kelurahan */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wider bg-white/25 px-3 py-1 rounded-full border border-white/30 shadow-sm backdrop-blur-sm">
-                  Daftar Kelurahan (4)
-                </span>
+          {/* Daftar Kelurahan & Desa */}
+          <div className="space-y-4 pt-1 relative z-10">
+            {/* 1. Kelompok Kelurahan */}
+            <div>
+              <div className="flex items-center gap-2 mb-2.5">
+                <div className="inline-flex items-center gap-2 bg-blue-50/90 text-blue-900 border border-blue-200/70 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider shadow-2xs">
+                  <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center">
+                    <Building className="w-3 h-3 text-white" />
+                  </div>
+                  <span>Daftar Kelurahan (4)</span>
+                </div>
+                <span className="text-blue-500 font-black text-sm tracking-tighter">/</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
                 {['Kel. Danyang', 'Kel. Kalongan', 'Kel. Kuripan', 'Kel. Purwodadi'].map((kel, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/15 border border-white/25 text-white font-semibold backdrop-blur-md hover:bg-white/25 transition-all shadow-sm">
-                    <MapPin className="w-3.5 h-3.5 text-blue-200 shrink-0" />
-                    <span className="truncate">{kel}</span>
+                  <div 
+                    key={i} 
+                    className="group/item relative bg-white hover:bg-blue-50/50 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 border border-blue-100 shadow-2xs hover:shadow-md transition-all flex items-center justify-between gap-2 overflow-hidden border-l-[3.5px] border-l-blue-600"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-blue-50 group-hover/item:bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 transition-colors">
+                        <MapPin className="w-3.5 h-3.5 fill-blue-600/20" />
+                      </div>
+                      <span className="font-bold text-xs sm:text-sm text-slate-800 truncate">
+                        {kel}
+                      </span>
+                    </div>
+
+                    <div className="w-6 h-6 rounded-full bg-blue-50/80 group-hover/item:bg-blue-600 group-hover/item:text-white flex items-center justify-center text-blue-600 shrink-0 text-xs transition-colors shadow-2xs">
+                      <ArrowRight className="w-3 h-3 group-hover/item:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Kelompok Desa */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wider bg-white/25 px-3 py-1 rounded-full border border-white/30 shadow-sm backdrop-blur-sm">
-                  Daftar Desa (13)
-                </span>
+            {/* 2. Kelompok Desa */}
+            <div>
+              <div className="flex items-center gap-2 mb-2.5 mt-4">
+                <div className="inline-flex items-center gap-2 bg-blue-50/90 text-blue-900 border border-blue-200/70 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider shadow-2xs">
+                  <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center">
+                    <Home className="w-3 h-3 text-white" />
+                  </div>
+                  <span>Daftar Desa (13)</span>
+                </div>
+                <span className="text-blue-500 font-black text-sm tracking-tighter">/</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 text-xs">
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2.5">
                 {[
                   'Desa Candisari',
                   'Desa Cingkrong',
@@ -493,14 +743,28 @@ export const ProfilePage: React.FC = () => {
                   'Desa Putat',
                   'Desa Warukaranganyar'
                 ].map((desa, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/15 border border-white/25 text-white font-medium backdrop-blur-md hover:bg-white/25 transition-all shadow-sm">
-                    <MapPin className="w-3.5 h-3.5 text-blue-200 shrink-0" />
-                    <span className="truncate">{desa}</span>
+                  <div 
+                    key={i} 
+                    className="group/item relative bg-white hover:bg-blue-50/50 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 border border-blue-100 shadow-2xs hover:shadow-md transition-all flex items-center justify-between gap-1.5 overflow-hidden border-l-[3.5px] border-l-blue-600"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-6 h-6 rounded-full bg-blue-50 group-hover/item:bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 transition-colors">
+                        <MapPin className="w-3 h-3 fill-blue-600/20" />
+                      </div>
+                      <span className="font-bold text-[11px] sm:text-xs text-slate-800 truncate">
+                        {desa}
+                      </span>
+                    </div>
+
+                    <div className="w-5 h-5 rounded-full bg-blue-50/80 group-hover/item:bg-blue-600 group-hover/item:text-white flex items-center justify-center text-blue-600 shrink-0 text-[10px] transition-colors shadow-2xs">
+                      <ArrowRight className="w-2.5 h-2.5 group-hover/item:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
+
         </div>
       </section>
 

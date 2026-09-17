@@ -13,7 +13,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  ArrowRight,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { SchoolLevel, SchoolStatus } from '../types';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
@@ -111,98 +114,118 @@ export const SchoolsPage: React.FC = () => {
       {/* Main Container */}
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-8 sm:-mt-10 relative z-20">
         
-        {/* Filter and Search Box */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-lg space-y-6">
+        {/* Filter and Search Box (Desain Modern Sesuai Gambar 2) */}
+        <div className="bg-white rounded-3xl p-4 sm:p-5 lg:p-6 border border-blue-100/90 shadow-lg shadow-blue-500/5 space-y-3.5 sm:space-y-4">
           
           {/* Top Search Bar */}
-          <div className="relative">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <div className="flex items-center bg-white rounded-2xl sm:rounded-full border border-blue-200/90 p-1.5 sm:p-2 shadow-2xs focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-500 transition-all gap-2">
+            {/* Left Blue Icon Box */}
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+              <Search className="w-5 h-5 text-white stroke-[2.5]" />
+            </div>
+
+            {/* Input Field */}
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari berdasarkan nama sekolah, nomor NPSN, nama kepala sekolah, atau kelurahan..."
-              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
+              className="flex-1 min-w-0 px-2 sm:px-4 py-2 sm:py-2.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-medium outline-none"
             />
+
+            {/* Clear Button */}
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-xs font-semibold text-slate-400 hover:text-slate-700 absolute right-4 top-1/2 -translate-y-1/2"
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                title="Hapus pencarian"
               >
-                Hapus
+                <X className="w-4 h-4" />
               </button>
             )}
+
+            {/* Right Cari Button */}
+            <button
+              type="button"
+              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/25 shrink-0 transition-all cursor-pointer active:scale-95"
+            >
+              <span>Cari</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Filter Categories */}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-2 border-t border-slate-100">
+          {/* Filter Categories Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             
-            {/* Level Tabs */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 mr-2 flex items-center gap-1">
-                <Filter className="w-3.5 h-3.5" /> Jenjang:
-              </span>
-              {[
-                { id: 'ALL', label: 'Semua Jenjang' },
-                { id: 'SD', label: 'SD' },
-                { id: 'TK', label: 'TK' },
-                { id: 'KB', label: 'KB' },
-              ].map((lvl) => (
-                <button
-                  key={lvl.id}
-                  onClick={() => setSelectedLevel(lvl.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    selectedLevel === lvl.id
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {lvl.label}
-                </button>
-              ))}
-            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              {/* Filter Label Pill */}
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50/80 text-blue-700 font-bold text-xs border border-blue-200/70 shadow-2xs">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filter</span>
+              </div>
 
-            {/* Sub Filters: Status & Akreditasi */}
-            <div className="flex flex-wrap items-center gap-3">
+              {/* Level Tabs */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { id: 'ALL', label: 'Semua Jenjang' },
+                  { id: 'SD', label: 'SD' },
+                  { id: 'TK', label: 'TK' },
+                  { id: 'KB', label: 'KB' },
+                ].map((lvl) => (
+                  <button
+                    key={lvl.id}
+                    onClick={() => setSelectedLevel(lvl.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
+                      selectedLevel === lvl.id
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
+                        : 'bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/60 shadow-2xs font-semibold'
+                    }`}
+                  >
+                    {lvl.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Status Selector */}
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-500 font-medium">Status:</span>
+              <div className="relative inline-flex items-center">
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="appearance-none pl-3.5 pr-8 py-1.5 rounded-full text-xs font-semibold bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/70 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="ALL">Semua Status</option>
                   <option value="Negeri">Negeri</option>
                   <option value="Swasta">Swasta</option>
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-blue-500 absolute right-3 pointer-events-none" />
               </div>
 
               {/* Akreditasi Selector */}
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-500 font-medium">Akreditasi:</span>
+              <div className="relative inline-flex items-center">
                 <select
                   value={selectedAkreditasi}
                   onChange={(e) => setSelectedAkreditasi(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="appearance-none pl-3.5 pr-8 py-1.5 rounded-full text-xs font-semibold bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/70 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="ALL">Semua Akreditasi</option>
                   <option value="A">Akreditasi A</option>
                   <option value="B">Akreditasi B</option>
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-blue-500 absolute right-3 pointer-events-none" />
               </div>
-
-              {/* Reset button */}
-              {(searchQuery || selectedLevel !== 'ALL' || selectedStatus !== 'ALL' || selectedAkreditasi !== 'ALL') && (
-                <button
-                  onClick={resetFilters}
-                  className="flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-700 px-2 py-1.5 rounded-lg hover:bg-rose-50 transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              )}
             </div>
+
+            {/* Reset button */}
+            {(searchQuery || selectedLevel !== 'ALL' || selectedStatus !== 'ALL' || selectedAkreditasi !== 'ALL') && (
+              <button
+                onClick={resetFilters}
+                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors py-1.5 px-3 rounded-full hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-200"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                <span>Reset</span>
+              </button>
+            )}
 
           </div>
 

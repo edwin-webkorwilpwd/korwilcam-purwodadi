@@ -9,7 +9,11 @@ import {
   ChevronLeft, 
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Filter,
+  ArrowRight,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
@@ -186,30 +190,62 @@ export const NominativePage: React.FC = () => {
 
       {/* Main Content Area - Full Screen Width */}
       <main className="w-full px-3 sm:px-6 lg:px-8 xl:px-10 space-y-5 -mt-8 sm:-mt-10 relative z-20">
-        {/* Filter and Search Bar */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 print:hidden">
-          <div className="flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between">
-            {/* Live Search */}
-            <div className="relative flex-1">
-              <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari berdasarkan nama guru, NIP, atau nama instansi..."
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
-              />
+        {/* Filter and Search Bar (Desain Modern Sesuai Gambar 2) */}
+        <div className="bg-white rounded-3xl p-4 sm:p-5 lg:p-6 border border-blue-100/90 shadow-lg shadow-blue-500/5 space-y-3.5 sm:space-y-4 print:hidden">
+          {/* Top Search Bar */}
+          <div className="flex items-center bg-white rounded-2xl sm:rounded-full border border-blue-200/90 p-1.5 sm:p-2 shadow-2xs focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-500 transition-all gap-2">
+            {/* Left Blue Icon Box */}
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+              <Search className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
 
-            {/* Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Status Pegawai */}
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-                <Briefcase className="w-4 h-4 text-slate-500" />
+            {/* Input Field */}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari berdasarkan nama guru, NIP, atau nama instansi..."
+              className="flex-1 min-w-0 px-2 sm:px-4 py-2 sm:py-2.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-medium outline-none"
+            />
+
+            {/* Clear Button */}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                title="Hapus pencarian"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Right Cari Button */}
+            <button
+              type="button"
+              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/25 shrink-0 transition-all cursor-pointer active:scale-95"
+            >
+              <span>Cari</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Filter Dropdowns Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              {/* Filter Label Pill */}
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50/80 text-blue-700 font-bold text-xs border border-blue-200/70 shadow-2xs">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filter</span>
+              </div>
+
+              {/* Status Pegawai Selector */}
+              <div className="relative inline-flex items-center">
+                <Briefcase className="w-3.5 h-3.5 text-blue-600 absolute left-3.5 pointer-events-none" />
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="bg-transparent text-xs sm:text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
+                  className="appearance-none pl-9 pr-8 py-1.5 rounded-full text-xs font-semibold bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/70 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="ALL">Semua Status</option>
                   <option value="PNS">PNS</option>
@@ -217,15 +253,16 @@ export const NominativePage: React.FC = () => {
                   <option value="PPPK Paruh Waktu">PPPK Paruh Waktu</option>
                   <option value="Honorer">Honorer</option>
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-blue-500 absolute right-3 pointer-events-none" />
               </div>
 
               {/* Instansi Dropdown */}
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 max-w-[260px]">
-                <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
+              <div className="relative inline-flex items-center max-w-[280px]">
+                <Building2 className="w-3.5 h-3.5 text-blue-600 absolute left-3.5 pointer-events-none shrink-0" />
                 <select
                   value={selectedInstansi}
                   onChange={(e) => setSelectedInstansi(e.target.value)}
-                  className="bg-transparent text-xs sm:text-sm text-slate-700 font-medium focus:outline-none cursor-pointer truncate w-full"
+                  className="appearance-none pl-9 pr-8 py-1.5 rounded-full text-xs font-semibold bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/70 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer truncate w-full"
                 >
                   <option value="ALL">Semua Instansi {isInitialLoading ? '' : `(${countInstansi})`}</option>
                   {uniqueInstansi.map((ins) => (
@@ -234,23 +271,24 @@ export const NominativePage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-blue-500 absolute right-3 pointer-events-none" />
               </div>
-
-              {/* Reset Filter Button */}
-              {(searchQuery || selectedStatus !== 'ALL' || selectedInstansi !== 'ALL') && (
-                <button
-                  onClick={resetFilters}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              )}
             </div>
+
+            {/* Reset Filter Button */}
+            {(searchQuery || selectedStatus !== 'ALL' || selectedInstansi !== 'ALL') && (
+              <button
+                onClick={resetFilters}
+                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors py-1.5 px-3 rounded-full hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-200"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
 
           {/* Active Filter summary */}
-          <div className="flex items-center justify-between mt-3.5 pt-3.5 border-t border-slate-100 text-xs text-slate-500">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
             <span>
               {isInitialLoading ? (
                 <span className="text-blue-600 font-medium animate-pulse">

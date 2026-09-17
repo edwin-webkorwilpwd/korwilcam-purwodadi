@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { getGallerySlug } from '../lib/galleryHelper';
+import { GalleryCard } from '../components/GalleryCard';
 
 export const GalleryDetailPage: React.FC = () => {
   const { 
@@ -349,48 +350,15 @@ export const GalleryDetailPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {otherAlbums.map((item) => {
-                const count = (item.images && item.images.length > 0) ? item.images.length : 1;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedGallery(item);
-                    }}
-                    className="group bg-white rounded-2xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
-                  >
-                    <div className="relative h-44 bg-slate-900 overflow-hidden">
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-blue-600 text-white">
-                          {item.category}
-                        </span>
-                      </div>
-                      <div className="absolute top-3 right-3">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-slate-950 flex items-center gap-1">
-                          <Images className="w-3 h-3" />
-                          <span>{count} Foto</span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
-                      <h4 className="font-bold text-sm text-slate-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {item.title}
-                      </h4>
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                        <span>{item.date}</span>
-                        <span className="font-bold text-blue-600 flex items-center gap-1">
-                          Buka Album <ArrowRight className="w-3 h-3" />
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {otherAlbums.map((item) => (
+                <GalleryCard
+                  key={item.id}
+                  item={item}
+                  onClick={(album) => {
+                    setSelectedGallery(album);
+                  }}
+                />
+              ))}
             </div>
           </div>
         )}

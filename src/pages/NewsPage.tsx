@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { NewsCard } from '../components/NewsCard';
+import { AgendaCard } from '../components/AgendaCard';
+import { AnnouncementCard } from '../components/AnnouncementCard';
 import { 
   FileText, 
   Search, 
@@ -24,7 +26,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileCheck2,
-  Sparkles
+  Sparkles,
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { NewsCategory } from '../types';
@@ -279,36 +283,86 @@ export const NewsPage: React.FC = () => {
         
         {/* SUBTAB 1: NEWS */}
         <div className={activeSubTab === 'news' ? 'space-y-8 block' : 'hidden'}>
-            {/* Filter and Search Bar */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-md space-y-4">
-              <div className="relative">
-                <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            {/* Filter and Search Bar (Desain Modern Sesuai Gambar 2) */}
+            <div className="bg-white rounded-3xl p-4 sm:p-5 lg:p-6 border border-blue-100/90 shadow-lg shadow-blue-500/5 space-y-3.5 sm:space-y-4">
+              {/* Top Search Bar */}
+              <div className="flex items-center bg-white rounded-2xl sm:rounded-full border border-blue-200/90 p-1.5 sm:p-2 shadow-2xs focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-500 transition-all gap-2">
+                {/* Left Blue Icon Box */}
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+                  <Search className="w-5 h-5 text-white stroke-[2.5]" />
+                </div>
+
+                {/* Input Field */}
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari artikel berita, topik kegiatan, atau penulis..."
-                  className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
+                  className="flex-1 min-w-0 px-2 sm:px-4 py-2 sm:py-2.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-medium outline-none"
                 />
+
+                {/* Clear Button */}
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                    title="Hapus pencarian"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Right Cari Button */}
+                <button
+                  type="button"
+                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/25 shrink-0 transition-all cursor-pointer active:scale-95"
+                >
+                  <span>Cari</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-400 mr-2 flex items-center gap-1">
-                  <Filter className="w-3.5 h-3.5" /> Kategori:
-                </span>
-                {categories.map((cat) => (
+              {/* Filter Categories Row */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                  {/* Category Pill Label */}
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50/80 text-blue-700 font-bold text-xs border border-blue-200/70 shadow-2xs">
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Kategori</span>
+                  </div>
+
+                  {/* Category Pills */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
+                          selectedCategory === cat.id
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
+                            : 'bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/60 shadow-2xs font-semibold'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reset Button */}
+                {(searchQuery || selectedCategory !== 'ALL') && (
                   <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      selectedCategory === cat.id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategory('ALL');
+                    }}
+                    className="ml-auto flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors py-1.5 px-3 rounded-full hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-200"
                   >
-                    {cat.label}
+                    <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Reset</span>
                   </button>
-                ))}
+                )}
               </div>
             </div>
 
@@ -333,125 +387,50 @@ export const NewsPage: React.FC = () => {
         </div>
 
         {/* SUBTAB 2: ANNOUNCEMENTS */}
-        <div className={activeSubTab === 'announcements' ? 'space-y-4 block' : 'hidden'}>
+        <div className={activeSubTab === 'announcements' ? 'space-y-6 block' : 'hidden'}>
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-extrabold text-slate-900">
-                Daftar Surat Edaran & Instruksi Kedinasan
-              </h3>
-              <p className="text-xs text-slate-500">
-                Pengumuman resmi dari Koordinator Wilayah Kecamatan Purwodadi
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                <svg 
+                  className="w-5 h-5 text-white" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="8" y1="13" x2="16" y2="13" />
+                  <line x1="8" y1="17" x2="12" y2="17" />
+                  <path d="M18 13a2 2 0 0 0-2 2v1.5l-.5.5h5l-.5-.5V15a2 2 0 0 0-2-2z" fill="currentColor" />
+                </svg>
+              </div>
+              <div className="w-[2px] h-8 bg-blue-500/30 rounded-full" />
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Daftar Surat Edaran & Instruksi Kedinasan
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                  Pengumuman resmi dari Koordinator Wilayah Kecamatan Purwodadi
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {announcements.length > 0 ? (
-              announcements.map((ann) => (
-                <div
+              announcements.map((ann, idx) => (
+                <AnnouncementCard
                   key={ann.id}
-                  onClick={() => setSelectedAnnouncement(ann)}
-                  className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-md hover:shadow-lg hover:border-blue-300 transition-all space-y-3 cursor-pointer group"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${
-                        ann.urgency === 'Mendesak'
-                          ? 'bg-rose-100 text-rose-800'
-                          : ann.urgency === 'Penting'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        Tingkat: {ann.urgency}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
-                        Sasaran: {ann.target}
-                      </span>
-                    </div>
-
-                    <span className="text-xs text-slate-400 font-mono">
-                      Diterbitkan: {ann.date}
-                    </span>
-                  </div>
-
-                  <div className="flex items-start justify-between gap-4">
-                    <h4 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
-                      {ann.title}
-                    </h4>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-blue-600 shrink-0 opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all pt-0.5">
-                      <span>Buka Edaran</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">
-                    {ann.summary}
-                  </p>
-
-                  <div 
-                    className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-slate-500 font-medium">
-                        Lampiran: <strong className="text-slate-800">{ann.fileName || (ann.fileSize ? `Dokumen (${ann.fileSize})` : 'Dokumen Resmi')}</strong>
-                      </span>
-                      {ann.fileType && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 uppercase">
-                          {ann.fileType}
-                        </span>
-                      )}
-                      {ann.serviceRequirementTitle && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                          <FileCheck2 className="w-3 h-3 text-indigo-600" />
-                          <span>Persyaratan: {ann.serviceRequirementTitle}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => setSelectedAnnouncement(ann)}
-                        className="px-4 py-2 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold flex items-center justify-center gap-1.5 transition-colors"
-                      >
-                        <span>Baca Isi Pengumuman</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-
-                      {ann.fileUrl && ann.fileUrl !== '#' ? (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const link = document.createElement('a');
-                            link.href = ann.fileUrl!;
-                            link.download = ann.fileName || `${ann.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(ann.fileType || 'pdf').toLowerCase()}`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }}
-                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Unduh Lampiran Resmi</span>
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            alert(`Pengumuman "${ann.title}" belum memiliki berkas lampiran fisik yang diunggah.`);
-                          }}
-                          className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center gap-1.5 transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Unduh Lampiran Resmi</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  announcement={ann}
+                  index={idx}
+                  onSelect={() => setSelectedAnnouncement(ann)}
+                />
               ))
             ) : (
-              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
+              <div className="col-span-full bg-white rounded-3xl p-12 text-center border border-slate-200">
                 <BellRing className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <h3 className="text-base font-bold text-slate-800">
                   Belum Ada Pengumuman
@@ -619,155 +598,8 @@ export const NewsPage: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {paginatedAgendaBookings.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-md hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
-                  >
-                    {/* Top Accent line based on category */}
-                    <div className={`absolute top-0 left-0 right-0 h-1.5 ${
-                      item.kategori.toLowerCase() === 'rapat dinas' 
-                        ? 'bg-blue-600' 
-                        : item.kategori.toLowerCase() === 'pelatihan'
-                        ? 'bg-emerald-600'
-                        : item.kategori.toLowerCase() === 'seminar/workshop'
-                        ? 'bg-purple-600'
-                        : 'bg-amber-500'
-                    }`} />
-
-                    <div className="space-y-4">
-                      {/* Top Bar: Kategori & Status Persetujuan */}
-                      <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                        {/* Kategori */}
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border ${
-                          item.kategori.toLowerCase() === 'rapat dinas'
-                            ? 'bg-blue-50 text-blue-800 border-blue-200'
-                            : item.kategori.toLowerCase() === 'pelatihan'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : item.kategori.toLowerCase() === 'seminar/workshop'
-                            ? 'bg-purple-50 text-purple-800 border-purple-200'
-                            : 'bg-amber-50 text-amber-900 border-amber-200'
-                        }`}>
-                          <Tag className="w-3.5 h-3.5" />
-                          <span>{item.kategori}</span>
-                        </span>
-
-                        {/* Status Persetujuan Badge */}
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          item.statusPersetujuan.toLowerCase() === 'disetujui'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : item.statusPersetujuan.toLowerCase() === 'ditolak'
-                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                            : 'bg-amber-100 text-amber-800 border border-amber-200'
-                        }`}>
-                          {item.statusPersetujuan.toLowerCase() === 'disetujui' ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : item.statusPersetujuan.toLowerCase() === 'ditolak' ? (
-                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                          ) : (
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          )}
-                          <span>{item.statusPersetujuan}</span>
-                        </span>
-                      </div>
-
-                      {/* Keterangan / Acara (Primary Heading) */}
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
-                          Keterangan / Keperluan
-                        </span>
-                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 group-hover:text-blue-700 transition-colors leading-snug">
-                          {item.keterangan}
-                        </h4>
-                      </div>
-
-                      {/* Detail Parameters Box */}
-                      <div className="bg-slate-50/90 rounded-xl p-3.5 border border-slate-100 space-y-3 text-xs text-slate-700">
-                        
-                        {/* 1. Tanggal Penggunaan */}
-                        <div className="flex items-start gap-2.5">
-                          <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 mt-0.5 shrink-0">
-                            <Calendar className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                              Tanggal Penggunaan
-                            </span>
-                            <span className="font-bold text-slate-900 text-xs sm:text-sm">
-                              {formatIndonesianDate(item.tanggalPenggunaan)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* 2. Jam Pemakaian */}
-                        <div className="flex items-start gap-2.5">
-                          <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800 mt-0.5 shrink-0">
-                            <Clock className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                              Jam Pemakaian
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {item.jamPemakaian} WIB
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-slate-200/70"></div>
-
-                        {/* 3. Nama PJ */}
-                        <div className="flex items-start gap-2.5">
-                          <div className="p-1.5 rounded-lg bg-purple-100 text-purple-700 mt-0.5 shrink-0">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                              Nama PJ (Penanggung Jawab)
-                            </span>
-                            <span className="font-bold text-slate-900 block">
-                              {item.namaPJ}
-                            </span>
-                            {item.nip && item.nip !== '-' && item.nip.length > 2 && (
-                              <span className="text-[10px] font-mono text-slate-500 block">
-                                NIP: {item.nip}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 4. Organisasi */}
-                        <div className="flex items-start gap-2.5">
-                          <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 mt-0.5 shrink-0">
-                            <Building className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                              Organisasi / Instansi
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {item.organisasi}
-                            </span>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    {/* Card Footer: Lokasi */}
-                    <div className="pt-3.5 mt-3.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="font-medium">Aula Utama Kantor Korwilcam</span>
-                      </div>
-                      {item.timestamp && (
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {item.timestamp.split(' ')[0]}
-                        </span>
-                      )}
-                    </div>
-
-                  </div>
+                {paginatedAgendaBookings.map((item, idx) => (
+                  <AgendaCard key={item.id} agenda={item} index={idx} />
                 ))}
               </div>
             )}

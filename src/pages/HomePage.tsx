@@ -4,6 +4,8 @@ import { HeroSection } from '../components/HeroSection';
 import { StatsCounter } from '../components/StatsCounter';
 import { NewsCard } from '../components/NewsCard';
 import { SchoolCard } from '../components/SchoolCard';
+import { AgendaCard } from '../components/AgendaCard';
+import { AnnouncementCard } from '../components/AnnouncementCard';
 import { 
   ArrowRight, 
   Sparkles, 
@@ -31,7 +33,7 @@ export const HomePage: React.FC = () => {
     : [];
 
   return (
-    <div className="space-y-16 pb-16">
+    <div className="pb-10 sm:pb-12">
       {/* Hero Banner */}
       <HeroSection />
 
@@ -39,18 +41,19 @@ export const HomePage: React.FC = () => {
       <StatsCounter />
 
       {/* Agenda Kegiatan & Pengumuman Stacked Section */}
-      <section className="content-deferred bg-slate-100/70 py-16 border-y border-slate-200/60">
-        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-16">
+      <section className="content-deferred bg-slate-100/70 pt-5 pb-6 sm:pt-6 sm:pb-7 border-y border-slate-200/60 mt-3 sm:mt-4">
+        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 sm:space-y-7">
           
           {/* 1. Bagian Atas: Agenda Kegiatan */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-b from-[#2563eb] to-[#0284c7] flex items-center justify-center text-white shadow-md shadow-blue-500/25 shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
+                <div className="w-1.5 h-8 bg-[#0284c7] rounded-full shrink-0" />
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                     Agenda Kegiatan
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-500">
@@ -61,154 +64,17 @@ export const HomePage: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('news', '/berita/agenda')}
-                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow transition-all"
+                className="text-xs font-bold text-white flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 shadow-md shadow-blue-500/20 hover:shadow-lg transition-all active:scale-95 cursor-pointer"
               >
+                <Calendar className="w-4 h-4" />
                 <span>Lihat Semua Agenda</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {homeAgenda.map((ag) => (
-                <div
-                  key={ag.id}
-                  className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden space-y-3.5"
-                >
-                  {/* Top Accent line based on category */}
-                  <div className={`absolute top-0 left-0 right-0 h-1.5 ${
-                    ag.kategori.toLowerCase() === 'rapat dinas' 
-                      ? 'bg-blue-600' 
-                      : ag.kategori.toLowerCase() === 'pelatihan'
-                      ? 'bg-emerald-600'
-                      : ag.kategori.toLowerCase() === 'seminar/workshop'
-                      ? 'bg-purple-600'
-                      : 'bg-amber-500'
-                  }`} />
-
-                  <div className="space-y-3">
-                    {/* Top Bar: Kategori & Status Persetujuan */}
-                    <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold border ${
-                        ag.kategori.toLowerCase() === 'rapat dinas'
-                          ? 'bg-blue-50 text-blue-800 border-blue-200'
-                          : ag.kategori.toLowerCase() === 'pelatihan'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : ag.kategori.toLowerCase() === 'seminar/workshop'
-                          ? 'bg-purple-50 text-purple-800 border-purple-200'
-                          : 'bg-amber-50 text-amber-900 border-amber-200'
-                      }`}>
-                        <Tag className="w-3 h-3" />
-                        <span>{ag.kategori}</span>
-                      </span>
-
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        ag.statusPersetujuan.toLowerCase() === 'disetujui'
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : ag.statusPersetujuan.toLowerCase() === 'ditolak'
-                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'
-                      }`}>
-                        {ag.statusPersetujuan.toLowerCase() === 'disetujui' ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        ) : ag.statusPersetujuan.toLowerCase() === 'ditolak' ? (
-                          <XCircle className="w-3 h-3 text-rose-600" />
-                        ) : (
-                          <Clock className="w-3 h-3 text-amber-600" />
-                        )}
-                        <span>{ag.statusPersetujuan}</span>
-                      </span>
-                    </div>
-
-                    {/* Keterangan / Keperluan (Acara) */}
-                    <div>
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
-                        Keterangan / Keperluan
-                      </span>
-                      <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-blue-700 transition-colors leading-snug">
-                        {ag.keterangan}
-                      </h4>
-                    </div>
-
-                    {/* Detail Parameters Box */}
-                    <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-100 space-y-2.5 text-xs text-slate-700">
-                      {/* 1. Tanggal Penggunaan */}
-                      <div className="flex items-start gap-2">
-                        <div className="p-1 rounded-md bg-blue-100 text-blue-700 mt-0.5 shrink-0">
-                          <Calendar className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                            Tanggal Penggunaan
-                          </span>
-                          <span className="font-bold text-slate-900 text-xs">
-                            {formatIndonesianDate(ag.tanggalPenggunaan)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 2. Jam Pemakaian */}
-                      <div className="flex items-start gap-2">
-                        <div className="p-1 rounded-md bg-amber-100 text-amber-800 mt-0.5 shrink-0">
-                          <Clock className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                            Jam Pemakaian
-                          </span>
-                          <span className="font-semibold text-slate-800">
-                            {ag.jamPemakaian} WIB
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-200/70"></div>
-
-                      {/* 3. Nama PJ */}
-                      <div className="flex items-start gap-2">
-                        <div className="p-1 rounded-md bg-purple-100 text-purple-700 mt-0.5 shrink-0">
-                          <User className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                            Nama PJ (Penanggung Jawab)
-                          </span>
-                          <span className="font-bold text-slate-900 block truncate">
-                            {ag.namaPJ}
-                          </span>
-                          {ag.nip && ag.nip !== '-' && (
-                            <span className="text-[9px] text-slate-400 font-mono">NIP: {ag.nip}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 4. Organisasi / Instansi */}
-                      <div className="flex items-start gap-2">
-                        <div className="p-1 rounded-md bg-emerald-100 text-emerald-700 mt-0.5 shrink-0">
-                          <Building className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
-                            Organisasi / Instansi
-                          </span>
-                          <span className="font-semibold text-slate-800 truncate block">
-                            {ag.organisasi}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Footer: Lokasi */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="truncate">Aula Utama Kantor Korwilcam</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      {ag.timestamp ? ag.timestamp.split(' ')[0] : ''}
-                    </span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+              {homeAgenda.map((ag, idx) => (
+                <AgendaCard key={ag.id} agenda={ag} index={idx} />
               ))}
             </div>
           </div>
@@ -216,17 +82,32 @@ export const HomePage: React.FC = () => {
           <div className="border-t border-slate-200/80"></div>
 
           {/* 2. Bagian Bawah: Pengumuman & Surat Edaran */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-blue-600 text-white shadow-md shadow-blue-500/20">
-                  <BellRing className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                  <svg 
+                    className="w-6 h-6 text-white" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="8" y1="13" x2="16" y2="13" />
+                    <line x1="8" y1="17" x2="12" y2="17" />
+                    <path d="M18 13a2 2 0 0 0-2 2v1.5l-.5.5h5l-.5-.5V15a2 2 0 0 0-2-2z" fill="currentColor" />
+                  </svg>
                 </div>
+                <div className="w-[2px] h-8 sm:h-9 bg-blue-500/30 rounded-full" />
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                     Pengumuman & Surat Edaran
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-500">
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium">
                     Instruksi dan edaran kedinasan resmi Korwilcam Purwodadi
                   </p>
                 </div>
@@ -234,92 +115,21 @@ export const HomePage: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('news', '/berita/pengumuman')}
-                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow transition-all"
+                className="px-5 py-2 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 font-bold text-xs sm:text-sm shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
               >
                 <span>Lihat Semua Pengumuman</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {announcements.slice(0, 3).map((ann) => (
-                <div 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+              {announcements.slice(0, 3).map((ann, idx) => (
+                <AnnouncementCard
                   key={ann.id}
-                  onClick={() => setSelectedAnnouncement(ann)}
-                  className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between space-y-3 cursor-pointer group"
-                >
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold ${
-                          ann.urgency === 'Mendesak'
-                            ? 'bg-rose-100 text-rose-800'
-                            : ann.urgency === 'Penting'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {ann.urgency}
-                        </span>
-                        <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                          Target: {ann.target}
-                        </span>
-                      </div>
-                      <span className="text-xs text-slate-400 font-mono">
-                        {ann.date}
-                      </span>
-                    </div>
-
-                    <h4 className="font-bold text-slate-900 text-sm sm:text-base leading-snug group-hover:text-blue-600 transition-colors flex items-start justify-between gap-2">
-                      <span className="line-clamp-2">{ann.title}</span>
-                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
-                    </h4>
-
-                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
-                      {ann.summary}
-                    </p>
-                  </div>
-
-                  <div 
-                    className="pt-3 flex items-center justify-between text-xs border-t border-slate-100 mt-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-slate-500 font-medium truncate max-w-[130px] sm:max-w-[170px]">
-                        {ann.fileName ? ann.fileName : `Lampiran: ${ann.fileSize || 'Dokumen'}`}
-                      </span>
-                      {ann.fileType && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase shrink-0">
-                          {ann.fileType}
-                        </span>
-                      )}
-                    </div>
-
-                    {ann.fileUrl && ann.fileUrl !== '#' ? (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const link = document.createElement('a');
-                          link.href = ann.fileUrl!;
-                          link.download = ann.fileName || `${ann.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(ann.fileType || 'pdf').toLowerCase()}`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
-                        className="text-blue-600 font-bold hover:underline flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors shrink-0"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Unduh Berkas
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => setSelectedAnnouncement(ann)}
-                        className="text-blue-600 font-bold hover:underline flex items-center gap-1 shrink-0"
-                      >
-                        <span>Buka Edaran</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  announcement={ann}
+                  index={idx}
+                  onSelect={() => setSelectedAnnouncement(ann)}
+                />
               ))}
             </div>
           </div>
@@ -328,30 +138,47 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Latest News Section */}
-      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16 mt-6 sm:mt-7">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5 sm:mb-6">
+          <div className="space-y-2">
+            <span className="inline-block text-[11px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50/90 border border-blue-200/60 px-3.5 py-1 rounded-full shadow-2xs">
               Kabar Pendidikan
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              Warta & Liputan Terkini
-            </h2>
-            <p className="text-sm text-slate-600">
-              Dokumentasi kegiatan dan berita terhangat seputar SD, TK, KB di Purwodadi.
-            </p>
+            <div className="flex items-center gap-3.5">
+              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+                <svg className="w-7 h-7 text-white" viewBox="0 0 28 28" fill="none">
+                  <rect x="3" y="4" width="16" height="19" rx="3" fill="white" />
+                  <line x1="6" y1="8" x2="15" y2="8" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="6" y1="12" x2="16" y2="12" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="6" y1="16" x2="12" y2="16" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
+                  <g transform="translate(13, 11)">
+                    <path d="M2 5 L7 2 V12 L2 9 H0 V5 H2 Z" fill="white" stroke="#2563eb" strokeWidth="0.8" />
+                    <path d="M8 4 C10 5.5 10 8.5 8 10" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M10 2 C13 4.5 13 9.5 10 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  </g>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Warta & Liputan Terkini
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+                  Dokumentasi kegiatan dan berita terbaru seputar SD, TK, KB di Purwodadi.
+                </p>
+              </div>
+            </div>
           </div>
 
           <button
             onClick={() => setActiveTab('news')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors self-start sm:self-auto"
+            className="px-5 py-2.5 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 font-bold text-xs sm:text-sm shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
           >
             <span>Buka Semua Berita</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {latestNews.map((art) => (
             <NewsCard key={art.id} article={art} />
           ))}
@@ -359,30 +186,43 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Featured Schools Section */}
-      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16 mt-7 sm:mt-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5 sm:mb-6">
+          <div className="space-y-2">
+            <span className="inline-block text-[11px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50/90 border border-blue-200/60 px-3.5 py-1 rounded-full shadow-2xs">
               Satuan Pendidikan
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              Direktori Sekolah Pilihan
-            </h2>
-            <p className="text-sm text-slate-600">
-              Lihat profil satuan pendidikan jenjang SD, TK, dan KB di Kecamatan Purwodadi.
-            </p>
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 22v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v4" />
+                  <path d="M18 10h4v12h-4v-7a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v7H2V10h4" />
+                  <path d="M12 2l8 5H4l8-5z" />
+                  <circle cx="12" cy="10" r="1.5" />
+                </svg>
+              </div>
+              <div className="w-[2px] h-8 sm:h-9 bg-blue-500/30 rounded-full" />
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Direktori Sekolah Pilihan
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                  Lihat profil satuan pendidikan jenjang SD, TK, dan KB di Kecamatan Purwodadi.
+                </p>
+              </div>
+            </div>
           </div>
 
           <button
             onClick={() => setActiveTab('schools')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors self-start sm:self-auto"
+            className="px-5 py-2.5 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 font-bold text-xs sm:text-sm shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
           >
             <span>Buka Direktori Lengkap ({schools.length})</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {displaySchools.map((sch) => (
             <SchoolCard key={sch.id} school={sch} />
           ))}
@@ -390,7 +230,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Banner Sinergi Pendidikan / CTA Aduan */}
-      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16">
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16 mt-7 sm:mt-8">
         <div className="rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 p-8 sm:p-12 text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
