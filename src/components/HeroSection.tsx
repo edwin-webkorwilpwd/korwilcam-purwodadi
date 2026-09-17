@@ -39,6 +39,23 @@ export const HeroSection: React.FC = () => {
 
   const slideDuration = (officeProfile.heroSlideshowInterval || 5) * 1000;
 
+  // Lacak indeks slide mana saja yang perlu dimuat (hanya slide aktif & slide berikutnya)
+  const [loadedIndices, setLoadedIndices] = useState<number[]>([0]);
+
+  useEffect(() => {
+    if (slides.length === 0) return;
+    setLoadedIndices((prev) => {
+      const nextIdx = (currentSlideIndex + 1) % slides.length;
+      if (prev.includes(currentSlideIndex) && (slides.length <= 1 || prev.includes(nextIdx))) {
+        return prev;
+      }
+      const set = new Set(prev);
+      set.add(currentSlideIndex);
+      if (slides.length > 1) set.add(nextIdx);
+      return Array.from(set);
+    });
+  }, [currentSlideIndex, slides.length]);
+
   // Auto-advance timer untuk rotasi slide
   useEffect(() => {
     if (slides.length <= 1 || isPaused) return;
@@ -75,6 +92,7 @@ export const HeroSection: React.FC = () => {
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           {slides.map((slide, idx) => {
             const isActive = idx === currentSlideIndex;
+            const shouldLoad = loadedIndices.includes(idx);
             return (
               <div
                 key={slide.id}
@@ -82,23 +100,28 @@ export const HeroSection: React.FC = () => {
                   isActive ? 'opacity-100 z-1' : 'opacity-0 z-0'
                 }`}
               >
-                <img
-                  src={slide.src}
-                  alt="Dokumentasi Korwilcam Purwodadi"
-                  referrerPolicy="no-referrer"
-                  crossOrigin="anonymous"
-                  className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.85] contrast-[1.05] ${
-                    isActive ? 'scale-105' : 'scale-100'
-                  }`}
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    const cands = slide.candidates;
-                    const nextCand = cands.find((c) => c !== target.src);
-                    if (nextCand) {
-                      target.src = nextCand;
-                    }
-                  }}
-                />
+                {shouldLoad && (
+                  <img
+                    src={slide.src}
+                    alt="Dokumentasi Korwilcam Purwodadi"
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
+                    loading={idx === 0 ? "eager" : "lazy"}
+                    decoding="async"
+                    fetchPriority={idx === 0 ? "high" : "low"}
+                    className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.85] contrast-[1.05] ${
+                      isActive ? 'scale-105' : 'scale-100'
+                    }`}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const cands = slide.candidates;
+                      const nextCand = cands.find((c) => c !== target.src);
+                      if (nextCand) {
+                        target.src = nextCand;
+                      }
+                    }}
+                  />
+                )}
               </div>
             );
           })}

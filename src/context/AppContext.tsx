@@ -749,161 +749,101 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
+  // Helper non-blocking storage saver agar browser tidak freeze saat serialisasi dataset besar
+  const saveStorageDeferred = (key: string, data: any, isSession: boolean = false) => {
+    const runner = () => {
+      try {
+        const serialized = JSON.stringify(data);
+        if (isSession) {
+          sessionStorage.setItem(key, serialized);
+        } else {
+          localStorage.setItem(key, serialized);
+        }
+      } catch (e) {
+        // quota or private browsing protection fallback
+        try {
+          if (!isSession && Array.isArray(data)) {
+            const lightweight = data.map((item: any) => {
+              if (item && item.downloadUrl && item.downloadUrl.startsWith('data:')) {
+                return { ...item, downloadUrl: '#' };
+              }
+              if (item && item.fileUrl && item.fileUrl.startsWith('data:')) {
+                return { ...item, fileUrl: '#' };
+              }
+              return item;
+            });
+            localStorage.setItem(key, JSON.stringify(lightweight));
+          }
+        } catch (_) {}
+      }
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(runner, { timeout: 1500 });
+    } else {
+      setTimeout(runner, 60);
+    }
+  };
+
   // Sync to local storage for local resilience with quota protection
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_schools', JSON.stringify(schools));
-    } catch (e) {
-      console.warn('localStorage save schools quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_schools', schools);
   }, [schools]);
 
   useEffect(() => {
     _inMemoryNewsCache = news;
-    try {
-      sessionStorage.setItem('korwilcam_news', JSON.stringify(news));
-    } catch (_) {}
-    try {
-      localStorage.setItem('korwilcam_news', JSON.stringify(news));
-    } catch (e) {
-      console.warn('localStorage save news quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_news', news, true);
+    saveStorageDeferred('korwilcam_news', news);
   }, [news]);
 
   useEffect(() => {
     _inMemoryAnnouncementsCache = announcements;
-    try {
-      sessionStorage.setItem('korwilcam_announcements', JSON.stringify(announcements));
-    } catch (_) {}
-    try {
-      localStorage.setItem('korwilcam_announcements', JSON.stringify(announcements));
-    } catch (e) {
-      // Jika file lampiran base64 melebihi kuota 5MB localStorage, simpan versi ringkas tanpa base64 berat
-      try {
-        const lightweight = announcements.map((a) => ({
-          ...a,
-          fileUrl: (a.fileUrl && a.fileUrl.startsWith('data:')) ? '#' : a.fileUrl
-        }));
-        localStorage.setItem('korwilcam_announcements', JSON.stringify(lightweight));
-      } catch (quotaErr) {
-        console.warn('localStorage save announcements quota warning:', quotaErr);
-      }
-    }
+    saveStorageDeferred('korwilcam_announcements', announcements, true);
+    saveStorageDeferred('korwilcam_announcements', announcements);
   }, [announcements]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_agenda', JSON.stringify(agenda));
-    } catch (e) {
-      console.warn('localStorage save agenda quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_agenda', agenda);
   }, [agenda]);
 
   useEffect(() => {
     _inMemoryDocumentsCache = documents;
-    try {
-      sessionStorage.setItem('korwilcam_documents', JSON.stringify(documents));
-    } catch (_) {}
-    try {
-      localStorage.setItem('korwilcam_documents', JSON.stringify(documents));
-    } catch (e) {
-      try {
-        const lightweight = documents.map((d) => ({
-          ...d,
-          downloadUrl: (d.downloadUrl && d.downloadUrl.startsWith('data:')) ? '#' : d.downloadUrl
-        }));
-        localStorage.setItem('korwilcam_documents', JSON.stringify(lightweight));
-      } catch (quotaErr) {
-        console.warn('localStorage save documents quota warning:', quotaErr);
-      }
-    }
+    saveStorageDeferred('korwilcam_documents', documents, true);
+    saveStorageDeferred('korwilcam_documents', documents);
   }, [documents]);
 
   useEffect(() => {
-    try {
-      sessionStorage.setItem('korwilcam_gallery', JSON.stringify(gallery));
-    } catch (_) {}
-    try {
-      localStorage.setItem('korwilcam_gallery', JSON.stringify(gallery));
-    } catch (e) {
-      // Fallback: simpan versi thumbnail/cover jika base64 melebihi kuota 5MB browser
-      try {
-        const lightweight = gallery.map(item => ({
-          id: item.id,
-          title: item.title,
-          category: item.category,
-          date: item.date,
-          createdAt: item.createdAt,
-          description: item.description,
-          image: item.image,
-          images: [item.image],
-          authorId: item.authorId,
-          authorName: item.authorName,
-          authorRole: item.authorRole
-        }));
-        localStorage.setItem('korwilcam_gallery', JSON.stringify(lightweight));
-      } catch (_) {}
-    }
+    saveStorageDeferred('korwilcam_gallery', gallery, true);
+    saveStorageDeferred('korwilcam_gallery', gallery);
   }, [gallery]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_office_profile', JSON.stringify(officeProfile));
-    } catch (e) {
-      console.warn('localStorage save office_profile quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_office_profile', officeProfile);
   }, [officeProfile]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_staff', JSON.stringify(staff));
-    } catch (e) {
-      console.warn('localStorage save staff quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_staff', staff);
   }, [staff]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_organizations', JSON.stringify(organizations));
-    } catch (e) {
-      console.warn('localStorage save organizations quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_organizations', organizations);
   }, [organizations]);
 
   useEffect(() => {
     _inMemoryTeachersCache = teachers;
-    try {
-      sessionStorage.setItem('korwilcam_teachers', JSON.stringify(teachers));
-    } catch {}
-    try {
-      localStorage.setItem('korwilcam_teachers', JSON.stringify(teachers));
-    } catch (e) {
-      console.warn('localStorage save teachers quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_teachers', teachers, true);
+    saveStorageDeferred('korwilcam_teachers', teachers);
   }, [teachers]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_complaints', JSON.stringify(complaints));
-    } catch (e) {
-      console.warn('localStorage save complaints quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_complaints', complaints);
   }, [complaints]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_service_requirements', JSON.stringify(serviceRequirements));
-    } catch (e) {
-      console.warn('localStorage save service_requirements quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_service_requirements', serviceRequirements);
   }, [serviceRequirements]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('korwilcam_data_requests', JSON.stringify(dataRequests));
-    } catch (e) {
-      console.warn('localStorage save data_requests quota warning:', e);
-    }
+    saveStorageDeferred('korwilcam_data_requests', dataRequests);
   }, [dataRequests]);
 
   // Initial fetch from Supabase if connected
@@ -2164,99 +2104,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!client) return;
 
+    let refreshDebounceTimer: any = null;
+    const triggerDebouncedRefresh = () => {
+      if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+      refreshDebounceTimer = setTimeout(() => {
+        refreshFromSupabase();
+      }, 1200);
+    };
+
     // Realtime Postgres Changes Subscription for Portal Data
     const channel = client
       .channel('korwilcam-realtime-listener')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'schools' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'news' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'announcements' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'documents' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'gallery' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'staff' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'office_profile' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'complaints' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'sop_pelayanan' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'organizations' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daftar_guru' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'service_requirements' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'data_requests' },
-        () => {
-          refreshFromSupabase();
-        }
+        triggerDebouncedRefresh
       )
       .on(
         'postgres_changes',
@@ -2282,6 +2204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .subscribe();
 
     return () => {
+      if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
       client.removeChannel(channel);
     };
   }, [isSupabaseActive]);
