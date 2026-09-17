@@ -52,6 +52,31 @@ export default defineConfig({
     tailwindcss(),
     supabaseConfigPlugin(),
   ],
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('/src/data/initialData')) {
+            return 'initial-data';
+          }
+          if (normalized.includes('node_modules')) {
+            if (normalized.includes('/react/') || normalized.includes('/react-dom/') || normalized.includes('/scheduler/')) {
+              return 'vendor-react';
+            }
+            if (normalized.includes('/@supabase/')) {
+              return 'vendor-supabase';
+            }
+            if (normalized.includes('/lucide-react/')) {
+              return 'vendor-icons';
+            }
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
 })
 
 

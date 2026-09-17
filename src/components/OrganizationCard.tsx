@@ -7,7 +7,8 @@ import {
   User, 
   ArrowRight 
 } from 'lucide-react';
-import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, isGoogleDriveUrl, prefetchGoogleDriveImage } from '../lib/driveHelper';
+import { FastImage } from './FastImage';
 
 interface OrganizationCardProps {
   org: EducationalOrganization;
@@ -15,6 +16,18 @@ interface OrganizationCardProps {
 
 export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
   const { setSelectedOrganizationSlug } = useApp();
+
+  // Prefetch data & gambar organisasi saat kursor mendekat / hover
+  const handlePrefetch = () => {
+    if (org.leader?.photo) {
+      prefetchGoogleDriveImage(org.leader.photo, 600);
+    }
+    if (org.officials && org.officials.length > 0) {
+      org.officials.slice(0, 4).forEach((off) => {
+        if (off.photo) prefetchGoogleDriveImage(off.photo, 320);
+      });
+    }
+  };
 
   // Validasi URL logo organisasi
   const rawLogo = org.logo?.trim() || '';
@@ -26,7 +39,7 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
   );
 
   const orgLogo = hasUploadedLogo 
-    ? (isGoogleDriveUrl(rawLogo) ? formatGoogleDriveImageUrl(rawLogo) : rawLogo)
+    ? (isGoogleDriveUrl(rawLogo) ? formatGoogleDriveImageUrl(rawLogo, 180) : rawLogo)
     : '';
 
   const leaderName = org.leader?.name || '-';
@@ -53,6 +66,8 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
   return (
     <div
       onClick={() => setSelectedOrganizationSlug(org.slug)}
+      onMouseEnter={handlePrefetch}
+      onTouchStart={handlePrefetch}
       className="group relative bg-white rounded-3xl sm:rounded-[26px] p-5 sm:p-6 border border-blue-100/90 shadow-md shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer space-y-4"
     >
       {/* Top-Right Soft Wave Accent */}
@@ -100,14 +115,13 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
             {/* Circular Logo Container: KOSONG jika belum ada logo yang diupload ke Supabase */}
             <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-white border border-blue-100/90 shadow-2xs flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
               {hasUploadedLogo ? (
-                <img 
+                <FastImage 
                   src={orgLogo} 
                   alt={org.shortName || org.name} 
-                  className="w-full h-full object-contain rounded-full"
-                  onError={(e) => {
-                    // Jika gagal memuat gambar, sembunyikan gambar sehingga logo tetap kosong bersih
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
+                  size={150}
+                  containerClassName="w-full h-full rounded-full"
+                  imageClassName="object-contain rounded-full"
+                  fallbackIcon={<div className="w-full h-full rounded-full bg-slate-50/40" />}
                 />
               ) : (
                 /* Logo KOSONG sesuai instruksi user: tidak menampilkan logo dummy */

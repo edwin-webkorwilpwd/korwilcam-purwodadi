@@ -272,6 +272,8 @@ let _inMemoryAnnouncementsCache: Announcement[] | null = null;
 let _inMemoryDocumentsCache: DocumentDownload[] | null = null;
 // In-memory module cache for instant (0ms) news articles display across navigation
 let _inMemoryNewsCache: NewsArticle[] | null = null;
+// In-memory module cache for instant (0ms) organizations display across navigation & visitors
+let _inMemoryOrganizationsCache: EducationalOrganization[] | null = null;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDbConfigured = getSupabaseConfig().isConfigured;
@@ -556,16 +558,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
   const [selectedServiceRequirement, setSelectedServiceRequirementState] = useState<ServiceRequirement | null>(null);
   const [organizations, setOrganizations] = useState<EducationalOrganization[]>(() => {
+    if (_inMemoryOrganizationsCache && _inMemoryOrganizationsCache.length > 0) {
+      return _inMemoryOrganizationsCache;
+    }
+    try {
+      const session = sessionStorage.getItem('korwilcam_organizations');
+      if (session) {
+        const parsed = JSON.parse(session);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryOrganizationsCache = parsed;
+          return parsed;
+        }
+      }
+    } catch {}
     try {
       const saved = localStorage.getItem('korwilcam_organizations');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _inMemoryOrganizationsCache = parsed;
+          return parsed;
+        }
       }
-      return initialOrganizations;
-    } catch {
-      return initialOrganizations;
-    }
+    } catch {}
+    _inMemoryOrganizationsCache = initialOrganizations;
+    return initialOrganizations;
   });
   const [selectedOrganizationSlug, setSelectedOrganizationSlugState] = useState<string | null>(null);
 
@@ -1421,6 +1438,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
+      // 0.4 Fetch organizations IMMEDIATELY IN PARALLEL (Organisasi Mitra & Profesi)
+      // Supaya seluruh data organisasi, sambutan ketua, dan susunan pengurus langsung tampil instan (secepat kilat)
+      const organizationsFetchPromise = (async () => {
+        try {
+          const { data: dbOrgs, error: orgsErr } = await client.from('organizations').select('*');
+          if (!orgsErr && dbOrgs && dbOrgs.length > 0) {
+            const mappedOrgs: EducationalOrganization[] = dbOrgs.map((o: any) => ({
+              id: String(o.id || `org-${Date.now()}`),
+              slug: String(o.slug || '').trim(),
+              name: String(o.name || '').trim(),
+              shortName: String(o.short_name || o.shortName || o.name || '').trim(),
+              description: String(o.description || '').trim(),
+              logo: String(o.logo || '').trim(),
+              coverImage: String(o.cover_image || o.coverImage || '').trim(),
+              leader: typeof o.leader === 'object' && o.leader ? o.leader : {
+                name: '',
+                title: '',
+                period: '',
+                photo: '',
+                speechTitle: '',
+                speech: ''
+              },
+              vision: String(o.vision || ''),
+              missions: Array.isArray(o.missions) ? o.missions : [],
+              officials: Array.isArray(o.officials) ? o.officials : [],
+              address: String(o.address || ''),
+              phone: String(o.phone || ''),
+              email: String(o.email || ''),
+              socialMedia: typeof o.social_media === 'object' && o.social_media ? o.social_media : (typeof o.socialMedia === 'object' && o.socialMedia ? o.socialMedia : {}),
+              assignedUsername: o.assigned_username || o.assignedUsername || undefined,
+              updatedAt: o.updated_at || o.updatedAt
+            }));
+            _inMemoryOrganizationsCache = mappedOrgs;
+            setOrganizations(mappedOrgs);
+            try {
+              sessionStorage.setItem('korwilcam_organizations', JSON.stringify(mappedOrgs));
+              localStorage.setItem('korwilcam_organizations', JSON.stringify(mappedOrgs));
+            } catch {}
+            return mappedOrgs;
+          }
+        } catch (errOrgs) {
+          console.warn('Tabel organizations parallel fetch warning:', errOrgs);
+        }
+        return null;
+      })();
+
       // 1. Fetch office_profile FIRST (Prioritas Utama untuk header & hero pimpinan instansi)
       try {
         const { data: dbProfile } = await client.from('office_profile').select('*').limit(1);
@@ -1705,48 +1768,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Tabel admin_users belum terbaca:', errUsers);
       }
 
-      // Fetch organizations
+      // Await parallel organizations, daftar_guru, service_requirements, and data_requests fetch
       try {
-        const { data: dbOrgs, error: orgsErr } = await client.from('organizations').select('*');
-        if (!orgsErr && dbOrgs && dbOrgs.length > 0) {
-          const mappedOrgs: EducationalOrganization[] = dbOrgs.map((o: any) => ({
-            id: String(o.id || `org-${Date.now()}`),
-            slug: String(o.slug || '').trim(),
-            name: String(o.name || '').trim(),
-            shortName: String(o.short_name || o.shortName || o.name || '').trim(),
-            description: String(o.description || '').trim(),
-            logo: String(o.logo || '').trim(),
-            coverImage: String(o.cover_image || o.coverImage || '').trim(),
-            leader: typeof o.leader === 'object' && o.leader ? o.leader : {
-              name: '',
-              title: '',
-              period: '',
-              photo: '',
-              speechTitle: '',
-              speech: ''
-            },
-            vision: String(o.vision || ''),
-            missions: Array.isArray(o.missions) ? o.missions : [],
-            officials: Array.isArray(o.officials) ? o.officials : [],
-            address: String(o.address || ''),
-            phone: String(o.phone || ''),
-            email: String(o.email || ''),
-            socialMedia: typeof o.social_media === 'object' && o.social_media ? o.social_media : (typeof o.socialMedia === 'object' && o.socialMedia ? o.socialMedia : {}),
-            assignedUsername: o.assigned_username || o.assignedUsername || undefined,
-            updatedAt: o.updated_at || o.updatedAt
-          }));
-          setOrganizations(mappedOrgs);
-          try {
-            localStorage.setItem('korwilcam_organizations', JSON.stringify(mappedOrgs));
-          } catch {}
-        }
-      } catch (errOrgs) {
-        console.warn('Tabel organizations belum terbaca:', errOrgs);
-      }
-
-      // Await parallel daftar_guru, service_requirements, and data_requests fetch
-      try {
-        await Promise.all([teachersFetchPromise, serviceReqsFetchPromise, dataReqsFetchPromise]);
+        await Promise.all([
+          organizationsFetchPromise,
+          teachersFetchPromise, 
+          serviceReqsFetchPromise, 
+          dataReqsFetchPromise
+        ]);
       } catch (errParallel) {
         console.warn('Parallel fetch warning:', errParallel);
       }
@@ -4855,8 +4884,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString()
     };
     const updated = [...organizations, newOrg];
+    _inMemoryOrganizationsCache = updated;
     setOrganizations(updated);
     try {
+      sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
     } catch (e) {}
 
@@ -4907,8 +4938,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return o;
     });
+    _inMemoryOrganizationsCache = updated;
     setOrganizations(updated);
     try {
+      sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
     } catch (e) {}
 
@@ -4952,15 +4985,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteOrganization = async (id: string): Promise<boolean> => {
     const target = organizations.find((o) => o.id === id || o.slug === id);
     const updated = organizations.filter((o) => o.id !== id && o.slug !== id);
+    _inMemoryOrganizationsCache = updated;
     setOrganizations(updated);
     try {
+      sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
     } catch (e) {}
 
     const client = getSupabaseClient();
     if (client) {
       try {
-        await client.from('organizations').delete().match({ id });
+        await client.from('organizations').delete().eq('id', target?.id || id);
       } catch (err) {
         console.warn('Supabase organization delete warning:', err);
       }

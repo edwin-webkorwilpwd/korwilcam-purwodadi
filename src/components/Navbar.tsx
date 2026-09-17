@@ -79,6 +79,11 @@ export const Navbar: React.FC = () => {
       profileTimeoutRef.current = null;
     }
     setProfileDropdownOpen(true);
+    // Preload chunk bundle di latar belakang agar saat menu diklik terbuka 0ms secepat kilat
+    try {
+      import('../pages/OrganizationPage');
+      import('../pages/NominativePage');
+    } catch {}
   };
 
   const handleProfileLeave = () => {

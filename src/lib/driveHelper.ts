@@ -36,16 +36,21 @@ export function isGoogleDriveUrl(url: string): boolean {
 }
 
 /**
- * Mengonversi link Google Drive apa pun menjadi URL gambar resolusi tinggi langsung.
+ * Mengonversi link Google Drive apa pun menjadi URL gambar langsung berkecepatan tinggi.
+ * Jika parameter size diberikan, Google CDN akan mengompresi dan meresize gambar ke ukuran yang dibutuhkan
+ * (mengurangi ukuran data hingga 95%+ dan mempercepat load secara dramatis).
  * Jika URL bukan Google Drive, mengembalikan URL asli apa adanya.
  */
-export function formatGoogleDriveImageUrl(url: string): string {
+export function formatGoogleDriveImageUrl(url: string, size?: number): string {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
 
   const driveId = extractGoogleDriveId(trimmed);
   if (driveId) {
     // lh3.googleusercontent.com/d/{id} menyajikan gambar murni tanpa CORS atau batasan redirect
+    if (size && size > 0) {
+      return `https://lh3.googleusercontent.com/d/${driveId}=s${size}`;
+    }
     return `https://lh3.googleusercontent.com/d/${driveId}`;
   }
 
@@ -53,19 +58,37 @@ export function formatGoogleDriveImageUrl(url: string): string {
 }
 
 /**
- * Mendapatkan daftar kandidat URL Google Drive langsung (multi-tier fallback)
+ * Mendapatkan daftar kandidat URL Google Drive langsung (multi-tier fallback dengan dukungan ukuran)
  */
-export function getGoogleDriveCandidates(url: string): string[] {
+export function getGoogleDriveCandidates(url: string, size?: number): string[] {
   if (!url || typeof url !== 'string') return [];
   const trimmed = url.trim();
   const driveId = extractGoogleDriveId(trimmed);
   if (!driveId) return [trimmed];
+  const sizeParam = size && size > 0 ? `=s${size}` : '';
+  const szParam = size && size > 0 ? `&sz=w${size}` : '&sz=w1200';
   return [
-    `https://lh3.googleusercontent.com/d/${driveId}`,
-    `https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`,
-    `https://drive.google.com/uc?export=view&id=${driveId}`,
-    `https://lh3.googleusercontent.com/u/0/d/${driveId}`
+    `https://lh3.googleusercontent.com/d/${driveId}${sizeParam}`,
+    `https://drive.google.com/thumbnail?id=${driveId}${szParam}`,
+    `https://lh3.googleusercontent.com/u/0/d/${driveId}${sizeParam}`,
+    `https://drive.google.com/uc?export=view&id=${driveId}`
   ];
+}
+
+/**
+ * Prefetch gambar Google Drive ke dalam memori/cache browser sebelum komponen dibuka
+ * sehingga gambar langsung tampil instan (0ms) saat pengunjung mengklik kartu/menu.
+ */
+export function prefetchGoogleDriveImage(url: string, size?: number): void {
+  if (!url || typeof url !== 'string') return;
+  const targetUrl = formatGoogleDriveImageUrl(url, size);
+  if (!targetUrl || targetUrl === '#' || targetUrl.startsWith('data:')) return;
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    img.src = targetUrl;
+  } catch {}
 }
 
 /**

@@ -22,7 +22,7 @@ import {
   UserCheck,
   Calendar
 } from 'lucide-react';
-import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, isGoogleDriveUrl, prefetchGoogleDriveImage } from '../lib/driveHelper';
 import { OrganizationOfficial, EducationalOrganization } from '../types';
 import { 
   TikTokIcon, 
@@ -34,6 +34,7 @@ import {
 } from '../components/SocialIcons';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { OrganizationCard } from '../components/OrganizationCard';
+import { FastImage } from '../components/FastImage';
 
 // 1. Bottom-Left Corner Ribbon Accent (Dark Blue Geometric Cut matching Gambar 2)
 const OrgCardCornerRibbon: React.FC = () => (
@@ -239,6 +240,25 @@ export const OrganizationPage: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHash);
   }, [currentOrg?.id]);
 
+  // Prefetch foto ketua, logo, & seluruh pengurus saat organisasi dibuka agar tampil instan secepat kilat
+  useEffect(() => {
+    if (!currentOrg) return;
+    if (currentOrg.leader?.photo) {
+      prefetchGoogleDriveImage(currentOrg.leader.photo, 600);
+    }
+    if (currentOrg.logo) {
+      prefetchGoogleDriveImage(currentOrg.logo, 250);
+    }
+    if (currentOrg.officials && currentOrg.officials.length > 0) {
+      const timer = setTimeout(() => {
+        currentOrg.officials.forEach((off) => {
+          if (off.photo) prefetchGoogleDriveImage(off.photo, 320);
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [currentOrg?.id]);
+
   // ==========================================
   // VIEW 1: DAFTAR / DIREKTORI ORGANISASI
   // ==========================================
@@ -378,15 +398,20 @@ export const OrganizationPage: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6 lg:gap-8">
             
             {/* Logo Badge */}
-            <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 rounded-2xl bg-white p-3 shadow-2xl flex items-center justify-center shrink-0 border-2 border-blue-400/30">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 rounded-2xl bg-white p-3 shadow-2xl flex items-center justify-center shrink-0 border-2 border-blue-400/30 overflow-hidden">
               {orgLogoSrc ? (
-                <img 
+                <FastImage 
                   src={orgLogoSrc} 
                   alt={currentOrg.shortName} 
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }} 
+                  size={250}
+                  priority={true}
+                  containerClassName="w-full h-full"
+                  imageClassName="object-contain"
+                  fallbackIcon={
+                    <div className="w-full h-full rounded-xl bg-blue-50 flex items-center justify-center text-2xl lg:text-3xl font-black text-blue-700">
+                      {currentOrg.shortName.slice(0, 3).toUpperCase()}
+                    </div>
+                  }
                 />
               ) : (
                 <div className="w-full h-full rounded-xl bg-blue-50 flex items-center justify-center text-2xl lg:text-3xl font-black text-blue-700">
@@ -523,10 +548,22 @@ export const OrganizationPage: React.FC = () => {
                   >
                     <div className="w-full h-full rounded-[22px] overflow-hidden relative">
                       {leaderPhotoSrc ? (
-                        <img 
+                        <FastImage 
                           src={leaderPhotoSrc} 
                           alt={leader?.name || 'Ketua Organisasi'} 
-                          className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                          size={600}
+                          priority={true}
+                          containerClassName="w-full h-full rounded-[22px]"
+                          imageClassName="object-top transition-transform duration-300 group-hover:scale-105"
+                          fallbackIcon={
+                            <div className="w-full h-full relative">
+                              <LeaderAvatarPlaceholder />
+                              <div className="absolute bottom-2.5 inset-x-2.5 bg-blue-600 text-white rounded-xl py-1.5 px-2.5 flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold shadow-md">
+                                <Users className="w-3.5 h-3.5 shrink-0" />
+                                <span>Foto Ketua Belum Diunggah</span>
+                              </div>
+                            </div>
+                          }
                         />
                       ) : (
                         <div className="w-full h-full relative">
@@ -784,10 +821,17 @@ export const OrganizationPage: React.FC = () => {
                         onClick={() => photoSrc && setPreviewOfficial(official)}
                       >
                         {photoSrc ? (
-                          <img 
+                          <FastImage 
                             src={photoSrc} 
                             alt={official.name}
-                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform"
+                            size={320}
+                            containerClassName="w-full h-full"
+                            imageClassName="object-top group-hover:scale-105 transition-transform duration-300"
+                            fallbackIcon={
+                              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                                <Users className="w-8 h-8 opacity-40" />
+                              </div>
+                            }
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
@@ -796,7 +840,7 @@ export const OrganizationPage: React.FC = () => {
                         )}
 
                         {photoSrc && (
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white z-10 pointer-events-none">
                             <ZoomIn className="w-4 h-4" />
                           </div>
                         )}
@@ -870,10 +914,13 @@ export const OrganizationPage: React.FC = () => {
               <X className="w-4 h-4" />
             </button>
             <div className="max-h-[70vh] rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
-              <img 
+              <FastImage 
                 src={leaderPhotoSrc} 
                 alt={leader?.name || 'Ketua'} 
-                className="max-w-full max-h-[65vh] object-contain rounded-lg"
+                size={1200}
+                priority={true}
+                containerClassName="max-w-full max-h-[65vh] flex items-center justify-center"
+                imageClassName="max-w-full max-h-[65vh] object-contain rounded-lg"
               />
             </div>
             <div className="mt-3">
@@ -901,10 +948,13 @@ export const OrganizationPage: React.FC = () => {
               <X className="w-4 h-4" />
             </button>
             <div className="max-h-[70vh] rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
-              <img 
-                src={isGoogleDriveUrl(previewOfficial.photo) ? formatGoogleDriveImageUrl(previewOfficial.photo) : previewOfficial.photo} 
+              <FastImage 
+                src={previewOfficial.photo} 
                 alt={previewOfficial.name} 
-                className="max-w-full max-h-[60vh] object-contain rounded-lg"
+                size={1000}
+                priority={true}
+                containerClassName="max-w-full max-h-[60vh] flex items-center justify-center"
+                imageClassName="max-w-full max-h-[60vh] object-contain rounded-lg"
               />
             </div>
             <div className="mt-3">

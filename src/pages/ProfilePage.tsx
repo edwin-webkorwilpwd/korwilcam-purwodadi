@@ -20,6 +20,7 @@ import {
   Crown
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
+import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
 
 // 1. Bottom-Left Corner Ribbon Accent (Dark Blue Geometric Cut matching Gambar 2)
 const CardCornerRibbon: React.FC = () => (
@@ -254,7 +255,7 @@ export const ProfilePage: React.FC = () => {
             >
               {officeProfile.korwilPhoto && !officeProfile.korwilPhoto.includes('unsplash.com') ? (
                 <img
-                  src={officeProfile.korwilPhoto}
+                  src={isGoogleDriveUrl(officeProfile.korwilPhoto) ? formatGoogleDriveImageUrl(officeProfile.korwilPhoto, 600) : officeProfile.korwilPhoto}
                   alt={officeProfile.korwilName}
                   loading="lazy"
                   decoding="async"
@@ -522,6 +523,9 @@ export const ProfilePage: React.FC = () => {
                 !person.photo.includes('photo-1560250097') && 
                 person.photo.trim().length > 0
               );
+              const staffPhotoSrc = hasValidPhoto && isGoogleDriveUrl(person.photo)
+                ? formatGoogleDriveImageUrl(person.photo, 450)
+                : person.photo;
               return (
                 <div
                   key={person.id}
@@ -535,14 +539,14 @@ export const ProfilePage: React.FC = () => {
                       <>
                         {/* Layer 1: Ambient Backdrop Blur (Menutupi Sisi Kiri & Kanan Tanpa Celah) */}
                         <img
-                          src={person.photo}
+                          src={staffPhotoSrc}
                           alt=""
                           aria-hidden="true"
                           className="photo-ambient-bg absolute inset-0 w-full h-full object-cover blur-xl scale-125 opacity-80 pointer-events-none select-none"
                         />
                         {/* Layer 2: Foto Utuh Pejabat 100% Tidak Terpotong (Wajah, Peci/Jilbab, Dagu & Seragam Utuh) */}
                         <img
-                          src={person.photo}
+                          src={staffPhotoSrc}
                           alt={person.name}
                           loading="lazy"
                           decoding="async"
@@ -854,7 +858,7 @@ export const ProfilePage: React.FC = () => {
                !previewStaff.photo.includes('photo-1560250097') && 
                previewStaff.photo.trim().length > 0 ? (
                 <img
-                  src={previewStaff.photo}
+                  src={isGoogleDriveUrl(previewStaff.photo) ? formatGoogleDriveImageUrl(previewStaff.photo, 1200) : previewStaff.photo}
                   alt={previewStaff.name}
                   className="w-auto h-auto max-w-full max-h-[56vh] object-contain rounded-xl shadow-2xl select-none"
                 />
