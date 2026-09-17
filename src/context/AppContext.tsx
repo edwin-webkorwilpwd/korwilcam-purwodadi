@@ -2232,9 +2232,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
     'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi' },
-    'nominatif': { path: '/nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
+    'nominatif': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
-    'organization': { path: '/organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
+    'organization': { path: '/profil#organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
     'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
@@ -2892,8 +2892,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabState('home');
         document.title = TAB_ROUTES['home'].title;
       } else if (rawPath.startsWith('/profil')) {
-        setActiveTabState('profile');
-        document.title = TAB_ROUTES['profile'].title;
+        const hash = (typeof window !== 'undefined' ? (window.location.hash || '').toLowerCase() : '');
+        if (hash === '#nominatif' || hash.includes('nominatif')) {
+          setActiveTabState('nominatif');
+          document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
+        } else if (hash === '#organisasi' || hash.includes('organisasi') || hash === '#organization') {
+          setActiveTabState('organization');
+          document.title = TAB_ROUTES['organization']?.title || 'Organisasi Pendidikan - Korwilcam Purwodadi';
+        } else {
+          setActiveTabState('profile');
+          document.title = TAB_ROUTES['profile'].title;
+        }
       } else if (rawPath.startsWith('/sop') || rawPath.startsWith('/sop-pelayanan')) {
         setActiveTabState('sop-pelayanan');
         document.title = TAB_ROUTES['sop-pelayanan']?.title || 'SOP Pelayanan - Korwilcam Purwodadi';
@@ -2988,7 +2997,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     handleUrlRoute();
     window.addEventListener('popstate', handleUrlRoute);
-    return () => window.removeEventListener('popstate', handleUrlRoute);
+    window.addEventListener('hashchange', handleUrlRoute);
+    return () => {
+      window.removeEventListener('popstate', handleUrlRoute);
+      window.removeEventListener('hashchange', handleUrlRoute);
+    };
   }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements, dataRequests]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {

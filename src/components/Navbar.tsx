@@ -299,7 +299,7 @@ export const Navbar: React.FC = () => {
                   type="button"
                   onClick={() => setProfileDropdownOpen((prev) => !prev)}
                   className={`flex items-center gap-1 px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-                    activeTab === 'profile' 
+                    activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization'
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                       : 'text-white/90 hover:text-white hover:bg-white/15'
                   }`}
@@ -310,7 +310,7 @@ export const Navbar: React.FC = () => {
 
                 {profileDropdownOpen && (
                   <div 
-                    className="absolute left-0 top-full pt-2 w-60 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+                    className="absolute left-0 top-full pt-2 w-64 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
                     onMouseEnter={handleProfileEnter}
                     onMouseMove={handleProfileEnter}
                     onMouseLeave={handleProfileLeave}
@@ -321,17 +321,53 @@ export const Navbar: React.FC = () => {
                     <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
                       <button
                         onClick={() => handleNavClick('profile', '/profil#sambutan')}
-                        className="w-full text-left px-3.5 py-2 text-xs text-white hover:bg-white/20 rounded-lg flex items-center gap-2.5 transition-colors font-medium"
+                        className={`w-full text-left px-3.5 py-2 text-xs rounded-lg flex items-center gap-2.5 transition-colors font-medium ${
+                          activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
+                            ? 'bg-white/20 text-white font-bold'
+                            : 'text-white hover:bg-white/15'
+                        }`}
                       >
                         <Building2 className="w-4 h-4 text-sky-300 shrink-0" />
                         <span>Sambutan & Visi Misi</span>
                       </button>
+
                       <button
                         onClick={() => handleNavClick('profile', '/profil#struktur')}
-                        className="w-full text-left px-3.5 py-2 text-xs text-white hover:bg-white/20 rounded-lg flex items-center gap-2.5 transition-colors font-medium"
+                        className={`w-full text-left px-3.5 py-2 text-xs rounded-lg flex items-center gap-2.5 transition-colors font-medium ${
+                          activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
+                            ? 'bg-white/20 text-white font-bold'
+                            : 'text-white hover:bg-white/15'
+                        }`}
                       >
                         <Building2 className="w-4 h-4 text-sky-300 shrink-0" />
                         <span>Struktur Organisasi</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
+                        className={`w-full text-left px-3.5 py-2 text-xs rounded-lg flex items-center gap-2.5 transition-colors font-medium ${
+                          activeTab === 'nominatif'
+                            ? 'bg-white/20 text-white font-bold'
+                            : 'text-white hover:bg-white/15'
+                        }`}
+                      >
+                        <Users className="w-4 h-4 text-sky-300 shrink-0" />
+                        <span>Nominatif</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSelectedOrganizationSlug(null);
+                          handleNavClick('organization', '/profil#organisasi');
+                        }}
+                        className={`w-full text-left px-3.5 py-2 text-xs rounded-lg flex items-center gap-2.5 transition-colors font-medium ${
+                          activeTab === 'organization'
+                            ? 'bg-white/20 text-white font-bold'
+                            : 'text-white hover:bg-white/15'
+                        }`}
+                      >
+                        <GraduationCap className="w-4 h-4 text-sky-300 shrink-0" />
+                        <span>Organisasi</span>
                       </button>
                     </div>
                   </div>
@@ -361,17 +397,6 @@ export const Navbar: React.FC = () => {
               </button>
 
               <button
-                onClick={() => handleNavClick('nominatif', '/nominatif')}
-                className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-                  activeTab === 'nominatif' 
-                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                    : 'text-white/90 hover:text-white hover:bg-white/15'
-                }`}
-              >
-                Nominatif
-              </button>
-
-              <button
                 onClick={() => handleNavClick('news', '/berita')}
                 className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'news' 
@@ -380,22 +405,6 @@ export const Navbar: React.FC = () => {
                 }`}
               >
                 Berita & Informasi
-              </button>
-
-              {/* Menu Organisasi Langsung (Navigasi Halaman Daftar Organisasi) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedOrganizationSlug(null);
-                  handleNavClick('organization', '/organisasi');
-                }}
-                className={`px-2.5 xl:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-                  activeTab === 'organization'
-                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                    : 'text-white/90 hover:text-white hover:bg-white/15'
-                }`}
-              >
-                Organisasi
               </button>
 
               {/* Layanan Dropdown */}
@@ -648,15 +657,59 @@ export const Navbar: React.FC = () => {
             <span>Beranda</span>
           </button>
 
-          <button
-            onClick={() => handleNavClick('profile', '/profil/sambutan')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-              activeTab === 'profile' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
-            }`}
-          >
-            <Building2 className="w-4 h-4 text-blue-400" />
-            <span>Profil & Struktur Organisasi</span>
-          </button>
+          {/* Menu Profil dengan Submenu di Mobile */}
+          <div className="space-y-1 py-1.5 px-1 bg-white/10 rounded-xl border border-white/20">
+            <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
+              Profil Instansi
+            </div>
+
+            <button
+              onClick={() => handleNavClick('profile', '/profil#sambutan')}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+                activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-200 hover:bg-white/10'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5 text-sky-300" />
+              <span>Sambutan & Visi Misi</span>
+            </button>
+
+            <button
+              onClick={() => handleNavClick('profile', '/profil#struktur')}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+                activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-200 hover:bg-white/10'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5 text-sky-300" />
+              <span>Struktur Organisasi</span>
+            </button>
+
+            <button
+              onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+                activeTab === 'nominatif' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-white/10'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-sky-300" />
+              <span>Nominatif Guru</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedOrganizationSlug(null);
+                handleNavClick('organization', '/profil#organisasi');
+              }}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+                activeTab === 'organization' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-white/10'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-sky-300" />
+              <span>Organisasi Mitra & Profesi</span>
+            </button>
+          </div>
 
           <button
             onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
@@ -679,16 +732,6 @@ export const Navbar: React.FC = () => {
           </button>
 
           <button
-            onClick={() => handleNavClick('nominatif', '/nominatif')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-              activeTab === 'nominatif' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
-            }`}
-          >
-            <Users className="w-4 h-4 text-blue-400" />
-            <span>Nominatif Guru</span>
-          </button>
-
-          <button
             onClick={() => handleNavClick('news', '/berita')}
             className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
               activeTab === 'news' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
@@ -696,27 +739,6 @@ export const Navbar: React.FC = () => {
           >
             <FileText className="w-4 h-4 text-blue-400" />
             <span>Berita, Pengumuman & Prestasi</span>
-          </button>
-
-          {/* Menu Organisasi Mobile Langsung */}
-          <button
-            onClick={() => {
-              setSelectedOrganizationSlug(null);
-              handleNavClick('organization', '/organisasi');
-            }}
-            className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors border ${
-              activeTab === 'organization'
-                ? 'bg-white text-[#1b56ce] border-white shadow-sm'
-                : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-sky-300" />
-              <span>Organisasi Mitra & Profesi</span>
-            </span>
-            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-mono font-bold">
-              {organizations.length}
-            </span>
           </button>
 
           {/* Menu Layanan Terpadu Mobile */}
