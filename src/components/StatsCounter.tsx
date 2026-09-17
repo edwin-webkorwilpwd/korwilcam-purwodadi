@@ -205,7 +205,7 @@ export const StatsCounter: React.FC = () => {
       icon: Users,
       unit: 'Jiwa',
       watermark: GraduateWatermark,
-      target: 'nominative',
+      target: 'nominatif',
       cornerWaveType: 'prominent'
     }
   ];
@@ -242,7 +242,7 @@ export const StatsCounter: React.FC = () => {
             return (
               <div
                 key={idx}
-                onClick={() => setActiveTab(item.target as any)}
+                onClick={() => setActiveTab(item.target as any, item.target === 'nominatif' ? '/profil#nominatif' : undefined)}
                 className="group relative bg-white rounded-2xl sm:rounded-[22px] p-5 sm:p-6 border border-blue-100/90 shadow-md shadow-slate-200/60 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col justify-between"
                 title={`Klik untuk melihat ${item.title}`}
               >

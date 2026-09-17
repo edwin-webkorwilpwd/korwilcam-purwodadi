@@ -154,7 +154,7 @@ const MainContent: React.FC = () => {
               {activeTab === 'profile' && <ProfilePage />}
               {activeTab === 'sop-pelayanan' && <SOPPage />}
               {activeTab === 'schools' && <SchoolsPage />}
-              {activeTab === 'nominatif' && <NominativePage />}
+              {(activeTab === 'nominatif' || activeTab === 'nominative') && <NominativePage />}
               {activeTab === 'news' && <NewsPage />}
               {activeTab === 'organization' && <OrganizationPage />}
               {activeTab === 'service-requirements' && <ServiceRequirementsPage />}

@@ -2233,6 +2233,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
     'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi' },
     'nominatif': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
+    'nominative': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'organization': { path: '/profil#organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
     'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
@@ -2909,6 +2910,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (rawPath.startsWith('/direktori-sekolah') || rawPath.startsWith('/sekolah')) {
         setActiveTabState('schools');
         document.title = TAB_ROUTES['schools'].title;
+      } else if (rawPath.startsWith('/nominative')) {
+        setActiveTabState('nominatif');
+        window.history.replaceState({ tab: 'nominatif', path: '/profil#nominatif' }, '', '/profil#nominatif');
+        document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/nominatif') || rawPath.startsWith('/daftar-guru')) {
         setActiveTabState('nominatif');
         document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
