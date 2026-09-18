@@ -1187,6 +1187,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               let serviceRequirementId = a.service_requirement_id || a.serviceRequirementId || '';
               let serviceRequirementTitle = a.service_requirement_title || a.serviceRequirementTitle || '';
               let sourceDocumentId = a.source_document_id || a.sourceDocumentId || '';
+              let author = a.author || a.penulis || '';
+              let authorId = a.author_id || a.authorId || '';
+              let authorRole = a.author_role || a.authorRole || '';
 
               if (fileSize && fileSize.includes('|')) {
                 const parts = fileSize.split('|');
@@ -1197,6 +1200,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 serviceRequirementId = parts[4] || serviceRequirementId;
                 serviceRequirementTitle = parts[5] || serviceRequirementTitle;
                 sourceDocumentId = parts[6] || sourceDocumentId;
+                if (parts.length > 7 && parts[7]) author = parts[7];
+                if (parts.length > 8 && parts[8]) authorId = parts[8];
+                if (parts.length > 9 && parts[9]) authorRole = parts[9];
               }
 
               const title = String(a.title || a.judul || '').trim();
@@ -1213,7 +1219,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 summary: a.summary || a.ringkasan || title || '',
                 serviceRequirementId: serviceRequirementId || undefined,
                 serviceRequirementTitle: serviceRequirementTitle || undefined,
-                sourceDocumentId: sourceDocumentId || undefined
+                sourceDocumentId: sourceDocumentId || undefined,
+                author: author || 'Humas Korwilcam Purwodadi',
+                authorId: authorId || undefined,
+                authorRole: authorRole || 'Admin'
               };
             });
             _inMemoryAnnouncementsCache = loadedAnnouncements;
@@ -2320,8 +2329,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    if (window.location.pathname !== targetPath) {
+    const currentFull = window.location.pathname + (window.location.hash || '');
+    if (currentFull !== targetPath) {
+      const prevHash = window.location.hash;
       window.history.pushState({ tab, path: targetPath }, '', targetPath);
+      const newHash = window.location.hash;
+      if (prevHash !== newHash) {
+        window.dispatchEvent(new Event('hashchange'));
+      }
     }
     document.title = targetTitle;
 
@@ -2498,12 +2513,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         returnPath = window.location.pathname;
       }
 
-      const finalUrl = searchStr ? `${returnPath}?${searchStr}` : returnPath;
+      const currentHash = window.location.hash || '';
+      const finalUrl = searchStr ? `${returnPath}?${searchStr}${currentHash}` : `${returnPath}${currentHash}`;
 
-      if (window.location.pathname + window.location.search !== finalUrl) {
+      if (window.location.pathname + window.location.search + window.location.hash !== finalUrl) {
         window.history.pushState({}, '', finalUrl);
       }
-      document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+      if (currentHash.toLowerCase() === '#sd') {
+        document.title = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
+      } else if (currentHash.toLowerCase() === '#tk') {
+        document.title = 'Daftar Lembaga Jenjang TK - Korwilcam Purwodadi';
+      } else if (currentHash.toLowerCase() === '#kb' || currentHash.toLowerCase() === '#paud') {
+        document.title = 'Daftar Lembaga Jenjang KB - Korwilcam Purwodadi';
+      } else {
+        document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+      }
     }
   };
 
@@ -2938,7 +2962,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         document.title = TAB_ROUTES['sop-pelayanan']?.title || 'SOP Pelayanan - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/direktori-sekolah') || rawPath.startsWith('/sekolah')) {
         setActiveTabState('schools');
-        document.title = TAB_ROUTES['schools'].title;
+        const hash = (typeof window !== 'undefined' ? (window.location.hash || '').toLowerCase() : '');
+        if (hash === '#sd') {
+          document.title = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
+        } else if (hash === '#tk') {
+          document.title = 'Daftar Lembaga Jenjang TK - Korwilcam Purwodadi';
+        } else if (hash === '#kb' || hash === '#paud') {
+          document.title = 'Daftar Lembaga Jenjang KB - Korwilcam Purwodadi';
+        } else {
+          document.title = TAB_ROUTES['schools'].title;
+        }
       } else if (rawPath.startsWith('/nominative')) {
         setActiveTabState('nominatif');
         window.history.replaceState({ tab: 'nominatif', path: '/profil#nominatif' }, '', '/profil#nominatif');
@@ -3850,7 +3883,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           newAnn.fileUrl || '',
           newAnn.serviceRequirementId || '',
           newAnn.serviceRequirementTitle || '',
-          newAnn.sourceDocumentId || ''
+          newAnn.sourceDocumentId || '',
+          newAnn.author || '',
+          newAnn.authorId || '',
+          newAnn.authorRole || ''
         ].join('|');
 
         const { error } = await client.from('announcements').upsert({
@@ -3993,7 +4029,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           target.fileUrl || '',
           target.serviceRequirementId || '',
           target.serviceRequirementTitle || '',
-          target.sourceDocumentId || ''
+          target.sourceDocumentId || '',
+          target.author || '',
+          target.authorId || '',
+          target.authorRole || ''
         ].join('|');
 
         const { error } = await client.from('announcements').upsert({

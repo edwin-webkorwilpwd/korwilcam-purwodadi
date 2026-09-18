@@ -14,7 +14,8 @@ import {
   AlertCircle,
   ArrowUpRight,
   FileCheck2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  User
 } from 'lucide-react';
 import { getAnnouncementShortUrl } from '../lib/shortLink';
 import { downloadAnnouncementJpeg, shareAnnouncementWhatsApp } from '../lib/announcementCanvas';
@@ -273,9 +274,15 @@ export const AnnouncementDetailPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <span>Diterbitkan: <strong className="text-slate-800">{selectedAnnouncement.date}</strong></span>
+            <div className="flex flex-col sm:items-end gap-1.5 text-xs text-slate-500 font-medium">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span>Diterbitkan: <strong className="text-slate-800">{selectedAnnouncement.date}</strong></span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600">
+                <User className="w-4 h-4 text-blue-600" />
+                <span>Penulis: <strong className="text-slate-900 font-bold">{selectedAnnouncement.author || 'Humas Korwilcam Purwodadi'}</strong></span>
+              </div>
             </div>
           </div>
 

@@ -1441,13 +1441,6 @@ export const AdminDashboard: React.FC = () => {
   const [newsSubTab, setNewsSubTab] = useState<'news' | 'announcements'>('news');
   const [newsFilterTab, setNewsFilterTab] = useState<'all' | 'mine'>('all');
 
-  // Kunci tab pengumuman otomatis jika login sebagai Penulis
-  React.useEffect(() => {
-    if (isWriter && newsSubTab === 'announcements') {
-      setNewsSubTab('news');
-    }
-  }, [isWriter, newsSubTab]);
-
   // News form
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
   const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
@@ -1484,8 +1477,8 @@ export const AdminDashboard: React.FC = () => {
       return true;
     }
 
-    // Cek kecocokan authorRole jika ada
-    if (item.authorRole && activeUserRole && item.authorRole.trim().toLowerCase() === activeUserRole.trim().toLowerCase()) {
+    // Hanya Admin / Super Admin yang boleh mencocokkan berdasarkan sesama role admin
+    if (isAdminOrSuperAdmin && item.authorRole && activeUserRole && item.authorRole.trim().toLowerCase() === activeUserRole.trim().toLowerCase()) {
       return true;
     }
 
@@ -1696,8 +1689,79 @@ export const AdminDashboard: React.FC = () => {
     summary: '',
     serviceRequirementId: '',
     serviceRequirementTitle: '',
-    sourceDocumentId: ''
+    sourceDocumentId: '',
+    author: activeAuthorName,
+    authorId: currentUser?.id || '',
+    authorRole: activeUserRole as string
   });
+
+  const [annFilterTab, setAnnFilterTab] = useState<'all' | 'mine'>('all');
+
+  // Helper cek kepemilikan surat edaran / pengumuman berdasarkan akun/role login
+  const isAnnouncementItemOwner = (item: Announcement) => {
+    if (!currentUser) return false;
+
+    // Cocokkan authorId jika tersedia
+    if (item.authorId && currentUser.id && item.authorId === currentUser.id) {
+      return true;
+    }
+
+    // Jika authorId milik Super Admin tetapi yang login bukan Super Admin / Admin
+    if (item.authorId === 'usr-superadmin' && !isAdminOrSuperAdmin) {
+      return false;
+    }
+
+    // Cek kecocokan nama author (case-insensitive)
+    if (item.author && activeAuthorName && item.author.trim().toLowerCase() === activeAuthorName.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Cek kecocokan username
+    if (item.author && currentUser.username && item.author.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Hanya Admin / Super Admin yang boleh mencocokkan berdasarkan sesama role admin
+    if (isAdminOrSuperAdmin && item.authorRole && activeUserRole && item.authorRole.trim().toLowerCase() === activeUserRole.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Jika dibuat oleh Super Administrator dan user login bukan Super Admin / Admin
+    const isSuperAdminAuthor = ['super administrator', 'super admin'].some((adm) =>
+      item.author?.toLowerCase().includes(adm)
+    );
+    if (isSuperAdminAuthor && !isAdminOrSuperAdmin) {
+      return false;
+    }
+
+    return false;
+  };
+
+  // Otomatis sinkronkan nama dan role pembuat pengumuman dengan akun login aktif
+  React.useEffect(() => {
+    if (!editingAnnId && currentUser) {
+      setAnnForm((prev) => ({
+        ...prev,
+        author: currentUser.name || activeAuthorName,
+        authorId: currentUser.id || '',
+        authorRole: currentUser.role || activeUserRole
+      }));
+    }
+  }, [currentUser, editingAnnId, activeAuthorName, activeUserRole]);
+
+  // Pengumuman yang ditampilkan:
+  // Super Admin & Admin dapat melihat seluruh pengumuman (atau filter ke pengumuman miliknya)
+  // Penulis HANYA dapat melihat pengumuman yang dibuat oleh akun dirinya sendiri
+  const displayedAnnouncements = useMemo(() => {
+    if (isAdminOrSuperAdmin) {
+      if (annFilterTab === 'mine') {
+        return announcements.filter((item) => isAnnouncementItemOwner(item));
+      }
+      return announcements;
+    }
+    // Penulis: HANYA menampilkan pengumuman yang dibuat akun login
+    return announcements.filter((item) => isAnnouncementItemOwner(item));
+  }, [announcements, isAdminOrSuperAdmin, annFilterTab, currentUser, activeAuthorName, activeUserRole]);
 
   // Daftar berkas master dari Layanan Unduhan yang siap ditautkan ke pengumuman (bebas file ganda)
   const availableUnduhanDocs = useMemo(() => {
@@ -1795,14 +1859,6 @@ export const AdminDashboard: React.FC = () => {
 
   const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isWriter) {
-      showNoticePopup({
-        title: 'Akses Ditolak!',
-        message: 'Wewenang Penulis tidak memiliki izin untuk mengelola atau menerbitkan Surat Edaran & Pengumuman.',
-        type: 'warning'
-      });
-      return;
-    }
     const cleanAnnSummary = stripHtml(annForm.summary);
     if (!annForm.title || !cleanAnnSummary) {
       showToast('Judul dan ringkasan pengumuman wajib diisi!', 'error');
@@ -1810,6 +1866,16 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (editingAnnId) {
+      const existingAnn = announcements.find((a) => a.id === editingAnnId);
+      if (isWriter && existingAnn && !isAnnouncementItemOwner(existingAnn)) {
+        showNoticePopup({
+          title: 'Akses Ditolak!',
+          message: 'Anda hanya memiliki izin untuk mengedit pengumuman yang Anda buat sendiri.',
+          type: 'warning'
+        });
+        return;
+      }
+
       const confirmed = await showConfirmDialog({
         title: 'Konfirmasi Perubahan Pengumuman',
         message: 'Apakah Anda yakin ingin menyimpan perubahan pada pengumuman ini?',
@@ -1822,7 +1888,10 @@ export const AdminDashboard: React.FC = () => {
 
       await updateAnnouncement(editingAnnId, {
         ...annForm,
-        summary: cleanAnnSummary
+        summary: cleanAnnSummary,
+        author: annForm.author || activeAuthorName,
+        authorId: annForm.authorId || currentUser?.id || '',
+        authorRole: annForm.authorRole || activeUserRole
       });
       setEditingAnnId(null);
       const hasFile = !!(annForm.fileUrl && annForm.fileUrl !== '#');
@@ -1840,6 +1909,9 @@ export const AdminDashboard: React.FC = () => {
       await addAnnouncement({
         ...annForm,
         summary: cleanAnnSummary,
+        author: currentUser?.name || activeAuthorName,
+        authorId: currentUser?.id || '',
+        authorRole: currentUser?.role || activeUserRole,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
       });
       const hasFile = !!(annForm.fileUrl && annForm.fileUrl !== '#');
@@ -1870,7 +1942,10 @@ export const AdminDashboard: React.FC = () => {
       summary: '',
       serviceRequirementId: '',
       serviceRequirementTitle: '',
-      sourceDocumentId: ''
+      sourceDocumentId: '',
+      author: currentUser?.name || activeAuthorName,
+      authorId: currentUser?.id || '',
+      authorRole: currentUser?.role || activeUserRole
     });
   };
 
@@ -3183,14 +3258,14 @@ export const AdminDashboard: React.FC = () => {
                 <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                   currentSection === 'news-cms' ? 'text-blue-100' : 'text-slate-400'
                 }`}>
-                  {isWriter ? 'Artikel Berita Saya' : 'Berita & Surat Edaran'}
+                  {isWriter ? 'Berita & Pengumuman Saya' : 'Berita & Surat Edaran'}
                 </span>
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
               currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>
-              {isWriter ? displayedNews.length : (news.length + announcements.length)}
+              {isWriter ? (displayedNews.length + displayedAnnouncements.length) : (news.length + announcements.length)}
             </span>
           </button>
 
@@ -5636,28 +5711,15 @@ export const AdminDashboard: React.FC = () => {
                   <span>Berita & Liputan ({isWriter ? displayedNews.length : news.length})</span>
                 </button>
 
-                {isWriter ? (
-                  <div
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed select-none"
-                    title="Tab Pengumuman & Surat Edaran dikunci khusus untuk Admin & Super Admin"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Pengumuman & Surat Edaran ({announcements.length})</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-200">
-                      Terkunci (Khusus Admin)
-                    </span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setNewsSubTab('announcements')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      newsSubTab === 'announcements' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
-                    }`}
-                  >
-                    <BellRing className="w-4 h-4" />
-                    <span>Pengumuman & Surat Edaran ({announcements.length})</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => setNewsSubTab('announcements')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    newsSubTab === 'announcements' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
+                  }`}
+                >
+                  <BellRing className="w-4 h-4" />
+                  <span>Pengumuman & Surat Edaran ({isWriter ? displayedAnnouncements.length : announcements.length})</span>
+                </button>
               </div>
 
               {/* Subtab 1: News */}
@@ -6159,7 +6221,7 @@ export const AdminDashboard: React.FC = () => {
               )}
 
               {/* Subtab 2: Announcements */}
-              {newsSubTab === 'announcements' && !isWriter && (
+              {newsSubTab === 'announcements' && (
                 <div className="space-y-6">
                   <form onSubmit={handleSaveAnnouncement} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div className="space-y-1.5">
@@ -6526,6 +6588,40 @@ export const AdminDashboard: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Info Penulis / Pembuat Pengumuman & Role Pengunggah Otomatis */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Penulis / Pembuat Pengumuman</label>
+                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" /> Otomatis Akun
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          disabled
+                          value={annForm.author || activeAuthorName}
+                          className="w-full px-3 py-2 rounded-xl bg-slate-100/80 border border-slate-200 text-xs font-bold text-slate-700 cursor-not-allowed select-none"
+                          title="Penulis otomatis mendeteksi nama dari akun login di database dan tidak dapat diubah"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">Role Pengunggah</label>
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Terverifikasi
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          disabled
+                          value={annForm.authorRole || activeUserRole}
+                          className="w-full px-3 py-2 rounded-xl bg-slate-100/80 border border-slate-200 text-xs font-bold text-slate-700 cursor-not-allowed select-none"
+                          title="Role pengunggah otomatis disesuaikan dengan akun login"
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700">Ringkasan Surat Edaran *</label>
                       <textarea
@@ -6566,7 +6662,10 @@ export const AdminDashboard: React.FC = () => {
                                 summary: '',
                                 serviceRequirementId: '',
                                 serviceRequirementTitle: '',
-                                sourceDocumentId: ''
+                                sourceDocumentId: '',
+                                author: currentUser?.name || activeAuthorName,
+                                authorId: currentUser?.id || '',
+                                authorRole: currentUser?.role || activeUserRole
                               });
                             }}
                             className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-300 transition-colors"
@@ -6591,144 +6690,222 @@ export const AdminDashboard: React.FC = () => {
 
                   {/* List announcements */}
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between px-1">
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500">
-                        Daftar Pengumuman Aktif ({announcements.length} Berkas)
-                      </h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+                      <div>
+                        <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                          {isWriter
+                            ? `Daftar Pengumuman Saya (${displayedAnnouncements.length} Berkas)`
+                            : `Daftar Pengumuman Aktif (${displayedAnnouncements.length} Berkas)`}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {isWriter
+                            ? 'Menampilkan daftar pengumuman dan surat edaran yang diterbitkan oleh akun Anda.'
+                            : 'Kelola, tinjau, dan hapus pengumuman resmi yang tayang di website publik.'}
+                        </p>
+                      </div>
+
+                      {/* Filter Tab: Semua vs Milik Saya (Khusus Admin / Super Admin) */}
+                      {isAdminOrSuperAdmin && (
+                        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setAnnFilterTab('all')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              annFilterTab === 'all'
+                                ? 'bg-white text-blue-600 shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Semua ({announcements.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAnnFilterTab('mine')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              annFilterTab === 'mine'
+                                ? 'bg-white text-blue-600 shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Pengumuman Saya ({announcements.filter(isAnnouncementItemOwner).length})
+                          </button>
+                        </div>
+                      )}
                     </div>
 
-                    {announcements.map((ann) => (
-                      <div key={ann.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 flex items-start justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                              {ann.urgency}
-                            </span>
-                            <span className="text-xs font-mono text-slate-400">{ann.date} • Sasaran: {ann.target}</span>
-                          </div>
-                          <h4 className="font-bold text-slate-900 text-sm leading-snug">{ann.title}</h4>
-                          <p className="text-xs text-slate-600 line-clamp-2">{ann.summary}</p>
-                          
-                          {/* Attached File Preview / Download */}
-                          {ann.fileUrl && ann.fileUrl !== '#' ? (
-                            <div className="pt-1.5 flex items-center gap-2 flex-wrap">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                <Paperclip className="w-3 h-3 text-emerald-600" />
-                                <span>{ann.fileName || 'Berkas Lampiran'}</span>
-                                {ann.fileType && <span className="uppercase text-emerald-600">[{ann.fileType}]</span>}
-                                {ann.fileSize && <span>({ann.fileSize})</span>}
-                              </span>
-                              {ann.sourceDocumentId ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                  <FolderOpen className="w-3 h-3 text-indigo-500" />
-                                  <span>Dari Layanan Unduhan</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                  <Sparkles className="w-2.5 h-2.5 text-blue-500" />
-                                  <span>Sinkron Unduhan</span>
-                                </span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const link = document.createElement('a');
-                                  link.href = ann.fileUrl!;
-                                  link.download = ann.fileName || `${ann.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(ann.fileType || 'pdf').toLowerCase()}`;
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
-                                }}
-                                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline"
-                              >
-                                <Download className="w-3 h-3" /> Unduh Berkas
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-[11px] text-slate-400 italic pt-1">
-                              Tanpa lampiran file digital
-                            </div>
-                          )}
-
-                          {/* Linked Service Requirement Badge */}
-                          {ann.serviceRequirementTitle && (
-                            <div className="pt-1 flex items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-200">
-                                <FileCheck2 className="w-3 h-3 text-indigo-600 shrink-0" />
-                                <span>Lampiran Persyaratan: <strong className="font-extrabold">{ann.serviceRequirementTitle}</strong></span>
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => {
-                              const matchedDoc = ann.sourceDocumentId
-                                ? availableUnduhanDocs.find((d) => d.id === ann.sourceDocumentId)
-                                : availableUnduhanDocs.find(
-                                    (d) =>
-                                      (d.downloadUrl && d.downloadUrl !== '#' && d.downloadUrl === ann.fileUrl) ||
-                                      (ann.fileName && d.title.trim().toLowerCase() === ann.fileName.trim().toLowerCase() && d.fileSize === ann.fileSize)
-                                  );
-                              const resolvedSourceDocId = ann.sourceDocumentId || matchedDoc?.id || '';
-                              setEditingAnnId(ann.id);
-                              setAnnFileMode(resolvedSourceDocId ? 'existing' : 'upload');
-                              setAnnForm({
-                                title: ann.title,
-                                urgency: ann.urgency,
-                                target: ann.target,
-                                fileSize: ann.fileSize || '',
-                                fileUrl: ann.fileUrl || '',
-                                fileName: ann.fileName || '',
-                                fileType: ann.fileType || '',
-                                summary: ann.summary,
-                                serviceRequirementId: ann.serviceRequirementId || '',
-                                serviceRequirementTitle: ann.serviceRequirementTitle || '',
-                                sourceDocumentId: resolvedSourceDocId
-                              });
-                              if (ann.fileUrl && ann.fileUrl !== '#') {
-                                setUploadedAnnFile({
-                                  name: ann.fileName || `${ann.title}.${(ann.fileType || 'pdf').toLowerCase()}`,
-                                  size: ann.fileSize || 'Lampiran Terunggah',
-                                  type: ann.fileType || 'FILE',
-                                  dataUrl: ann.fileUrl
-                                });
-                              } else {
-                                setUploadedAnnFile(null);
-                              }
-                            }}
-                            className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                            title="Edit Pengumuman"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              const confirmed = await showConfirmDialog({
-                                title: 'Hapus Pengumuman Ini?',
-                                message: `Apakah Anda yakin ingin menghapus pengumuman "${ann.title}"?`,
-                                type: 'delete',
-                                itemName: ann.title,
-                                confirmText: 'Ya, Hapus Pengumuman',
-                                cancelText: 'Tidak, Batalkan'
-                              });
-                              if (!confirmed || isWriter) return;
-                              deleteAnnouncement(ann.id);
-                              showNoticePopup({
-                                title: 'Pengumuman Dihapus!',
-                                message: `Pengumuman "${ann.title}" telah berhasil dihapus.`,
-                                type: 'success'
-                              });
-                            }}
-                            className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
-                            title="Hapus Pengumuman"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                    {displayedAnnouncements.length === 0 ? (
+                      <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 space-y-2">
+                        <BellRing className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs font-semibold text-slate-500">
+                          {isWriter
+                            ? 'Anda belum pernah membuat pengumuman atau surat edaran.'
+                            : 'Belum ada data pengumuman yang sesuai dengan filter.'}
+                        </p>
+                        {isWriter && (
+                          <p className="text-[11px] text-slate-400">
+                            Gunakan formulir di atas untuk menerbitkan pengumuman resmi pertama Anda.
+                          </p>
+                        )}
                       </div>
-                    ))}
+                    ) : (
+                      displayedAnnouncements.map((ann) => (
+                        <div key={ann.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 flex items-start justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                                {ann.urgency}
+                              </span>
+                              <span className="text-xs font-mono text-slate-400">{ann.date} • Sasaran: {ann.target}</span>
+
+                              {/* Author Badge */}
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                <User className="w-2.5 h-2.5 text-blue-600" />
+                                <span>{ann.author || 'Humas Korwilcam Purwodadi'}</span>
+                              </span>
+                            </div>
+                            <h4 className="font-bold text-slate-900 text-sm leading-snug">{ann.title}</h4>
+                            <p className="text-xs text-slate-600 line-clamp-2">{ann.summary}</p>
+                            
+                            {/* Attached File Preview / Download */}
+                            {ann.fileUrl && ann.fileUrl !== '#' ? (
+                              <div className="pt-1.5 flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  <Paperclip className="w-3 h-3 text-emerald-600" />
+                                  <span>{ann.fileName || 'Berkas Lampiran'}</span>
+                                  {ann.fileType && <span className="uppercase text-emerald-600">[{ann.fileType}]</span>}
+                                  {ann.fileSize && <span>({ann.fileSize})</span>}
+                                </span>
+                                {ann.sourceDocumentId ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    <FolderOpen className="w-3 h-3 text-indigo-500" />
+                                    <span>Dari Layanan Unduhan</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                    <Sparkles className="w-2.5 h-2.5 text-blue-500" />
+                                    <span>Sinkron Unduhan</span>
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = ann.fileUrl!;
+                                    link.download = ann.fileName || `${ann.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(ann.fileType || 'pdf').toLowerCase()}`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                  }}
+                                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline"
+                                >
+                                  <Download className="w-3 h-3" /> Unduh Berkas
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-slate-400 italic pt-1">
+                                Tanpa lampiran file digital
+                              </div>
+                            )}
+
+                            {/* Linked Service Requirement Badge */}
+                            {ann.serviceRequirementTitle && (
+                              <div className="pt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-200">
+                                  <FileCheck2 className="w-3 h-3 text-indigo-600 shrink-0" />
+                                  <span>Lampiran Persyaratan: <strong className="font-extrabold">{ann.serviceRequirementTitle}</strong></span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => {
+                                if (isWriter && !isAnnouncementItemOwner(ann)) {
+                                  showNoticePopup({
+                                    title: 'Akses Ditolak!',
+                                    message: 'Anda hanya memiliki izin untuk mengedit pengumuman yang Anda buat sendiri.',
+                                    type: 'warning'
+                                  });
+                                  return;
+                                }
+                                const matchedDoc = ann.sourceDocumentId
+                                  ? availableUnduhanDocs.find((d) => d.id === ann.sourceDocumentId)
+                                  : availableUnduhanDocs.find(
+                                      (d) =>
+                                        (d.downloadUrl && d.downloadUrl !== '#' && d.downloadUrl === ann.fileUrl) ||
+                                        (ann.fileName && d.title.trim().toLowerCase() === ann.fileName.trim().toLowerCase() && d.fileSize === ann.fileSize)
+                                    );
+                                const resolvedSourceDocId = ann.sourceDocumentId || matchedDoc?.id || '';
+                                setEditingAnnId(ann.id);
+                                setAnnFileMode(resolvedSourceDocId ? 'existing' : 'upload');
+                                setAnnForm({
+                                  title: ann.title,
+                                  urgency: ann.urgency,
+                                  target: ann.target,
+                                  fileSize: ann.fileSize || '',
+                                  fileUrl: ann.fileUrl || '',
+                                  fileName: ann.fileName || '',
+                                  fileType: ann.fileType || '',
+                                  summary: ann.summary,
+                                  serviceRequirementId: ann.serviceRequirementId || '',
+                                  serviceRequirementTitle: ann.serviceRequirementTitle || '',
+                                  sourceDocumentId: resolvedSourceDocId,
+                                  author: ann.author || activeAuthorName,
+                                  authorId: ann.authorId || currentUser?.id || '',
+                                  authorRole: ann.authorRole || activeUserRole
+                                });
+                                if (ann.fileUrl && ann.fileUrl !== '#') {
+                                  setUploadedAnnFile({
+                                    name: ann.fileName || `${ann.title}.${(ann.fileType || 'pdf').toLowerCase()}`,
+                                    size: ann.fileSize || 'Lampiran Terunggah',
+                                    type: ann.fileType || 'FILE',
+                                    dataUrl: ann.fileUrl
+                                  });
+                                } else {
+                                  setUploadedAnnFile(null);
+                                }
+                              }}
+                              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                              title="Edit Pengumuman"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (isWriter && !isAnnouncementItemOwner(ann)) {
+                                  showNoticePopup({
+                                    title: 'Akses Ditolak!',
+                                    message: 'Anda hanya memiliki izin untuk menghapus pengumuman yang Anda buat sendiri.',
+                                    type: 'warning'
+                                  });
+                                  return;
+                                }
+                                const confirmed = await showConfirmDialog({
+                                  title: 'Hapus Pengumuman Ini?',
+                                  message: `Apakah Anda yakin ingin menghapus pengumuman "${ann.title}"?`,
+                                  type: 'delete',
+                                  itemName: ann.title,
+                                  confirmText: 'Ya, Hapus Pengumuman',
+                                  cancelText: 'Tidak, Batalkan'
+                                });
+                                if (!confirmed) return;
+                                deleteAnnouncement(ann.id);
+                                showNoticePopup({
+                                  title: 'Pengumuman Dihapus!',
+                                  message: `Pengumuman "${ann.title}" telah berhasil dihapus.`,
+                                  type: 'success'
+                                });
+                              }}
+                              className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                              title="Hapus Pengumuman"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

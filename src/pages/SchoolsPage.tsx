@@ -24,12 +24,80 @@ import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 export const SchoolsPage: React.FC = () => {
   const { schools } = useApp();
 
+  const getLevelFromHash = (): string => {
+    if (typeof window === 'undefined') return 'ALL';
+    const hash = window.location.hash.toLowerCase().replace(/^#/, '');
+    if (hash === 'sd') return 'SD';
+    if (hash === 'tk') return 'TK';
+    if (hash === 'kb' || hash === 'paud') return 'KB';
+    return 'ALL';
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLevel, setSelectedLevel] = useState<string>('ALL');
+  const [selectedLevel, setSelectedLevel] = useState<string>(getLevelFromHash);
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedAkreditasi, setSelectedAkreditasi] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+
+  // Handle explicit level selection and update browser URL hash
+  const handleSelectLevel = (lvlId: string) => {
+    setSelectedLevel(lvlId);
+
+    const basePath = window.location.pathname.startsWith('/direktori-sekolah')
+      ? '/direktori-sekolah'
+      : '/sekolah';
+    const search = window.location.search || '';
+
+    let targetUrl: string;
+    let newTitle: string;
+
+    if (lvlId === 'ALL') {
+      targetUrl = `${basePath}${search}`;
+      newTitle = 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+    } else {
+      const hash = lvlId.toLowerCase();
+      targetUrl = `${basePath}${search}#${hash}`;
+      if (lvlId === 'SD') {
+        newTitle = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
+      } else if (lvlId === 'TK') {
+        newTitle = 'Daftar Lembaga Jenjang TK - Korwilcam Purwodadi';
+      } else {
+        newTitle = 'Daftar Lembaga Jenjang KB - Korwilcam Purwodadi';
+      }
+    }
+
+    const currentUrl = window.location.pathname + (window.location.search || '') + (window.location.hash || '');
+    if (currentUrl !== targetUrl) {
+      window.history.pushState({ level: lvlId, path: targetUrl }, '', targetUrl);
+    }
+    document.title = newTitle;
+  };
+
+  // Sync sub-filter from URL hash on browser Back / Forward or external hash changes
+  useEffect(() => {
+    const handleHashSync = () => {
+      const level = getLevelFromHash();
+      setSelectedLevel(level);
+      if (level === 'SD') {
+        document.title = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
+      } else if (level === 'TK') {
+        document.title = 'Daftar Lembaga Jenjang TK - Korwilcam Purwodadi';
+      } else if (level === 'KB') {
+        document.title = 'Daftar Lembaga Jenjang KB - Korwilcam Purwodadi';
+      } else {
+        document.title = 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashSync);
+    window.addEventListener('popstate', handleHashSync);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashSync);
+      window.removeEventListener('popstate', handleHashSync);
+    };
+  }, []);
 
   const filteredSchools = useMemo(() => {
     return schools.filter((school) => {
@@ -72,10 +140,10 @@ export const SchoolsPage: React.FC = () => {
 
   const resetFilters = () => {
     setSearchQuery('');
-    setSelectedLevel('ALL');
     setSelectedStatus('ALL');
     setSelectedAkreditasi('ALL');
     setCurrentPage(1);
+    handleSelectLevel('ALL');
   };
 
   const countSD = schools.filter((s) => s.level === 'SD').length;
@@ -97,15 +165,42 @@ export const SchoolsPage: React.FC = () => {
 
           {/* Quick Count Pills */}
           <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="px-3 py-1 rounded-xl bg-white/20 border border-white/30 text-white font-bold backdrop-blur-md shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleSelectLevel('SD')}
+              className={`px-3 py-1 rounded-xl border font-bold backdrop-blur-md shadow-sm transition-all cursor-pointer ${
+                selectedLevel === 'SD'
+                  ? 'bg-amber-400 text-slate-900 border-amber-300 ring-2 ring-white/60 shadow-md scale-105'
+                  : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
+              }`}
+              title="Filter jenjang SD"
+            >
               SD: {countSD} Sekolah
-            </span>
-            <span className="px-3 py-1 rounded-xl bg-white/20 border border-white/30 text-white font-bold backdrop-blur-md shadow-sm">
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectLevel('TK')}
+              className={`px-3 py-1 rounded-xl border font-bold backdrop-blur-md shadow-sm transition-all cursor-pointer ${
+                selectedLevel === 'TK'
+                  ? 'bg-amber-400 text-slate-900 border-amber-300 ring-2 ring-white/60 shadow-md scale-105'
+                  : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
+              }`}
+              title="Filter jenjang TK"
+            >
               TK: {countTK} Lembaga
-            </span>
-            <span className="px-3 py-1 rounded-xl bg-white/20 border border-white/30 text-white font-bold backdrop-blur-md shadow-sm">
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectLevel('KB')}
+              className={`px-3 py-1 rounded-xl border font-bold backdrop-blur-md shadow-sm transition-all cursor-pointer ${
+                selectedLevel === 'KB'
+                  ? 'bg-amber-400 text-slate-900 border-amber-300 ring-2 ring-white/60 shadow-md scale-105'
+                  : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
+              }`}
+              title="Filter jenjang KB"
+            >
               KB: {countKB} Lembaga
-            </span>
+            </button>
           </div>
         </div>
         <CurvedHeaderArch />
@@ -175,7 +270,8 @@ export const SchoolsPage: React.FC = () => {
                 ].map((lvl) => (
                   <button
                     key={lvl.id}
-                    onClick={() => setSelectedLevel(lvl.id)}
+                    type="button"
+                    onClick={() => handleSelectLevel(lvl.id)}
                     className={`px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
                       selectedLevel === lvl.id
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'

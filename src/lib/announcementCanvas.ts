@@ -12,6 +12,8 @@ export interface AnnouncementData {
   fileName?: string;
   fileSize?: string;
   fileType?: string;
+  author?: string;
+  authorRole?: string;
 }
 
 export interface OfficeProfileData {
@@ -125,6 +127,8 @@ export async function generateAnnouncementJpegBlob(
   const urgency = announcement.urgency || 'Biasa';
   const target = announcement.target || 'Semua Satuan';
   const date = announcement.date || '10 September 2026';
+  const author = announcement.author || '';
+  const authorRole = announcement.authorRole || '';
 
   // Measure fonts & dynamic height using a temporary canvas
   const measureCanvas = document.createElement('canvas');
@@ -298,12 +302,19 @@ export async function generateAnnouncementJpegBlob(
   ctx.fillStyle = '#4338ca';
   ctx.fillText(targetLabel, targetX + targetWidth / 2, metaY + 9);
 
-  // Meta Date (Right Aligned)
+  // Meta Date & Author (Right Aligned)
   ctx.textAlign = 'right';
   ctx.font = '500 14px "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif';
   ctx.fillStyle = '#64748b';
   const dateStr = `📅 Diterbitkan: ${date}`;
   ctx.fillText(dateStr, 1105, metaY + 9);
+
+  if (author) {
+    ctx.font = '600 12px "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif';
+    ctx.fillStyle = '#475569';
+    const authorStr = `✍️ Penulis: ${author}`;
+    ctx.fillText(authorStr, 1105, metaY + 28);
+  }
 
   // 7. Perihal Label
   const perihalY = metaY + 54;
@@ -470,7 +481,8 @@ export async function shareAnnouncementWhatsApp(
     `*${announcement.title}*\n\n` +
     `📋 *Sasaran:* ${announcement.target}\n` +
     `⚡ *Tingkat:* ${announcement.urgency}\n` +
-    `📅 *Diterbitkan:* ${announcement.date}\n\n` +
+    `📅 *Diterbitkan:* ${announcement.date}\n` +
+    (announcement.author ? `✍️ *Penulis:* ${announcement.author}\n\n` : `\n`) +
     `*Ringkasan Surat Edaran:*\n${announcement.summary}\n\n` +
     `🔗 *Buka & Unduh Lembar Dokumen Resmi:*\n${shareUrl}`;
 

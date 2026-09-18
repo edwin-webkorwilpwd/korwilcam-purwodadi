@@ -296,7 +296,10 @@ export const initialAnnouncements: Announcement[] = [
     urgency: "Mendesak",
     target: "Semua Satuan",
     fileSize: "850 KB",
-    summary: "Diberitahukan kepada seluruh Operator Satuan Pendidikan (SD, TK, KB) batas akhir validasi dan sinkronisasi data peserta didik dan PTK adalah 31 Agustus 2026 pukul 23.59 WIB."
+    summary: "Diberitahukan kepada seluruh Operator Satuan Pendidikan (SD, TK, KB) batas akhir validasi dan sinkronisasi data peserta didik dan PTK adalah 31 Agustus 2026 pukul 23.59 WIB.",
+    author: "Humas Korwilcam Purwodadi",
+    authorId: "usr-superadmin",
+    authorRole: "Super Admin"
   },
   {
     id: "ann-02",
@@ -305,7 +308,10 @@ export const initialAnnouncements: Announcement[] = [
     urgency: "Penting",
     target: "SD",
     fileSize: "1.2 MB",
-    summary: "Surat pemberitahuan jadwal gladi bersih gelombang 1 & 2 serta jadwal pelaksanaan utama ANBK jenjang SD se-Kecamatan Purwodadi."
+    summary: "Surat pemberitahuan jadwal gladi bersih gelombang 1 & 2 serta jadwal pelaksanaan utama ANBK jenjang SD se-Kecamatan Purwodadi.",
+    author: "Humas Korwilcam Purwodadi",
+    authorId: "usr-superadmin",
+    authorRole: "Super Admin"
   },
   {
     id: "ann-03",
@@ -314,7 +320,10 @@ export const initialAnnouncements: Announcement[] = [
     urgency: "Biasa",
     target: "TK/KB",
     fileSize: "620 KB",
-    summary: "Pengumpulan berkas SPJ BOP KB Tahap I dan pengajuan pencairan Tahap II paling lambat diserahkan ke loket pelayanan Korwilcam tanggal 10 September 2026."
+    summary: "Pengumpulan berkas SPJ BOP KB Tahap I dan pengajuan pencairan Tahap II paling lambat diserahkan ke loket pelayanan Korwilcam tanggal 10 September 2026.",
+    author: "Humas Korwilcam Purwodadi",
+    authorId: "usr-admin",
+    authorRole: "Admin"
   }
 ];
 

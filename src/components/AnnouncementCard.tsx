@@ -5,7 +5,8 @@ import {
   Calendar, 
   Download, 
   ExternalLink, 
-  ChevronRight 
+  ChevronRight,
+  User 
 } from 'lucide-react';
 
 // 1. Ilustrasi Dokumen dengan Checkmark Melingkar
@@ -322,10 +323,18 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
           </span>
         </div>
 
-        {/* Date */}
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-          <Calendar className="w-3.5 h-3.5 text-blue-500" />
-          <span>{announcement.date}</span>
+        {/* Date & Author */}
+        <div className="flex flex-col sm:items-end gap-0.5 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-blue-500" />
+            <span>{announcement.date}</span>
+          </div>
+          {announcement.author && (
+            <div className="flex items-center gap-1 text-[11px] text-slate-600 font-semibold">
+              <User className="w-3 h-3 text-blue-600 shrink-0" />
+              <span className="truncate max-w-[150px]">{announcement.author}</span>
+            </div>
+          )}
         </div>
       </div>
 

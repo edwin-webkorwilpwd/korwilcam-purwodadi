@@ -57,6 +57,9 @@ export interface Announcement {
   serviceRequirementId?: string;
   serviceRequirementTitle?: string;
   sourceDocumentId?: string;
+  author?: string;
+  authorId?: string;
+  authorRole?: string;
 }
 
 export interface AgendaEvent {

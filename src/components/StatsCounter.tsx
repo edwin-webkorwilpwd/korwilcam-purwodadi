@@ -176,6 +176,7 @@ export const StatsCounter: React.FC = () => {
       unit: '',
       watermark: SchoolWatermark,
       target: 'schools',
+      path: '/sekolah#sd',
       cornerWaveType: 'standard'
     },
     {
@@ -186,6 +187,7 @@ export const StatsCounter: React.FC = () => {
       unit: '',
       watermark: ToyBlocksWatermark,
       target: 'schools',
+      path: '/sekolah#tk',
       cornerWaveType: 'standard'
     },
     {
@@ -196,6 +198,7 @@ export const StatsCounter: React.FC = () => {
       unit: '',
       watermark: PlaygroundWatermark,
       target: 'schools',
+      path: '/sekolah#kb',
       cornerWaveType: 'standard'
     },
     {
@@ -206,6 +209,7 @@ export const StatsCounter: React.FC = () => {
       unit: 'Jiwa',
       watermark: GraduateWatermark,
       target: 'nominatif',
+      path: '/profil#nominatif',
       cornerWaveType: 'prominent'
     }
   ];
@@ -242,7 +246,7 @@ export const StatsCounter: React.FC = () => {
             return (
               <div
                 key={idx}
-                onClick={() => setActiveTab(item.target as any, item.target === 'nominatif' ? '/profil#nominatif' : undefined)}
+                onClick={() => setActiveTab(item.target as any, item.path || (item.target === 'nominatif' ? '/profil#nominatif' : undefined))}
                 className="group relative bg-white rounded-2xl sm:rounded-[22px] p-5 sm:p-6 border border-blue-100/90 shadow-md shadow-slate-200/60 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col justify-between"
                 title={`Klik untuk melihat ${item.title}`}
               >
