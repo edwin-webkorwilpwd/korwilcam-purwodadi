@@ -1,0 +1,9 @@
+﻿# robots.txt for https://korwilcampurwodadi.web.id
+User-agent: *
+Allow: /
+
+# Disallow private admin management area
+Disallow: /angmin/
+
+# Sitemap location
+Sitemap: https://korwilcampurwodadi.web.id/sitemap.xml
