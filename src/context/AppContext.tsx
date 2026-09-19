@@ -2267,7 +2267,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isSupabaseActive]);
 
   const TAB_ROUTES: Record<string, { path: string; title: string }> = {
-    'home': { path: '/beranda', title: 'Beranda - Portal Resmi Korwilcam Bidang Pendidikan Purwodadi' },
+    'home': { path: '/beranda', title: 'Korwilcam Purwodadi Grobogan - Layanan Pendidikan Kecamatan Purwodadi' },
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
     'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi' },
