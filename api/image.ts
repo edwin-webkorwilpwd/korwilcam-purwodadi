@@ -5,18 +5,38 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_vwFyP
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const ipRequests = new Map<string, { count: number; resetTime: number }>();
+function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
+  const now = Date.now();
+  const entry = ipRequests.get(ip);
+  if (!entry || now > entry.resetTime) {
+    ipRequests.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= max;
+}
+
 export default async function handler(req: any, res: any) {
   try {
-    const id = (req.query?.id || req.query?.slug || '').toString().trim();
-    if (!id) {
+    if (!checkRateLimit(req, 120, 60000)) {
+      res.statusCode = 429;
+      res.setHeader('Retry-After', '60');
+      return res.end('Too Many Requests');
+    }
+
+    const rawId = (req.query?.id || req.query?.slug || '').toString().trim();
+    const cleanId = rawId.replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!cleanId) {
       res.statusCode = 400;
-      return res.end('Missing image ID');
+      return res.end('Missing or invalid image ID');
     }
 
     const { data: article } = await supabase
       .from('news')
       .select('id, image')
-      .or(`id.eq.${id},slug.eq.${id}`)
+      .or(`id.eq.${cleanId},slug.eq.${cleanId}`)
       .limit(1)
       .maybeSingle();
 

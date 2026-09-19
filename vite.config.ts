@@ -52,6 +52,24 @@ export default defineConfig({
     tailwindcss(),
     supabaseConfigPlugin(),
   ],
+  server: {
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'no-referrer-when-downgrade',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    },
+  },
+  preview: {
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'no-referrer-when-downgrade',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    },
+  },
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {

@@ -12,6 +12,8 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
+import { checkRateLimit, recordAttempt } from '../lib/rateLimiter';
+import { stripHtml } from '../lib/stripHtml';
 
 export const ContactPage: React.FC = () => {
   const { officeProfile, showToast, addComplaint } = useApp();
@@ -25,22 +27,42 @@ export const ContactPage: React.FC = () => {
   });
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [honeyTrap, setHoneyTrap] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.message || !formData.phone) {
+
+    // 1. Silent rejection for automated bot submissions (Honeypot trap)
+    if (honeyTrap) {
+      setIsSubmitted(true);
+      return;
+    }
+
+    if (!formData.name.trim() || !formData.message.trim() || !formData.phone.trim()) {
       showToast('Harap lengkapi semua kolom wajib!', 'error');
       return;
     }
 
+    // 2. Rate limiting: Maksimal 3 pesan per 2 menit
+    const rateCheck = checkRateLimit('contact_form', 3, 120);
+    if (!rateCheck.allowed) {
+      showToast(
+        `Anda telah mengirim pesan beberapa kali. Demi kenyamanan bersama, mohon tunggu ${rateCheck.retryAfterSeconds} detik sebelum mengirim kembali.`,
+        'info'
+      );
+      return;
+    }
+
+    // 3. Sanitasi teks input mencegah injection
     addComplaint({
-      name: formData.name,
-      phone: formData.phone,
-      schoolOrOrigin: formData.schoolOrOrigin || 'Masyarakat / Guru',
+      name: stripHtml(formData.name).trim(),
+      phone: stripHtml(formData.phone).trim(),
+      schoolOrOrigin: stripHtml(formData.schoolOrOrigin || 'Masyarakat / Guru').trim(),
       category: formData.category,
-      message: formData.message
+      message: stripHtml(formData.message).trim()
     });
 
+    recordAttempt('contact_form', 3, 120);
     setIsSubmitted(true);
   };
 
@@ -197,6 +219,17 @@ export const ContactPage: React.FC = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Invisible Honeypot Anti-Bot Field */}
+                  <input
+                    type="text"
+                    name="website_url_honey"
+                    value={honeyTrap}
+                    onChange={(e) => setHoneyTrap(e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                    style={{ display: 'none', position: 'absolute', left: '-9999px' }}
+                  />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700">

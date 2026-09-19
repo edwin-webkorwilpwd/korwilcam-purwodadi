@@ -26,6 +26,7 @@ import {
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
+import { isSafeUrl } from '../lib/sanitizeHtml';
 
 interface RichTextEditorProps {
   value: string;
@@ -108,8 +109,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleInsertLink = () => {
     const url = prompt('Masukkan tautan link (URL):', 'https://');
-    if (url && url !== 'https://') {
-      executeCommand('createLink', url);
+    if (url && url.trim() !== '' && url.trim() !== 'https://') {
+      const cleanUrl = url.trim();
+      if (!isSafeUrl(cleanUrl)) {
+        alert('Tautan tidak valid atau menggunakan protokol yang tidak aman!');
+        return;
+      }
+      executeCommand('createLink', cleanUrl);
     }
   };
 

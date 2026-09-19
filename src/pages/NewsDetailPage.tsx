@@ -22,6 +22,7 @@ import { getArticleReadingStats } from '../lib/readingTime';
 import { paginateArticleContent } from '../lib/articlePaginator';
 import { getNewsShortUrl, getNewsShortCode } from '../lib/shortLink';
 import { stripHtml } from '../lib/stripHtml';
+import { sanitizeHtml } from '../lib/sanitizeHtml';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -517,7 +518,7 @@ export const NewsDetailPage: React.FC = () => {
               activePageData.isHtml ? (
                 <div 
                   className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:rounded-2xl max-w-none text-base sm:text-lg"
-                  dangerouslySetInnerHTML={{ __html: activePageData.content }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(activePageData.content) }}
                 />
               ) : (
                 <div className="text-slate-700 text-base sm:text-lg leading-relaxed whitespace-pre-line font-normal space-y-4">
@@ -527,7 +528,7 @@ export const NewsDetailPage: React.FC = () => {
             ) : selectedNews.content.includes('<') ? (
               <div 
                 className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:rounded-2xl max-w-none text-base sm:text-lg"
-                dangerouslySetInnerHTML={{ __html: selectedNews.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
               />
             ) : (
               <div className="text-slate-700 text-base sm:text-lg leading-relaxed whitespace-pre-line font-normal space-y-4">

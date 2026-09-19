@@ -13,6 +13,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { getGoogleDriveCandidates } from '../../lib/driveHelper';
+import { checkRateLimit } from '../../lib/rateLimiter';
 
 const BACKGROUND_DRIVE_URL = 'https://drive.google.com/file/d/1lmJrDPTE_RVGmfmzI-dpZQ1H3k0Qd7Rz/view?usp=drive_link';
 
@@ -42,6 +43,16 @@ export const AdminLogin: React.FC = () => {
       showToast('Harap masukkan username dan kata sandi!', 'error');
       return;
     }
+
+    const rateCheck = checkRateLimit('admin_login', 5, 180);
+    if (!rateCheck.allowed) {
+      showToast(
+        `Terlalu banyak percobaan login gagal. Mohon tunggu ${rateCheck.retryAfterSeconds} detik sebelum mencoba lagi.`,
+        'error'
+      );
+      return;
+    }
+
     setLoading(true);
     const success = await login(username, password);
     setLoading(false);

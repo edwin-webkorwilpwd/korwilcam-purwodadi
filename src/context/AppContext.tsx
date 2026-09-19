@@ -44,6 +44,7 @@ import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 import { stripHtml, generateSummary } from '../lib/stripHtml';
+import { checkRateLimit, recordAttempt, resetRateLimit } from '../lib/rateLimiter';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -3092,14 +3093,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    // 1. Anti Brute-Force Rate Limiter: Maksimal 5 percobaan dalam 3 menit
+    const rateCheck = checkRateLimit('admin_login', 5, 180);
+    if (!rateCheck.allowed) {
+      showToast(
+        `Terlalu banyak percobaan login gagal. Mohon tunggu ${rateCheck.retryAfterSeconds} detik lagi demi keamanan.`,
+        'error'
+      );
+      return false;
+    }
+
     // Wajib verifikasi langsung ke tabel admin_users di Supabase
     const client = getSupabaseClient();
     if (client) {
       try {
+        // Escape PostgREST wildcard characters (% and _) to prevent wildcard injection
+        const sanitizedUser = trimmedUser.replace(/[%_\\]/g, '\\$&');
+
         const { data, error } = await client
           .from('admin_users')
           .select('*')
-          .ilike('username', trimmedUser)
+          .ilike('username', sanitizedUser)
           .eq('password', trimmedPass)
           .limit(1);
 
@@ -3115,6 +3129,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (data && data.length > 0) {
           const u = data[0];
+          // Validasi ketat username persis sama (case-insensitive)
+          if (u.username.toLowerCase() !== trimmedUser.toLowerCase()) {
+            recordAttempt('admin_login', 5, 180, 60);
+            showToast('Username atau kata sandi salah!', 'error');
+            return false;
+          }
+
           if (u.status === 'Nonaktif') {
             setIsAuthenticated(false);
             setCurrentUser(null);
@@ -3138,6 +3159,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setIsAuthenticated(true);
           localStorage.setItem('korwilcam_admin_auth', 'true');
           localStorage.setItem('korwilcam_current_user', JSON.stringify(matched));
+
+          // Reset rate limiter saat login berhasil
+          resetRateLimit('admin_login');
+
           showToast(`Login berhasil! Selamat datang, ${matched.name} (${matched.role}).`, 'success');
           return true;
         } else {
@@ -3146,7 +3171,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setCurrentUser(null);
           localStorage.removeItem('korwilcam_admin_auth');
           localStorage.removeItem('korwilcam_current_user');
-          showToast('Username atau kata sandi salah! Pastikan sesuai dengan tabel admin_users di Supabase.', 'error');
+
+          const attempt = recordAttempt('admin_login', 5, 180, 60);
+          if (!attempt.allowed) {
+            showToast(
+              `Terlalu banyak percobaan login gagal. Demi keamanan, sistem dikunci sementara selama ${attempt.retryAfterSeconds} detik.`,
+              'error'
+            );
+          } else {
+            showToast(
+              `Username atau kata sandi salah! (Sisa percobaan: ${attempt.remainingAttempts})`,
+              'error'
+            );
+          }
           return false;
         }
       } catch (err: any) {
@@ -3709,10 +3746,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         // Coba 2: Direct SELECT & UPDATE fallback
+        const cleanId = (id || '').replace(/[^a-zA-Z0-9_-]/g, '');
         const { data: dbItem, error: fetchErr } = await client
           .from('news')
           .select('id, views, slug')
-          .or(`id.eq."${id}",slug.eq."${id}"`)
+          .or(`id.eq."${cleanId}",slug.eq."${cleanId}"`)
           .maybeSingle();
 
         if (!fetchErr && dbItem) {

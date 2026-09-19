@@ -1,4 +1,4 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://xatvlaxseiyuvfcntmml.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_vwFyPFm1dkVCbKOisqkdDQ_8CarPKuK';
@@ -6,25 +6,32 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_vwFyP
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function decodeBase36Id(code: string): string[] {
-  const list = [code];
+  const safeCode = code.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!safeCode) return [];
+  const list = [safeCode];
   try {
-    const num = parseInt(code, 36);
+    const num = parseInt(safeCode, 36);
     if (!isNaN(num) && num > 1000000000) {
       list.push(`news-${num}`);
       list.push(String(num));
     }
   } catch {}
-  if (!code.startsWith('news-')) {
-    list.push(`news-${code}`);
-    list.push(`news-${code.padStart(2, '0')}`);
+  if (!safeCode.startsWith('news-')) {
+    list.push(`news-${safeCode}`);
+    list.push(`news-${safeCode.padStart(2, '0')}`);
   } else {
-    list.push(code.replace(/^news-/, ''));
+    list.push(safeCode.replace(/^news-/, ''));
   }
   return Array.from(new Set(list));
 }
 
 function decodeAnnouncementKeys(param: string): string[] {
-  const clean = param.replace(/^pengumuman\//, '').replace(/^\/pengumuman\//, '').trim();
+  const clean = param
+    .replace(/^pengumuman\//, '')
+    .replace(/^\/pengumuman\//, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .trim();
+  if (!clean) return [];
   const list = [clean];
   if (!clean.startsWith('ann-')) {
     list.push(`ann-${clean}`);
@@ -45,15 +52,36 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+const ipRequests = new Map<string, { count: number; resetTime: number }>();
+function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
+  const now = Date.now();
+  const entry = ipRequests.get(ip);
+  if (!entry || now > entry.resetTime) {
+    ipRequests.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= max;
+}
+
 export default async function handler(req: any, res: any) {
   try {
+    if (!checkRateLimit(req, 120, 60000)) {
+      res.statusCode = 429;
+      res.setHeader('Retry-After', '60');
+      return res.end('Too Many Requests');
+    }
+
     const host = req.headers['x-forwarded-host'] || req.headers.host || 'korwilcampurwodadi-grobogan.vercel.app';
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const origin = `${proto}://${host}`;
 
     // Read ID or Slug from query params
     const query = req.query || {};
-    const rawParam = (query.id || query.slug || '').toString().trim();
+    const inputParam = (query.id || query.slug || '').toString().trim();
+    // Whitelist safe slug / path characters only
+    const rawParam = inputParam.replace(/[^a-zA-Z0-9_\/-]/g, '');
 
     if (!rawParam) {
       res.writeHead(302, { Location: '/' });
@@ -137,10 +165,11 @@ export default async function handler(req: any, res: any) {
 
       // Fallback if not found: try ilike on slug
       if (!article) {
+        const safeSlugParam = rawParam.replace(/[%_\\]/g, '\\$&');
         const { data } = await supabase
           .from('news')
           .select('id, title, slug, summary, content, image, author, date')
-          .ilike('slug', `%${rawParam}%`)
+          .ilike('slug', `%${safeSlugParam}%`)
           .limit(1)
           .maybeSingle();
         if (data) {

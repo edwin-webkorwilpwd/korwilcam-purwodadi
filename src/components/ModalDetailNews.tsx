@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Calendar, Eye, User, Share2, Tag, BookOpen, Clock } from 'lucide-react';
 import { getArticleReadingStats } from '../lib/readingTime';
 import { stripHtml } from '../lib/stripHtml';
+import { sanitizeHtml } from '../lib/sanitizeHtml';
 
 export const ModalDetailNews: React.FC = () => {
   const { selectedNews, setSelectedNews, showToast } = useApp();
@@ -99,7 +100,7 @@ export const ModalDetailNews: React.FC = () => {
           {selectedNews.content.includes('<') ? (
             <div 
               className="prose prose-slate max-w-none text-slate-700 text-sm sm:text-base leading-relaxed space-y-3"
-              dangerouslySetInnerHTML={{ __html: selectedNews.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
             />
           ) : (
             <div className="space-y-4 text-slate-700 text-sm sm:text-base leading-relaxed whitespace-pre-line font-normal">
