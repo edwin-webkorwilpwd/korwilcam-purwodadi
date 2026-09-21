@@ -83,6 +83,13 @@ import {
   clearCustomSupabaseConfig, 
   testSupabaseConnection 
 } from '../../lib/supabase';
+import { 
+  SPREADSHEET_VIEW_URL, 
+  getActivityLogUrl, 
+  setActivityLogUrl, 
+  testActivityLogWebhook, 
+  GOOGLE_APPS_SCRIPT_CODE 
+} from '../../lib/activityLogger';
 import { stripHtml, generateSummary } from '../../lib/stripHtml';
 import { 
   School, 
@@ -219,7 +226,8 @@ export const AdminDashboard: React.FC = () => {
     | 'data-request-cms'
     | 'gallery-cms' 
     | 'contact-cms' 
-    | 'users-cms';
+    | 'users-cms'
+    | 'activity-log-cms';
 
   const [currentSection, setCurrentSection] = useState<AdminSection>(() => 
     currentUser?.role === 'Penulis' ? 'news-cms' : 'overview'
@@ -472,6 +480,44 @@ export const AdminDashboard: React.FC = () => {
     setHasCopiedSql(true);
     showToast('File skema "supabase_schema.sql" sudah tersedia di root proyek!', 'info');
     setTimeout(() => setHasCopiedSql(false), 3000);
+  };
+
+  // --- ACTIVITY LOG (GOOGLE SPREADSHEET) STATE ---
+  const [activityLogUrlInput, setActivityLogUrlInput] = useState<string>(() => getActivityLogUrl());
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const [webhookTestResult, setWebhookTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [hasCopiedGasCode, setHasCopiedGasCode] = useState(false);
+
+  const handleSaveActivityLogUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActivityLogUrl(activityLogUrlInput);
+    showNoticePopup({
+      title: 'URL Webhook Disimpan!',
+      message: 'URL Google Apps Script Web App berhasil disimpan ke konfigurasi sistem. Seluruh aktivitas pengelolaan data kini akan dikirimkan langsung ke Google Spreadsheet Anda.',
+      type: 'success'
+    });
+  };
+
+  const handleTestWebhook = async () => {
+    setIsTestingWebhook(true);
+    setWebhookTestResult(null);
+    const result = await testActivityLogWebhook(activityLogUrlInput);
+    setIsTestingWebhook(false);
+    setWebhookTestResult(result);
+    if (result.success) {
+      showToast('Pengujian webhook berhasil! Baris pengujian telah terkirim ke Google Spreadsheet.', 'success');
+    } else {
+      showToast(result.message, 'error');
+    }
+  };
+
+  const handleCopyGasCode = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_CODE);
+      setHasCopiedGasCode(true);
+      showToast('Kode Google Apps Script berhasil disalin ke clipboard!', 'success');
+      setTimeout(() => setHasCopiedGasCode(false), 3000);
+    }
   };
 
   // --- 1. HOME CMS STATE ---
@@ -3617,6 +3663,46 @@ export const AdminDashboard: React.FC = () => {
                 </span>
               </button>
             </>
+          )}
+
+          {/* Menu Log Aktivitas (Google Spreadsheet) - Super Admin & Admin */}
+          {isAdminOrSuperAdmin && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentSection('activity-log-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                  currentSection === 'activity-log-cms'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'activity-log-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
+                  }`}>
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'activity-log-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Log Aktivitas
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'activity-log-cms' ? 'text-emerald-100' : 'text-slate-400'
+                    }`}>
+                      Google Spreadsheet
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'activity-log-cms' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
+                }`}>
+                  Live
+                </span>
+              </button>
+            </div>
           )}
 
           {/* Factory reset button (Khusus Super Admin) */}
@@ -10716,6 +10802,372 @@ export const AdminDashboard: React.FC = () => {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 9: LOG AKTIVITAS (GOOGLE SPREADSHEET) */}
+          {currentSection === 'activity-log-cms' && isAdminOrSuperAdmin && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                      Log Aktivitas Pengelola
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Google Spreadsheet
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                      Non-Supabase
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Seluruh riwayat login, logout, penambahan, pengeditan, penghapusan, dan reset data dicatat otomatis langsung ke Google Spreadsheet Anda secara real-time.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <a
+                    href={SPREADSHEET_VIEW_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all active:scale-98"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Buka Google Spreadsheet</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyGasCode}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition-all"
+                  >
+                    {hasCopiedGasCode ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>{hasCopiedGasCode ? 'Kode Disalin!' : 'Salin Kode Apps Script'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 3 Highlight Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Card 1: Spreadsheet File */}
+                <div className="bg-gradient-to-br from-emerald-50 to-white p-4 rounded-2xl border border-emerald-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">File Spreadsheet</h4>
+                        <span className="text-[10px] text-emerald-700 font-medium">Sheet: Log Aktivitas</span>
+                      </div>
+                    </div>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                  <p className="text-[10px] text-slate-600 font-mono truncate">
+                    ID: 1SE2jGfPspFG13jh4lDUyVGZJberXfeKWKfUpz8iv7KM
+                  </p>
+                  <a
+                    href={SPREADSHEET_VIEW_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline pt-1"
+                  >
+                    <span>Lihat Lembar Kerja Langsung</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* Card 2: Zero Supabase Overhead */}
+                <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-2xl border border-blue-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <Database className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Bebas Kuota Supabase</h4>
+                        <span className="text-[10px] text-blue-700 font-medium">Penyimpanan Terpisah</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                      0% Quota
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Sesuai permintaan Anda, seluruh catatan log disimpan ke spreadsheet tanpa membebani tabel atau batas kuota database Supabase.
+                  </p>
+                </div>
+
+                {/* Card 3: Real-Time Webhook Status */}
+                <div className="bg-gradient-to-br from-purple-50 to-white p-4 rounded-2xl border border-purple-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                        <RefreshCw className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Koneksi Webhook</h4>
+                        <span className="text-[10px] text-purple-700 font-medium">Google Apps Script</span>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      activityLogUrlInput && activityLogUrlInput.includes('/exec')
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {activityLogUrlInput && activityLogUrlInput.includes('/exec') ? 'Terkonfigurasi' : 'Belum URL /exec'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Menggunakan Google Apps Script Web App gratis &amp; serverless tanpa batas waktu kedaluwarsa token.
+                  </p>
+                </div>
+              </div>
+
+              {/* Form Input Webhook URL */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Key className="w-4 h-4 text-emerald-600" />
+                      <span>Konfigurasi URL Google Apps Script Web App</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Masukkan URL Web App hasil deployment dari Google Apps Script Spreadsheet Anda.
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Format: https://script.google.com/macros/s/.../exec
+                  </span>
+                </div>
+
+                <form onSubmit={handleSaveActivityLogUrl} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      URL Web App Webhook:
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                        value={activityLogUrlInput}
+                        onChange={(e) => setActivityLogUrlInput(e.target.value)}
+                        className="flex-1 px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="submit"
+                          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Simpan URL</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isTestingWebhook || !activityLogUrlInput.trim()}
+                          onClick={handleTestWebhook}
+                          className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+                        >
+                          {isTestingWebhook ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          )}
+                          <span>{isTestingWebhook ? 'Menguji...' : 'Uji Koneksi Webhook'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {webhookTestResult && (
+                    <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                      webhookTestResult.success
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-rose-50 border-rose-200 text-rose-900'
+                    }`}>
+                      {webhookTestResult.success ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <strong>{webhookTestResult.success ? 'Berhasil: ' : 'Peringatan: '}</strong>
+                        <span>{webhookTestResult.message}</span>
+                      </div>
+                    </div>
+                  )}
+                </form>
+              </div>
+
+              {/* Panduan Pemasangan Google Apps Script */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>Petunjuk Pemasangan Google Apps Script (5 Langkah Mudah)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Ikuti langkah di bawah ini untuk menghubungkan Google Spreadsheet Anda dalam waktu kurang dari 2 menit.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">1</span>
+                    <h5 className="text-xs font-bold text-slate-800">Buka Spreadsheet</h5>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Buka file Google Spreadsheet Anda, lalu klik menu <strong>Ekstensi</strong> &gt; <strong>Apps Script</strong>.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">2</span>
+                    <h5 className="text-xs font-bold text-slate-800">Tempelkan Kode</h5>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Hapus teks di file <code>Code.gs</code>, tempelkan kode di kotak bawah ini, lalu klik ikon <strong>Simpan</strong> (Disket).
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">3</span>
+                    <h5 className="text-xs font-bold text-slate-800">Jalankan setupSheet</h5>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Pilih fungsi <code>setupSheet</code> di dropdown atas, klik <strong>Jalankan</strong> (Run) untuk membuat judul kolom otomatis.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">4</span>
+                    <h5 className="text-xs font-bold text-slate-800">Terapkan Web App</h5>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Klik <strong>Terapkan</strong> &gt; <strong>Penerapan baru</strong> &gt; Jenis: <strong>Aplikasi web</strong>. Siapa yang memiliki akses: <strong>Siapa saja</strong> (Anyone).
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-extrabold text-[11px] flex items-center justify-center">5</span>
+                    <h5 className="text-xs font-bold text-slate-800">Tempel URL</h5>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Salin URL Web App (berakhiran <code>/exec</code>), tempelkan ke kolom input di atas, lalu klik <strong>Uji Koneksi</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Kotak Kode Apps Script */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Kode Skrip (Code.gs) - Siap Pakai:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyGasCode}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                    >
+                      {hasCopiedGasCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{hasCopiedGasCode ? 'Kode Berhasil Disalin!' : 'Salin Seluruh Kode'}</span>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <pre className="bg-slate-900 text-slate-100 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-96 leading-relaxed border border-slate-800 select-all">
+                      <code>{GOOGLE_APPS_SCRIPT_CODE}</code>
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Penjelasan Kolom Google Spreadsheet */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Struktur Kolom Log Aktivitas pada Google Spreadsheet</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Berikut adalah rincian 10 kolom data yang otomatis dibuat dan diisi setiap kali terjadi aktivitas di portal:
+                </p>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">Kolom</th>
+                        <th className="py-2.5 px-3">Nama Header</th>
+                        <th className="py-2.5 px-3">Contoh Nilai</th>
+                        <th className="py-2.5 px-3">Fungsi &amp; Keterangan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-600">
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">A</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">No</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">1, 2, 3, ...</td>
+                        <td className="py-2.5 px-3">Nomor urut otomatis baris riwayat.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">B</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Waktu (WIB)</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">21/09/2026, 14:35:10 WIB</td>
+                        <td className="py-2.5 px-3">Waktu pencatatan dalam zona Waktu Indonesia Barat.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">C</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Nama Pengguna</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">Super Administrator Korwilcam</td>
+                        <td className="py-2.5 px-3">Nama lengkap akun pengelola yang melakukan aksi.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">D</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Username / Akun</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">@superadmin</td>
+                        <td className="py-2.5 px-3">Username akun yang sedang masuk.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">E</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Peran (Role)</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">Super Admin / Admin / Penulis</td>
+                        <td className="py-2.5 px-3">Tingkat hak akses akun pengelola.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">F</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Jenis Aktivitas</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">LOGIN, TAMBAH DATA, UBAH DATA, HAPUS DATA</td>
+                        <td className="py-2.5 px-3">Klasifikasi tindakan yang dijalankan.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">G</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Modul / Fitur</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">Berita &amp; Warta, Sekolah, Nominatif Guru, dll.</td>
+                        <td className="py-2.5 px-3">Fitur aplikasi tempat perubahan terjadi.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">H</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Keterangan Detail</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">Menambahkan berita: "Rapat Koordinasi Guru SD"</td>
+                        <td className="py-2.5 px-3">Informasi spesifik mengenai nama data atau rincian aksi.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">I</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Status</td>
+                        <td className="py-2.5 px-3 font-mono text-emerald-700 font-bold">BERHASIL / GAGAL</td>
+                        <td className="py-2.5 px-3">Status hasil eksekusi operasi.</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800">J</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">Perangkat / Browser</td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">Chrome on Windows 10/11</td>
+                        <td className="py-2.5 px-3">Peramban dan sistem operasi yang digunakan pengelola.</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

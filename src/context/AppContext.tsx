@@ -45,6 +45,7 @@ import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateSer
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 import { stripHtml, generateSummary } from '../lib/stripHtml';
 import { checkRateLimit, recordAttempt, resetRateLimit } from '../lib/rateLimiter';
+import { logActivity, ActivityLogPayload } from '../lib/activityLogger';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -242,6 +243,14 @@ interface AppContextType {
   closeConfirmDialog: () => void;
   showNoticePopup: (options: NoticePopupOptions) => void;
   closeNoticePopup: () => void;
+
+  // Activity Log (Google Spreadsheet)
+  logAdminActivity: (
+    action: ActivityLogPayload['action'],
+    module: string,
+    description: string,
+    status?: 'BERHASIL' | 'GAGAL'
+  ) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -767,6 +776,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore
     }
   }, [currentUser]);
+
+  // Helper pencatat Log Aktivitas ke Google Spreadsheet
+  const triggerActivityLog = (
+    action: ActivityLogPayload['action'],
+    module: string,
+    description: string,
+    status: 'BERHASIL' | 'GAGAL' = 'BERHASIL',
+    overrideUser?: { name?: string; username?: string; role?: string }
+  ) => {
+    logActivity({
+      user: overrideUser?.name || currentUser?.name || 'Administrator',
+      username: overrideUser?.username || currentUser?.username || 'admin',
+      role: overrideUser?.role || currentUser?.role || 'Admin',
+      action,
+      module,
+      description,
+      status
+    });
+  };
 
   // Helper non-blocking storage saver agar browser tidak freeze saat serialisasi dataset besar
   const saveStorageDeferred = (key: string, data: any, isSession: boolean = false) => {
@@ -3164,6 +3192,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Reset rate limiter saat login berhasil
           resetRateLimit('admin_login');
 
+          triggerActivityLog(
+            'LOGIN',
+            'Autentikasi',
+            `Berhasil masuk ke panel pengelola sebagai ${matched.role}`,
+            'BERHASIL',
+            { name: matched.name, username: matched.username, role: matched.role }
+          );
+
           showToast(`Login berhasil! Selamat datang, ${matched.name} (${matched.role}).`, 'success');
           return true;
         } else {
@@ -3172,6 +3208,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setCurrentUser(null);
           localStorage.removeItem('korwilcam_admin_auth');
           localStorage.removeItem('korwilcam_current_user');
+
+          triggerActivityLog(
+            'LOGIN',
+            'Autentikasi',
+            `Percobaan login gagal untuk username "${trimmedUser}" (Kata sandi salah / akun tidak ditemukan)`,
+            'GAGAL',
+            { name: 'Percobaan Login', username: trimmedUser, role: '-' }
+          );
 
           const attempt = recordAttempt('admin_login', 5, 180, 60);
           if (!attempt.allowed) {
@@ -3208,6 +3252,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = () => {
+    if (currentUser) {
+      triggerActivityLog(
+        'LOGOUT',
+        'Autentikasi',
+        `Keluar dari sesi pengelola (${currentUser.name} / @${currentUser.username})`,
+        'BERHASIL'
+      );
+    }
     setIsAuthenticated(false);
     setCurrentUser(null);
     localStorage.removeItem('korwilcam_admin_auth');
@@ -3254,6 +3306,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Failed to insert admin_user in Supabase:', err);
       }
     }
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Pengguna Admin',
+      `Menambahkan akun pengelola: ${newUser.name} (@${newUser.username}, Role: ${newUser.role})`
+    );
     showToast(`Akun ${newUser.username} (${newUser.role}) berhasil ditambahkan!`, 'success');
     return true;
   };
@@ -3279,6 +3336,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Failed to update admin_user in Supabase:', err);
       }
     }
+    triggerActivityLog(
+      'UBAH DATA',
+      'Pengguna Admin',
+      `Memperbarui data akun pengelola (ID: ${id})`
+    );
     showToast('Data akun berhasil diperbarui!', 'success');
     return true;
   };
@@ -3302,6 +3364,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Failed to delete admin_user in Supabase:', err);
       }
     }
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Pengguna Admin',
+      `Menghapus akun pengelola: ${target.name} (@${target.username}, Role: ${target.role})`
+    );
     showToast(`Akun ${target.username} berhasil dihapus.`, 'info');
     return true;
   };
@@ -3361,6 +3428,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       showToast(`Sekolah ${newSchool.name} berhasil ditambahkan ke penyimpanan lokal.`, 'success');
     }
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Sekolah',
+      `Menambahkan data sekolah baru: "${newSchool.name}" (NPSN: ${newSchool.npsn || '-'}, Status: ${newSchool.status || '-'})`
+    );
   };
 
   const updateSchool = async (id: string, updatedData: Partial<School>) => {
@@ -3381,6 +3454,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (mergedSchool) {
       setSelectedSchoolState((curr) => (curr?.id === id ? mergedSchool : curr));
+      triggerActivityLog(
+        'UBAH DATA',
+        'Sekolah',
+        `Memperbarui data sekolah: "${(mergedSchool as School).name}"`
+      );
     }
 
     const client = getSupabaseClient();
@@ -3431,8 +3509,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteSchool = async (id: string) => {
+    const targetSchool = schools.find((s) => s.id === id);
     setSchools((prev) => prev.filter((s) => s.id !== id));
     setSelectedSchoolState((curr) => (curr?.id === id ? null : curr));
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Sekolah',
+      `Menghapus data sekolah: "${targetSchool?.name || id}" (NPSN: ${targetSchool?.npsn || '-'})`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -3516,6 +3601,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       showToast('Artikel berita berhasil diterbitkan di penyimpanan lokal.', 'success');
     }
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Berita & Warta',
+      `Menerbitkan artikel berita: "${newArticle.title}" (Kategori: ${newArticle.category})`
+    );
   };
 
   const updateNews = async (id: string, updatedData: Partial<NewsArticle>) => {
@@ -3554,6 +3645,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return current;
       });
+      triggerActivityLog(
+        'UBAH DATA',
+        'Berita & Warta',
+        `Memperbarui artikel berita: "${(mergedNews as NewsArticle).title}"`
+      );
     }
 
     const client = getSupabaseClient();
@@ -3603,6 +3699,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteNews = async (id: string) => {
+    const targetNews = news.find((n) => n.id === id);
     setNews((prev) => {
       const updated = prev.filter((n) => n.id !== id);
       _inMemoryNewsCache = updated;
@@ -3614,6 +3711,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setSelectedNewsState((current) => (current?.id === id ? null : current));
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Berita & Warta',
+      `Menghapus artikel berita: "${targetNews?.title || id}"`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -3638,6 +3741,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addNewsCategory = async (categoryName: string): Promise<boolean> => {
     const trimmed = categoryName.trim();
     if (!trimmed) return false;
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Berita & Warta',
+      `Menambahkan kategori berita: "${trimmed}"`
+    );
 
     // Cek apakah sudah ada (case-insensitive)
     const exists = newsCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
@@ -3986,6 +4095,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'success'
       );
     }
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Pengumuman & Edaran',
+      `Menerbitkan pengumuman baru: "${newAnn.title}" (Sasaran: ${newAnn.target || '-'})`
+    );
   };
 
   const updateAnnouncement = async (id: string, updatedData: Partial<Announcement>) => {
@@ -4054,6 +4169,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (mergedAnn) {
       setSelectedAnnouncementState((curr) => (curr?.id === id ? mergedAnn : curr));
+      triggerActivityLog(
+        'UBAH DATA',
+        'Pengumuman & Edaran',
+        `Memperbarui pengumuman: "${(mergedAnn as unknown as Announcement).title}"`
+      );
     }
 
     const client = getSupabaseClient();
@@ -4136,6 +4256,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     setSelectedAnnouncementState((curr) => (curr?.id === id ? null : curr));
 
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Pengumuman & Edaran',
+      `Menghapus pengumuman: "${targetAnn?.title || id}"`
+    );
+
     // Hapus juga berkas terkait di Layanan Unduhan HANYA jika pengumuman ini mengunggah berkas baru (bukan dari dokumen master Layanan Unduhan)
     const docId = `doc-ann-${id}`;
     if (!targetAnn?.sourceDocumentId) {
@@ -4206,6 +4332,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       showToast('Dokumen baru berhasil ditambahkan ke penyimpanan lokal.', 'success');
     }
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Layanan Unduhan',
+      `Mengunggah dokumen baru: "${newDoc.title}" (${newDoc.fileType}, ${newDoc.category})`
+    );
   };
 
   const updateDocument = async (id: string, updatedData: Partial<DocumentDownload>) => {
@@ -4222,6 +4354,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (mergedDoc) {
       setSelectedDocumentState((curr) => (curr?.id === id ? mergedDoc : curr));
+      triggerActivityLog(
+        'UBAH DATA',
+        'Layanan Unduhan',
+        `Memperbarui dokumen: "${(mergedDoc as DocumentDownload).title}"`
+      );
     }
 
     const client = getSupabaseClient();
@@ -4256,8 +4393,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteDocument = async (id: string) => {
+    const targetDoc = documents.find((d) => d.id === id);
     setDocuments((prev) => prev.filter((d) => d.id !== id));
     setSelectedDocumentState((curr) => (curr?.id === id ? null : curr));
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Layanan Unduhan',
+      `Menghapus dokumen: "${targetDoc?.title || id}"`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -4282,6 +4426,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addDocumentCategory = async (categoryName: string): Promise<boolean> => {
     const trimmed = categoryName.trim();
     if (!trimmed) return false;
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Layanan Unduhan',
+      `Menambahkan kategori dokumen: "${trimmed}"`
+    );
 
     const exists = documentCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
     const updatedCategories = exists ? documentCategories : [...documentCategories, trimmed];
@@ -4407,6 +4557,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       showToast('Agenda kegiatan berhasil ditambahkan.', 'success');
     }
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Agenda Kegiatan',
+      `Menambahkan agenda: "${newAg.title}" (Tanggal: ${newAg.date}, Tempat: ${newAg.location})`
+    );
   };
 
   const updateAgenda = async (id: string, updatedData: Partial<AgendaEvent>) => {
@@ -4420,6 +4576,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return ag;
       })
     );
+
+    if (mergedAgenda) {
+      triggerActivityLog(
+        'UBAH DATA',
+        'Agenda Kegiatan',
+        `Memperbarui agenda: "${(mergedAgenda as AgendaEvent).title}"`
+      );
+    }
 
     const client = getSupabaseClient();
     if (client && mergedAgenda) {
@@ -4448,7 +4612,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAgenda = async (id: string) => {
+    const targetAg = agenda.find((a) => a.id === id);
     setAgenda((prev) => prev.filter((a) => a.id !== id));
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Agenda Kegiatan',
+      `Menghapus agenda: "${targetAg?.title || id}"`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -4514,6 +4685,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       showToast(`Album galeri "${newItem.title}" (${imagesList.length} foto) berhasil ditambahkan ke penyimpanan lokal.`, 'success');
     }
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Galeri Kegiatan',
+      `Menambahkan album galeri: "${newItem.title}" (${newItem.category}, ${imagesList.length} foto)`
+    );
   };
 
   const updateGalleryItem = async (id: string, updatedData: Partial<GalleryItem>) => {
@@ -4538,6 +4715,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (mergedGallery) {
       setSelectedGalleryState((curr) => (curr?.id === id ? mergedGallery : curr));
+      triggerActivityLog(
+        'UBAH DATA',
+        'Galeri Kegiatan',
+        `Memperbarui album galeri: "${(mergedGallery as GalleryItem).title}"`
+      );
     }
 
     const client = getSupabaseClient();
@@ -4570,6 +4752,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteGalleryItem = async (id: string) => {
+    const targetItem = gallery.find((g) => g.id === id);
     setGallery((prev) => {
       const updated = prev.filter((g) => g.id !== id);
       _inMemoryGalleryCache = updated;
@@ -4577,6 +4760,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
     setSelectedGalleryState((curr) => (curr?.id === id ? null : curr));
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Galeri Kegiatan',
+      `Menghapus album galeri: "${targetItem?.title || id}"`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -4601,6 +4790,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addGalleryCategory = async (categoryName: string): Promise<boolean> => {
     const trimmed = categoryName.trim();
     if (!trimmed) return false;
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Galeri Kegiatan',
+      `Menambahkan kategori galeri: "${trimmed}"`
+    );
 
     const exists = galleryCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
     const updatedCategories = exists ? galleryCategories : [...galleryCategories, trimmed];
@@ -4655,6 +4850,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setStaff((prev) => [...prev, newStaff]);
 
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Profil & Struktur',
+      `Menambahkan staf/pejabat: "${newStaff.name}" (${newStaff.role})`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       setSyncStatus('syncing');
@@ -4708,6 +4909,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
+    if (mergedStaff) {
+      triggerActivityLog(
+        'UBAH DATA',
+        'Profil & Struktur',
+        `Memperbarui staf/pejabat: "${(mergedStaff as StaffProfile).name}"`
+      );
+    }
+
     const client = getSupabaseClient();
     if (client && mergedStaff) {
       setSyncStatus('syncing');
@@ -4741,7 +4950,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteStaff = async (id: string): Promise<boolean> => {
+    const targetStaff = staff.find((s) => s.id === id);
     setStaff((prev) => prev.filter((s) => s.id !== id));
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Profil & Struktur',
+      `Menghapus staf/pejabat: "${targetStaff?.name || id}"`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -4800,6 +5016,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteComplaint = async (id: string) => {
     setComplaints((prev) => prev.filter((c) => c.id !== id));
 
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Kotak Aspirasi',
+      `Menghapus pesan aspirasi (ID: ${id})`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -4816,6 +5038,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateComplaintStatus = async (id: string, status: 'Baru' | 'Dibaca' | 'Selesai') => {
     setComplaints((prev) =>
       prev.map((c) => (c.id === id ? { ...c, status } : c))
+    );
+
+    triggerActivityLog(
+      'UBAH DATA',
+      'Kotak Aspirasi',
+      `Mengubah status pesan aspirasi menjadi "${status}" (ID: ${id})`
     );
 
     const client = getSupabaseClient();
@@ -4835,6 +5063,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateOfficeProfile = async (profileData: Partial<OfficeProfile>): Promise<boolean> => {
     const updated = { ...officeProfile, ...profileData };
     setOfficeProfile(updated);
+
+    triggerActivityLog(
+      'UBAH DATA',
+      'Profil Kantor',
+      'Memperbarui data profil kantor, kepala korwil, visi misi, atau beranda'
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -4895,6 +5129,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const formatted = formatGoogleDriveImageUrl(url);
     setSopImageUrl(formatted);
     localStorage.setItem('korwilcam_sop_image_url', formatted);
+
+    triggerActivityLog(
+      'UBAH DATA',
+      'SOP Pelayanan',
+      formatted ? 'Memperbarui berkas bagan alur SOP Pelayanan' : 'Menghapus berkas bagan SOP Pelayanan'
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -4969,6 +5209,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
     } catch (e) {}
 
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Organisasi',
+      `Menambahkan organisasi: "${newOrg.name}" (${newOrg.shortName || '-'})`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5024,6 +5270,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
 
     const targetOrg = updated.find((o) => o.id === id || o.slug === id);
+    if (targetOrg) {
+      triggerActivityLog(
+        'UBAH DATA',
+        'Organisasi',
+        `Memperbarui data organisasi: "${targetOrg.name}"`
+      );
+    }
+
     const client = getSupabaseClient();
     if (client && targetOrg) {
       try {
@@ -5069,6 +5323,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
     } catch (e) {}
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Organisasi',
+      `Menghapus organisasi: "${target?.name || id}"`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -5130,6 +5390,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
     } catch (e) {}
 
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Nominatif Guru',
+      `Menambahkan guru: "${newTeacher.nama}" (${newTeacher.statusPegawai}, ${newTeacher.instansi})`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5168,6 +5434,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
 
     const targetTeacher = updated.find((t) => t.id === id);
+    if (targetTeacher) {
+      triggerActivityLog(
+        'UBAH DATA',
+        'Nominatif Guru',
+        `Memperbarui data guru: "${targetTeacher.nama}"`
+      );
+    }
+
     const client = getSupabaseClient();
     if (client && targetTeacher) {
       try {
@@ -5197,6 +5471,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
     } catch (e) {}
 
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Nominatif Guru',
+      `Menghapus data guru: "${target?.nama || id}"`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5223,6 +5503,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.setItem('korwilcam_teachers', JSON.stringify(updated));
     } catch (e) {}
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Nominatif Guru',
+      `Impor data nominatif guru massal: ${addedList.length} guru`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -5252,6 +5538,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_teachers', JSON.stringify([]));
     } catch (e) {}
 
+    triggerActivityLog(
+      'RESET DATA',
+      'Nominatif Guru',
+      'Mengosongkan seluruh data nominatif guru'
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5279,6 +5571,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.setItem('korwilcam_service_requirements', JSON.stringify(updated));
     } catch (e) {}
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Standar Pelayanan',
+      `Menambahkan jenis layanan: "${newItem.title}" (${newItem.category})`
+    );
 
     const client = getSupabaseClient();
     if (client) {
@@ -5324,6 +5622,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const target = updated.find((r) => r.id === id);
     if (target) {
       setSelectedServiceRequirementState((curr) => (curr?.id === id ? target : curr));
+      triggerActivityLog(
+        'UBAH DATA',
+        'Standar Pelayanan',
+        `Memperbarui jenis layanan: "${target.title}"`
+      );
     }
     const client = getSupabaseClient();
     if (client && target) {
@@ -5358,6 +5661,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_service_requirements', JSON.stringify(updated));
     } catch (e) {}
 
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Standar Pelayanan',
+      `Menghapus jenis layanan: "${target?.title || id}"`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5375,6 +5684,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.setItem('korwilcam_service_requirements', JSON.stringify([]));
     } catch (e) {}
+
+    triggerActivityLog(
+      'RESET DATA',
+      'Standar Pelayanan',
+      'Mengosongkan seluruh data persyaratan pelayanan'
+    );
+
     showToast('Data persyaratan pelayanan telah dikosongkan!', 'info');
     return true;
   };
@@ -5382,6 +5698,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addServiceRequirementCategory = async (categoryName: string): Promise<boolean> => {
     const trimmed = categoryName.trim();
     if (!trimmed) return false;
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Standar Pelayanan',
+      `Menambahkan kategori pelayanan: "${trimmed}"`
+    );
 
     const exists = serviceRequirementCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase());
     const updatedCategories = exists ? serviceRequirementCategories : [...serviceRequirementCategories, trimmed];
@@ -5434,6 +5756,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteServiceRequirementCategory = async (categoryName: string): Promise<boolean> => {
     const trimmed = categoryName.trim();
     const updatedCategories = serviceRequirementCategories.filter((c) => c.toLowerCase() !== trimmed.toLowerCase());
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Standar Pelayanan',
+      `Menghapus kategori pelayanan: "${trimmed}"`
+    );
 
     setServiceRequirementCategories(updatedCategories);
     try {
@@ -5488,6 +5816,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_data_requests', JSON.stringify(updated));
     } catch (e) {}
 
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Permintaan Data',
+      `Menambahkan tautan permintaan data: "${newItem.title}"`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5535,6 +5869,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
 
     const target = updated.find((d) => d.id === id);
+    if (target) {
+      triggerActivityLog(
+        'UBAH DATA',
+        'Permintaan Data',
+        `Memperbarui tautan permintaan data: "${target.title}"`
+      );
+    }
+
     const client = getSupabaseClient();
     if (client && target) {
       try {
@@ -5566,6 +5908,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_data_requests', JSON.stringify(updated));
     } catch (e) {}
 
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Permintaan Data',
+      `Menghapus tautan permintaan data: "${target?.title || id}"`
+    );
+
     const client = getSupabaseClient();
     if (client) {
       try {
@@ -5581,10 +5929,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleDataRequestActive = async (id: string): Promise<boolean> => {
     const target = dataRequests.find((d) => d.id === id);
     if (!target) return false;
+    triggerActivityLog(
+      'UBAH DATA',
+      'Permintaan Data',
+      `Mengubah status aktif tautan: "${target.title}"`
+    );
     return updateDataRequest(id, { isActive: !target.isActive });
   };
 
   const resetToDefaultData = () => {
+    triggerActivityLog(
+      'RESET DATA',
+      'Sistem',
+      'Mereset data aplikasi ke konfigurasi bawaan'
+    );
     setSchools(initialSchools);
     setNews(initialNews);
     setAnnouncements(initialAnnouncements);
@@ -5719,7 +6077,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         handleConfirmResponse,
         closeConfirmDialog,
         showNoticePopup,
-        closeNoticePopup
+        closeNoticePopup,
+        logAdminActivity: triggerActivityLog
       }}
     >
       {children}
