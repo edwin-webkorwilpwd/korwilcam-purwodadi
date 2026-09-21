@@ -112,13 +112,13 @@ export const DownloadsPage: React.FC = () => {
       {/* Main Container */}
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-8 sm:-mt-10 relative z-20">
         
-        {/* Filter and Search Box (Desain Modern Sesuai Gambar 2) */}
-        <div className="bg-white rounded-3xl p-4 sm:p-5 lg:p-6 border border-blue-100/90 shadow-lg shadow-blue-500/5 space-y-3.5 sm:space-y-4">
+        {/* Filter and Search Box */}
+        <div className="max-w-4xl mx-auto w-full bg-white rounded-2xl p-3 sm:p-4 border border-blue-100/90 shadow-md shadow-blue-500/5 space-y-2.5 sm:space-y-3">
           {/* Top Search Bar */}
-          <div className="flex items-center bg-white rounded-2xl sm:rounded-full border border-blue-200/90 p-1.5 sm:p-2 shadow-2xs focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-500 transition-all gap-2">
+          <div className="flex items-center bg-white rounded-full border border-blue-200/90 p-1 sm:p-1.5 shadow-2xs focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:border-blue-500 transition-all gap-1.5 sm:gap-2">
             {/* Left Blue Icon Box */}
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-              <Search className="w-5 h-5 text-white stroke-[2.5]" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[2.5]" />
             </div>
 
             {/* Input Field */}
@@ -127,7 +127,7 @@ export const DownloadsPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama dokumen, modul, juknis, atau nomor surat..."
-              className="flex-1 min-w-0 px-2 sm:px-4 py-2 sm:py-2.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-medium outline-none"
+              className="flex-1 min-w-0 px-2 sm:px-3 py-1 sm:py-1.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-medium outline-none"
             />
 
             {/* Clear Button */}
@@ -135,39 +135,39 @@ export const DownloadsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
                 title="Hapus pencarian"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
 
             {/* Right Cari Button */}
             <button
               type="button"
-              className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-blue-500/25 shrink-0 transition-all cursor-pointer active:scale-95"
+              className="px-3.5 sm:px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs shrink-0 transition-all cursor-pointer active:scale-95"
             >
               <span>Cari</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* Filter Categories Row */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-0.5">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Filter Label Pill */}
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-50/80 text-blue-700 font-bold text-xs border border-blue-200/70 shadow-2xs">
-                <Filter className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50/80 text-blue-700 font-bold text-[11px] border border-blue-200/70 shadow-2xs">
+                <Filter className="w-3 h-3" />
                 <span>Kategori</span>
               </div>
 
               {/* Category Pills */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1 flex-wrap">
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-full text-xs transition-all cursor-pointer ${
                       selectedCategory === cat.id
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold'
                         : 'bg-blue-50/80 hover:bg-blue-100/80 text-blue-700 border border-blue-200/60 shadow-2xs font-semibold'
@@ -186,9 +186,9 @@ export const DownloadsPage: React.FC = () => {
                   setSearchQuery('');
                   setSelectedCategory('ALL');
                 }}
-                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors py-1.5 px-3 rounded-full hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-200"
+                className="ml-auto flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors py-1 px-2.5 rounded-full hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-200"
               >
-                <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                <RotateCcw className="w-3 h-3 text-blue-600" />
                 <span>Reset</span>
               </button>
             )}

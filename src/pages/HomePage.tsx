@@ -2,20 +2,24 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { HeroSection } from '../components/HeroSection';
 import { StatsCounter } from '../components/StatsCounter';
-import { NewsCard } from '../components/NewsCard';
 import { SchoolCard } from '../components/SchoolCard';
 import { AgendaCard } from '../components/AgendaCard';
 import { AnnouncementCard } from '../components/AnnouncementCard';
 import { 
   ArrowRight, 
-  Calendar 
+  Calendar,
+  Clock,
+  ChevronRight,
+  Newspaper
 } from 'lucide-react';
 import { formatIndonesianDate, compareAgendaDatesDescending } from '../services/googleSheetService';
+import { stripHtml } from '../lib/stripHtml';
 
 export const HomePage: React.FC = () => {
-  const { news, schools, announcements, aulaBookings, setActiveTab, setSelectedAnnouncement } = useApp();
+  const { news, schools, announcements, aulaBookings, setActiveTab, setSelectedAnnouncement, setSelectedNews } = useApp();
 
-  const latestNews = news.slice(0, 3);
+  const featuredNews = news[0];
+  const sideNews = news.slice(1, 6);
   const featuredSchools = schools.filter((s) => s.featured).slice(0, 3);
   const displaySchools = featuredSchools.length >= 3 ? featuredSchools : schools.slice(0, 3);
   const homeAgenda = (aulaBookings && aulaBookings.length > 0) 
@@ -127,52 +131,122 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Latest News Section */}
-      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16 mt-6 sm:mt-7">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5 sm:mb-6">
-          <div className="space-y-2">
-            <span className="inline-block text-[11px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50/90 border border-blue-200/60 px-3.5 py-1 rounded-full shadow-2xs">
-              Kabar Pendidikan
-            </span>
-            <div className="flex items-center gap-3.5">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
-                <svg className="w-7 h-7 text-white" viewBox="0 0 28 28" fill="none">
-                  <rect x="3" y="4" width="16" height="19" rx="3" fill="white" />
-                  <line x1="6" y1="8" x2="15" y2="8" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="6" y1="12" x2="16" y2="12" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="6" y1="16" x2="12" y2="16" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
-                  <g transform="translate(13, 11)">
-                    <path d="M2 5 L7 2 V12 L2 9 H0 V5 H2 Z" fill="white" stroke="#2563eb" strokeWidth="0.8" />
-                    <path d="M8 4 C10 5.5 10 8.5 8 10" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M10 2 C13 4.5 13 9.5 10 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                  </g>
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  Warta & Liputan Terkini
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-                  Dokumentasi kegiatan dan berita terbaru seputar SD, TK, KB di Purwodadi.
-                </p>
-              </div>
-            </div>
+      {/* Latest News Section (Berita Terbaru) */}
+      <section className="content-deferred w-full px-4 sm:px-8 lg:px-12 xl:px-16 mt-8 sm:mt-10">
+        {/* Centered Header with Blue Bar */}
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Berita Terbaru
+          </h2>
+          <div className="w-16 h-1 bg-blue-600 rounded-full mx-auto mt-2" />
+        </div>
+
+        {news.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
+            <Newspaper className="w-12 h-12 mx-auto text-slate-300 mb-2" />
+            <p className="font-semibold text-slate-600 text-sm">Belum ada berita yang dipublikasikan.</p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Featured Article (Left Column) */}
+            {featuredNews && (
+              <div className={sideNews.length > 0 ? "lg:col-span-7" : "lg:col-span-12 max-w-3xl mx-auto w-full"}>
+                <article
+                  onClick={() => setSelectedNews(featuredNews)}
+                  className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer group flex flex-col h-full"
+                >
+                  <div className="relative w-full aspect-[16/10] sm:h-72 md:h-80 overflow-hidden bg-slate-100">
+                    <img
+                      src={featuredNews.image}
+                      alt={featuredNews.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-md">
+                        Terbaru
+                      </span>
+                    </div>
+                  </div>
 
-          <button
-            onClick={() => setActiveTab('news')}
-            className="px-5 py-2.5 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 font-bold text-xs sm:text-sm shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-          >
-            <span>Buka Semua Berita</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+                  <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-3">
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors line-clamp-2">
+                        {featuredNews.title}
+                      </h3>
+                      <p className="mt-3 text-sm sm:text-[15px] text-slate-600 leading-relaxed line-clamp-3">
+                        {stripHtml(featuredNews.summary)}
+                      </p>
+                    </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-          {latestNews.map((art) => (
-            <NewsCard key={art.id} article={art} />
-          ))}
-        </div>
+                    <div className="pt-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedNews(featuredNews);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <ChevronRight className="w-4 h-4 stroke-[3]" />
+                        <span>Baca Selengkapnya</span>
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            )}
+
+            {/* Side Articles List (Right Column - 5 items) */}
+            {sideNews.length > 0 && (
+              <div className="lg:col-span-5 flex flex-col gap-3 sm:gap-3.5">
+                {sideNews.map((art) => (
+                  <article
+                    key={art.id}
+                    onClick={() => setSelectedNews(art)}
+                    className="bg-white rounded-xl border border-slate-200/90 p-3 sm:p-3.5 flex items-center gap-3.5 shadow-xs hover:shadow-md hover:border-blue-300 transition-all duration-200 cursor-pointer group"
+                  >
+                    {/* Thumbnail */}
+                    <div className="w-28 sm:w-36 md:w-40 h-20 sm:h-22 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                      <img
+                        src={art.image}
+                        alt={art.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1.5">
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-blue-600 line-clamp-2 leading-snug transition-colors">
+                        {art.title}
+                      </h4>
+                      <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{art.date}</span>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* View All News Button */}
+        {news.length > 0 && (
+          <div className="flex justify-center mt-6 sm:mt-8">
+            <button
+              onClick={() => setActiveTab('news')}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 font-bold text-xs sm:text-sm shadow-2xs hover:shadow transition-all cursor-pointer"
+            >
+              <span>Buka Semua Berita ({news.length})</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Featured Schools Section */}

@@ -59,6 +59,8 @@ import {
   Quote,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronUp,
   ChevronDown,
   Sliders,
@@ -897,6 +899,9 @@ export const AdminDashboard: React.FC = () => {
   // --- 3. SCHOOLS CMS STATE ---
   const [editingSchoolId, setEditingSchoolId] = useState<string | null>(null);
   const [schoolDriveInput, setSchoolDriveInput] = useState('');
+  const [schoolCurrentPage, setSchoolCurrentPage] = useState(1);
+  const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
+  const schoolItemsPerPage = 10;
   const [schoolForm, setSchoolForm] = useState({
     name: '',
     level: 'SD' as SchoolLevel,
@@ -987,6 +992,8 @@ export const AdminDashboard: React.FC = () => {
   const [teacherSearchInput, setTeacherSearchInput] = useState('');
   const [teacherFilterStatus, setTeacherFilterStatus] = useState('ALL');
   const [teacherFilterInstansi, setTeacherFilterInstansi] = useState('ALL');
+  const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
+  const teacherItemsPerPage = 10;
   const [teacherForm, setTeacherForm] = useState({
     no: 0,
     nama: '',
@@ -1051,6 +1058,72 @@ export const AdminDashboard: React.FC = () => {
     });
   };
 
+  // --- PAGINATION & FILTER LOGIC: SEKOLAH CMS ---
+  const filteredSchools = useMemo(() => {
+    const q = schoolSearchQuery.toLowerCase().trim();
+    if (!q) return schools;
+    return schools.filter((s) =>
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.npsn && s.npsn.toLowerCase().includes(q)) ||
+      (s.headmaster && s.headmaster.toLowerCase().includes(q)) ||
+      (s.address && s.address.toLowerCase().includes(q)) ||
+      (s.level && s.level.toLowerCase().includes(q)) ||
+      (s.status && s.status.toLowerCase().includes(q))
+    );
+  }, [schools, schoolSearchQuery]);
+
+  const totalSchoolPages = Math.max(1, Math.ceil(filteredSchools.length / schoolItemsPerPage));
+  const paginatedSchools = useMemo(() => {
+    const start = (schoolCurrentPage - 1) * schoolItemsPerPage;
+    return filteredSchools.slice(start, start + schoolItemsPerPage);
+  }, [filteredSchools, schoolCurrentPage, schoolItemsPerPage]);
+
+  useEffect(() => {
+    if (schoolCurrentPage > totalSchoolPages) {
+      setSchoolCurrentPage(totalSchoolPages);
+    }
+  }, [schoolCurrentPage, totalSchoolPages]);
+
+  // --- PAGINATION & FILTER LOGIC: NOMINATIF GURU CMS ---
+  const filteredTeachers = useMemo(() => {
+    return teachers.filter((t) => {
+      const q = teacherSearchInput.toLowerCase().trim();
+      const matchQ =
+        !q ||
+        (t.nama && t.nama.toLowerCase().includes(q)) ||
+        (t.nip && t.nip.toLowerCase().includes(q)) ||
+        (t.instansi && t.instansi.toLowerCase().includes(q));
+      const matchStatus = (() => {
+        if (!teacherFilterStatus || teacherFilterStatus === 'ALL') return true;
+        const s = t.statusPegawai?.toUpperCase().trim() || '';
+        const f = teacherFilterStatus.toUpperCase().trim();
+        if (f === 'PNS') return s === 'PNS' || (s.includes('PNS') && !s.includes('NON'));
+        if (f === 'PPPK') return (s === 'PPPK' || s === 'P3K' || (s.includes('PPPK') && !s.includes('PARUH')));
+        if (f === 'PPPK PARUH WAKTU') return s.includes('PARUH');
+        if (f === 'GURU TK') return s === 'GURU TK' || s.includes('TK');
+        if (f === 'GURU KB') return s === 'GURU KB' || s.includes('KB');
+        if (f === 'HONORER') return s.includes('HONOR') || s === 'GTT' || s === 'PTT' || s === 'GTY' || s.includes('NON ASN') || s.includes('NON-ASN');
+        return s === f;
+      })();
+      const matchInstansi =
+        teacherFilterInstansi === 'ALL' ||
+        t.instansi?.toLowerCase() === teacherFilterInstansi.toLowerCase();
+      return matchQ && matchStatus && matchInstansi;
+    });
+  }, [teachers, teacherSearchInput, teacherFilterStatus, teacherFilterInstansi]);
+
+  const totalTeacherPages = Math.max(1, Math.ceil(filteredTeachers.length / teacherItemsPerPage));
+  const paginatedTeachers = useMemo(() => {
+    const start = (teacherCurrentPage - 1) * teacherItemsPerPage;
+    return filteredTeachers.slice(start, start + teacherItemsPerPage);
+  }, [filteredTeachers, teacherCurrentPage, teacherItemsPerPage]);
+
+  useEffect(() => {
+    if (teacherCurrentPage > totalTeacherPages) {
+      setTeacherCurrentPage(totalTeacherPages);
+    }
+  }, [teacherCurrentPage, totalTeacherPages]);
+
   const handleEditTeacher = (t: TeacherNominative) => {
     setEditingTeacherId(t.id);
     setTeacherForm({
@@ -1093,7 +1166,7 @@ export const AdminDashboard: React.FC = () => {
   const csvFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleDownloadCsvTemplate = () => {
-    const csvContent = "no,nama,nip,status_pegawai,instansi\n1,SUGITO S.Pd M.Pd,196805121991031008,PNS,SDN 1 Purwodadi\n2,AGUS PRASETYO S.Pd,198811042022211006,PPPK,SDN 4 Purwodadi\n3,RIZAL ARIFIN S.Pd,-,GTT,SDN 2 Danyang\n4,SITI AISYAH S.Pd.I,-,Honorer,SDN Kandangan";
+    const csvContent = "no,nama,nip,status_pegawai,instansi\n1,SUGITO S.Pd M.Pd,196805121991031008,PNS,SDN 1 Purwodadi\n2,AGUS PRASETYO S.Pd,198811042022211006,PPPK,SDN 4 Purwodadi\n3,SITI AISYAH S.Pd.I,-,Guru TK,TK NEGERI PEMBINA\n4,NURUL HIDAYAH S.Pd,-,Guru KB,KB TUNAS BANGSA";
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -3761,7 +3834,7 @@ export const AdminDashboard: React.FC = () => {
                     { id: 'profile-cms', title: 'Halaman Profil', desc: 'Ubah visi misi, sambutan korwil, dan daftar pengawas/penilik', icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
                     { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file Google Drive', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
                     { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, KB, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
-                    { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, GTT & Honorer di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
+                    { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, Guru TK & Guru KB di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
                     ...(canAccessOrganizationCms ? [{ id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' }] : []),
                     { id: 'service-requirements-cms', title: 'Persyaratan Pelayanan', desc: 'Atur standar berkas persyaratan pelayanan pendidikan dan kepegawaian', icon: ClipboardList, color: 'text-blue-600 bg-blue-50' },
@@ -5222,8 +5295,43 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Table */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-100 font-bold text-sm text-slate-800">
-                  Daftar Sekolah ({schools.length} Satuan)
+                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-slate-800">
+                      Daftar Sekolah ({filteredSchools.length} Satuan)
+                    </span>
+                    {schoolSearchQuery && (
+                      <span className="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold border border-blue-200">
+                        Hasil Filter (Total: {schools.length})
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative w-full sm:w-72">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={schoolSearchQuery}
+                      onChange={(e) => {
+                        setSchoolSearchQuery(e.target.value);
+                        setSchoolCurrentPage(1);
+                      }}
+                      placeholder="Cari nama sekolah, NPSN, kepala sekolah..."
+                      className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white"
+                    />
+                    {schoolSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSchoolSearchQuery('');
+                          setSchoolCurrentPage(1);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                        title="Hapus pencarian"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs text-slate-600">
@@ -5240,85 +5348,186 @@ export const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {schools.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50">
-                          <td className="p-3 font-semibold text-slate-900">{item.name}</td>
-                          <td className="p-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
-                              {item.level}
-                            </span>
-                          </td>
-                          <td className="p-3">{item.status}</td>
-                          <td className="p-3 font-mono font-bold">{item.npsn}</td>
-                          <td className="p-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                              Nilai {item.akreditasi}
-                            </span>
-                          </td>
-                          <td className="p-3">{item.headmaster}</td>
-                          <td className="p-3">
-                            {(() => {
-                              const mapsUrl = getGoogleMapsUrl(item);
-                              return (
-                                <a
-                                  href={mapsUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[11px] font-semibold transition-colors group shadow-2xs"
-                                  title={mapsUrl}
+                      {paginatedSchools.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center space-y-2">
+                              <Building2 className="w-10 h-10 text-slate-300 stroke-[1.5]" />
+                              <p className="font-semibold text-slate-600 text-sm">
+                                {schools.length === 0
+                                  ? 'Belum ada data sekolah terdaftar.'
+                                  : 'Tidak ada sekolah yang sesuai dengan pencarian.'}
+                              </p>
+                              {schoolSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSchoolSearchQuery('');
+                                    setSchoolCurrentPage(1);
+                                  }}
+                                  className="text-xs text-blue-600 hover:underline font-semibold"
                                 >
-                                  <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
-                                  <span className="truncate max-w-[120px]">Buka Link Maps</span>
-                                  <ExternalLink className="w-3 h-3 text-blue-500 group-hover:scale-110 transition-transform" />
-                                </a>
-                              );
-                            })()}
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => {
-                                  setEditingSchoolId(item.id);
-                                  setSchoolForm({
-                                    ...item,
-                                    coordinates: item.coordinates || item.titikKoordinat || '',
-                                    titikKoordinat: item.titikKoordinat || item.coordinates || ''
-                                  });
-                                  setSchoolDriveInput(item.image && isGoogleDriveUrl(item.image) ? item.image : '');
-                                }}
-                                className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  const confirmed = await showConfirmDialog({
-                                    title: 'Hapus Data Sekolah?',
-                                    message: `Apakah Anda yakin ingin menghapus data "${item.name}" dari direktori sekolah?`,
-                                    type: 'delete',
-                                    itemName: item.name,
-                                    confirmText: 'Ya, Hapus Sekolah',
-                                    cancelText: 'Tidak, Batalkan'
-                                  });
-                                  if (!confirmed) return;
-                                  deleteSchool(item.id);
-                                  showNoticePopup({
-                                    title: 'Data Sekolah Dihapus!',
-                                    message: `Data sekolah "${item.name}" telah berhasil dihapus.`,
-                                    type: 'success'
-                                  });
-                                }}
-                                className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                                  Reset Pencarian
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        paginatedSchools.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="p-3 font-semibold text-slate-900">{item.name}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                                {item.level}
+                              </span>
+                            </td>
+                            <td className="p-3">{item.status}</td>
+                            <td className="p-3 font-mono font-bold">{item.npsn}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                Nilai {item.akreditasi}
+                              </span>
+                            </td>
+                            <td className="p-3">{item.headmaster}</td>
+                            <td className="p-3">
+                              {(() => {
+                                const mapsUrl = getGoogleMapsUrl(item);
+                                return (
+                                  <a
+                                    href={mapsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[11px] font-semibold transition-colors group shadow-2xs"
+                                    title={mapsUrl}
+                                  >
+                                    <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                    <span className="truncate max-w-[120px]">Buka Link Maps</span>
+                                    <ExternalLink className="w-3 h-3 text-blue-500 group-hover:scale-110 transition-transform" />
+                                  </a>
+                                );
+                              })()}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingSchoolId(item.id);
+                                    setSchoolForm({
+                                      ...item,
+                                      coordinates: item.coordinates || item.titikKoordinat || '',
+                                      titikKoordinat: item.titikKoordinat || item.coordinates || ''
+                                    });
+                                    setSchoolDriveInput(item.image && isGoogleDriveUrl(item.image) ? item.image : '');
+                                  }}
+                                  className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    const confirmed = await showConfirmDialog({
+                                      title: 'Hapus Data Sekolah?',
+                                      message: `Apakah Anda yakin ingin menghapus data "${item.name}" dari direktori sekolah?`,
+                                      type: 'delete',
+                                      itemName: item.name,
+                                      confirmText: 'Ya, Hapus Sekolah',
+                                      cancelText: 'Tidak, Batalkan'
+                                    });
+                                    if (!confirmed) return;
+                                    deleteSchool(item.id);
+                                    showNoticePopup({
+                                      title: 'Data Sekolah Dihapus!',
+                                      message: `Data sekolah "${item.name}" telah berhasil dihapus.`,
+                                      type: 'success'
+                                    });
+                                  }}
+                                  className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
+
+                {/* School Pagination Controls */}
+                {totalSchoolPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 border-t border-slate-100 bg-slate-50/50">
+                    <div className="text-xs text-slate-500">
+                      Menampilkan{' '}
+                      <strong className="text-slate-800">
+                        {filteredSchools.length > 0 ? (schoolCurrentPage - 1) * schoolItemsPerPage + 1 : 0}
+                      </strong>{' '}
+                      -{' '}
+                      <strong className="text-slate-800">
+                        {Math.min(filteredSchools.length, schoolCurrentPage * schoolItemsPerPage)}
+                      </strong>{' '}
+                      dari <strong className="text-slate-800">{filteredSchools.length}</strong> sekolah (Halaman{' '}
+                      <strong className="text-slate-800">{schoolCurrentPage}</strong> dari{' '}
+                      <strong className="text-slate-800">{totalSchoolPages}</strong>)
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSchoolCurrentPage(1)}
+                        disabled={schoolCurrentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Pertama"
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setSchoolCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={schoolCurrentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Sebelumnya"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalSchoolPages) }, (_, i) => {
+                          let pageNum = i + 1;
+                          if (totalSchoolPages > 5 && schoolCurrentPage > 3) {
+                            pageNum = Math.min(schoolCurrentPage - 2 + i, totalSchoolPages - (4 - i));
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setSchoolCurrentPage(pageNum)}
+                              className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all ${
+                                schoolCurrentPage === pageNum
+                                  ? 'bg-blue-600 text-white shadow-sm'
+                                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setSchoolCurrentPage((p) => Math.min(totalSchoolPages, p + 1))}
+                        disabled={schoolCurrentPage === totalSchoolPages}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Selanjutnya"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setSchoolCurrentPage(totalSchoolPages)}
+                        disabled={schoolCurrentPage === totalSchoolPages}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Terakhir"
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -5416,7 +5625,8 @@ export const AdminDashboard: React.FC = () => {
                       <option value="PNS">PNS (Pegawai Negeri Sipil)</option>
                       <option value="PPPK">PPPK</option>
                       <option value="PPPK Paruh Waktu">PPPK Paruh Waktu</option>
-                      <option value="Honorer">Honorer</option>
+                      <option value="Guru TK">Guru TK</option>
+                      <option value="Guru KB">Guru KB</option>
                     </select>
                   </div>
 
@@ -5475,8 +5685,13 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-slate-900">
-                      Daftar Guru Terdaftar ({teachers.length})
+                      Daftar Guru Terdaftar ({filteredTeachers.length})
                     </span>
+                    {filteredTeachers.length !== teachers.length && (
+                      <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200">
+                        Hasil Filter (Total: {teachers.length})
+                      </span>
+                    )}
                     {teachers.length === 0 && (
                       <span className="text-[11px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">
                         Tabel Kosong
@@ -5529,29 +5744,52 @@ export const AdminDashboard: React.FC = () => {
                     <input
                       type="text"
                       value={teacherSearchInput}
-                      onChange={(e) => setTeacherSearchInput(e.target.value)}
+                      onChange={(e) => {
+                        setTeacherSearchInput(e.target.value);
+                        setTeacherCurrentPage(1);
+                      }}
                       placeholder="Cari guru berdasarkan nama, NIP, atau instansi..."
-                      className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
                     />
+                    {teacherSearchInput && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTeacherSearchInput('');
+                          setTeacherCurrentPage(1);
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                        title="Hapus pencarian"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Filters */}
                   <div className="flex items-center gap-2">
                     <select
                       value={teacherFilterStatus}
-                      onChange={(e) => setTeacherFilterStatus(e.target.value)}
+                      onChange={(e) => {
+                        setTeacherFilterStatus(e.target.value);
+                        setTeacherCurrentPage(1);
+                      }}
                       className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
                     >
                       <option value="ALL">Semua Status</option>
                       <option value="PNS">PNS</option>
                       <option value="PPPK">PPPK</option>
                       <option value="PPPK Paruh Waktu">PPPK Paruh Waktu</option>
-                      <option value="Honorer">Honorer</option>
+                      <option value="Guru TK">Guru TK</option>
+                      <option value="Guru KB">Guru KB</option>
                     </select>
 
                     <select
                       value={teacherFilterInstansi}
-                      onChange={(e) => setTeacherFilterInstansi(e.target.value)}
+                      onChange={(e) => {
+                        setTeacherFilterInstansi(e.target.value);
+                        setTeacherCurrentPage(1);
+                      }}
                       className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none max-w-[180px] truncate"
                     >
                       <option value="ALL">Semua Instansi</option>
@@ -5578,53 +5816,40 @@ export const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {(() => {
-                        const filtered = teachers.filter((t) => {
-                          const q = teacherSearchInput.toLowerCase().trim();
-                          const matchQ =
-                            !q ||
-                            (t.nama && t.nama.toLowerCase().includes(q)) ||
-                            (t.nip && t.nip.toLowerCase().includes(q)) ||
-                            (t.instansi && t.instansi.toLowerCase().includes(q));
-                          const matchStatus = (() => {
-                            if (!teacherFilterStatus || teacherFilterStatus === 'ALL') return true;
-                            const s = t.statusPegawai?.toUpperCase().trim() || '';
-                            const f = teacherFilterStatus.toUpperCase().trim();
-                            if (f === 'PNS') return s === 'PNS' || (s.includes('PNS') && !s.includes('NON'));
-                            if (f === 'PPPK') return (s === 'PPPK' || s === 'P3K' || (s.includes('PPPK') && !s.includes('PARUH')));
-                            if (f === 'PPPK PARUH WAKTU') return s.includes('PARUH');
-                            if (f === 'HONORER') return s.includes('HONOR') || s === 'GTT' || s === 'PTT' || s === 'GTY' || s.includes('NON ASN') || s.includes('NON-ASN');
-                            return s === f;
-                          })();
-                          const matchInstansi =
-                            teacherFilterInstansi === 'ALL' ||
-                            t.instansi?.toLowerCase() === teacherFilterInstansi.toLowerCase();
-                          return matchQ && matchStatus && matchInstansi;
-                        });
-
-                        if (filtered.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={6} className="py-12 text-center text-slate-400">
-                                <div className="flex flex-col items-center justify-center space-y-2">
-                                  <Users className="w-10 h-10 text-slate-300 stroke-[1.5]" />
-                                  <p className="font-semibold text-slate-600 text-sm">
-                                    {teachers.length === 0
-                                      ? 'Belum ada data guru di database.'
-                                      : 'Tidak ada guru yang sesuai dengan pencarian / filter.'}
-                                  </p>
-                                  <p className="text-xs text-slate-400 max-w-sm">
-                                    {teachers.length === 0
-                                      ? 'Tabel Supabase saat ini kosong. Anda dapat menginput manual di form atas atau klik tombol "Import File CSV".'
-                                      : 'Silakan ubah kata kunci atau pilih Semua Status / Instansi.'}
-                                  </p>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        }
-
-                        return filtered.map((t, idx) => {
+                      {paginatedTeachers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center space-y-2">
+                              <Users className="w-10 h-10 text-slate-300 stroke-[1.5]" />
+                              <p className="font-semibold text-slate-600 text-sm">
+                                {teachers.length === 0
+                                  ? 'Belum ada data guru di database.'
+                                  : 'Tidak ada guru yang sesuai dengan pencarian / filter.'}
+                              </p>
+                              <p className="text-xs text-slate-400 max-w-sm">
+                                {teachers.length === 0
+                                  ? 'Tabel Supabase saat ini kosong. Anda dapat menginput manual di form atas atau klik tombol "Import File CSV".'
+                                  : 'Silakan ubah kata kunci atau pilih Semua Status / Instansi.'}
+                              </p>
+                              {(teacherSearchInput || teacherFilterStatus !== 'ALL' || teacherFilterInstansi !== 'ALL') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTeacherSearchInput('');
+                                    setTeacherFilterStatus('ALL');
+                                    setTeacherFilterInstansi('ALL');
+                                    setTeacherCurrentPage(1);
+                                  }}
+                                  className="text-xs text-emerald-600 hover:underline font-semibold mt-1"
+                                >
+                                  Reset Filter & Pencarian
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedTeachers.map((t, idx) => {
                           const statusUpper = t.statusPegawai?.toUpperCase() || '';
                           let badgeBg = 'bg-slate-100 text-slate-700';
                           if (statusUpper === 'PNS' || (statusUpper.includes('PNS') && !statusUpper.includes('NON'))) {
@@ -5633,6 +5858,10 @@ export const AdminDashboard: React.FC = () => {
                             badgeBg = 'bg-teal-100 text-teal-700';
                           } else if (statusUpper.includes('PPPK') || statusUpper.includes('P3K')) {
                             badgeBg = 'bg-emerald-100 text-emerald-700';
+                          } else if (statusUpper.includes('TK')) {
+                            badgeBg = 'bg-purple-100 text-purple-700';
+                          } else if (statusUpper.includes('KB')) {
+                            badgeBg = 'bg-indigo-100 text-indigo-700';
                           } else if (statusUpper.includes('HONOR') || statusUpper === 'GTT' || statusUpper === 'PTT' || statusUpper === 'GTY' || statusUpper.includes('NON ASN')) {
                             badgeBg = 'bg-amber-100 text-amber-800';
                           }
@@ -5640,7 +5869,7 @@ export const AdminDashboard: React.FC = () => {
                           return (
                             <tr key={t.id || idx} className="hover:bg-slate-50 transition-colors">
                               <td className="py-2.5 px-3.5 text-center font-bold text-slate-500">
-                                {t.no || idx + 1}
+                                {t.no || (teacherCurrentPage - 1) * teacherItemsPerPage + idx + 1}
                               </td>
                               <td className="py-2.5 px-4 font-semibold text-slate-900">
                                 {t.nama}
@@ -5678,11 +5907,85 @@ export const AdminDashboard: React.FC = () => {
                               </td>
                             </tr>
                           );
-                        });
-                      })()}
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Teacher Pagination Controls */}
+                {totalTeacherPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pt-2 border-t border-slate-100">
+                    <div className="text-xs text-slate-500">
+                      Menampilkan{' '}
+                      <strong className="text-slate-800">
+                        {filteredTeachers.length > 0 ? (teacherCurrentPage - 1) * teacherItemsPerPage + 1 : 0}
+                      </strong>{' '}
+                      -{' '}
+                      <strong className="text-slate-800">
+                        {Math.min(filteredTeachers.length, teacherCurrentPage * teacherItemsPerPage)}
+                      </strong>{' '}
+                      dari <strong className="text-slate-800">{filteredTeachers.length}</strong> guru (Halaman{' '}
+                      <strong className="text-slate-800">{teacherCurrentPage}</strong> dari{' '}
+                      <strong className="text-slate-800">{totalTeacherPages}</strong>)
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setTeacherCurrentPage(1)}
+                        disabled={teacherCurrentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Pertama"
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setTeacherCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={teacherCurrentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Sebelumnya"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalTeacherPages) }, (_, i) => {
+                          let pageNum = i + 1;
+                          if (totalTeacherPages > 5 && teacherCurrentPage > 3) {
+                            pageNum = Math.min(teacherCurrentPage - 2 + i, totalTeacherPages - (4 - i));
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setTeacherCurrentPage(pageNum)}
+                              className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all ${
+                                teacherCurrentPage === pageNum
+                                  ? 'bg-emerald-600 text-white shadow-sm'
+                                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setTeacherCurrentPage((p) => Math.min(totalTeacherPages, p + 1))}
+                        disabled={teacherCurrentPage === totalTeacherPages}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Selanjutnya"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setTeacherCurrentPage(totalTeacherPages)}
+                        disabled={teacherCurrentPage === totalTeacherPages}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        title="Halaman Terakhir"
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

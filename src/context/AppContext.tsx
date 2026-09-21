@@ -2930,7 +2930,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, selectedSchool, selectedServiceRequirement, and selectedDataRequestSlug if not viewing detail
-      if (!rawPath.startsWith('/berita/') && !rawPath.startsWith('/b/') && !searchParams.get('berita')) {
+      const isNewsSubtabPath = rawPath === '/berita' || rawPath === '/berita/pengumuman' || rawPath === '/berita/agenda' || rawPath === '/berita/liputan';
+      if ((!rawPath.startsWith('/berita/') && !rawPath.startsWith('/b/') && !searchParams.get('berita')) || isNewsSubtabPath) {
         setSelectedNewsState(null);
       }
       setSelectedAnnouncementState(null);
