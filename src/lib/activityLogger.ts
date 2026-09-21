@@ -4,30 +4,122 @@
  * menggunakan Google Apps Script Web App (tanpa membebani Supabase).
  */
 
+import { getSupabaseClient } from './supabase';
+
 export const SPREADSHEET_VIEW_URL = 'https://docs.google.com/spreadsheets/d/1SE2jGfPspFG13jh4lDUyVGZJberXfeKWKfUpz8iv7KM/edit?pli=1&gid=0#gid=0';
 const STORAGE_KEY_WEBAPP_URL = 'antigravity_activity_log_url';
 
 // Default URL dari environment jika dikonfigurasi
 const DEFAULT_WEBAPP_URL = (import.meta.env.VITE_ACTIVITY_LOG_WEBAPP_URL as string) || '';
 
+// Cache memori agar URL selalu tersedia lintas komponen tanpa jeda baca storage
+let inMemoryWebAppUrl: string = '';
+
 /**
- * Mengambil URL Google Apps Script Web App yang tersimpan
+ * Mengambil URL Google Apps Script Web App yang tersimpan (Memori -> LocalStorage -> Env)
  */
 export const getActivityLogUrl = (): string => {
+  if (inMemoryWebAppUrl && inMemoryWebAppUrl.trim()) {
+    return inMemoryWebAppUrl.trim();
+  }
   try {
     const saved = localStorage.getItem(STORAGE_KEY_WEBAPP_URL);
-    if (saved && saved.trim()) return saved.trim();
+    if (saved && saved.trim()) {
+      inMemoryWebAppUrl = saved.trim();
+      return inMemoryWebAppUrl;
+    }
   } catch {}
   return DEFAULT_WEBAPP_URL;
 };
 
 /**
- * Menyimpan URL Google Apps Script Web App ke penyimpanan lokal
+ * Menyimpan URL Google Apps Script Web App ke penyimpanan lokal & cache memori
  */
 export const setActivityLogUrl = (url: string): void => {
+  const clean = (url || '').trim();
+  inMemoryWebAppUrl = clean;
   try {
-    localStorage.setItem(STORAGE_KEY_WEBAPP_URL, url.trim());
+    localStorage.setItem(STORAGE_KEY_WEBAPP_URL, clean);
   } catch {}
+};
+
+/**
+ * Mengambil URL Web App dari tabel 'activity_log_settings' di Supabase Cloud.
+ * Ini memastikan URL langsung aktif di browser atau komputer baru manapun.
+ */
+export const fetchActivityLogUrlFromSupabase = async (): Promise<string> => {
+  try {
+    const client = getSupabaseClient();
+    if (!client) return getActivityLogUrl();
+
+    const { data, error } = await client
+      .from('activity_log_settings')
+      .select('webapp_url')
+      .eq('id', 'default')
+      .maybeSingle();
+
+    if (!error && data && data.webapp_url) {
+      const fetchedUrl = data.webapp_url.trim();
+      setActivityLogUrl(fetchedUrl);
+      return fetchedUrl;
+    }
+  } catch (err) {
+    console.warn('Gagal memuat activity_log_settings dari Supabase:', err);
+  }
+  return getActivityLogUrl();
+};
+
+/**
+ * Menyimpan URL Web App ke tabel 'activity_log_settings' di Supabase Cloud
+ * agar menjadi default permanen untuk seluruh admin di browser manapun.
+ */
+export const saveActivityLogUrlToSupabase = async (
+  url: string
+): Promise<{ success: boolean; message: string }> => {
+  const cleanUrl = (url || '').trim();
+  setActivityLogUrl(cleanUrl);
+
+  try {
+    const client = getSupabaseClient();
+    if (!client) {
+      return {
+        success: true,
+        message: 'URL tersimpan di penyimpanan lokal browser (Supabase belum terkonfigurasi).'
+      };
+    }
+
+    const { error } = await client
+      .from('activity_log_settings')
+      .upsert(
+        {
+          id: 'default',
+          webapp_url: cleanUrl,
+          spreadsheet_url: SPREADSHEET_VIEW_URL,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'id' }
+      );
+
+    if (error) {
+      console.error('Supabase upsert activity_log_settings error:', error);
+      return {
+        success: false,
+        message: `Gagal menyimpan ke tabel Supabase: ${error.message}`
+      };
+    }
+
+    return {
+      success: true,
+      message: 'URL Web App berhasil disimpan permanen ke tabel activity_log_settings di Supabase!'
+    };
+  } catch (err: any) {
+    console.error('saveActivityLogUrlToSupabase exception:', err);
+    return {
+      success: false,
+      message: `Terjadi kendala saat menyimpan: ${err.message || err}`
+    };
+  }
 };
 
 /**
@@ -97,7 +189,14 @@ export interface ActivityLogPayload {
  * Mengirim catatan log aktivitas ke Google Spreadsheet melalui Google Apps Script Web App
  */
 export const logActivity = async (payload: ActivityLogPayload): Promise<boolean> => {
-  const webAppUrl = getActivityLogUrl();
+  let webAppUrl = getActivityLogUrl();
+  
+  // Jika URL belum ada di cache memori/localStorage, coba tarik otomatis dari Supabase
+  if (!webAppUrl) {
+    try {
+      webAppUrl = await fetchActivityLogUrlFromSupabase();
+    } catch {}
+  }
   
   const fullEntry = {
     timestamp: payload.timestamp || getWIBTimestamp(),

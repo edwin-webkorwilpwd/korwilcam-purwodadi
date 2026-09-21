@@ -45,7 +45,14 @@ import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateSer
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 import { stripHtml, generateSummary } from '../lib/stripHtml';
 import { checkRateLimit, recordAttempt, resetRateLimit } from '../lib/rateLimiter';
-import { logActivity, ActivityLogPayload } from '../lib/activityLogger';
+import { 
+  logActivity, 
+  ActivityLogPayload, 
+  getActivityLogUrl, 
+  setActivityLogUrl, 
+  fetchActivityLogUrlFromSupabase, 
+  saveActivityLogUrlToSupabase 
+} from '../lib/activityLogger';
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -244,7 +251,9 @@ interface AppContextType {
   showNoticePopup: (options: NoticePopupOptions) => void;
   closeNoticePopup: () => void;
 
-  // Activity Log (Google Spreadsheet)
+  // Activity Log (Google Spreadsheet + Supabase Cloud Sync)
+  activityLogUrl: string;
+  updateActivityLogUrl: (url: string) => Promise<{ success: boolean; message: string }>;
   logAdminActivity: (
     action: ActivityLogPayload['action'],
     module: string,
@@ -776,6 +785,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore
     }
   }, [currentUser]);
+
+  // State URL Webhook Google Apps Script (Tersinkronisasi otomatis via tabel activity_log_settings Supabase Cloud)
+  const [activityLogUrl, setActivityLogUrlState] = useState<string>(() => getActivityLogUrl());
+
+  const updateActivityLogUrl = async (url: string): Promise<{ success: boolean; message: string }> => {
+    const clean = (url || '').trim();
+    setActivityLogUrl(clean);
+    setActivityLogUrlState(clean);
+    const result = await saveActivityLogUrlToSupabase(clean);
+    return result;
+  };
 
   // Helper pencatat Log Aktivitas ke Google Spreadsheet
   const triggerActivityLog = (
@@ -1806,6 +1826,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Tabel admin_users belum terbaca:', errUsers);
       }
 
+      // 14. Muat URL Webhook Google Apps Script dari tabel activity_log_settings Supabase
+      try {
+        const { data: logSettings } = await client
+          .from('activity_log_settings')
+          .select('webapp_url')
+          .eq('id', 'default')
+          .maybeSingle();
+
+        if (logSettings && logSettings.webapp_url) {
+          const fetchedUrl = logSettings.webapp_url.trim();
+          setActivityLogUrl(fetchedUrl);
+          setActivityLogUrlState(fetchedUrl);
+        }
+      } catch (errLogSettings) {
+        console.warn('Tabel activity_log_settings belum terbaca:', errLogSettings);
+      }
+
       // Await parallel organizations, daftar_guru, service_requirements, and data_requests fetch
       try {
         await Promise.all([
@@ -2161,6 +2198,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel data_requests:', dErr);
       }
 
+      // 15. Export activity_log_settings (Hanya 1 baris URL Webhook Apps Script)
+      try {
+        const currentLogUrl = activityLogUrl || getActivityLogUrl();
+        if (currentLogUrl) {
+          await client.from('activity_log_settings').upsert({
+            id: 'default',
+            webapp_url: currentLogUrl.trim(),
+            spreadsheet_url: 'https://docs.google.com/spreadsheets/d/1SE2jGfPspFG13jh4lDUyVGZJberXfeKWKfUpz8iv7KM/edit?pli=1&gid=0#gid=0',
+            is_active: true,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+        }
+      } catch (logErr) {
+        console.warn('Gagal ekspor tabel activity_log_settings:', logErr);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       showToast('Seluruh data berhasil diekspor & disinkronkan ke Supabase!', 'success');
@@ -2283,6 +2336,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               createdAt: u.created_at,
               updatedAt: u.updated_at
             })));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'activity_log_settings' },
+        async () => {
+          try {
+            const { data: logSettings } = await client
+              .from('activity_log_settings')
+              .select('webapp_url')
+              .eq('id', 'default')
+              .maybeSingle();
+            if (logSettings && logSettings.webapp_url) {
+              const newUrl = logSettings.webapp_url.trim();
+              setActivityLogUrl(newUrl);
+              setActivityLogUrlState(newUrl);
+            }
+          } catch (e) {
+            console.warn('Realtime activity_log_settings error:', e);
           }
         }
       )
@@ -6078,6 +6151,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         closeConfirmDialog,
         showNoticePopup,
         closeNoticePopup,
+        activityLogUrl,
+        updateActivityLogUrl,
         logAdminActivity: triggerActivityLog
       }}
     >

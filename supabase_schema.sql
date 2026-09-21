@@ -564,3 +564,40 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
+
+-- ==========================================================
+-- MIGRATION: BUAT TABEL PENGATURAN LOG AKTIVITAS (ACTIVITY_LOG_SETTINGS)
+-- ==========================================================
+-- Tabel ini HANYA menyimpan 1 baris URL Webhook Google Apps Script agar
+-- seluruh browser pengelola otomatis tersinkronisasi dan log aktivitas berjalan lancar.
+-- Catatan: Seluruh rekaman log aktivitas tetap 100% masuk ke Google Spreadsheet Anda.
+CREATE TABLE IF NOT EXISTS public.activity_log_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  webapp_url TEXT NOT NULL DEFAULT '',
+  spreadsheet_url TEXT DEFAULT 'https://docs.google.com/spreadsheets/d/1SE2jGfPspFG13jh4lDUyVGZJberXfeKWKfUpz8iv7KM/edit?pli=1&gid=0#gid=0',
+  is_active BOOLEAN DEFAULT true,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Pengaturan RLS (Row Level Security)
+ALTER TABLE public.activity_log_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read activity_log_settings" ON public.activity_log_settings;
+CREATE POLICY "Public read activity_log_settings" ON public.activity_log_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on activity_log_settings" ON public.activity_log_settings;
+CREATE POLICY "Allow all on activity_log_settings" ON public.activity_log_settings FOR ALL USING (true);
+
+-- Tambahkan baris default jika belum ada
+INSERT INTO public.activity_log_settings (id, webapp_url, spreadsheet_url, is_active)
+VALUES ('default', '', 'https://docs.google.com/spreadsheets/d/1SE2jGfPspFG13jh4lDUyVGZJberXfeKWKfUpz8iv7KM/edit?pli=1&gid=0#gid=0', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Publikasi Realtime untuk Multi-User / Multi-Browser Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.activity_log_settings;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+

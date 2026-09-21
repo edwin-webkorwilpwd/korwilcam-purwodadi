@@ -209,7 +209,9 @@ export const AdminDashboard: React.FC = () => {
     deleteDataRequest,
     toggleDataRequestActive,
     showConfirmDialog,
-    showNoticePopup
+    showNoticePopup,
+    activityLogUrl,
+    updateActivityLogUrl
   } = useApp();
 
   type AdminSection = 
@@ -482,20 +484,35 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setHasCopiedSql(false), 3000);
   };
 
-  // --- ACTIVITY LOG (GOOGLE SPREADSHEET) STATE ---
-  const [activityLogUrlInput, setActivityLogUrlInput] = useState<string>(() => getActivityLogUrl());
+  // --- ACTIVITY LOG (GOOGLE SPREADSHEET + SUPABASE SYNC) STATE ---
+  const [activityLogUrlInput, setActivityLogUrlInput] = useState<string>(() => activityLogUrl || getActivityLogUrl());
+  const [isSavingActivityLogUrl, setIsSavingActivityLogUrl] = useState(false);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [webhookTestResult, setWebhookTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [hasCopiedGasCode, setHasCopiedGasCode] = useState(false);
 
-  const handleSaveActivityLogUrl = (e: React.FormEvent) => {
+  // Sinkronkan input form saat URL ditarik dari Supabase Cloud (multi-browser sync)
+  useEffect(() => {
+    if (activityLogUrl) {
+      setActivityLogUrlInput(activityLogUrl);
+    }
+  }, [activityLogUrl]);
+
+  const handleSaveActivityLogUrl = async (e: React.FormEvent) => {
     e.preventDefault();
-    setActivityLogUrl(activityLogUrlInput);
-    showNoticePopup({
-      title: 'URL Webhook Disimpan!',
-      message: 'URL Google Apps Script Web App berhasil disimpan ke konfigurasi sistem. Seluruh aktivitas pengelolaan data kini akan dikirimkan langsung ke Google Spreadsheet Anda.',
-      type: 'success'
-    });
+    setIsSavingActivityLogUrl(true);
+    const result = await updateActivityLogUrl(activityLogUrlInput);
+    setIsSavingActivityLogUrl(false);
+
+    if (result.success) {
+      showNoticePopup({
+        title: 'URL Webhook Disimpan ke Supabase!',
+        message: 'URL Google Apps Script Web App berhasil disimpan permanen ke tabel activity_log_settings Supabase Cloud. Seluruh admin di browser dan perangkat manapun kini otomatis terhubung!',
+        type: 'success'
+      });
+    } else {
+      showToast(result.message, 'error');
+    }
   };
 
   const handleTestWebhook = async () => {
@@ -10884,7 +10901,7 @@ export const AdminDashboard: React.FC = () => {
                   </a>
                 </div>
 
-                {/* Card 2: Zero Supabase Overhead */}
+                {/* Card 2: Supabase Cloud Sync (Single-Row Config) */}
                 <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-2xl border border-blue-200/80 shadow-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -10892,16 +10909,16 @@ export const AdminDashboard: React.FC = () => {
                         <Database className="w-4 h-4" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-slate-900">Bebas Kuota Supabase</h4>
-                        <span className="text-[10px] text-blue-700 font-medium">Penyimpanan Terpisah</span>
+                        <h4 className="text-xs font-bold text-slate-900">Supabase Cloud Sync</h4>
+                        <span className="text-[10px] text-blue-700 font-medium">Tabel: activity_log_settings</span>
                       </div>
                     </div>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                      0% Quota
+                      1 Baris Config
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Sesuai permintaan Anda, seluruh catatan log disimpan ke spreadsheet tanpa membebani tabel atau batas kuota database Supabase.
+                    Hanya 1 tautan URL Web App yang disimpan di Supabase agar sinkron otomatis di semua browser. Seluruh ribuan data riwayat log tetap 100% masuk ke Google Spreadsheet.
                   </p>
                 </div>
 
@@ -10964,10 +10981,15 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <button
                           type="submit"
-                          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+                          disabled={isSavingActivityLogUrl}
+                          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 shrink-0"
                         >
-                          <Save className="w-4 h-4" />
-                          <span>Simpan URL</span>
+                          {isSavingActivityLogUrl ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4" />
+                          )}
+                          <span>{isSavingActivityLogUrl ? 'Menyimpan...' : 'Simpan URL'}</span>
                         </button>
                         <button
                           type="button"
