@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
-  Images, 
-  ArrowRight 
+  Images 
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { sortGalleryDescending } from '../lib/galleryHelper';
@@ -67,54 +66,29 @@ export const GalleryPage: React.FC = () => {
         <CurvedHeaderArch />
       </section>
 
-      {/* Gallery Section with Header Matching Gambar 2 */}
-      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-8 sm:-mt-10 relative z-20">
-        <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border border-blue-50/80 shadow-xs mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              {/* Blue Squircle Icon */}
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/25 shrink-0">
-                <Images className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Galeri Foto
-                </h2>
-                <div className="w-12 h-1 bg-blue-600 rounded-full mt-1 mb-1" />
-                <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                  Dokumentasi kegiatan dan momen penting di lingkungan sekolah.
-                </p>
-              </div>
-            </div>
-
-            {/* Top Right Action / Count Badge */}
-            <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
-              <button
-                onClick={() => setSelectedCategory('ALL')}
-                className={`px-4 py-2 rounded-full text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer ${
-                  selectedCategory === 'ALL'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
-                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200/80'
-                }`}
-              >
-                <Images className="w-3.5 h-3.5" />
-                <span>Lihat Semua ({filteredGallery.length})</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+      {/* Gallery Cards Grid */}
+      <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-5 sm:-mt-6 relative z-20">
+        {filteredGallery.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+            {filteredGallery.map((item) => (
+              <GalleryCard
+                key={item.id}
+                item={item}
+                onClick={handleOpenAlbum}
+              />
+            ))}
           </div>
-        </div>
-
-        {/* Gallery Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-          {filteredGallery.map((item) => (
-            <GalleryCard
-              key={item.id}
-              item={item}
-              onClick={handleOpenAlbum}
-            />
-          ))}
-        </div>
+        ) : (
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto">
+            <Images className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-800">
+              Tidak Ada Dokumentasi
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Belum ada foto atau album untuk kategori ini.
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -9,22 +9,13 @@ import {
   X, 
   ShieldCheck, 
   BellRing, 
-  Building2, 
-  BookOpen, 
-  FileText, 
+  BookOpen,
+  FileCheck,
   Image as ImageIcon, 
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ArrowRight,
-  Download,
-  Calendar,
-  CalendarCheck,
-  FileCheck,
-  ClipboardCheck,
-  ClipboardList,
-  Users,
-  Database
+  ArrowRight
 } from 'lucide-react';
 import { getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 
@@ -62,11 +53,45 @@ export const Navbar: React.FC = () => {
   const profileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const closeAllDropdowns = () => {
+    if (servicesTimeoutRef.current) {
+      clearTimeout(servicesTimeoutRef.current);
+      servicesTimeoutRef.current = null;
+    }
+    if (profileTimeoutRef.current) {
+      clearTimeout(profileTimeoutRef.current);
+      profileTimeoutRef.current = null;
+    }
+    if (newsTimeoutRef.current) {
+      clearTimeout(newsTimeoutRef.current);
+      newsTimeoutRef.current = null;
+    }
+    setProfileDropdownOpen(false);
+    setServicesDropdownOpen(false);
+    setNewsDropdownOpen(false);
+  };
+
+  const handleHeaderLeave = () => {
+    handleProfileLeave();
+    handleServicesLeave();
+    handleNewsLeave();
+  };
+
   const handleServicesEnter = () => {
     if (servicesTimeoutRef.current) {
       clearTimeout(servicesTimeoutRef.current);
       servicesTimeoutRef.current = null;
     }
+    if (profileTimeoutRef.current) {
+      clearTimeout(profileTimeoutRef.current);
+      profileTimeoutRef.current = null;
+    }
+    if (newsTimeoutRef.current) {
+      clearTimeout(newsTimeoutRef.current);
+      newsTimeoutRef.current = null;
+    }
+    setProfileDropdownOpen(false);
+    setNewsDropdownOpen(false);
     setServicesDropdownOpen(true);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('preload-webviews'));
@@ -77,7 +102,7 @@ export const Navbar: React.FC = () => {
     if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
     servicesTimeoutRef.current = setTimeout(() => {
       setServicesDropdownOpen(false);
-    }, 400);
+    }, 250);
   };
 
   const handleProfileEnter = () => {
@@ -85,8 +110,17 @@ export const Navbar: React.FC = () => {
       clearTimeout(profileTimeoutRef.current);
       profileTimeoutRef.current = null;
     }
+    if (servicesTimeoutRef.current) {
+      clearTimeout(servicesTimeoutRef.current);
+      servicesTimeoutRef.current = null;
+    }
+    if (newsTimeoutRef.current) {
+      clearTimeout(newsTimeoutRef.current);
+      newsTimeoutRef.current = null;
+    }
+    setServicesDropdownOpen(false);
+    setNewsDropdownOpen(false);
     setProfileDropdownOpen(true);
-    // Preload chunk bundle di latar belakang agar saat menu diklik terbuka 0ms secepat kilat
     try {
       import('../pages/OrganizationPage');
       import('../pages/NominativePage');
@@ -97,7 +131,7 @@ export const Navbar: React.FC = () => {
     if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
     profileTimeoutRef.current = setTimeout(() => {
       setProfileDropdownOpen(false);
-    }, 400);
+    }, 250);
   };
 
   const handleNewsEnter = () => {
@@ -105,6 +139,16 @@ export const Navbar: React.FC = () => {
       clearTimeout(newsTimeoutRef.current);
       newsTimeoutRef.current = null;
     }
+    if (profileTimeoutRef.current) {
+      clearTimeout(profileTimeoutRef.current);
+      profileTimeoutRef.current = null;
+    }
+    if (servicesTimeoutRef.current) {
+      clearTimeout(servicesTimeoutRef.current);
+      servicesTimeoutRef.current = null;
+    }
+    setProfileDropdownOpen(false);
+    setServicesDropdownOpen(false);
     setNewsDropdownOpen(true);
     try {
       import('../pages/NewsPage');
@@ -115,7 +159,7 @@ export const Navbar: React.FC = () => {
     if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
     newsTimeoutRef.current = setTimeout(() => {
       setNewsDropdownOpen(false);
-    }, 400);
+    }, 250);
   };
 
   // Top 3 Berita & Informasi Terbaru
@@ -200,7 +244,7 @@ export const Navbar: React.FC = () => {
   const currentNews = topThreeNews[currentTickerIndex];
 
   return (
-    <header ref={navbarRef} className="sticky top-0 z-40 w-full shadow-lg bg-[#163fa8]">
+    <header ref={navbarRef} onMouseLeave={handleHeaderLeave} className="sticky top-0 z-40 w-full shadow-lg bg-[#163fa8]">
       {/* Top Notification & Contact Bar */}
       <div className="bg-[#143794] text-blue-100 text-[11px] py-1.5 border-b border-white/15 select-none">
         <div className="w-full px-2 sm:px-3 flex flex-col md:flex-row justify-between items-center gap-2">
@@ -300,6 +344,7 @@ export const Navbar: React.FC = () => {
             {/* Logo and Brand */}
             <div 
               onClick={() => handleNavClick('home', '/beranda')}
+              onMouseEnter={closeAllDropdowns}
               className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group select-none shrink-0"
             >
               <div className="h-8 sm:h-9 w-auto flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
@@ -323,6 +368,7 @@ export const Navbar: React.FC = () => {
             <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 font-semibold text-[14px] xl:text-[15.5px] text-white shrink-0">
               <button
                 onClick={() => handleNavClick('home', '/beranda')}
+                onMouseEnter={closeAllDropdowns}
                 className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'home' 
                     ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -353,48 +399,44 @@ export const Navbar: React.FC = () => {
 
                 {profileDropdownOpen && (
                   <div 
-                    className="absolute left-0 top-full pt-1.5 w-72 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+                    className="absolute left-0 top-full pt-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-100"
                     onMouseEnter={handleProfileEnter}
-                    onMouseMove={handleProfileEnter}
                     onMouseLeave={handleProfileLeave}
                   >
                     {/* Invisible hover bridge to eliminate gap */}
-                    <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
                     <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
                       <button
                         onClick={() => handleNavClick('profile', '/profil#sambutan')}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center gap-3 transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <Building2 className="w-4.5 h-4.5 text-sky-300 shrink-0" />
                         <span>Sambutan & Visi Misi</span>
                       </button>
 
                       <button
                         onClick={() => handleNavClick('profile', '/profil#struktur')}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center gap-3 transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <Building2 className="w-4.5 h-4.5 text-sky-300 shrink-0" />
                         <span>Struktur Organisasi</span>
                       </button>
 
                       <button
                         onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center gap-3 transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'nominatif'
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <Users className="w-4.5 h-4.5 text-sky-300 shrink-0" />
                         <span>Nominatif</span>
                       </button>
 
@@ -403,13 +445,12 @@ export const Navbar: React.FC = () => {
                           setSelectedOrganizationSlug(null);
                           handleNavClick('organization', '/profil#organisasi');
                         }}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center gap-3 transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'organization'
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <GraduationCap className="w-4.5 h-4.5 text-sky-300 shrink-0" />
                         <span>Organisasi</span>
                       </button>
                     </div>
@@ -419,6 +460,7 @@ export const Navbar: React.FC = () => {
 
               <button
                 onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
+                onMouseEnter={closeAllDropdowns}
                 className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'sop-pelayanan' 
                     ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -430,6 +472,7 @@ export const Navbar: React.FC = () => {
 
               <button
                 onClick={() => handleNavClick('schools', '/sekolah')}
+                onMouseEnter={closeAllDropdowns}
                 className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap ${
                   activeTab === 'schools' 
                     ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -460,64 +503,45 @@ export const Navbar: React.FC = () => {
 
                 {newsDropdownOpen && (
                   <div 
-                    className="absolute left-0 top-full pt-1.5 w-64 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+                    className="absolute left-0 top-full pt-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-100"
                     onMouseEnter={handleNewsEnter}
-                    onMouseMove={handleNewsEnter}
                     onMouseLeave={handleNewsLeave}
                   >
                     {/* Invisible hover bridge to eliminate gap */}
-                    <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
                     <div className="bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
                       <button
                         onClick={() => handleNavClick('news', '/berita')}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center justify-between transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda')))
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-4.5 h-4.5 text-sky-300 shrink-0" />
-                          <span>Berita & Liputan</span>
-                        </div>
-                        <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full text-sky-100 font-bold">
-                          {news.length}
-                        </span>
+                        <span>Berita Terkini</span>
                       </button>
 
                       <button
                         onClick={() => handleNavClick('news', '/berita/pengumuman')}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center justify-between transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <BellRing className="w-4.5 h-4.5 text-amber-300 shrink-0" />
-                          <span>Pengumuman & Edaran</span>
-                        </div>
-                        <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full text-sky-100 font-bold">
-                          {(announcements || []).length}
-                        </span>
+                        <span>Pengumuman & Edaran</span>
                       </button>
 
                       <button
                         onClick={() => handleNavClick('news', '/berita/agenda')}
-                        className={`w-full text-left px-3.5 py-2.5 text-[14px] rounded-lg flex items-center justify-between transition-colors font-semibold ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
                             ? 'bg-white/20 text-white font-bold'
                             : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                          <span>Agenda Kegiatan</span>
-                        </div>
-                        <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full text-sky-100 font-bold">
-                          {(aulaBookings || []).length}
-                        </span>
+                        <span>Agenda Kegiatan</span>
                       </button>
                     </div>
                   </div>
@@ -545,179 +569,90 @@ export const Navbar: React.FC = () => {
 
                 {servicesDropdownOpen && (
                   <div 
-                    className="absolute right-0 top-full pt-1.5 w-[350px] max-w-[calc(100vw-24px)] z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+                    className="absolute left-0 top-full pt-1.5 max-w-[calc(100vw-24px)] z-50 animate-in fade-in slide-in-from-top-1 duration-100"
                     onMouseEnter={handleServicesEnter}
-                    onMouseMove={handleServicesEnter}
                     onMouseLeave={handleServicesLeave}
                   >
                     {/* Invisible hover bridge to eliminate gap */}
-                    <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-[#163fa8] rounded-2xl shadow-2xl border border-white/20 p-2 space-y-1 backdrop-blur-md">
-                      <div className="px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wider text-sky-200">
-                        Pusat Layanan Terpadu Korwilcam
-                      </div>
-
-                      {/* 0. Persyaratan Pelayanan (Paling Atas Sendiri) */}
+                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                      {/* 0. Persyaratan Pelayanan */}
                       <button
                         type="button"
                         onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'service-requirements' 
-                            ? 'bg-blue-600/30 border border-blue-500/40 text-white' 
-                            : 'hover:bg-white/10 text-slate-200'
+                            ? 'bg-white/20 text-white font-bold' 
+                            : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          activeTab === 'service-requirements' 
-                            ? 'bg-indigo-600 text-white shadow-sm' 
-                            : 'bg-indigo-500/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white'
-                        }`}>
-                          <ClipboardList className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[13.5px] text-white group-hover:text-indigo-300 transition-colors">
-                            Persyaratan Pelayanan
-                          </div>
-                          <div className="text-[11px] text-blue-100/80 font-normal leading-tight mt-0.5">
-                            Standar & berkas persyaratan pengajuan layanan
-                          </div>
-                        </div>
+                        <span>Persyaratan Pelayanan</span>
                       </button>
 
                       {/* 1. Unduh Berkas */}
                       <button
                         type="button"
                         onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'downloads' 
-                            ? 'bg-blue-600/30 border border-blue-500/40 text-white' 
-                            : 'hover:bg-white/10 text-slate-200'
+                            ? 'bg-white/20 text-white font-bold' 
+                            : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          activeTab === 'downloads' 
-                            ? 'bg-blue-600 text-white shadow-sm' 
-                            : 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-600 group-hover:text-white'
-                        }`}>
-                          <Download className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[13.5px] text-white group-hover:text-blue-300 transition-colors">
-                            Unduh Berkas
-                          </div>
-                          <div className="text-[11px] text-blue-100/80 font-normal leading-tight mt-0.5">
-                            Modul ajar, surat edaran, dan format blanko GTK
-                          </div>
-                        </div>
+                        <span>Unduh Berkas</span>
                       </button>
 
                       {/* 2. Peminjaman Aula */}
                       <button
                         type="button"
                         onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'service-aula' 
-                            ? 'bg-amber-500/20 border border-amber-500/40 text-white' 
-                            : 'hover:bg-white/10 text-slate-200'
+                            ? 'bg-white/20 text-white font-bold' 
+                            : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          activeTab === 'service-aula' 
-                            ? 'bg-amber-500 text-white shadow-sm' 
-                            : 'bg-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-white'
-                        }`}>
-                          <CalendarCheck className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[13.5px] text-white group-hover:text-amber-300 transition-colors">
-                            Peminjaman Aula Korwilcam Purwodadi
-                          </div>
-                          <div className="text-[11px] text-blue-100/80 font-normal leading-tight mt-0.5">
-                            Jadwal & formulir peminjaman aula pertemuan
-                          </div>
-                        </div>
+                        <span>Peminjaman Aula</span>
                       </button>
 
                       {/* 3. Surat Cuti */}
                       <button
                         type="button"
                         onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'service-cuti' 
-                            ? 'bg-emerald-500/20 border border-emerald-500/40 text-white' 
-                            : 'hover:bg-white/10 text-slate-200'
+                            ? 'bg-white/20 text-white font-bold' 
+                            : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          activeTab === 'service-cuti' 
-                            ? 'bg-emerald-600 text-white shadow-sm' 
-                            : 'bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white'
-                        }`}>
-                          <FileCheck className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[13.5px] text-white group-hover:text-emerald-300 transition-colors">
-                            Surat Cuti
-                          </div>
-                          <div className="text-[11px] text-blue-100/80 font-normal leading-tight mt-0.5">
-                            Pelayanan administrasi pengajuan cuti pendidik
-                          </div>
-                        </div>
+                        <span>Surat Cuti</span>
                       </button>
 
                       {/* 4. Survey Pelayanan */}
                       <button
                         type="button"
                         onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'service-survey' 
-                            ? 'bg-purple-500/20 border border-purple-500/40 text-white' 
-                            : 'hover:bg-white/10 text-slate-200'
+                            ? 'bg-white/20 text-white font-bold' 
+                            : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          activeTab === 'service-survey' 
-                            ? 'bg-purple-600 text-white shadow-sm' 
-                            : 'bg-purple-500/20 text-purple-400 group-hover:bg-purple-600 group-hover:text-white'
-                        }`}>
-                          <ClipboardCheck className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[13.5px] text-white group-hover:text-purple-300 transition-colors">
-                            Survey Pelayanan
-                          </div>
-                          <div className="text-[11px] text-blue-100/80 font-normal leading-tight mt-0.5">
-                            Indeks kepuasan pelayanan terpadu masyarakat
-                          </div>
-                        </div>
+                        <span>Survey Pelayanan</span>
                       </button>
 
                       {/* 5. Permintaan Data */}
                       <button
                         type="button"
                         onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 group ${
+                        className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
                           activeTab === 'service-permintaan-data' 
-                            ? 'bg-blue-500/20 border border-blue-500/40 text-white' 
-                            : 'hover:bg-white/10 text-slate-200'
+                            ? 'bg-white/20 text-white font-bold' 
+                            : 'text-white hover:bg-white/15'
                         }`}
                       >
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          activeTab === 'service-permintaan-data' 
-                            ? 'bg-blue-600 text-white shadow-sm' 
-                            : 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-600 group-hover:text-white'
-                        }`}>
-                          <Database className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[13.5px] text-white group-hover:text-blue-300 transition-colors">
-                            Permintaan Data
-                          </div>
-                          <div className="text-[11px] text-blue-100/80 font-normal leading-tight mt-0.5">
-                            Layanan pengajuan & permohonan data kedinasan
-                          </div>
-                        </div>
+                        <span>Permintaan Data</span>
                       </button>
                     </div>
                   </div>
@@ -726,6 +661,7 @@ export const Navbar: React.FC = () => {
 
               <button
                 onClick={() => handleNavClick('gallery', '/galeri')}
+                onMouseEnter={closeAllDropdowns}
                 className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'gallery' 
                     ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -737,13 +673,14 @@ export const Navbar: React.FC = () => {
 
               <button
                 onClick={() => handleNavClick('contact', '/kontak')}
+                onMouseEnter={closeAllDropdowns}
                 className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === 'contact' 
                     ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                     : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
-                Kontak & Aduan
+                Kontak
               </button>
             </nav>
 
@@ -782,35 +719,32 @@ export const Navbar: React.FC = () => {
 
             <button
               onClick={() => handleNavClick('profile', '/profil#sambutan')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <Building2 className="w-3.5 h-3.5 text-sky-300" />
               <span>Sambutan & Visi Misi</span>
             </button>
 
             <button
               onClick={() => handleNavClick('profile', '/profil#struktur')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-                activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <Building2 className="w-3.5 h-3.5 text-sky-300" />
               <span>Struktur Organisasi</span>
             </button>
 
             <button
               onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'nominatif' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <Users className="w-3.5 h-3.5 text-sky-300" />
               <span>Nominatif Guru</span>
             </button>
 
@@ -819,11 +753,10 @@ export const Navbar: React.FC = () => {
                 setSelectedOrganizationSlug(null);
                 handleNavClick('organization', '/profil#organisasi');
               }}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'organization' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5 text-sky-300" />
               <span>Organisasi Mitra & Profesi</span>
             </button>
           </div>
@@ -857,47 +790,35 @@ export const Navbar: React.FC = () => {
 
             <button
               onClick={() => handleNavClick('news', '/berita')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda')))
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-3.5 h-3.5 text-sky-300" />
-                <span>Berita & Liputan</span>
-              </div>
-              <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded text-sky-100">{news.length}</span>
+              <span>Berita Terkini</span>
             </button>
 
             <button
               onClick={() => handleNavClick('news', '/berita/pengumuman')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <BellRing className="w-3.5 h-3.5 text-amber-300" />
-                <span>Pengumuman & Edaran</span>
-              </div>
-              <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded text-sky-100">{(announcements || []).length}</span>
+              <span>Pengumuman & Edaran</span>
             </button>
 
             <button
               onClick={() => handleNavClick('news', '/berita/agenda')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-200 hover:bg-white/10'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Calendar className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Agenda Kegiatan</span>
-              </div>
-              <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded text-sky-100">{(aulaBookings || []).length}</span>
+              <span>Agenda Kegiatan</span>
             </button>
           </div>
 
@@ -909,61 +830,55 @@ export const Navbar: React.FC = () => {
 
             <button
               onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'service-requirements' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
               }`}
             >
-              <ClipboardList className="w-3.5 h-3.5 text-indigo-400" />
               <span>Persyaratan Pelayanan</span>
             </button>
 
             <button
               onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'downloads' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
               }`}
             >
-              <Download className="w-3.5 h-3.5" />
               <span>Unduh Berkas</span>
             </button>
 
             <button
               onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'service-aula' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
               }`}
             >
-              <CalendarCheck className="w-3.5 h-3.5" />
-              <span>Peminjaman Aula Korwilcam</span>
+              <span>Peminjaman Aula</span>
             </button>
 
             <button
               onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'service-cuti' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
               }`}
             >
-              <FileCheck className="w-3.5 h-3.5" />
               <span>Surat Cuti</span>
             </button>
 
             <button
               onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'service-survey' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
               }`}
             >
-              <ClipboardCheck className="w-3.5 h-3.5" />
               <span>Survey Pelayanan</span>
             </button>
 
             <button
               onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
                 activeTab === 'service-permintaan-data' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
               }`}
             >
-              <Database className="w-3.5 h-3.5" />
               <span>Permintaan Data</span>
             </button>
           </div>
@@ -985,7 +900,7 @@ export const Navbar: React.FC = () => {
             }`}
           >
             <Phone className="w-4 h-4 text-blue-400" />
-            <span>Kontak & Layanan Pengaduan</span>
+            <span>Kontak</span>
           </button>
 
         </div>

@@ -83,7 +83,7 @@ export const NewsPage: React.FC = () => {
         document.title = 'Agenda Kegiatan Wilayah - Korwilcam Purwodadi';
       } else if (path === '/berita' || path.includes('/liputan') || path.startsWith('/berita')) {
         setActiveSubTab('news');
-        document.title = 'Warta & Informasi - Korwilcam Purwodadi';
+        document.title = 'Berita - Korwilcam Purwodadi';
       }
     };
 
@@ -99,7 +99,7 @@ export const NewsPage: React.FC = () => {
   const handleSubTabChange = (tab: 'news' | 'announcements' | 'agenda') => {
     setActiveSubTab(tab);
     let path = '/berita';
-    let title = 'Warta & Informasi - Korwilcam Purwodadi';
+    let title = 'Berita - Korwilcam Purwodadi';
 
     if (tab === 'announcements') {
       path = '/berita/pengumuman';
@@ -233,7 +233,7 @@ export const NewsPage: React.FC = () => {
       <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
         <div className="max-w-5xl mx-auto text-center space-y-2.5 relative z-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
-            Warta, Pengumuman & Agenda
+            Berita Korwilcam Purwodadi
           </h1>
           <p className="text-blue-100 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
             Ikuti perkembangan terkini seputar kebijakan pendidikan, kegiatan sekolah, surat edaran resmi, dan prestasi gemilang siswa-guru di Kecamatan Purwodadi.
@@ -333,7 +333,7 @@ export const NewsPage: React.FC = () => {
 
             {/* News Grid */}
             {filteredNews.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
                 {filteredNews.map((article) => (
                   <NewsCard key={article.id} article={article} />
                 ))}

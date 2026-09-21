@@ -86,10 +86,10 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
       }}
       role="button"
       tabIndex={0}
-      className="group relative bg-white rounded-3xl sm:rounded-[26px] overflow-hidden border border-blue-100/90 shadow-md shadow-slate-200/50 hover:shadow-2xl hover:shadow-blue-500/15 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+      className="group relative bg-white rounded-2xl sm:rounded-3xl overflow-hidden border border-blue-100/90 shadow-sm shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/15 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50"
     >
       {/* 1. Cover Image & Badges */}
-      <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-slate-100">
+      <div className="relative h-36 sm:h-40 w-full overflow-hidden bg-slate-100">
         {hasImage ? (
           <>
             <img
@@ -107,85 +107,87 @@ export const SchoolCard: React.FC<SchoolCardProps> = ({ school }) => {
           </>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100/60 flex flex-col items-center justify-center border-b border-slate-200/60">
-            <div className="w-14 h-14 rounded-2xl bg-white/90 shadow-sm border border-blue-100 flex items-center justify-center text-blue-300 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300">
-              <SchoolBuildingIcon className="w-7 h-7 text-blue-400" />
+            <div className="w-12 h-12 rounded-xl bg-white/90 shadow-sm border border-blue-100 flex items-center justify-center text-blue-300 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300">
+              <SchoolBuildingIcon className="w-6 h-6 text-blue-400" />
             </div>
-            <span className="text-[10px] font-medium text-slate-400 mt-2">Tidak ada foto</span>
+            <span className="text-[10px] font-medium text-slate-400 mt-1">Tidak ada foto</span>
           </div>
         )}
 
         {/* Top-Left: Level & Status Badges */}
-        <div className="absolute top-3.5 left-3.5 flex items-center gap-2 z-10">
-          <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wide shadow-md ${getLevelBadge(school.level)}`}>
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1 z-10">
+          <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black tracking-wide shadow-md ${getLevelBadge(school.level)}`}>
             {school.level === 'PAUD' ? 'KB' : school.level}
           </span>
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/95 text-slate-800 shadow-md backdrop-blur-xs">
+          <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-white/95 text-slate-800 shadow-md backdrop-blur-xs">
             {school.status}
           </span>
         </div>
 
         {/* Top-Right: Akreditasi Badge */}
-        <div className="absolute top-3.5 right-3.5 z-10">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/95 text-amber-600 shadow-md backdrop-blur-xs">
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span>Akreditasi {school.akreditasi || 'A'}</span>
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-white/95 text-amber-600 shadow-md backdrop-blur-xs">
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+            <span>Akr. {school.akreditasi || 'A'}</span>
           </span>
         </div>
 
         {/* Bottom-Left: NPSN Badge with MapPin Icon */}
-        <div className="absolute bottom-3 left-3 z-10">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-md text-white text-[11px] font-mono font-medium shadow-md">
-            <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
+        <div className="absolute bottom-2 left-2 z-10">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/75 backdrop-blur-md text-white text-[10px] font-mono font-medium shadow-md">
+            <MapPin className="w-2.5 h-2.5 text-blue-400 shrink-0" />
             <span>NPSN : {school.npsn}</span>
           </span>
         </div>
       </div>
 
       {/* 2. Body Content */}
-      <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
+      <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2.5">
         {/* School Avatar + Name, Principal & Address */}
-        <div className="flex items-start gap-3.5">
+        <div className="flex items-start gap-2.5">
           {/* Avatar Icon */}
-          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/60 shadow-2xs mt-0.5">
-            <SchoolBuildingIcon className="w-6 h-6 text-blue-600" />
+          <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/60 shadow-2xs mt-0.5">
+            <SchoolBuildingIcon className="w-4.5 h-4.5 text-blue-600" />
           </div>
 
           {/* Details */}
-          <div className="min-w-0 flex-1 space-y-1">
-            <h3 className="font-black text-slate-900 text-base sm:text-lg leading-snug group-hover:text-blue-600 transition-colors line-clamp-1">
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <h3 className="font-bold text-slate-900 text-xs sm:text-sm leading-snug group-hover:text-blue-600 transition-colors line-clamp-1">
               {school.name}
             </h3>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1 text-[11px] text-slate-500">
+              <User className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate">Kepsek: <span className="font-medium text-slate-700">{school.headmaster}</span></span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1 text-[11px] text-slate-500">
+              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate text-slate-500">{school.address}</span>
             </div>
           </div>
         </div>
 
         {/* 3. Bottom Stats Bar & Circular Arrow Button */}
-        <div className="bg-blue-50/50 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between border border-blue-100/60">
+        <div className="bg-blue-50/50 rounded-xl p-2 sm:p-2.5 flex items-center justify-between border border-blue-100/60">
           {/* Left Stats: Murid & Guru */}
-          <div className="flex items-center gap-4 text-xs font-bold text-slate-700">
-            <div className="flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-blue-500 shrink-0" />
-              <span>{school.studentsCount} Murid</span>
+          <div className="flex items-center gap-2.5 text-[11px] font-bold text-slate-700">
+            <div className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span>{school.studentsCount}</span>
+              <span className="text-[10px] font-normal text-slate-500">Murid</span>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4 text-blue-500 shrink-0" />
-              <span>{school.teachersCount} Guru</span>
+            <div className="flex items-center gap-1">
+              <GraduationCap className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span>{school.teachersCount}</span>
+              <span className="text-[10px] font-normal text-slate-500">Guru</span>
             </div>
           </div>
 
           {/* Right Circular Blue Arrow Button */}
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-600 group-hover:bg-blue-700 text-white flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-105 active:scale-95 transition-all shrink-0">
-            <ArrowRight className="w-4 h-4 text-white" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-600 group-hover:bg-blue-700 text-white flex items-center justify-center shadow-xs group-hover:scale-105 active:scale-95 transition-all shrink-0">
+            <ArrowRight className="w-3 h-3 text-white" />
           </div>
         </div>
       </div>
