@@ -2633,6 +2633,37 @@ export const AdminDashboard: React.FC = () => {
   const [newOrgMissionText, setNewOrgMissionText] = useState('');
   const [orgForm, setOrgForm] = useState<EducationalOrganization | null>(null);
 
+  // Organization CMS Pagination (6 item per halaman) & Search
+  const [orgSearchQuery, setOrgSearchQuery] = useState('');
+  const [orgCurrentPage, setOrgCurrentPage] = useState<number>(1);
+  const orgItemsPerPage = 6;
+
+  const filteredOrganizations = useMemo(() => {
+    if (!orgSearchQuery.trim()) return displayedOrganizations;
+    const q = orgSearchQuery.toLowerCase().trim();
+    return displayedOrganizations.filter(
+      (org) =>
+        org.name.toLowerCase().includes(q) ||
+        org.shortName.toLowerCase().includes(q) ||
+        (org.description && org.description.toLowerCase().includes(q)) ||
+        (org.leader?.name && org.leader.name.toLowerCase().includes(q)) ||
+        (org.assignedUsername && org.assignedUsername.toLowerCase().includes(q))
+    );
+  }, [displayedOrganizations, orgSearchQuery]);
+
+  const totalOrgPages = Math.max(1, Math.ceil(filteredOrganizations.length / orgItemsPerPage));
+
+  useEffect(() => {
+    if (orgCurrentPage > totalOrgPages) {
+      setOrgCurrentPage(totalOrgPages);
+    }
+  }, [totalOrgPages, orgCurrentPage]);
+
+  const paginatedOrganizations = useMemo(() => {
+    const startIndex = (orgCurrentPage - 1) * orgItemsPerPage;
+    return filteredOrganizations.slice(startIndex, startIndex + orgItemsPerPage);
+  }, [filteredOrganizations, orgCurrentPage, orgItemsPerPage]);
+
   // New Organization Modal State
   const [showNewOrgModal, setShowNewOrgModal] = useState(false);
   const [newOrgForm, setNewOrgForm] = useState({
@@ -7335,16 +7366,47 @@ export const AdminDashboard: React.FC = () => {
                       </p>
                     </div>
 
-                    {isAdminOrSuperAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => setShowNewOrgModal(true)}
-                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Tambah Organisasi Baru</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                      {displayedOrganizations.length > 3 && (
+                        <div className="relative min-w-[200px] sm:w-64">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={orgSearchQuery}
+                            onChange={(e) => {
+                              setOrgSearchQuery(e.target.value);
+                              setOrgCurrentPage(1);
+                            }}
+                            placeholder="Cari nama, ketua, pengelola..."
+                            className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 shadow-xs"
+                          />
+                          {orgSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOrgSearchQuery('');
+                                setOrgCurrentPage(1);
+                              }}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                              title="Hapus pencarian"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {isAdminOrSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setShowNewOrgModal(true)}
+                          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 shrink-0 self-start sm:self-auto"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Tambah Organisasi Baru</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Grid of Organization Cards */}
@@ -7358,125 +7420,226 @@ export const AdminDashboard: React.FC = () => {
                         Akun Anda (<strong className="text-slate-700">@{currentUser?.username}</strong>) belum ditugaskan untuk mengelola organisasi manapun. Silakan hubungi Super Admin atau Admin untuk mendapatkan penugasan organisasi.
                       </p>
                     </div>
+                  ) : filteredOrganizations.length === 0 ? (
+                    <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center space-y-3">
+                      <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto border border-slate-200">
+                        <Search className="w-7 h-7" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-800">Organisasi Tidak Ditemukan</h3>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                        Tidak ada organisasi yang cocok dengan kata kunci &quot;<strong className="text-slate-700">{orgSearchQuery}</strong>&quot;.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOrgSearchQuery('');
+                          setOrgCurrentPage(1);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold transition-colors"
+                      >
+                        Reset Pencarian
+                      </button>
+                    </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                      {displayedOrganizations.map((org) => {
-                        const logoSrc = org.logo
-                          ? (isGoogleDriveUrl(org.logo) ? formatGoogleDriveImageUrl(org.logo) : org.logo)
-                          : '';
-                        const leaderPhoto = org.leader?.photo
-                          ? (isGoogleDriveUrl(org.leader.photo) ? formatGoogleDriveImageUrl(org.leader.photo) : org.leader.photo)
-                          : '';
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                        {paginatedOrganizations.map((org) => {
+                          const logoSrc = org.logo
+                            ? (isGoogleDriveUrl(org.logo) ? formatGoogleDriveImageUrl(org.logo) : org.logo)
+                            : '';
+                          const leaderPhoto = org.leader?.photo
+                            ? (isGoogleDriveUrl(org.leader.photo) ? formatGoogleDriveImageUrl(org.leader.photo) : org.leader.photo)
+                            : '';
 
-                        return (
-                          <div
-                            key={org.id}
-                            className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between group"
-                          >
-                            <div>
-                              {/* Card Top: Logo & Actions */}
-                              <div className="flex items-start justify-between gap-3 mb-4">
-                                <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 p-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
-                                  {logoSrc ? (
-                                    <img src={logoSrc} alt={org.shortName} className="w-full h-full object-contain" />
+                          return (
+                            <div
+                              key={org.id}
+                              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between group"
+                            >
+                              <div>
+                                {/* Card Top: Logo & Actions */}
+                                <div className="flex items-start justify-between gap-3 mb-4">
+                                  <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 p-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                                    {logoSrc ? (
+                                      <img src={logoSrc} alt={org.shortName} className="w-full h-full object-contain" />
+                                    ) : (
+                                      <span className="text-sm font-black text-blue-700">
+                                        {org.shortName.slice(0, 3).toUpperCase()}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedOrganizationSlug(org.slug);
+                                        setActiveTab('organization', `/organisasi/${org.slug}`);
+                                      }}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                      title="Lihat Halaman Publik"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </button>
+                                    {isAdminOrSuperAdmin && organizations.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteOrg(org.id, org.shortName)}
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                        title="Hapus Organisasi"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Org Info */}
+                                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-snug group-hover:text-blue-700 transition-colors">
+                                  {org.name}
+                                </h3>
+                                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold">
+                                  {org.shortName}
+                                </span>
+                                <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">
+                                  {org.description || 'Belum ada deskripsi singkat organisasi.'}
+                                </p>
+
+                                {/* Leader Snippet */}
+                                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
+                                    {leaderPhoto ? (
+                                      <img src={leaderPhoto} alt="Ketua" className="w-full h-full object-cover object-top" />
+                                    ) : (
+                                      <User className="w-4 h-4 text-slate-400" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Ketua Terpilih</p>
+                                    <p className="text-xs font-bold text-slate-800 truncate">
+                                      {org.leader?.name || 'Belum Ditentukan'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Akun Pengelola */}
+                                <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <UserCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Pengelola:</span>
+                                  </div>
+                                  {org.assignedUsername ? (
+                                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/60 truncate max-w-[140px]" title={`Dikelola oleh @${org.assignedUsername}`}>
+                                      @{org.assignedUsername}
+                                    </span>
                                   ) : (
-                                    <span className="text-sm font-black text-blue-700">
-                                      {org.shortName.slice(0, 3).toUpperCase()}
+                                    <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                                      Semua Admin
                                     </span>
                                   )}
                                 </div>
-
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedOrganizationSlug(org.slug);
-                                      setActiveTab('organization', `/organisasi/${org.slug}`);
-                                    }}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                    title="Lihat Halaman Publik"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </button>
-                                  {isAdminOrSuperAdmin && organizations.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteOrg(org.id, org.shortName)}
-                                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                      title="Hapus Organisasi"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </div>
                               </div>
 
-                              {/* Org Info */}
-                              <h3 className="font-extrabold text-slate-900 text-sm sm:text-base leading-snug group-hover:text-blue-700 transition-colors">
-                                {org.name}
-                              </h3>
-                              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-bold">
-                                {org.shortName}
-                              </span>
-                              <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">
-                                {org.description || 'Belum ada deskripsi singkat organisasi.'}
-                              </p>
+                              {/* Footer Stats & Button */}
+                              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                                  <Users className="w-3.5 h-3.5 text-blue-500" />
+                                  <span>{org.officials?.length || 0} Pengurus</span>
+                                </span>
 
-                              {/* Leader Snippet */}
-                              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
-                                  {leaderPhoto ? (
-                                    <img src={leaderPhoto} alt="Ketua" className="w-full h-full object-cover object-top" />
-                                  ) : (
-                                    <User className="w-4 h-4 text-slate-400" />
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Ketua Terpilih</p>
-                                  <p className="text-xs font-bold text-slate-800 truncate">
-                                    {org.leader?.name || 'Belum Ditentukan'}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Akun Pengelola */}
-                              <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <UserCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                  <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Pengelola:</span>
-                                </div>
-                                {org.assignedUsername ? (
-                                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100/60 truncate max-w-[140px]" title={`Dikelola oleh @${org.assignedUsername}`}>
-                                    @{org.assignedUsername}
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                                    Semua Admin
-                                  </span>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectOrgToEdit(org.id)}
+                                  className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span>Kelola Organisasi</span>
+                                </button>
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
 
-                            {/* Footer Stats & Button */}
-                            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
-                                <Users className="w-3.5 h-3.5 text-blue-500" />
-                                <span>{org.officials?.length || 0} Pengurus</span>
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={() => handleSelectOrgToEdit(org.id)}
-                                className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                <span>Kelola Organisasi</span>
-                              </button>
-                            </div>
+                      {/* Organization Pagination Controls */}
+                      {totalOrgPages > 1 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs mt-6">
+                          <div className="text-xs text-slate-500">
+                            Menampilkan{' '}
+                            <strong className="text-slate-800">
+                              {filteredOrganizations.length > 0 ? (orgCurrentPage - 1) * orgItemsPerPage + 1 : 0}
+                            </strong>{' '}
+                            -{' '}
+                            <strong className="text-slate-800">
+                              {Math.min(filteredOrganizations.length, orgCurrentPage * orgItemsPerPage)}
+                            </strong>{' '}
+                            dari <strong className="text-slate-800">{filteredOrganizations.length}</strong> organisasi (Halaman{' '}
+                            <strong className="text-slate-800">{orgCurrentPage}</strong> dari{' '}
+                            <strong className="text-slate-800">{totalOrgPages}</strong>)
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setOrgCurrentPage(1)}
+                              disabled={orgCurrentPage === 1}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              title="Halaman Pertama"
+                            >
+                              <ChevronsLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setOrgCurrentPage((p) => Math.max(1, p - 1))}
+                              disabled={orgCurrentPage === 1}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              title="Halaman Sebelumnya"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: Math.min(5, totalOrgPages) }, (_, i) => {
+                                let pageNum = i + 1;
+                                if (totalOrgPages > 5 && orgCurrentPage > 3) {
+                                  pageNum = Math.min(orgCurrentPage - 2 + i, totalOrgPages - (4 - i));
+                                }
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    type="button"
+                                    onClick={() => setOrgCurrentPage(pageNum)}
+                                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                                      orgCurrentPage === pageNum
+                                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setOrgCurrentPage((p) => Math.min(totalOrgPages, p + 1))}
+                              disabled={orgCurrentPage === totalOrgPages}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              title="Halaman Selanjutnya"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setOrgCurrentPage(totalOrgPages)}
+                              disabled={orgCurrentPage === totalOrgPages}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              title="Halaman Terakhir"
+                            >
+                              <ChevronsRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
