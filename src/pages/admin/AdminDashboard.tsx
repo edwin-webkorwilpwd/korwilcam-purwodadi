@@ -273,8 +273,10 @@ export const AdminDashboard: React.FC = () => {
       }
     } else if (currentSection === 'organization-cms' && !canAccessOrganizationCms) {
       setCurrentSection('overview');
+    } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms') && !isSuperAdmin) {
+      setCurrentSection('overview');
     }
-  }, [isWriter, currentSection, canAccessOrganizationCms]);
+  }, [isWriter, currentSection, canAccessOrganizationCms, isSuperAdmin]);
 
   // ==========================================================
   // STATE & HANDLER PERMINTAAN DATA (WEBVIEW) CMS
@@ -3679,16 +3681,12 @@ export const AdminDashboard: React.FC = () => {
                   {adminUsers.length} Akun
                 </span>
               </button>
-            </>
-          )}
 
-          {/* Menu Log Aktivitas (Google Spreadsheet) - Super Admin & Admin */}
-          {isAdminOrSuperAdmin && (
-            <div className="pt-2">
+              {/* Menu Log Aktivitas (Google Spreadsheet) - Khusus Super Admin */}
               <button
                 type="button"
                 onClick={() => setCurrentSection('activity-log-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all mt-1 ${
                   currentSection === 'activity-log-cms'
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
                     : 'text-slate-700 hover:bg-slate-100'
@@ -3719,7 +3717,7 @@ export const AdminDashboard: React.FC = () => {
                   Live
                 </span>
               </button>
-            </div>
+            </>
           )}
 
           {/* Factory reset button (Khusus Super Admin) */}
@@ -10827,7 +10825,7 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* TAB 9: LOG AKTIVITAS (GOOGLE SPREADSHEET) */}
-          {currentSection === 'activity-log-cms' && isAdminOrSuperAdmin && (
+          {currentSection === 'activity-log-cms' && isSuperAdmin && (
             <div className="space-y-6">
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
