@@ -99,7 +99,7 @@ export const ModalDetailNews: React.FC = () => {
           {/* Full Content */}
           {selectedNews.content.includes('<') ? (
             <div 
-              className="prose prose-slate max-w-none text-slate-700 text-sm sm:text-base leading-relaxed space-y-3"
+              className="prose prose-slate prose-img:mx-auto prose-img:block prose-img:w-full prose-img:max-w-2xl prose-img:rounded-xl prose-img:shadow-md prose-img:my-6 max-w-none text-slate-700 text-sm sm:text-base leading-relaxed space-y-3"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
             />
           ) : (

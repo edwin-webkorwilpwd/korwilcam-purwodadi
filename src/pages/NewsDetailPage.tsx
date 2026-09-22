@@ -517,7 +517,7 @@ export const NewsDetailPage: React.FC = () => {
             {isPaginated && activePageData ? (
               activePageData.isHtml ? (
                 <div 
-                  className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:rounded-2xl max-w-none text-base sm:text-lg"
+                  className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:mx-auto prose-img:block prose-img:w-full prose-img:max-w-3xl prose-img:rounded-2xl prose-img:shadow-md prose-img:my-8 max-w-none text-base sm:text-lg"
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(activePageData.content) }}
                 />
               ) : (
@@ -527,7 +527,7 @@ export const NewsDetailPage: React.FC = () => {
               )
             ) : selectedNews.content.includes('<') ? (
               <div 
-                className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:rounded-2xl max-w-none text-base sm:text-lg"
+                className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:mx-auto prose-img:block prose-img:w-full prose-img:max-w-3xl prose-img:rounded-2xl prose-img:shadow-md prose-img:my-8 max-w-none text-base sm:text-lg"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
               />
             ) : (

@@ -24,7 +24,8 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Trash2
 } from 'lucide-react';
 import { isSafeUrl } from '../lib/sanitizeHtml';
 
@@ -46,6 +47,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [charCount, setCharCount] = useState(0);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
 
   const scrollToTop = () => {
     if (canvasContainerRef.current) {
@@ -90,9 +92,142 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleInput = () => {
     if (!editorRef.current) return;
-    const html = editorRef.current.innerHTML;
+    // Bersihkan penanda visual seleksi aktif sebelum menyimpan ke HTML
+    const clone = editorRef.current.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('img').forEach((img) => {
+      img.classList.remove('selected-img-active');
+      img.style.outline = '';
+      img.style.outlineOffset = '';
+    });
+    const html = clone.innerHTML;
     onChange(html);
     updateCounts();
+  };
+
+  const handleEditorClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target && target.tagName === 'IMG') {
+      const img = target as HTMLImageElement;
+      if (editorRef.current) {
+        editorRef.current.querySelectorAll('img').forEach((el) => {
+          el.classList.remove('selected-img-active');
+        });
+      }
+      img.classList.add('selected-img-active');
+      setSelectedImage(img);
+    } else {
+      if (selectedImage) {
+        selectedImage.classList.remove('selected-img-active');
+        setSelectedImage(null);
+      }
+    }
+  };
+
+  const handleAlignment = (align: 'left' | 'center' | 'right' | 'justify') => {
+    // 1. Jika ada gambar yang sedang diklik/dipilih
+    if (selectedImage) {
+      if (align === 'center') {
+        selectedImage.style.display = 'block';
+        selectedImage.style.marginLeft = 'auto';
+        selectedImage.style.marginRight = 'auto';
+        selectedImage.setAttribute('data-align', 'center');
+        if (selectedImage.parentElement) {
+          selectedImage.parentElement.style.textAlign = 'center';
+        }
+      } else if (align === 'left') {
+        selectedImage.style.display = 'block';
+        selectedImage.style.marginLeft = '0';
+        selectedImage.style.marginRight = 'auto';
+        selectedImage.setAttribute('data-align', 'left');
+        if (selectedImage.parentElement) {
+          selectedImage.parentElement.style.textAlign = 'left';
+        }
+      } else if (align === 'right') {
+        selectedImage.style.display = 'block';
+        selectedImage.style.marginLeft = 'auto';
+        selectedImage.style.marginRight = '0';
+        selectedImage.setAttribute('data-align', 'right');
+        if (selectedImage.parentElement) {
+          selectedImage.parentElement.style.textAlign = 'right';
+        }
+      } else if (align === 'justify') {
+        selectedImage.style.display = 'block';
+        selectedImage.style.marginLeft = 'auto';
+        selectedImage.style.marginRight = 'auto';
+        selectedImage.style.width = '100%';
+        selectedImage.setAttribute('data-align', 'center');
+        selectedImage.setAttribute('data-size', 'full');
+      }
+      handleInput();
+      return;
+    }
+
+    // 2. Jika kursor berada di dekat atau di dalam blok gambar
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const node = range.commonAncestorContainer;
+      const el = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+      const img = el?.tagName === 'IMG' ? (el as HTMLImageElement) : el?.querySelector('img');
+      if (img) {
+        if (align === 'center') {
+          img.style.display = 'block';
+          img.style.marginLeft = 'auto';
+          img.style.marginRight = 'auto';
+          img.setAttribute('data-align', 'center');
+          if (img.parentElement) img.parentElement.style.textAlign = 'center';
+        } else if (align === 'left') {
+          img.style.display = 'block';
+          img.style.marginLeft = '0';
+          img.style.marginRight = 'auto';
+          img.setAttribute('data-align', 'left');
+          if (img.parentElement) img.parentElement.style.textAlign = 'left';
+        } else if (align === 'right') {
+          img.style.display = 'block';
+          img.style.marginLeft = 'auto';
+          img.style.marginRight = '0';
+          img.setAttribute('data-align', 'right');
+          if (img.parentElement) img.parentElement.style.textAlign = 'right';
+        }
+        handleInput();
+        return;
+      }
+    }
+
+    // 3. Rata paragraf teks biasa
+    const cmdMap: Record<string, string> = {
+      left: 'justifyLeft',
+      center: 'justifyCenter',
+      right: 'justifyRight',
+      justify: 'justifyFull'
+    };
+    executeCommand(cmdMap[align]);
+  };
+
+  const handleImageSize = (size: 'medium' | 'large' | 'full') => {
+    if (!selectedImage) return;
+    if (size === 'medium') {
+      selectedImage.style.width = '60%';
+      selectedImage.setAttribute('data-size', 'medium');
+    } else if (size === 'large') {
+      selectedImage.style.width = '85%';
+      selectedImage.setAttribute('data-size', 'large');
+    } else if (size === 'full') {
+      selectedImage.style.width = '100%';
+      selectedImage.setAttribute('data-size', 'full');
+    }
+    handleInput();
+  };
+
+  const handleDeleteSelectedImage = () => {
+    if (!selectedImage) return;
+    const parent = selectedImage.parentElement;
+    selectedImage.remove();
+    if (parent && parent.childNodes.length === 0 && parent.tagName.toLowerCase() === 'p') {
+      parent.remove();
+    }
+    setSelectedImage(null);
+    handleInput();
   };
 
   const executeCommand = (command: string, val: string | undefined = undefined) => {
@@ -126,8 +261,39 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const imgUrl = event.target?.result as string;
-      if (imgUrl) {
-        executeCommand('insertImage', imgUrl);
+      if (imgUrl && editorRef.current) {
+        editorRef.current.focus();
+
+        // Format gambar disisipkan: Otomatis RATA TENGAH, ukuran proporsional BESAR (85%), border-radius, dan shadow halus
+        const imgHtml = `<p style="text-align: center; margin: 24px 0;" class="article-img-wrapper"><img src="${imgUrl}" alt="Dokumentasi Berita" data-align="center" data-size="large" style="display: block; margin-left: auto; margin-right: auto; width: 85%; max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);" /></p><p><br></p>`;
+
+        let inserted = false;
+        try {
+          inserted = document.execCommand('insertHTML', false, imgHtml);
+        } catch {}
+
+        if (!inserted && editorRef.current) {
+          const div = document.createElement('div');
+          div.innerHTML = imgHtml;
+          while (div.firstChild) {
+            editorRef.current.appendChild(div.firstChild);
+          }
+        }
+
+        handleInput();
+
+        // Otomatis aktifkan seleksi gambar baru agar admin bisa langsung atur jika diinginkan
+        setTimeout(() => {
+          if (!editorRef.current) return;
+          const imgs = editorRef.current.querySelectorAll('img');
+          const lastImg = imgs[imgs.length - 1];
+          if (lastImg) {
+            editorRef.current.querySelectorAll('img').forEach((el) => el.classList.remove('selected-img-active'));
+            lastImg.classList.add('selected-img-active');
+            setSelectedImage(lastImg);
+            lastImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 120);
       }
     };
     reader.readAsDataURL(file);
@@ -159,6 +325,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-0.5 pr-1 border-r border-slate-300">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('undo')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-600 transition-colors"
             title="Urungkan (Undo - Ctrl+Z)"
@@ -167,6 +334,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('redo')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-600 transition-colors"
             title="Ulangi (Redo - Ctrl+Y)"
@@ -179,6 +347,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-1 pr-1 border-r border-slate-300">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleBlockFormat('p')}
             className="px-2 py-1 rounded text-xs font-semibold hover:bg-slate-200 text-slate-700 flex items-center gap-1"
             title="Paragraf Normal"
@@ -188,6 +357,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleBlockFormat('h2')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 font-bold"
             title="Judul Bab (H2)"
@@ -196,6 +366,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleBlockFormat('h3')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 font-bold"
             title="Sub Judul (H3)"
@@ -208,6 +379,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-0.5 pr-1 border-r border-slate-300">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('bold')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 font-bold"
             title="Tebal (Bold - Ctrl+B)"
@@ -216,6 +388,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('italic')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 italic"
             title="Miring (Italic - Ctrl+I)"
@@ -224,6 +397,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('underline')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 underline"
             title="Garis Bawah (Underline - Ctrl+U)"
@@ -232,6 +406,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('strikeThrough')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 line-through"
             title="Coret (Strikethrough)"
@@ -245,6 +420,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <div className="relative">
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowColorPicker(!showColorPicker);
                 setShowHighlightPicker(false);
@@ -260,6 +436,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   <button
                     key={c.value}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       executeCommand('foreColor', c.value);
                       setShowColorPicker(false);
@@ -276,6 +453,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <div className="relative">
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowHighlightPicker(!showHighlightPicker);
                 setShowColorPicker(false);
@@ -291,6 +469,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   <button
                     key={c.value}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       executeCommand('hiliteColor', c.value);
                       setShowHighlightPicker(false);
@@ -309,32 +488,48 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-0.5 pr-1 border-r border-slate-300">
           <button
             type="button"
-            onClick={() => executeCommand('justifyLeft')}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleAlignment('left')}
+            className={`p-1.5 rounded transition-colors ${
+              selectedImage && selectedImage.getAttribute('data-align') === 'left'
+                ? 'bg-blue-600 text-white'
+                : 'hover:bg-slate-200 text-slate-700'
+            }`}
             title="Rata Kiri"
           >
             <AlignLeft className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={() => executeCommand('justifyCenter')}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
-            title="Rata Tengah"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleAlignment('center')}
+            className={`p-1.5 rounded transition-colors ${
+              selectedImage && (!selectedImage.getAttribute('data-align') || selectedImage.getAttribute('data-align') === 'center')
+                ? 'bg-blue-600 text-white'
+                : 'hover:bg-slate-200 text-slate-700'
+            }`}
+            title="Rata Tengah (Untuk Teks & Gambar)"
           >
             <AlignCenter className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={() => executeCommand('justifyRight')}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleAlignment('right')}
+            className={`p-1.5 rounded transition-colors ${
+              selectedImage && selectedImage.getAttribute('data-align') === 'right'
+                ? 'bg-blue-600 text-white'
+                : 'hover:bg-slate-200 text-slate-700'
+            }`}
             title="Rata Kanan"
           >
             <AlignRight className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={() => executeCommand('justifyFull')}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleAlignment('justify')}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-700 transition-colors"
             title="Rata Kanan Kiri (Justify)"
           >
             <AlignJustify className="w-4 h-4" />
@@ -345,6 +540,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-0.5 pr-1 border-r border-slate-300">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('insertUnorderedList')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
             title="Daftar Butir (Bullet List)"
@@ -353,6 +549,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('insertOrderedList')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
             title="Daftar Angka (Numbered List)"
@@ -361,6 +558,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleBlockFormat('blockquote')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
             title="Kutipan (Blockquote)"
@@ -369,6 +567,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </button>
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('insertHorizontalRule')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
             title="Garis Pemisah (Horizontal Line)"
@@ -381,6 +580,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-0.5">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleInsertLink}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
             title="Sisipkan Tautan (Link)"
@@ -390,6 +590,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => inlineImageInputRef.current?.click()}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 flex items-center gap-1"
             title="Sisipkan Gambar ke Lembar Naskah"
@@ -407,6 +608,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => executeCommand('removeFormat')}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-500"
             title="Hapus Format (Clear Formatting)"
@@ -438,6 +640,111 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       </div>
 
+      {/* Dedicated Image Action Bar when an image is clicked/selected */}
+      {selectedImage && (
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-blue-200 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 text-xs text-blue-900 select-none shadow-xs z-10 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 font-bold text-blue-900">
+            <span className="p-1 rounded-md bg-blue-600 text-white">
+              <ImageIcon className="w-3.5 h-3.5" />
+            </span>
+            <span>Pengaturan Foto:</span>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Alignment Controls */}
+            <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-blue-200 shadow-2xs">
+              <span className="text-[10px] text-slate-400 font-bold px-1.5 uppercase">Posisi:</span>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleAlignment('left')}
+                className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors ${
+                  selectedImage.getAttribute('data-align') === 'left' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Rata Kiri"
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Kiri</span>
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleAlignment('center')}
+                className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors ${
+                  !selectedImage.getAttribute('data-align') || selectedImage.getAttribute('data-align') === 'center' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Rata Tengah (Bawaan)"
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Tengah</span>
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleAlignment('right')}
+                className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors ${
+                  selectedImage.getAttribute('data-align') === 'right' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Rata Kanan"
+              >
+                <AlignRight className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Kanan</span>
+              </button>
+            </div>
+
+            {/* Size Controls */}
+            <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-lg border border-blue-200 shadow-2xs">
+              <span className="text-[10px] text-slate-400 font-bold px-1.5 uppercase">Ukuran:</span>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleImageSize('medium')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  selectedImage.getAttribute('data-size') === 'medium' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Ukuran Sedang (60%)"
+              >
+                Sedang (60%)
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleImageSize('large')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  !selectedImage.getAttribute('data-size') || selectedImage.getAttribute('data-size') === 'large' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Ukuran Besar (85% - Rekomendasi)"
+              >
+                Besar (85%)
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleImageSize('full')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  selectedImage.getAttribute('data-size') === 'full' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Ukuran Penuh (100%)"
+              >
+                Penuh (100%)
+              </button>
+            </div>
+
+            {/* Delete Image Button */}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleDeleteSelectedImage}
+              className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors flex items-center gap-1 shadow-2xs"
+              title="Hapus foto dari naskah"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Foto</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Editor Document Canvas / Kertas Lembaran Dokumen Putih dengan Scroll Mandiri Up & Down */}
       <div className="relative group/canvas">
         <div 
@@ -454,6 +761,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <div
               ref={editorRef}
               contentEditable
+              onClick={handleEditorClick}
               onInput={handleInput}
               onBlur={handleInput}
               data-placeholder={placeholder}

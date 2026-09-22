@@ -32,19 +32,21 @@ const GLOBAL_ALLOWED_ATTRS = new Set([
 // Tag-specific allowed attributes
 const TAG_ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(['href', 'target', 'rel', 'title']),
-  img: new Set(['src', 'alt', 'title', 'width', 'height', 'loading', 'style']),
+  img: new Set(['src', 'alt', 'title', 'width', 'height', 'loading', 'style', 'align', 'data-align', 'data-size', 'class']),
   th: new Set(['colspan', 'rowspan', 'align', 'scope']),
   td: new Set(['colspan', 'rowspan', 'align']),
-  span: new Set(['style']),
-  p: new Set(['style']),
-  div: new Set(['style']),
-  h1: new Set(['style']),
-  h2: new Set(['style']),
-  h3: new Set(['style']),
-  h4: new Set(['style']),
-  h5: new Set(['style']),
-  h6: new Set(['style']),
-  table: new Set(['border', 'cellpadding', 'cellspacing', 'style'])
+  span: new Set(['style', 'class']),
+  p: new Set(['style', 'class']),
+  div: new Set(['style', 'class']),
+  h1: new Set(['style', 'class']),
+  h2: new Set(['style', 'class']),
+  h3: new Set(['style', 'class']),
+  h4: new Set(['style', 'class']),
+  h5: new Set(['style', 'class']),
+  h6: new Set(['style', 'class']),
+  figure: new Set(['style', 'class']),
+  figcaption: new Set(['style', 'class']),
+  table: new Set(['border', 'cellpadding', 'cellspacing', 'style', 'class'])
 };
 
 /**
