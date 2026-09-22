@@ -45,6 +45,19 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
   const leaderName = org.leader?.name || '-';
   const officialsCount = org.officials ? org.officials.length : 0;
 
+  // Validasi URL foto ketua organisasi
+  const rawLeaderPhoto = org.leader?.photo?.trim() || '';
+  const hasUploadedLeaderPhoto = Boolean(
+    rawLeaderPhoto && 
+    rawLeaderPhoto !== '#' && 
+    rawLeaderPhoto !== '-' && 
+    !rawLeaderPhoto.toLowerCase().includes('placeholder')
+  );
+
+  const leaderPhotoSrc = hasUploadedLeaderPhoto 
+    ? (isGoogleDriveUrl(rawLeaderPhoto) ? formatGoogleDriveImageUrl(rawLeaderPhoto, 120) : rawLeaderPhoto)
+    : '';
+
   // Ekstraksi akronim/singkatan untuk badge kecil di sebelah logo (misal: K3S, PAI, PGRI, KWA)
   const getAcronym = () => {
     const matchParen = org.name.match(/\(([^)]+)\)/);
@@ -68,11 +81,11 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
       onClick={() => setSelectedOrganizationSlug(org.slug)}
       onMouseEnter={handlePrefetch}
       onTouchStart={handlePrefetch}
-      className="group relative bg-white rounded-3xl sm:rounded-[26px] p-5 sm:p-6 border border-blue-100/90 shadow-md shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer space-y-4"
+      className="group relative bg-white rounded-2xl p-4 sm:p-4.5 border border-blue-100/90 shadow-sm hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer space-y-3"
     >
       {/* Top-Right Soft Wave Accent */}
       <svg
-        className="absolute top-0 right-0 w-28 h-20 pointer-events-none select-none z-0 opacity-40"
+        className="absolute top-0 right-0 w-24 h-16 pointer-events-none select-none z-0 opacity-40"
         viewBox="0 0 120 80"
         fill="none"
       >
@@ -90,7 +103,7 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
 
       {/* Bottom-Right Curved Blue Wave */}
       <svg
-        className="absolute bottom-0 right-0 w-24 h-16 pointer-events-none select-none z-0"
+        className="absolute bottom-0 right-0 w-20 h-14 pointer-events-none select-none z-0"
         viewBox="0 0 100 65"
         fill="none"
       >
@@ -107,18 +120,18 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
         </defs>
       </svg>
 
-      <div className="space-y-3 relative z-10">
+      <div className="space-y-2.5 relative z-10">
         {/* 1. Top Row: Logo & Badges */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-start justify-between gap-1.5">
           {/* Left: Logo Container & Acronym Pill */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
             {/* Circular Logo Container: KOSONG jika belum ada logo yang diupload ke Supabase */}
-            <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-white border border-blue-100/90 shadow-2xs flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white border border-blue-100/90 shadow-2xs flex items-center justify-center p-1 shrink-0 overflow-hidden">
               {hasUploadedLogo ? (
                 <FastImage 
                   src={orgLogo} 
                   alt={org.shortName || org.name} 
-                  size={150}
+                  size={120}
                   containerClassName="w-full h-full rounded-full"
                   imageClassName="object-contain rounded-full"
                   fallbackIcon={<div className="w-full h-full rounded-full bg-slate-50/40" />}
@@ -131,57 +144,70 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
 
             {/* Acronym Badge */}
             {showAcronymBadge && (
-              <span className="px-2.5 py-1 rounded-full text-xs font-black bg-blue-50/80 text-blue-700 border border-blue-200/70 shadow-2xs">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200/70 shrink-0">
                 {acronym}
               </span>
             )}
           </div>
 
           {/* Right: ShortName Pill & Officials Count */}
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex flex-col items-end gap-1 shrink-0 max-w-[50%]">
             {org.shortName && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50/80 text-blue-700 border border-blue-200/70 shadow-2xs">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/70 truncate max-w-full" title={org.shortName}>
                 {org.shortName}
               </span>
             )}
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100">
-              <Users className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-100">
+              <Users className="w-3 h-3 text-blue-600 shrink-0" />
               <span>{officialsCount} Pengurus</span>
             </div>
           </div>
         </div>
 
         {/* 2. Title */}
-        <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-snug line-clamp-2 mt-2.5">
+        <h3 className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-snug line-clamp-2 min-h-[2.5rem] mt-1.5" title={org.name}>
           {org.name}
         </h3>
 
         {/* 3. Description */}
-        <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+        <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed min-h-[2rem]">
           {org.description || 'Wadah koordinasi dan pembinaan organisasi di lingkungan Kecamatan Purwodadi.'}
         </p>
 
         {/* 4. Ketua & Sekretariat Box */}
-        <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-100/90 space-y-2 mt-3">
+        <div className="bg-slate-50/90 rounded-xl p-2.5 border border-slate-100/90 space-y-1.5 mt-2">
           {/* Ketua Terpilih */}
-          <div className="flex items-center gap-2.5 text-xs">
-            <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
-              <User className="w-3.5 h-3.5 text-blue-600" />
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-7 h-7 rounded-full bg-slate-100 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden border border-slate-200">
+              {hasUploadedLeaderPhoto ? (
+                <FastImage 
+                  src={leaderPhotoSrc} 
+                  alt={leaderName} 
+                  size={100}
+                  containerClassName="w-full h-full rounded-full"
+                  imageClassName="w-full h-full object-cover object-top rounded-full"
+                  fallbackIcon={<User className="w-3.5 h-3.5 text-blue-600" />}
+                />
+              ) : (
+                <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+              )}
             </div>
             <div className="min-w-0 flex-1">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block leading-tight">
+              <span className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 block leading-none mb-0.5">
                 KETUA TERPILIH
               </span>
-              <span className="font-bold text-slate-900 text-xs block truncate">
+              <span className="font-bold text-slate-900 text-[11px] block truncate leading-tight" title={leaderName}>
                 {leaderName}
               </span>
             </div>
           </div>
 
           {/* Sekretariat / Alamat */}
-          <div className="flex items-start gap-2.5 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-            <span className="text-xs text-slate-500 line-clamp-1">
+          <div className="flex items-center gap-2 text-xs pt-1 border-t border-slate-200/60">
+            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="text-[10.5px] text-slate-500 truncate" title={org.address || 'Sekretariat Korwilcam Purwodadi'}>
               {org.address || 'Sekretariat Korwilcam Purwodadi'}
             </span>
           </div>
@@ -189,16 +215,16 @@ export const OrganizationCard: React.FC<OrganizationCardProps> = ({ org }) => {
       </div>
 
       {/* 5. Footer: Pill Button on Left + Dots on Right */}
-      <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 group-hover:bg-blue-600 group-hover:text-white text-blue-600 font-bold text-xs transition-all shadow-2xs">
-          <div className="w-4 h-4 rounded-full bg-blue-600 group-hover:bg-white text-white group-hover:text-blue-600 flex items-center justify-center shadow-xs transition-colors">
-            <ArrowRight className="w-2.5 h-2.5" />
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs relative z-10">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50/90 group-hover:bg-blue-600 group-hover:text-white text-blue-600 font-bold text-[10.5px] transition-all shadow-2xs">
+          <div className="w-3.5 h-3.5 rounded-full bg-blue-600 group-hover:bg-white text-white group-hover:text-blue-600 flex items-center justify-center shadow-xs transition-colors">
+            <ArrowRight className="w-2 h-2" />
           </div>
           <span>Buka Profil & Pengurus</span>
         </div>
 
         {/* Decorative dots */}
-        <div className="text-blue-300 font-black tracking-widest text-xs select-none pr-1">
+        <div className="text-blue-300 font-black tracking-widest text-[10px] select-none pr-0.5">
           ••••
         </div>
       </div>

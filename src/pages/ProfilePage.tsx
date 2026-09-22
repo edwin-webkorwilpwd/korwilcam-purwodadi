@@ -108,7 +108,11 @@ export const ProfilePage: React.FC = () => {
 
     scrollToTarget();
     window.addEventListener('hashchange', scrollToTarget);
-    return () => window.removeEventListener('hashchange', scrollToTarget);
+    window.addEventListener('popstate', scrollToTarget);
+    return () => {
+      window.removeEventListener('hashchange', scrollToTarget);
+      window.removeEventListener('popstate', scrollToTarget);
+    };
   }, []);
 
   const divisionOrder: Record<string, number> = {

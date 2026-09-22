@@ -2408,7 +2408,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selectedSchool) {
       setSelectedSchoolState(null);
     }
-    if (tab !== 'organization') {
+    if (tab !== 'organization' || customPath === '/organisasi' || customPath === '/profil#organisasi' || !customPath?.startsWith('/organisasi/')) {
       setSelectedOrganizationSlugState(null);
     }
 
@@ -2470,6 +2470,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
       setSelectedDocumentState(null);
+      setSelectedSchoolState(null);
+      setSelectedOrganizationSlugState(null);
+      setSelectedServiceRequirementState(null);
       const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const targetBase = `/berita/${encodeURIComponent(slug)}`;
       const currentParam = new URLSearchParams(window.location.search).get('page');
@@ -2481,11 +2484,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = `${article.title} - Korwilcam Purwodadi`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const returnPath = activeTab === 'home' ? '/beranda' : '/berita';
-      if (window.location.pathname !== returnPath) {
-        window.history.pushState({}, '', returnPath);
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/berita/') && window.history.length > 1) {
+        window.history.back();
+      } else {
+        const returnPath = activeTab === 'home' ? '/beranda' : '/berita';
+        if (window.location.pathname !== returnPath) {
+          window.history.pushState({}, '', returnPath);
+        }
+        document.title = 'Warta & Informasi - Korwilcam Purwodadi';
       }
-      document.title = 'Warta & Informasi - Korwilcam Purwodadi';
     }
   };
 
@@ -2495,6 +2502,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedNewsState(null);
       setSelectedGalleryState(null);
       setSelectedDocumentState(null);
+      setSelectedSchoolState(null);
+      setSelectedOrganizationSlugState(null);
+      setSelectedServiceRequirementState(null);
       const slug = ann.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const newPath = customPath || `/berita/pengumuman/${encodeURIComponent(slug)}`;
       if (window.location.pathname !== newPath) {
@@ -2503,11 +2513,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = `${ann.title} - Pengumuman Korwilcam Purwodadi`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const returnPath = '/berita/pengumuman';
-      if (window.location.pathname !== returnPath) {
-        window.history.pushState({}, '', returnPath);
+      if (typeof window !== 'undefined' && (window.location.pathname.startsWith('/berita/pengumuman/') || window.location.pathname.startsWith('/pengumuman/')) && window.history.length > 1) {
+        window.history.back();
+      } else {
+        const returnPath = '/berita/pengumuman';
+        if (window.location.pathname !== returnPath) {
+          window.history.pushState({}, '', returnPath);
+        }
+        document.title = 'Pengumuman & Surat Edaran - Korwilcam Purwodadi';
       }
-      document.title = 'Pengumuman & Surat Edaran - Korwilcam Purwodadi';
     }
   };
 
@@ -2517,6 +2531,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedDocumentState(null);
+      setSelectedSchoolState(null);
+      setSelectedOrganizationSlugState(null);
+      setSelectedServiceRequirementState(null);
       setActiveTabState('gallery');
       const slug = getGallerySlug(item);
       const newPath = `/galeri/${encodeURIComponent(slug)}`;
@@ -2526,11 +2543,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = `${item.title} - Galeri Korwilcam Purwodadi`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const returnPath = '/galeri';
-      if (window.location.pathname !== returnPath) {
-        window.history.pushState({}, '', returnPath);
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/galeri/') && window.history.length > 1) {
+        window.history.back();
+      } else {
+        const returnPath = '/galeri';
+        if (window.location.pathname !== returnPath) {
+          window.history.pushState({}, '', returnPath);
+        }
+        document.title = 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi';
       }
-      document.title = 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi';
     }
   };
 
@@ -2540,6 +2561,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      setSelectedSchoolState(null);
+      setSelectedOrganizationSlugState(null);
+      setSelectedServiceRequirementState(null);
       setActiveTabState('downloads');
       const slug = getDocumentSlug(doc);
       const newPath = customPath || getDocumentDetailPath(doc);
@@ -2549,11 +2573,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = `${doc.title} - Pusat Unduhan Korwilcam Purwodadi`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const returnPath = '/layanan/unduh-berkas';
-      if (window.location.pathname !== returnPath) {
-        window.history.pushState({}, '', returnPath);
+      if (typeof window !== 'undefined' && (window.location.pathname.startsWith('/layanan/unduh-berkas/') || window.location.pathname.startsWith('/dokumen/') || window.location.pathname.startsWith('/unduhan/')) && window.history.length > 1) {
+        window.history.back();
+      } else {
+        const returnPath = '/layanan/unduh-berkas';
+        if (window.location.pathname !== returnPath) {
+          window.history.pushState({}, '', returnPath);
+        }
+        document.title = TAB_ROUTES['downloads'].title;
       }
-      document.title = TAB_ROUTES['downloads'].title;
     }
   };
 
@@ -2575,11 +2603,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = `${item.title} - Persyaratan Pelayanan Korwilcam Purwodadi`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const returnPath = '/layanan/persyaratan-pelayanan';
-      if (window.location.pathname !== returnPath) {
-        window.history.pushState({}, '', returnPath);
+      if (typeof window !== 'undefined' && (window.location.pathname.startsWith('/layanan/persyaratan-pelayanan/') || window.location.pathname.startsWith('/persyaratan/')) && window.history.length > 1) {
+        window.history.back();
+      } else {
+        const returnPath = '/layanan/persyaratan-pelayanan';
+        if (window.location.pathname !== returnPath) {
+          window.history.pushState({}, '', returnPath);
+        }
+        document.title = TAB_ROUTES['service-requirements']?.title || 'Persyaratan Pelayanan - Korwilcam Purwodadi';
       }
-      document.title = TAB_ROUTES['service-requirements']?.title || 'Persyaratan Pelayanan - Korwilcam Purwodadi';
     }
   };
 
@@ -2590,6 +2622,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
       setSelectedDocumentState(null);
+      setSelectedOrganizationSlugState(null);
+      setSelectedServiceRequirementState(null);
 
       const currentPath = window.location.pathname;
       const isDirektori = currentPath.startsWith('/direktori-sekolah');
@@ -2602,33 +2636,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       document.title = `${school.name} (NPSN: ${school.npsn}) - Korwilcam Purwodadi`;
     } else {
-      const currentParams = new URLSearchParams(window.location.search);
-      currentParams.delete('npsn');
-      const searchStr = currentParams.toString();
-
-      let returnPath = window.location.pathname;
-      if (returnPath.startsWith('/sekolah/') || returnPath.startsWith('/direktori-sekolah/')) {
-        returnPath = returnPath.startsWith('/direktori-sekolah') ? '/direktori-sekolah' : '/sekolah';
-      } else if (returnPath === '/' || returnPath === '/beranda') {
-        returnPath = '/beranda';
-      } else if (!returnPath.startsWith('/sekolah') && !returnPath.startsWith('/direktori-sekolah')) {
-        returnPath = window.location.pathname;
-      }
-
-      const currentHash = window.location.hash || '';
-      const finalUrl = searchStr ? `${returnPath}?${searchStr}${currentHash}` : `${returnPath}${currentHash}`;
-
-      if (window.location.pathname + window.location.search + window.location.hash !== finalUrl) {
-        window.history.pushState({}, '', finalUrl);
-      }
-      if (currentHash.toLowerCase() === '#sd') {
-        document.title = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
-      } else if (currentHash.toLowerCase() === '#tk') {
-        document.title = 'Daftar Lembaga Jenjang TK - Korwilcam Purwodadi';
-      } else if (currentHash.toLowerCase() === '#kb' || currentHash.toLowerCase() === '#paud') {
-        document.title = 'Daftar Lembaga Jenjang KB - Korwilcam Purwodadi';
+      if (typeof window !== 'undefined' && (window.location.search.includes('npsn') || window.location.pathname.startsWith('/sekolah/') || window.location.pathname.startsWith('/direktori-sekolah/')) && window.history.length > 1) {
+        window.history.back();
       } else {
-        document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+        const currentParams = new URLSearchParams(window.location.search);
+        currentParams.delete('npsn');
+        const searchStr = currentParams.toString();
+
+        let returnPath = window.location.pathname;
+        if (returnPath.startsWith('/sekolah/') || returnPath.startsWith('/direktori-sekolah/')) {
+          returnPath = returnPath.startsWith('/direktori-sekolah') ? '/direktori-sekolah' : '/sekolah';
+        } else if (returnPath === '/' || returnPath === '/beranda') {
+          returnPath = '/beranda';
+        } else if (!returnPath.startsWith('/sekolah') && !returnPath.startsWith('/direktori-sekolah')) {
+          returnPath = window.location.pathname;
+        }
+
+        const currentHash = window.location.hash || '';
+        const finalUrl = searchStr ? `${returnPath}?${searchStr}${currentHash}` : `${returnPath}${currentHash}`;
+
+        if (window.location.pathname + window.location.search + window.location.hash !== finalUrl) {
+          window.history.replaceState({}, '', finalUrl);
+        }
+        if (currentHash.toLowerCase() === '#sd') {
+          document.title = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
+        } else if (currentHash.toLowerCase() === '#tk') {
+          document.title = 'Daftar Lembaga Jenjang TK - Korwilcam Purwodadi';
+        } else if (currentHash.toLowerCase() === '#kb' || currentHash.toLowerCase() === '#paud') {
+          document.title = 'Daftar Lembaga Jenjang KB - Korwilcam Purwodadi';
+        } else {
+          document.title = TAB_ROUTES['schools']?.title || 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi';
+        }
       }
     }
   };
@@ -2641,6 +2679,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedGalleryState(null);
     setSelectedDocumentState(null);
     setSelectedSchoolState(null);
+    setSelectedServiceRequirementState(null);
 
     if (slug) {
       const targetPath = customPath || `/organisasi/${slug}`;
@@ -2653,12 +2692,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = targetTitle;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      const targetPath = '/organisasi';
-      if (window.location.pathname !== targetPath) {
-        window.history.pushState({ orgSlug: null, path: targetPath }, '', targetPath);
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/organisasi/') && window.history.length > 1) {
+        window.history.back();
+      } else {
+        const targetPath = '/organisasi';
+        if (window.location.pathname !== targetPath && window.location.pathname + window.location.hash !== '/profil#organisasi') {
+          window.history.pushState({ orgSlug: null, path: targetPath }, '', targetPath);
+        }
+        document.title = 'Daftar Organisasi Mitra & Profesi - Korwilcam Purwodadi';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      document.title = 'Daftar Organisasi Mitra & Profesi - Korwilcam Purwodadi';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -2683,6 +2726,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (found) {
             setSelectedAnnouncementState(found);
             setSelectedNewsState(null);
+            setSelectedGalleryState(null);
+            setSelectedDocumentState(null);
+            setSelectedSchoolState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.title} - Pengumuman Korwilcam Purwodadi`;
             return;
           }
@@ -2702,6 +2750,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (found) {
             setSelectedAnnouncementState(found);
             setSelectedNewsState(null);
+            setSelectedGalleryState(null);
+            setSelectedDocumentState(null);
+            setSelectedSchoolState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.title} - Pengumuman Korwilcam Purwodadi`;
             return;
           }
@@ -2719,6 +2772,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setActiveTabState('news');
           setSelectedAnnouncementState(found);
           setSelectedNewsState(null);
+          setSelectedGalleryState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedServiceRequirementState(null);
+          setSelectedOrganizationSlugState(null);
           document.title = `${found.title} - Pengumuman Korwilcam Purwodadi`;
           return;
         }
@@ -2744,6 +2802,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (found) {
             setSelectedNewsState(found);
             setSelectedAnnouncementState(null);
+            setSelectedGalleryState(null);
+            setSelectedDocumentState(null);
+            setSelectedSchoolState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.title} - Korwilcam Purwodadi`;
             return;
           }
@@ -2764,6 +2827,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (found) {
             setSelectedNewsState(found);
             setSelectedAnnouncementState(null);
+            setSelectedGalleryState(null);
+            setSelectedDocumentState(null);
+            setSelectedSchoolState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.title} - Korwilcam Purwodadi`;
             return;
           }
@@ -2782,6 +2850,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setActiveTabState('news');
           setSelectedNewsState(found);
           setSelectedAnnouncementState(null);
+          setSelectedGalleryState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedServiceRequirementState(null);
+          setSelectedOrganizationSlugState(null);
           document.title = `${found.title} - Korwilcam Purwodadi`;
           return;
         }
@@ -2801,6 +2874,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setSelectedGalleryState(found);
             setSelectedNewsState(null);
             setSelectedAnnouncementState(null);
+            setSelectedDocumentState(null);
+            setSelectedSchoolState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.title} - Galeri Korwilcam Purwodadi`;
             return;
           }
@@ -2820,6 +2897,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSelectedGalleryState(found);
           setSelectedNewsState(null);
           setSelectedAnnouncementState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedServiceRequirementState(null);
+          setSelectedOrganizationSlugState(null);
           document.title = `${found.title} - Galeri Korwilcam Purwodadi`;
           return;
         }
@@ -2852,6 +2933,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setSelectedNewsState(null);
             setSelectedAnnouncementState(null);
             setSelectedGalleryState(null);
+            setSelectedSchoolState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.title} - Pusat Unduhan Korwilcam Purwodadi`;
             return;
           }
@@ -2873,6 +2957,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSelectedNewsState(null);
           setSelectedAnnouncementState(null);
           setSelectedGalleryState(null);
+          setSelectedSchoolState(null);
+          setSelectedServiceRequirementState(null);
+          setSelectedOrganizationSlugState(null);
           document.title = `${found.title} - Pusat Unduhan Korwilcam Purwodadi`;
           return;
         }
@@ -2905,6 +2992,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setSelectedAnnouncementState(null);
             setSelectedGalleryState(null);
             setSelectedDocumentState(null);
+            setSelectedServiceRequirementState(null);
+            setSelectedOrganizationSlugState(null);
             document.title = `${found.name} (NPSN: ${found.npsn}) - Korwilcam Purwodadi`;
             return;
           }
@@ -3043,12 +3132,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!rawPath.includes('permintaan-data') && !rawPath.includes('permintaan') && !rawPath.includes('data-request')) {
         setSelectedDataRequestSlug(null);
       }
+      const isOrgDetailPath = rawPath.startsWith('/organisasi/') && rawPath !== '/organisasi';
+      if (!isOrgDetailPath) {
+        setSelectedOrganizationSlugState(null);
+      }
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
         setActiveTabState('home');
+        setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['home'].title;
       } else if (rawPath.startsWith('/profil')) {
+        setSelectedOrganizationSlugState(null);
         const hash = (typeof window !== 'undefined' ? (window.location.hash || '').toLowerCase() : '');
         if (hash === '#nominatif' || hash.includes('nominatif')) {
           setActiveTabState('nominatif');
@@ -3062,9 +3157,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else if (rawPath.startsWith('/sop') || rawPath.startsWith('/sop-pelayanan')) {
         setActiveTabState('sop-pelayanan');
+        setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['sop-pelayanan']?.title || 'SOP Pelayanan - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/direktori-sekolah') || rawPath.startsWith('/sekolah')) {
         setActiveTabState('schools');
+        setSelectedOrganizationSlugState(null);
         const hash = (typeof window !== 'undefined' ? (window.location.hash || '').toLowerCase() : '');
         if (hash === '#sd') {
           document.title = 'Daftar Sekolah Jenjang SD - Korwilcam Purwodadi';
@@ -3077,13 +3174,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else if (rawPath.startsWith('/nominative')) {
         setActiveTabState('nominatif');
+        setSelectedOrganizationSlugState(null);
         window.history.replaceState({ tab: 'nominatif', path: '/profil#nominatif' }, '', '/profil#nominatif');
         document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/nominatif') || rawPath.startsWith('/daftar-guru')) {
         setActiveTabState('nominatif');
+        setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/berita')) {
         setActiveTabState('news');
+        setSelectedOrganizationSlugState(null);
         if (rawPath.includes('pengumuman')) {
           document.title = 'Pengumuman & Surat Edaran - Korwilcam Purwodadi';
         } else if (rawPath.includes('agenda')) {
@@ -3097,6 +3197,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabState('organization');
         if (slug) {
           setSelectedOrganizationSlugState(slug);
+          setSelectedNewsState(null);
+          setSelectedAnnouncementState(null);
+          setSelectedGalleryState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedServiceRequirementState(null);
           const found = organizations.find((o) => o.slug === slug || o.id === slug);
           if (found) {
             document.title = `${found.name} - Korwilcam Purwodadi`;
@@ -3108,6 +3214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           document.title = 'Daftar Organisasi Mitra & Profesi - Korwilcam Purwodadi';
         }
       } else if (rawPath.startsWith('/layanan') || rawPath.startsWith('/unduhan') || rawPath.startsWith('/persyaratan')) {
+        setSelectedOrganizationSlugState(null);
         if (rawPath.includes('persyaratan') || rawPath.includes('syarat')) {
           setActiveTabState('service-requirements');
           document.title = TAB_ROUTES['service-requirements'].title;
@@ -3142,11 +3249,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else if (rawPath.startsWith('/galeri')) {
         setActiveTabState('gallery');
+        setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['gallery'].title;
       } else if (rawPath.startsWith('/kontak') || rawPath.startsWith('/pengaduan') || rawPath.startsWith('/aduan')) {
         setActiveTabState('contact');
+        setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['contact'].title;
       } else if (rawPath.startsWith('/angmin')) {
+        setSelectedOrganizationSlugState(null);
         if (rawPath.includes('dashboard')) {
           setActiveTabState('admin-dashboard');
           document.title = TAB_ROUTES['admin-dashboard'].title;
@@ -3161,11 +3271,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Demi keamanan: URL /admin lama dialihkan ke beranda (karena URL login resmi telah dipindahkan ke /angmin/lugin)
         window.history.replaceState({}, '', '/beranda');
         setActiveTabState('home');
+        setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['home'].title;
       }
     };
 
     handleUrlRoute();
+    if (typeof window !== 'undefined' && !window.history.state) {
+      window.history.replaceState(
+        { path: window.location.pathname + window.location.search + window.location.hash },
+        '',
+        window.location.pathname + window.location.search + window.location.hash
+      );
+    }
     window.addEventListener('popstate', handleUrlRoute);
     window.addEventListener('hashchange', handleUrlRoute);
     return () => {

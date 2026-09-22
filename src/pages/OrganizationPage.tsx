@@ -10,6 +10,9 @@ import {
   Mail, 
   CheckCircle2, 
   ChevronRight, 
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   ZoomIn, 
   X, 
   ExternalLink,
@@ -163,6 +166,52 @@ export const OrganizationPage: React.FC = () => {
     );
   }, [organizations, searchQuery]);
 
+  // Pagination State (10 organisasi per halaman)
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrganizations.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const paginatedOrganizations = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredOrganizations.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredOrganizations, currentPage, itemsPerPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    const gridEl = document.getElementById('organization-grid-section');
+    if (gridEl) {
+      gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
   // Social Media Links (hanya yang tautannya diisi dan tidak kosong) - diletakkan di top-level hooks
   const socialLinks = useMemo(() => {
     if (!currentOrg?.socialMedia) return [];
@@ -259,6 +308,20 @@ export const OrganizationPage: React.FC = () => {
     }
   }, [currentOrg?.id]);
 
+  // Prefetch foto ketua & logo dari organisasi yang sedang tampil di halaman direktori
+  useEffect(() => {
+    if (!currentOrg && paginatedOrganizations && paginatedOrganizations.length > 0) {
+      paginatedOrganizations.forEach((org) => {
+        if (org.leader?.photo) {
+          prefetchGoogleDriveImage(org.leader.photo, 120);
+        }
+        if (org.logo) {
+          prefetchGoogleDriveImage(org.logo, 120);
+        }
+      });
+    }
+  }, [currentOrg, paginatedOrganizations]);
+
   // ==========================================
   // VIEW 1: DAFTAR / DIREKTORI ORGANISASI
   // ==========================================
@@ -267,7 +330,7 @@ export const OrganizationPage: React.FC = () => {
       <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
         
         {/* Hero Banner Header */}
-        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 overflow-hidden shadow-md">
+        <section className="relative bg-gradient-to-br from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 overflow-hidden shadow-md">
           {/* Background decorative elements */}
           <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
@@ -282,8 +345,8 @@ export const OrganizationPage: React.FC = () => {
             </p>
             <div className="w-12 h-1 bg-amber-400 rounded-full mt-2.5 shadow-xs" />
 
-            {/* Search & Statistics Bar */}
-            <div className="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Search Bar */}
+            <div className="mt-5 pt-4 border-t border-white/10 flex items-center">
               {/* Search Box */}
               <div className="relative flex-1 max-w-lg">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -303,13 +366,6 @@ export const OrganizationPage: React.FC = () => {
                   </button>
                 )}
               </div>
-
-              {/* Counter Badge */}
-              <div className="flex items-center gap-2 text-xs font-semibold text-blue-200">
-                <span className="px-3 py-1.5 rounded-lg bg-blue-600/30 border border-blue-400/30 text-blue-200 font-mono">
-                  {filteredOrganizations.length} dari {organizations.length} Organisasi
-                </span>
-              </div>
             </div>
 
           </div>
@@ -317,13 +373,13 @@ export const OrganizationPage: React.FC = () => {
         </section>
 
         {/* Directory Cards Grid */}
-        <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 -mt-8 sm:-mt-10 relative z-20">
+        <div id="organization-grid-section" className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 -mt-8 sm:-mt-10 relative z-20">
           {filteredOrganizations.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center shadow-md border border-slate-200">
               <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <h3 className="text-lg font-bold text-slate-700">Organisasi Tidak Ditemukan</h3>
               <p className="text-sm text-slate-500 mt-1">
-                Tidak ada organisasi yang cocok dengan kata kunci "{searchQuery}".
+                Tidak ada organisasi yang cocok dengan kata kunci &quot;{searchQuery}&quot;.
               </p>
               <button
                 onClick={() => setSearchQuery('')}
@@ -333,10 +389,105 @@ export const OrganizationPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-7">
-              {filteredOrganizations.map((org) => (
-                <OrganizationCard key={org.id} org={org} />
-              ))}
+            <div className="space-y-8">
+              {/* 5-Column Grid on Desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-4.5">
+                {paginatedOrganizations.map((org) => (
+                  <OrganizationCard key={org.id} org={org} />
+                ))}
+              </div>
+
+              {/* Pagination Controls (10 kartu per halaman) */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 sm:pt-8 border-t border-slate-200">
+                  <div className="text-xs text-slate-500 order-2 sm:order-1 text-center sm:text-left">
+                    Menampilkan{' '}
+                    <strong className="text-slate-800 font-bold">
+                      {(currentPage - 1) * itemsPerPage + 1}
+                    </strong>{' '}
+                    -{' '}
+                    <strong className="text-slate-800 font-bold">
+                      {Math.min(filteredOrganizations.length, currentPage * itemsPerPage)}
+                    </strong>{' '}
+                    dari{' '}
+                    <strong className="text-slate-800 font-bold">
+                      {filteredOrganizations.length}
+                    </strong>{' '}
+                    organisasi (Halaman <strong className="text-slate-800 font-bold">{currentPage}</strong> dari{' '}
+                    <strong className="text-slate-800 font-bold">{totalPages}</strong>)
+                  </div>
+
+                  <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                    {/* First Page */}
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs"
+                      title="Halaman Pertama"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Prev Page */}
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-xs"
+                      title="Halaman Sebelumnya"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">Sebelumnya</span>
+                    </button>
+
+                    {/* Page Numbers */}
+                    {getPageNumbers().map((p, idx) =>
+                      typeof p === 'number' ? (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handlePageChange(p)}
+                          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                            currentPage === p
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ) : (
+                        <span key={idx} className="w-6 text-center text-slate-400 font-bold text-xs select-none">
+                          {p}
+                        </span>
+                      )
+                    )}
+
+                    {/* Next Page */}
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-xs"
+                      title="Halaman Selanjutnya"
+                    >
+                      <span className="hidden sm:inline">Selanjutnya</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Last Page */}
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs"
+                      title="Halaman Terakhir"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

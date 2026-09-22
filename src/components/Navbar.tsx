@@ -224,9 +224,6 @@ export const Navbar: React.FC = () => {
     if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
     if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
     if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
-    if (setSelectedServiceRequirement) setSelectedServiceRequirement(null);
-    if (setSelectedNews) setSelectedNews(null);
-    if (setSelectedAnnouncement) setSelectedAnnouncement(null);
     setActiveTab(tab, path);
     setMobileMenuOpen(false);
     setProfileDropdownOpen(false);
@@ -234,8 +231,9 @@ export const Navbar: React.FC = () => {
     setNewsDropdownOpen(false);
 
     // Immediate event dispatching for sub-tab and hash synchronization
-    window.dispatchEvent(new Event('hashchange'));
-    window.dispatchEvent(new Event('popstate'));
+    if (path && path.includes('#')) {
+      window.dispatchEvent(new Event('hashchange'));
+    }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('nav-subtab-change', { detail: { path } }));
     }
