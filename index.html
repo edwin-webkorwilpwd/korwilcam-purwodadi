@@ -73,6 +73,21 @@
         font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
       }
     </style>
+
+    <!-- OneSignal Web Push Notifications -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "f9570b26-6e43-4663-85e0-82eadfdf1015",
+          allowLocalhostAsSecureOrigin: true,
+          notifyButton: {
+            enable: false,
+          },
+        });
+      });
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-600 selection:text-white">
     <div id="root"></div>

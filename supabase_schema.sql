@@ -643,5 +643,31 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- ==========================================================
+-- 21. TABEL RIWAYAT BROADCAST NOTIFIKASI PWA (ONESIGNAL)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public.broadcast_notifications (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  target_url TEXT,
+  sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  recipients_count INTEGER DEFAULT 0,
+  onesignal_id TEXT,
+  status TEXT DEFAULT 'sent',
+  error_message TEXT,
+  created_by TEXT DEFAULT 'Admin',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
+ALTER TABLE public.broadcast_notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow all on broadcast_notifications" ON public.broadcast_notifications;
+CREATE POLICY "Allow all on broadcast_notifications" ON public.broadcast_notifications FOR ALL USING (true);
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.broadcast_notifications;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
