@@ -202,8 +202,16 @@ export const sendPushBroadcast = async (
     },
     url: cleanUrl || 'https://korwilcampurwodadi.web.id',
     chrome_web_icon: 'https://korwilcampurwodadi.web.id/logo.png',
-    firefox_icon: 'https://korwilcampurwodadi.web.id/logo.png'
+    chrome_web_badge: 'https://korwilcampurwodadi.web.id/logo.png',
+    firefox_icon: 'https://korwilcampurwodadi.web.id/logo.png',
+    priority: 10, // Prioritas Tertinggi (High Priority FCM) agar langsung tembus ke HP tanpa ditunda batch
+    ttl: 259200 // Masa aktif 3 hari jika perangkat sedang offline
   };
+
+  if (params.imageUrl && params.imageUrl.trim()) {
+    payload.chrome_web_image = params.imageUrl.trim();
+    payload.big_picture = params.imageUrl.trim();
+  }
 
   try {
     const res = await fetch('https://api.onesignal.com/notifications', {
