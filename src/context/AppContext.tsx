@@ -1172,7 +1172,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const broadcastFetchPromise = (async () => {
         try {
           const items = await fetchBroadcastHistory();
-          if (items && items.length > 0) {
+          if (Array.isArray(items)) {
             setBroadcastHistory(items);
           }
         } catch (errBc) {
@@ -2437,6 +2437,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           } catch (e) {
             console.warn('Realtime social_media_settings error:', e);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'broadcast_notifications' },
+        async () => {
+          try {
+            const items = await fetchBroadcastHistory();
+            if (Array.isArray(items)) {
+              setBroadcastHistory(items);
+            }
+          } catch (e) {
+            console.warn('Realtime broadcast_notifications error:', e);
           }
         }
       )

@@ -1,6 +1,23 @@
 {
   "headers": [
     {
+      "source": "/(OneSignalSDKWorker.js|OneSignalSDK.sw.js)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -29,7 +46,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https: data:; frame-ancestors 'self'; object-src 'none'; base-uri 'self';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.onesignal.com https://*.onesignal.com; worker-src 'self' blob: https://cdn.onesignal.com https://*.onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: https://*.onesignal.com https://onesignal.com https://img.os-content.com; media-src 'self' data: blob: https:; connect-src 'self' https: wss: https://*.onesignal.com https://onesignal.com https://api.onesignal.com; frame-src 'self' https: data: https://*.onesignal.com https://onesignal.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self';"
         }
       ]
     }

@@ -23,12 +23,13 @@ export const fetchBroadcastHistory = async (): Promise<BroadcastNotification[]> 
           title: item.title || '',
           message: item.message || '',
           targetUrl: item.target_url || item.targetUrl || '',
+          imageUrl: item.image_url || item.imageUrl || undefined,
           sentAt: item.sent_at || item.sentAt || new Date().toISOString(),
           recipientsCount: item.recipients_count ?? item.recipientsCount ?? 0,
           oneSignalId: item.onesignal_id || item.oneSignalId || '',
           status: item.status || 'sent',
           errorMessage: item.error_message || item.errorMessage || '',
-          createdBy: item.created_by || item.createdBy || 'Admin'
+          createdBy: item.sent_by || item.created_by || item.createdBy || 'Super Administrator Korwilcam'
         }));
 
         // Sinkronkan ke local storage untuk cadangan offline
@@ -66,8 +67,8 @@ export const saveBroadcastRecord = async (record: BroadcastNotification): Promis
     try {
       const local = localStorage.getItem(BROADCAST_STORAGE_KEY);
       const list: BroadcastNotification[] = local ? JSON.parse(local) : [];
-      list.unshift(record);
-      localStorage.setItem(BROADCAST_STORAGE_KEY, JSON.stringify(list.slice(0, 50)));
+      const updated = [record, ...list.filter(item => item.id !== record.id)];
+      localStorage.setItem(BROADCAST_STORAGE_KEY, JSON.stringify(updated.slice(0, 50)));
     } catch (err) {
       console.warn('Gagal menyimpan broadcast ke LocalStorage:', err);
     }
@@ -77,18 +78,25 @@ export const saveBroadcastRecord = async (record: BroadcastNotification): Promis
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await supabase.from('broadcast_notifications').insert({
+      const payload: any = {
         id: record.id,
         title: record.title,
         message: record.message,
-        target_url: record.targetUrl || '',
+        target_url: record.targetUrl || '/',
+        image_url: record.imageUrl || null,
         sent_at: record.sentAt,
         recipients_count: record.recipientsCount || 0,
         onesignal_id: record.oneSignalId || '',
         status: record.status,
-        error_message: record.errorMessage || '',
-        created_by: record.createdBy || 'Admin'
-      });
+        sent_by: record.createdBy || 'Super Administrator Korwilcam'
+      };
+
+      const { data, error } = await supabase.from('broadcast_notifications').upsert(payload);
+      if (error) {
+        console.warn('Gagal menyimpan record broadcast ke Supabase:', error);
+      } else {
+        console.log('Berhasil menyimpan record broadcast ke Supabase:', data);
+      }
     } catch (err) {
       console.warn('Gagal menyimpan record broadcast ke Supabase:', err);
     }
@@ -117,7 +125,10 @@ export const deleteBroadcastRecord = async (id: string): Promise<boolean> => {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await supabase.from('broadcast_notifications').delete().eq('id', id);
+      const { error } = await supabase.from('broadcast_notifications').delete().eq('id', id);
+      if (error) {
+        console.warn('Gagal menghapus broadcast di Supabase:', error);
+      }
     } catch (err) {
       console.warn('Gagal menghapus broadcast di Supabase:', err);
     }
@@ -129,6 +140,7 @@ export interface SendBroadcastParams {
   title: string;
   message: string;
   targetUrl?: string;
+  imageUrl?: string;
   createdBy?: string;
 }
 
@@ -179,7 +191,7 @@ export const sendPushBroadcast = async (
 
   const payload: any = {
     app_id: config.appId,
-    included_segments: ['Total Subscriptions'],
+    included_segments: ['Total Subscriptions', 'Subscribed Users'],
     headings: {
       en: cleanTitle,
       id: cleanTitle
@@ -213,11 +225,12 @@ export const sendPushBroadcast = async (
         title: cleanTitle,
         message: cleanMessage,
         targetUrl: cleanUrl,
+        imageUrl: params.imageUrl || undefined,
         sentAt: new Date().toISOString(),
         recipientsCount: 0,
         status: 'failed',
         errorMessage: String(errMsg),
-        createdBy: params.createdBy || 'Admin'
+        createdBy: params.createdBy || 'Super Administrator Korwilcam'
       };
       await saveBroadcastRecord(failedRecord);
 
@@ -239,12 +252,13 @@ export const sendPushBroadcast = async (
       title: cleanTitle,
       message: cleanMessage,
       targetUrl: cleanUrl,
+      imageUrl: params.imageUrl || undefined,
       sentAt: new Date().toISOString(),
       recipientsCount: recipients,
       oneSignalId,
       status: 'sent',
       errorMessage: hasNoSubscribersWarning ? 'Sinyal terkirim ke OneSignal. Belum ada perangkat pengunjung yang mengklik "Izinkan" notifikasi.' : undefined,
-      createdBy: params.createdBy || 'Admin'
+      createdBy: params.createdBy || 'Super Administrator Korwilcam'
     };
 
     await saveBroadcastRecord(successRecord);

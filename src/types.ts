@@ -297,6 +297,7 @@ export interface BroadcastNotification {
   title: string;
   message: string;
   targetUrl?: string;
+  imageUrl?: string;
   sentAt: string;
   recipientsCount?: number;
   oneSignalId?: string;

@@ -86,6 +86,17 @@
             enable: false,
           },
         });
+
+        // Sinkronisasi otomatis: Jika browser sudah mengizinkan notifikasi, pastikan perangkat terdaftar ke server OneSignal
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          try {
+            if (OneSignal?.User?.PushSubscription?.optIn) {
+              await OneSignal.User.PushSubscription.optIn();
+            }
+          } catch (e) {
+            console.warn('OneSignal auto optIn:', e);
+          }
+        }
       });
     </script>
   </head>
