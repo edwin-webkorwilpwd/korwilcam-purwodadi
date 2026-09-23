@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
-  Share2
+  Share2,
+  Briefcase
 } from 'lucide-react';
 import { getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 
@@ -39,10 +40,15 @@ export const Navbar: React.FC = () => {
     dataRequests
   } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileOpenSection, setMobileOpenSection] = useState<string | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const [newsDropdownOpen, setNewsDropdownOpen] = useState(false);
   const [contactDropdownOpen, setContactDropdownOpen] = useState(false);
+
+  const toggleMobileSection = (section: string) => {
+    setMobileOpenSection((prev) => (prev === section ? null : section));
+  };
 
   // Path langsung ke formulir permintaan data aktif pertama dengan slug
   const firstActiveDataReq = (dataRequests || []).find((r) => r.isActive !== false);
@@ -272,6 +278,7 @@ export const Navbar: React.FC = () => {
     if (contactTimeoutRef.current) clearTimeout(contactTimeoutRef.current);
     setActiveTab(tab, path);
     setMobileMenuOpen(false);
+    setMobileOpenSection(null);
     setProfileDropdownOpen(false);
     setServicesDropdownOpen(false);
     setNewsDropdownOpen(false);
@@ -790,225 +797,416 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-gradient-to-b from-[#1b56ce] to-[#163fa8] border-b border-white/20 px-4 pt-2 pb-6 space-y-1.5 shadow-2xl animate-in fade-in slide-in-from-top-4 text-white">
+        <div className="lg:hidden bg-gradient-to-b from-[#1b56ce] via-[#184ebd] to-[#143794] border-b border-white/20 px-3.5 pt-3 pb-6 space-y-2 shadow-2xl animate-in fade-in slide-in-from-top-3 text-white max-h-[85vh] overflow-y-auto">
+          {/* 1. Beranda */}
           <button
             onClick={() => handleNavClick('home', '/beranda')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-              activeTab === 'home' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+            className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
+              activeTab === 'home' 
+                ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
+                : 'text-white/90 hover:bg-white/10 active:bg-white/15'
             }`}
           >
-            <BookOpen className="w-4 h-4 text-blue-400" />
+            <BookOpen className={`w-4 h-4 ${activeTab === 'home' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
             <span>Beranda</span>
           </button>
 
-          {/* Menu Profil dengan Submenu di Mobile */}
-          <div className="space-y-1 py-1.5 px-1 bg-white/10 rounded-xl border border-white/20">
-            <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
-              Profil Instansi
-            </div>
-
+          {/* 2. Profil Instansi (Dropdown Collapsible) */}
+          <div className={`rounded-xl overflow-hidden border transition-all ${
+            mobileOpenSection === 'profile' 
+              ? 'bg-white/10 border-white/25 shadow-md' 
+              : 'bg-white/5 border-white/10'
+          }`}>
             <button
-              onClick={() => handleNavClick('profile', '/profil#sambutan')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-200 hover:bg-white/10'
+              onClick={() => toggleMobileSection('profile')}
+              className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
+                ['profile', 'nominatif', 'organization'].includes(activeTab)
+                  ? 'text-white font-bold'
+                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
               }`}
             >
-              <span>Sambutan & Visi Misi</span>
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-4 h-4 text-sky-300" />
+                <span>Profil Instansi</span>
+                {['profile', 'nominatif', 'organization'].includes(activeTab) && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                )}
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
+                  mobileOpenSection === 'profile' ? 'rotate-180 text-white' : ''
+                }`}
+              />
             </button>
 
-            <button
-              onClick={() => handleNavClick('profile', '/profil#struktur')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <span>Struktur Organisasi</span>
-            </button>
+            {mobileOpenSection === 'profile' && (
+              <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
+                <button
+                  onClick={() => handleNavClick('profile', '/profil#sambutan')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
+                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Sambutan & Visi Misi</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'nominatif' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <span>Nominatif Guru</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('profile', '/profil#struktur')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
+                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Struktur Organisasi</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => {
-                setSelectedOrganizationSlug(null);
-                handleNavClick('organization', '/profil#organisasi');
-              }}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'organization' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <span>Organisasi Mitra & Profesi</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'nominatif' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Nominatif Guru</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSelectedOrganizationSlug(null);
+                    handleNavClick('organization', '/profil#organisasi');
+                  }}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'organization' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Organisasi Mitra & Profesi</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+              </div>
+            )}
           </div>
 
+          {/* 3. SOP Pelayanan */}
           <button
             onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-              activeTab === 'sop-pelayanan' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+            className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
+              activeTab === 'sop-pelayanan' 
+                ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
+                : 'text-white/90 hover:bg-white/10 active:bg-white/15'
             }`}
           >
-            <FileCheck className="w-4 h-4 text-blue-400" />
+            <FileCheck className={`w-4 h-4 ${activeTab === 'sop-pelayanan' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
             <span>SOP Pelayanan</span>
           </button>
 
-          {/* Menu Sekolah Mobile */}
+          {/* 4. Sekolah */}
           <button
             onClick={() => handleNavClick('schools', '/sekolah')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-              activeTab === 'schools' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+            className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
+              activeTab === 'schools' 
+                ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
+                : 'text-white/90 hover:bg-white/10 active:bg-white/15'
             }`}
           >
-            <GraduationCap className="w-4 h-4 text-blue-400" />
+            <GraduationCap className={`w-4 h-4 ${activeTab === 'schools' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
             <span>Sekolah</span>
           </button>
 
-          {/* Menu Berita Mobile */}
-          <div className="space-y-1 py-1.5 px-1 bg-white/10 rounded-xl border border-white/20">
-            <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
-              Berita
-            </div>
-
+          {/* 5. Berita (Dropdown Collapsible) */}
+          <div className={`rounded-xl overflow-hidden border transition-all ${
+            mobileOpenSection === 'news' 
+              ? 'bg-white/10 border-white/25 shadow-md' 
+              : 'bg-white/5 border-white/10'
+          }`}>
             <button
-              onClick={() => handleNavClick('news', '/berita')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda')))
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-200 hover:bg-white/10'
+              onClick={() => toggleMobileSection('news')}
+              className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
+                activeTab === 'news' ? 'text-white font-bold' : 'text-white/90 hover:bg-white/10 active:bg-white/15'
               }`}
             >
-              <span>Berita Terkini</span>
+              <div className="flex items-center gap-3">
+                <BellRing className="w-4 h-4 text-sky-300" />
+                <span>Berita</span>
+                {activeTab === 'news' && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                )}
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
+                  mobileOpenSection === 'news' ? 'rotate-180 text-white' : ''
+                }`}
+              />
             </button>
 
-            <button
-              onClick={() => handleNavClick('news', '/berita/pengumuman')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <span>Pengumuman & Edaran</span>
-            </button>
+            {mobileOpenSection === 'news' && (
+              <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
+                <button
+                  onClick={() => handleNavClick('news', '/berita')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda')))
+                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Berita Terkini</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => handleNavClick('news', '/berita/agenda')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <span>Agenda Kegiatan</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('news', '/berita/pengumuman')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
+                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Pengumuman & Edaran</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+
+                <button
+                  onClick={() => handleNavClick('news', '/berita/agenda')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
+                      ? 'bg-blue-600 text-white font-bold shadow-sm'
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Agenda Kegiatan</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Menu Layanan Terpadu Mobile */}
-          <div className="space-y-1 py-1.5 px-1 bg-white/10 rounded-xl border border-white/20">
-            <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-200">
-              Layanan Terpadu
-            </div>
-
+          {/* 6. Layanan Terpadu (Dropdown Collapsible) */}
+          <div className={`rounded-xl overflow-hidden border transition-all ${
+            mobileOpenSection === 'services' 
+              ? 'bg-white/10 border-white/25 shadow-md' 
+              : 'bg-white/5 border-white/10'
+          }`}>
             <button
-              onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'service-requirements' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
+              onClick={() => toggleMobileSection('services')}
+              className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
+                ['service-requirements', 'downloads', 'service-aula', 'service-cuti', 'service-survey', 'service-permintaan-data'].includes(activeTab)
+                  ? 'text-white font-bold'
+                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
               }`}
             >
-              <span>Persyaratan Pelayanan</span>
+              <div className="flex items-center gap-3">
+                <Briefcase className="w-4 h-4 text-sky-300" />
+                <span>Layanan Terpadu</span>
+                {['service-requirements', 'downloads', 'service-aula', 'service-cuti', 'service-survey', 'service-permintaan-data'].includes(activeTab) && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                )}
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
+                  mobileOpenSection === 'services' ? 'rotate-180 text-white' : ''
+                }`}
+              />
             </button>
 
-            <button
-              onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'downloads' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <span>Unduh Berkas</span>
-            </button>
+            {mobileOpenSection === 'services' && (
+              <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
+                <button
+                  onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'service-requirements' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Persyaratan Pelayanan</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'service-aula' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <span>Peminjaman Aula</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'downloads' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Unduh Berkas</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'service-cuti' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <span>Surat Cuti</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'service-aula' 
+                      ? 'bg-amber-500 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    <span>Peminjaman Aula</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'service-survey' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <span>Survey Pelayanan</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'service-cuti' 
+                      ? 'bg-emerald-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span>Surat Cuti</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
 
-            <button
-              onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                activeTab === 'service-permintaan-data' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <span>Permintaan Data</span>
-            </button>
+                <button
+                  onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'service-survey' 
+                      ? 'bg-purple-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                    <span>Survey Pelayanan</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+
+                <button
+                  onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'service-permintaan-data' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Permintaan Data</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+              </div>
+            )}
           </div>
 
+          {/* 7. Galeri Kegiatan */}
           <button
             onClick={() => handleNavClick('gallery', '/galeri')}
-            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-              activeTab === 'gallery' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+            className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
+              activeTab === 'gallery' 
+                ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
+                : 'text-white/90 hover:bg-white/10 active:bg-white/15'
             }`}
           >
-            <ImageIcon className="w-4 h-4 text-blue-400" />
+            <ImageIcon className={`w-4 h-4 ${activeTab === 'gallery' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
             <span>Galeri Kegiatan</span>
           </button>
 
-          {/* Kontak & Media Sosial */}
-          <div className="pt-2 border-t border-white/10 space-y-1">
-            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-200">
-              Kontak & Media Sosial
-            </div>
+          {/* 8. Kontak & Media Sosial (Dropdown Collapsible) */}
+          <div className={`rounded-xl overflow-hidden border transition-all ${
+            mobileOpenSection === 'contact' 
+              ? 'bg-white/10 border-white/25 shadow-md' 
+              : 'bg-white/5 border-white/10'
+          }`}>
             <button
-              onClick={() => handleNavClick('contact', '/kontak')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-                activeTab === 'contact' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
+              onClick={() => toggleMobileSection('contact')}
+              className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
+                ['contact', 'social-media'].includes(activeTab)
+                  ? 'text-white font-bold'
+                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
               }`}
             >
-              <Phone className="w-4 h-4 text-blue-400" />
-              <span>Kontak & Pengaduan</span>
+              <div className="flex items-center gap-3">
+                <Phone className="w-4 h-4 text-sky-300" />
+                <span>Kontak & Media Sosial</span>
+                {['contact', 'social-media'].includes(activeTab) && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                )}
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
+                  mobileOpenSection === 'contact' ? 'rotate-180 text-white' : ''
+                }`}
+              />
             </button>
 
-            <button
-              onClick={() => handleNavClick('social-media', '/media-sosial')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
-                activeTab === 'social-media' ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-white/10'
-              }`}
-            >
-              <Share2 className="w-4 h-4 text-blue-400" />
-              <span>Sos Med</span>
-            </button>
+            {mobileOpenSection === 'contact' && (
+              <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
+                <button
+                  onClick={() => handleNavClick('contact', '/kontak')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'contact' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                    <span>Kontak & Pengaduan</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+
+                <button
+                  onClick={() => handleNavClick('social-media', '/media-sosial')}
+                  className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                    activeTab === 'social-media' 
+                      ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                      : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <Share2 className="w-3.5 h-3.5 text-sky-300" />
+                    <span>Media Sosial</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                </button>
+              </div>
+            )}
           </div>
-
         </div>
       )}
     </header>
