@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { ToastContainer } from './components/ToastContainer';
 import { ModalDetailSchool } from './components/ModalDetailSchool';
 import { ModernNoticeModal } from './components/ModernNoticeModal';
+import { NotificationPrompt } from './components/NotificationPrompt';
 
 // Eagerly loaded primary landing page
 import { HomePage } from './pages/HomePage';
@@ -217,6 +218,7 @@ export function App() {
     <AppProvider>
       <MainContent />
       <ModernNoticeModal />
+      <NotificationPrompt />
     </AppProvider>
   );
 }

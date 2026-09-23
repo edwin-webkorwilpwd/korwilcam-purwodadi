@@ -292,5 +292,24 @@ export interface SocialMediaItem {
   updatedAt?: string;
 }
 
+export interface BroadcastNotification {
+  id: string;
+  title: string;
+  message: string;
+  targetUrl?: string;
+  sentAt: string;
+  recipientsCount?: number;
+  oneSignalId?: string;
+  status: 'sent' | 'failed';
+  errorMessage?: string;
+  createdBy?: string;
+}
+
+export interface OneSignalConfig {
+  appId: string;
+  apiKey: string;
+  isEnabled: boolean;
+}
+
 
 

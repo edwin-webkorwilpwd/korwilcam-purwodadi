@@ -67,7 +67,10 @@ import {
   Search,
   ClipboardList,
   UserCheck,
-  Share2
+  Share2,
+  Radio,
+  Send,
+  Smartphone
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -114,7 +117,8 @@ import {
   TeacherNominative,
   ServiceRequirement,
   DataRequestLink,
-  SocialMediaItem
+  SocialMediaItem,
+  BroadcastNotification
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { 
@@ -217,7 +221,10 @@ export const AdminDashboard: React.FC = () => {
     updateActivityLogUrl,
     socialMedia,
     saveSocialMediaSettings,
-    resetSocialMediaDefaults
+    resetSocialMediaDefaults,
+    broadcastHistory,
+    sendBroadcastNotification,
+    deleteBroadcastNotification
   } = useApp();
 
   type AdminSection = 
@@ -235,6 +242,7 @@ export const AdminDashboard: React.FC = () => {
     | 'gallery-cms' 
     | 'contact-cms' 
     | 'social-media-cms'
+    | 'broadcast-cms'
     | 'users-cms'
     | 'activity-log-cms';
 
@@ -280,7 +288,7 @@ export const AdminDashboard: React.FC = () => {
       }
     } else if (currentSection === 'organization-cms' && !canAccessOrganizationCms) {
       setCurrentSection('overview');
-    } else if (currentSection === 'social-media-cms' && !isAdminOrSuperAdmin) {
+    } else if ((currentSection === 'social-media-cms' || currentSection === 'broadcast-cms') && !isAdminOrSuperAdmin) {
       setCurrentSection('overview');
     } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms') && !isSuperAdmin) {
       setCurrentSection('overview');
@@ -325,6 +333,101 @@ export const AdminDashboard: React.FC = () => {
     });
     if (confirmed) {
       await resetSocialMediaDefaults();
+    }
+  };
+
+  // ==========================================================
+  // STATE & HANDLER BROADCAST NOTIFIKASI PWA (ONESIGNAL)
+  // ==========================================================
+  const [broadcastTitle, setBroadcastTitle] = useState<string>('');
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('');
+  const [broadcastTargetType, setBroadcastTargetType] = useState<'home' | 'news' | 'announcement' | 'contact' | 'custom'>('home');
+  const [broadcastSelectedNewsId, setBroadcastSelectedNewsId] = useState<string>('');
+  const [broadcastSelectedAnnId, setBroadcastSelectedAnnId] = useState<string>('');
+  const [broadcastCustomUrl, setBroadcastCustomUrl] = useState<string>('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState<boolean>(false);
+  const [broadcastSearchQuery, setBroadcastSearchQuery] = useState<string>('');
+
+  const getComputedBroadcastUrl = (): string => {
+    if (broadcastTargetType === 'news' && broadcastSelectedNewsId) {
+      const found = news.find((n) => n.id === broadcastSelectedNewsId);
+      if (found) return `https://korwilcampurwodadi.web.id/berita/${found.slug || found.id}`;
+    }
+    if (broadcastTargetType === 'announcement' && broadcastSelectedAnnId) {
+      return `https://korwilcampurwodadi.web.id/pengumuman/${broadcastSelectedAnnId}`;
+    }
+    if (broadcastTargetType === 'contact') {
+      return 'https://korwilcampurwodadi.web.id/kontak';
+    }
+    if (broadcastTargetType === 'custom' && broadcastCustomUrl.trim()) {
+      return broadcastCustomUrl.trim();
+    }
+    return 'https://korwilcampurwodadi.web.id';
+  };
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      showToast('Judul dan isi pesan notifikasi wajib diisi!', 'error');
+      return;
+    }
+
+    const finalUrl = getComputedBroadcastUrl();
+
+    const confirmed = await showConfirmDialog({
+      title: 'Kirim Broadcast Notifikasi?',
+      message: `Pemberitahuan akan langsung disiarkan ke seluruh perangkat HP dan komputer yang mengaktifkan notifikasi website.\n\nJudul: "${broadcastTitle}"\nPesan: "${broadcastMessage}"\nTautan: ${finalUrl}`,
+      confirmText: 'Ya, Kirim Sekarang',
+      cancelText: 'Batal',
+      type: 'save'
+    });
+
+    if (!confirmed) return;
+
+    setIsSendingBroadcast(true);
+    const result = await sendBroadcastNotification({
+      title: broadcastTitle.trim(),
+      message: broadcastMessage.trim(),
+      targetUrl: finalUrl
+    });
+    setIsSendingBroadcast(false);
+
+    if (result.success) {
+      showNoticePopup({
+        title: 'Broadcast Terkirim!',
+        message: result.message,
+        type: 'success'
+      });
+      setBroadcastTitle('');
+      setBroadcastMessage('');
+      setBroadcastCustomUrl('');
+    } else {
+      showNoticePopup({
+        title: 'Pengiriman Gagal',
+        message: result.message,
+        type: 'error'
+      });
+    }
+  };
+
+  const handleResendBroadcast = (item: BroadcastNotification) => {
+    setBroadcastTitle(item.title);
+    setBroadcastMessage(item.message);
+    setBroadcastTargetType('custom');
+    setBroadcastCustomUrl(item.targetUrl || '');
+    showToast('Data notifikasi dimuat ke formulir!', 'info');
+  };
+
+  const handleDeleteBroadcast = async (id: string) => {
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Riwayat Notifikasi?',
+      message: 'Riwayat broadcast ini akan dihapus dari daftar.',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      type: 'delete'
+    });
+    if (confirmed) {
+      await deleteBroadcastNotification(id);
     }
   };
 
@@ -3752,6 +3855,39 @@ export const AdminDashboard: React.FC = () => {
             </button>
           )}
 
+          {/* 7.6. Broadcast Notifikasi (PWA OneSignal) */}
+          {isAdminOrSuperAdmin && (
+            <button
+              type="button"
+              onClick={() => setCurrentSection('broadcast-cms')}
+              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                currentSection === 'broadcast-cms'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  currentSection === 'broadcast-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  <Radio className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'broadcast-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Broadcast Notifikasi
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'broadcast-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    Kirim Notif ke HP PWA
+                  </span>
+                </div>
+              </div>
+            </button>
+          )}
+
           {/* 8. Pengaturan Akun & Hak Akses (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
             <>
@@ -4057,7 +4193,8 @@ export const AdminDashboard: React.FC = () => {
                     { id: 'data-request-cms', title: 'Permintaan Data', desc: 'Kelola formulir dan tautan webview permintaan data kedinasan', icon: Database, color: 'text-blue-600 bg-blue-50' },
                     { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
                     { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' },
-                    ...(isAdminOrSuperAdmin ? [{ id: 'social-media-cms', title: 'Media Sosial Resmi', desc: 'Atur tautan akun medsos, status aktif, dan statistik pengikut untuk halaman publik', icon: Share2, color: 'text-blue-600 bg-blue-50' }] : [])
+                    ...(isAdminOrSuperAdmin ? [{ id: 'social-media-cms', title: 'Media Sosial Resmi', desc: 'Atur tautan akun medsos, status aktif, dan statistik pengikut untuk halaman publik', icon: Share2, color: 'text-blue-600 bg-blue-50' }] : []),
+                    ...(isAdminOrSuperAdmin ? [{ id: 'broadcast-cms', title: 'Broadcast Notifikasi', desc: 'Siarkan notifikasi langsung ke layar HP & komputer pengguna yang menginstal aplikasi web', icon: Radio, color: 'text-amber-600 bg-amber-50' }] : [])
                   ].map((menu, i) => {
                     const Icon = menu.icon;
                     return (
@@ -11127,6 +11264,452 @@ export const AdminDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* TAB 7.6: BROADCAST NOTIFIKASI PWA (ONESIGNAL) */}
+          {currentSection === 'broadcast-cms' && isAdminOrSuperAdmin && (
+            <div className="space-y-6">
+              {/* Header Title */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                      <Radio className="w-6 h-6 text-blue-600" />
+                      <span>Broadcast & Push Notifikasi PWA</span>
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      OneSignal Aktif
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+                    Kirimkan pengumuman penting, edaran resmi, dan warta kegiatan langsung ke status bar HP Android serta browser seluruh guru, kepala sekolah, dan masyarakat yang telah menginstal aplikasi web Korwilcam Purwodadi.
+                  </p>
+                </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Broadcast Terkirim</span>
+                    <Radio className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900">{broadcastHistory.length}</div>
+                  <p className="text-[11px] text-slate-400">Pemberitahuan telah disiarkan</p>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gateway Notifikasi</span>
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-sm font-extrabold text-emerald-700 flex items-center gap-1.5 pt-1">
+                    <span>OneSignal Web Push v16</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate">App ID: f9570b26...1015</p>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pengiriman Terakhir</span>
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-xs font-bold text-slate-800 pt-1 truncate">
+                    {broadcastHistory.length > 0 
+                      ? new Date(broadcastHistory[0].sentAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+                      : 'Belum pernah mengirim'}
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {broadcastHistory.length > 0 ? broadcastHistory[0].title : 'Siap mengirim siaran baru'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Form & Live Mobile Preview Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Form Kirim (7 Kolom) */}
+                <div className="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
+                  <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <Send className="w-4 h-4 text-blue-600" />
+                    <h3 className="font-extrabold text-slate-900 text-sm">Formulir Siaran Baru</h3>
+                  </div>
+
+                  <form onSubmit={handleSendBroadcast} className="space-y-4">
+                    {/* Judul Notifikasi */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">
+                          Judul Notifikasi <span className="text-rose-500">*</span>
+                        </label>
+                        <span className={`text-[10px] ${broadcastTitle.length > 60 ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+                          {broadcastTitle.length}/65 karakter
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        maxLength={65}
+                        required
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        placeholder="Contoh: Surat Edaran Penilaian Kinerja Guru 2026"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Pesan Notifikasi */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">
+                          Isi Pesan Notifikasi <span className="text-rose-500">*</span>
+                        </label>
+                        <span className={`text-[10px] ${broadcastMessage.length > 140 ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+                          {broadcastMessage.length}/150 karakter
+                        </span>
+                      </div>
+                      <textarea
+                        rows={3}
+                        maxLength={150}
+                        required
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        placeholder="Contoh: Jadwal pelaksanaan dan format berkas instrumen PKG terbaru telah diunggah. Klik untuk melihat petunjuk teknis selengkapnya."
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Pilihan Target Tautan URL */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        Tautan Tujuan Saat Notifikasi Diklik
+                      </label>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastTargetType('home')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            broadcastTargetType === 'home'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Beranda
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastTargetType('news')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            broadcastTargetType === 'news'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Pilih Berita
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastTargetType('announcement')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            broadcastTargetType === 'announcement'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Pengumuman
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastTargetType('custom')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            broadcastTargetType === 'custom'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Tautan Kustom
+                        </button>
+                      </div>
+
+                      {/* Dropdown Pemilihan Berita */}
+                      {broadcastTargetType === 'news' && (
+                        <div className="pt-1.5 animate-in fade-in duration-150">
+                          <select
+                            value={broadcastSelectedNewsId}
+                            onChange={(e) => setBroadcastSelectedNewsId(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-blue-300 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          >
+                            <option value="">-- Pilih Berita Terkait --</option>
+                            {news.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.title} ({item.date})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Dropdown Pemilihan Pengumuman */}
+                      {broadcastTargetType === 'announcement' && (
+                        <div className="pt-1.5 animate-in fade-in duration-150">
+                          <select
+                            value={broadcastSelectedAnnId}
+                            onChange={(e) => setBroadcastSelectedAnnId(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-blue-300 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          >
+                            <option value="">-- Pilih Pengumuman Terkait --</option>
+                            {announcements.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.title} ({item.date})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Input URL Kustom */}
+                      {broadcastTargetType === 'custom' && (
+                        <div className="pt-1.5 animate-in fade-in duration-150">
+                          <input
+                            type="text"
+                            value={broadcastCustomUrl}
+                            onChange={(e) => setBroadcastCustomUrl(e.target.value)}
+                            placeholder="Contoh: https://korwilcampurwodadi.web.id/kontak"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-blue-300 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          />
+                        </div>
+                      )}
+
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] text-slate-500 font-mono break-all">
+                        Tautan akhir: <span className="text-blue-600 font-bold">{getComputedBroadcastUrl()}</span>
+                      </div>
+                    </div>
+
+                    {/* Tombol Kirim */}
+                    <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBroadcastTitle('');
+                          setBroadcastMessage('');
+                          setBroadcastCustomUrl('');
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-colors"
+                      >
+                        Bersihkan
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={isSendingBroadcast}
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all active:scale-98 disabled:opacity-50"
+                      >
+                        {isSendingBroadcast ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Menyiarkan Notifikasi...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Radio className="w-4 h-4" />
+                            <span>Kirim Broadcast Notifikasi</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Live Mobile Notification Preview (5 Kolom) */}
+                <div className="lg:col-span-5 space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-blue-600" />
+                      Pratinjau Layar HP Android (Live)
+                    </span>
+                    <span className="text-[10px] text-slate-400">Simulasi Real-time</span>
+                  </div>
+
+                  {/* Android Phone Frame Mockup */}
+                  <div className="bg-slate-900 rounded-3xl p-3 sm:p-4 shadow-xl border-4 border-slate-800 relative overflow-hidden">
+                    {/* Phone Camera Hole */}
+                    <div className="w-3.5 h-3.5 bg-black rounded-full mx-auto mb-3" />
+
+                    {/* Status Bar */}
+                    <div className="flex items-center justify-between text-slate-400 text-[10px] px-2 mb-4 font-mono">
+                      <span>09.41</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>5G</span>
+                        <div className="w-4 h-2 border border-slate-400 rounded-xs flex items-center p-0.5">
+                          <div className="w-full h-full bg-slate-400 rounded-2xs" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notification Card on Android Screen */}
+                    <div className="bg-white/95 backdrop-blur-md rounded-2xl p-3.5 shadow-lg border border-slate-100 text-slate-800 space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                      {/* App header line */}
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <div className="flex items-center gap-1.5">
+                          <img
+                            src="/logo.png"
+                            alt="Logo"
+                            className="w-4 h-4 object-contain rounded-xs"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <span className="font-bold text-slate-700">Korwilcam Purwodadi</span>
+                          <span>•</span>
+                          <span>Baru saja</span>
+                        </div>
+                        <ChevronDown className="w-3 h-3 text-slate-400" />
+                      </div>
+
+                      {/* Notif Body */}
+                      <div className="space-y-1 pt-0.5">
+                        <h5 className="font-black text-xs text-slate-900 leading-snug line-clamp-2">
+                          {broadcastTitle || 'Judul Notifikasi Resmi'}
+                        </h5>
+                        <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">
+                          {broadcastMessage || 'Isi pemberitahuan resmi dari Korwilcam Purwodadi akan muncul di sini...'}
+                        </p>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] text-blue-600 font-bold hover:underline cursor-pointer flex items-center gap-1">
+                          <span>Buka Berita / Halaman</span>
+                          <ArrowUpRight className="w-3 h-3" />
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-mono">web.id</span>
+                      </div>
+                    </div>
+
+                    {/* Helper text */}
+                    <p className="text-[10px] text-slate-400 text-center mt-6 px-4 leading-relaxed">
+                      💡 Notifikasi ini otomatis berbunyi dan tampil di status bar HP pengguna saat layar aktif maupun terkunci.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Riwayat Broadcast Notifikasi */}
+              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-500" />
+                      <span>Riwayat Notifikasi Disiarkan</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Daftar seluruh pesan siaran yang pernah dikirimkan oleh Admin/Super Admin.
+                    </p>
+                  </div>
+
+                  {/* Filter Search */}
+                  {broadcastHistory.length > 0 && (
+                    <div className="relative max-w-xs w-full">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={broadcastSearchQuery}
+                        onChange={(e) => setBroadcastSearchQuery(e.target.value)}
+                        placeholder="Cari judul / pesan siaran..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {broadcastHistory.length === 0 ? (
+                  <div className="p-8 text-center space-y-2">
+                    <Radio className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h4 className="text-sm font-bold text-slate-700">Belum Ada Riwayat Broadcast</h4>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto">
+                      Gunakan formulir di atas untuk mengirimkan pesan siaran pertama Anda ke seluruh perangkat yang menginstal aplikasi website ini.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {broadcastHistory
+                      .filter((item) => {
+                        if (!broadcastSearchQuery.trim()) return true;
+                        const q = broadcastSearchQuery.toLowerCase();
+                        return item.title.toLowerCase().includes(q) || item.message.toLowerCase().includes(q);
+                      })
+                      .map((item) => (
+                        <div key={item.id} className="py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4 group">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                                {new Date(item.sentAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                item.status === 'sent' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                              }`}>
+                                {item.status === 'sent' ? '● Terkirim' : '⚠ Gagal'}
+                              </span>
+                              {item.createdBy && (
+                                <span className="text-[10px] text-slate-500 font-semibold">
+                                  Oleh: {item.createdBy}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="font-extrabold text-slate-900 text-sm">
+                              {item.title}
+                            </h4>
+                            <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
+                              {item.message}
+                            </p>
+
+                            {item.targetUrl && (
+                              <div className="pt-1">
+                                <a
+                                  href={item.targetUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-1 font-semibold"
+                                >
+                                  <span>Tautan: {item.targetUrl}</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            )}
+
+                            {item.errorMessage && (
+                              <p className="text-[11px] text-amber-600 font-medium">
+                                Catatan: {item.errorMessage}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleResendBroadcast(item)}
+                              className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-colors flex items-center gap-1"
+                              title="Muat ke formulir untuk kirim ulang"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Kirim Ulang</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBroadcast(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Hapus riwayat"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

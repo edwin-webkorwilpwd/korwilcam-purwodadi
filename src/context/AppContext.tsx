@@ -17,7 +17,8 @@ import {
   TeacherNominative,
   ServiceRequirement,
   DataRequestLink,
-  SocialMediaItem
+  SocialMediaItem,
+  BroadcastNotification
 } from '../types';
 import { 
   initialSchools, 
@@ -52,6 +53,13 @@ import {
   saveSocialMediaToSupabase, 
   normalizeSocialMediaList 
 } from '../lib/socialMediaHelper';
+import { 
+  fetchBroadcastHistory, 
+  sendPushBroadcast, 
+  deleteBroadcastRecord, 
+  SendBroadcastParams, 
+  SendBroadcastResult 
+} from '../lib/oneSignalHelper';
 import { stripHtml, generateSummary } from '../lib/stripHtml';
 import { checkRateLimit, recordAttempt, resetRateLimit } from '../lib/rateLimiter';
 import { 
@@ -193,6 +201,12 @@ interface AppContextType {
   updateSocialMediaItem: (item: SocialMediaItem) => void;
   saveSocialMediaSettings: (items: SocialMediaItem[]) => Promise<boolean>;
   resetSocialMediaDefaults: () => Promise<boolean>;
+
+  // Broadcast & Push Notifikasi PWA
+  broadcastHistory: BroadcastNotification[];
+  sendBroadcastNotification: (params: SendBroadcastParams) => Promise<SendBroadcastResult>;
+  deleteBroadcastNotification: (id: string) => Promise<boolean>;
+  refreshBroadcastHistory: () => Promise<void>;
 
   // Auth & Roles
   isAuthenticated: boolean;
@@ -714,6 +728,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [socialMedia, setSocialMedia] = useState<SocialMediaItem[]>(() => getLocalSocialMedia());
 
+  const [broadcastHistory, setBroadcastHistory] = useState<BroadcastNotification[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_broadcast_history');
+      if (saved) return JSON.parse(saved);
+      return [];
+    } catch {
+      return [];
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -1141,6 +1165,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         } catch (errSocMed) {
           console.warn('Tabel social_media_settings belum terbaca:', errSocMed);
+        }
+      })();
+
+      // 0.17 Fetch broadcast_notifications IMMEDIATELY IN PARALLEL
+      const broadcastFetchPromise = (async () => {
+        try {
+          const items = await fetchBroadcastHistory();
+          if (items && items.length > 0) {
+            setBroadcastHistory(items);
+          }
+        } catch (errBc) {
+          console.warn('Tabel broadcast_notifications belum terbaca:', errBc);
         }
       })();
 
@@ -1879,7 +1915,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           teachersFetchPromise, 
           serviceReqsFetchPromise, 
           dataReqsFetchPromise,
-          socialMediaFetchPromise
+          socialMediaFetchPromise,
+          broadcastFetchPromise
         ]);
       } catch (errParallel) {
         console.warn('Parallel fetch warning:', errParallel);
@@ -6214,6 +6251,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return ok;
   };
 
+  const sendBroadcastNotification = async (params: SendBroadcastParams): Promise<SendBroadcastResult> => {
+    const result = await sendPushBroadcast({
+      ...params,
+      createdBy: currentUser?.name || currentUser?.username || 'Admin'
+    });
+    if (result.record) {
+      setBroadcastHistory((prev) => [result.record!, ...prev.filter((p) => p.id !== result.record!.id)]);
+    }
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Broadcast Notifikasi',
+      `Mengirim broadcast notifikasi: "${params.title}"`,
+      result.success ? 'BERHASIL' : 'GAGAL'
+    );
+    return result;
+  };
+
+  const deleteBroadcastNotification = async (id: string): Promise<boolean> => {
+    const ok = await deleteBroadcastRecord(id);
+    if (ok) {
+      setBroadcastHistory((prev) => prev.filter((item) => item.id !== id));
+    }
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Broadcast Notifikasi',
+      `Menghapus riwayat broadcast ID: ${id}`
+    );
+    showToast('Riwayat broadcast berhasil dihapus.', 'info');
+    return ok;
+  };
+
+  const refreshBroadcastHistory = async () => {
+    const list = await fetchBroadcastHistory();
+    setBroadcastHistory(list);
+  };
+
   const resetToDefaultData = () => {
     triggerActivityLog(
       'RESET DATA',
@@ -6290,6 +6363,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateSocialMediaItem,
         saveSocialMediaSettings,
         resetSocialMediaDefaults,
+        broadcastHistory,
+        sendBroadcastNotification,
+        deleteBroadcastNotification,
+        refreshBroadcastHistory,
         activeTab,
         setActiveTab,
         selectedNews,
