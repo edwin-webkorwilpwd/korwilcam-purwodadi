@@ -601,3 +601,47 @@ EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
 
+-- ==========================================================
+-- MIGRATION: BUAT TABEL PENGATURAN MEDIA SOSIAL (SOCIAL_MEDIA_SETTINGS)
+-- ==========================================================
+-- Tabel ini menyimpan pengaturan akun media sosial resmi Korwilcam Purwodadi
+-- dengan aturan kondisional: hanya akun dengan tautan terisi yang tampil di web.
+CREATE TABLE IF NOT EXISTS public.social_media_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Pengaturan RLS (Row Level Security)
+ALTER TABLE public.social_media_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read social_media_settings" ON public.social_media_settings;
+CREATE POLICY "Public read social_media_settings" ON public.social_media_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on social_media_settings" ON public.social_media_settings;
+CREATE POLICY "Allow all on social_media_settings" ON public.social_media_settings FOR ALL USING (true);
+
+-- Publikasi Realtime untuk Multi-User / Multi-Browser Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.social_media_settings;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+-- Masukkan data awal bawaan jika belum ada
+INSERT INTO public.social_media_settings (id, items)
+VALUES (
+  'default',
+  '[
+    {"id":"instagram","platform":"instagram","name":"Instagram","badge":"FOTO & DOKUMENTASI","username":"@korwilcam_purwodadi","followers":"15K+ Pengikut","description":"Kumpulan foto, video, dan pengumuman resmi kegiatan pendidikan.","buttonLabel":"Ikuti di Instagram","url":"https://instagram.com/korwilcam_purwodadi","isActive":true,"order":1},
+    {"id":"youtube","platform":"youtube","name":"YouTube","badge":"VIDEO & SOSIALISASI","username":"KORWILCAM PURWODADI","followers":"10K+ Subscribers","description":"Video dokumentasi kegiatan, tutorial, dan liputan acara pendidikan.","buttonLabel":"Tonton di YouTube","url":"https://youtube.com/@korwilcam_purwodadi","isActive":true,"order":2},
+    {"id":"tiktok","platform":"tiktok","name":"TikTok","badge":"KONTEN KREATIF","username":"@korwilcam_purwodadi","followers":"20K+ Pengikut","description":"Informasi cepat, video edukasi, dan keseruan sekolah.","buttonLabel":"Tonton di TikTok","url":"https://tiktok.com/@korwilcam_purwodadi","isActive":true,"order":3},
+    {"id":"facebook","platform":"facebook","name":"Facebook","badge":"KOMUNITAS & BERITA","username":"Korwilcam Purwodadi","followers":"25K+ Pengikut","description":"Update berita, galeri kegiatan, dan ruang diskusi masyarakat.","buttonLabel":"Ikuti di Facebook","url":"https://facebook.com/korwilcam_purwodadi","isActive":true,"order":4},
+    {"id":"x","platform":"x","name":"X (Twitter)","badge":"INFORMASI CEPAT","username":"@KorwilcamPwd","followers":"8K+ Pengikut","description":"Pembaruan cepat, opini, dan interaksi langsung seputar layanan.","buttonLabel":"Ikuti di X","url":"https://x.com/KorwilcamPwd","isActive":true,"order":5}
+  ]'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
+
+

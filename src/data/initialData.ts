@@ -11,7 +11,8 @@ import {
   EducationalOrganization,
   TeacherNominative,
   ServiceRequirement,
-  DataRequestLink
+  DataRequestLink,
+  SocialMediaItem
 } from '../types';
 
 export const initialOfficeProfile: OfficeProfile = {
@@ -782,4 +783,72 @@ export const initialTeachers: TeacherNominative[] = [];
 export const initialServiceRequirements: ServiceRequirement[] = [];
 
 export const initialDataRequests: DataRequestLink[] = [];
+
+export const initialSocialMedia: SocialMediaItem[] = [
+  {
+    id: 'instagram',
+    platform: 'instagram',
+    name: 'Instagram',
+    badge: 'FOTO & DOKUMENTASI',
+    username: '@korwilcam_purwodadi',
+    followers: '15K+ Pengikut',
+    description: 'Kumpulan foto, video, dan pengumuman resmi kegiatan pendidikan.',
+    buttonLabel: 'Ikuti di Instagram',
+    url: 'https://instagram.com/korwilcam_purwodadi',
+    isActive: true,
+    order: 1
+  },
+  {
+    id: 'youtube',
+    platform: 'youtube',
+    name: 'YouTube',
+    badge: 'VIDEO & SOSIALISASI',
+    username: 'KORWILCAM PURWODADI',
+    followers: '10K+ Subscribers',
+    description: 'Video dokumentasi kegiatan, tutorial, dan liputan acara pendidikan.',
+    buttonLabel: 'Tonton di YouTube',
+    url: 'https://youtube.com/@korwilcam_purwodadi',
+    isActive: true,
+    order: 2
+  },
+  {
+    id: 'tiktok',
+    platform: 'tiktok',
+    name: 'TikTok',
+    badge: 'KONTEN KREATIF',
+    username: '@korwilcam_purwodadi',
+    followers: '20K+ Pengikut',
+    description: 'Informasi cepat, video edukasi, dan keseruan sekolah.',
+    buttonLabel: 'Tonton di TikTok',
+    url: 'https://tiktok.com/@korwilcam_purwodadi',
+    isActive: true,
+    order: 3
+  },
+  {
+    id: 'facebook',
+    platform: 'facebook',
+    name: 'Facebook',
+    badge: 'KOMUNITAS & BERITA',
+    username: 'Korwilcam Purwodadi',
+    followers: '25K+ Pengikut',
+    description: 'Update berita, galeri kegiatan, dan ruang diskusi masyarakat.',
+    buttonLabel: 'Ikuti di Facebook',
+    url: 'https://facebook.com/korwilcam_purwodadi',
+    isActive: true,
+    order: 4
+  },
+  {
+    id: 'x',
+    platform: 'x',
+    name: 'X (Twitter)',
+    badge: 'INFORMASI CEPAT',
+    username: '@KorwilcamPwd',
+    followers: '8K+ Pengikut',
+    description: 'Pembaruan cepat, opini, dan interaksi langsung seputar layanan.',
+    buttonLabel: 'Ikuti di X',
+    url: 'https://x.com/KorwilcamPwd',
+    isActive: true,
+    order: 5
+  }
+];
 

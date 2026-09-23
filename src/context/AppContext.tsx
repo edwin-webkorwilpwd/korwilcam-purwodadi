@@ -16,7 +16,8 @@ import {
   OrganizationOfficial,
   TeacherNominative,
   ServiceRequirement,
-  DataRequestLink
+  DataRequestLink,
+  SocialMediaItem
 } from '../types';
 import { 
   initialSchools, 
@@ -31,7 +32,8 @@ import {
   initialOrganizations,
   initialTeachers,
   initialServiceRequirements,
-  initialDataRequests
+  initialDataRequests,
+  initialSocialMedia
 } from '../data/initialData';
 
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
@@ -43,6 +45,13 @@ import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper'
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
+import { 
+  getLocalSocialMedia, 
+  setLocalSocialMedia, 
+  fetchSocialMediaFromSupabase, 
+  saveSocialMediaToSupabase, 
+  normalizeSocialMediaList 
+} from '../lib/socialMediaHelper';
 import { stripHtml, generateSummary } from '../lib/stripHtml';
 import { checkRateLimit, recordAttempt, resetRateLimit } from '../lib/rateLimiter';
 import { 
@@ -179,6 +188,12 @@ interface AppContextType {
   deleteDataRequest: (id: string) => Promise<boolean>;
   toggleDataRequestActive: (id: string) => Promise<boolean>;
   
+  // Media Sosial Resmi
+  socialMedia: SocialMediaItem[];
+  updateSocialMediaItem: (item: SocialMediaItem) => void;
+  saveSocialMediaSettings: (items: SocialMediaItem[]) => Promise<boolean>;
+  resetSocialMediaDefaults: () => Promise<boolean>;
+
   // Auth & Roles
   isAuthenticated: boolean;
   currentUser: AdminUser | null;
@@ -697,6 +712,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [selectedDataRequestSlug, setSelectedDataRequestSlug] = useState<string | null>(null);
 
+  const [socialMedia, setSocialMedia] = useState<SocialMediaItem[]>(() => getLocalSocialMedia());
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -1112,6 +1129,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           try {
             localStorage.setItem('korwilcam_data_requests', JSON.stringify([]));
           } catch {}
+        }
+      })();
+
+      // 0.16 Fetch social_media_settings IMMEDIATELY IN PARALLEL
+      const socialMediaFetchPromise = (async () => {
+        try {
+          const items = await fetchSocialMediaFromSupabase();
+          if (items && items.length > 0) {
+            setSocialMedia(items);
+          }
+        } catch (errSocMed) {
+          console.warn('Tabel social_media_settings belum terbaca:', errSocMed);
         }
       })();
 
@@ -1849,7 +1878,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           organizationsFetchPromise,
           teachersFetchPromise, 
           serviceReqsFetchPromise, 
-          dataReqsFetchPromise
+          dataReqsFetchPromise,
+          socialMediaFetchPromise
         ]);
       } catch (errParallel) {
         console.warn('Parallel fetch warning:', errParallel);
@@ -2359,6 +2389,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'social_media_settings' },
+        async () => {
+          try {
+            const items = await fetchSocialMediaFromSupabase();
+            if (items && items.length > 0) {
+              setSocialMedia(items);
+            }
+          } catch (e) {
+            console.warn('Realtime social_media_settings error:', e);
+          }
+        }
+      )
       .subscribe();
 
     return () => {
@@ -2384,6 +2428,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'service-permintaan-data': { path: '/layanan/permintaan-data', title: 'Layanan Permintaan Data - Korwilcam Purwodadi' },
     'gallery': { path: '/galeri', title: 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi' },
     'contact': { path: '/kontak', title: 'Kontak & Layanan Pengaduan - Korwilcam Purwodadi' },
+    'social-media': { path: '/media-sosial', title: 'Media Sosial Resmi - Korwilcam Purwodadi' },
     'admin-login': { path: '/angmin/lugin', title: 'Login Panel Admin - Korwilcam Purwodadi' },
     'admin-dashboard': { path: '/angmin/dashboard', title: 'Dashboard Panel Admin - Korwilcam Purwodadi' }
   };
@@ -3251,6 +3296,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabState('gallery');
         setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['gallery'].title;
+      } else if (rawPath.startsWith('/media-sosial') || rawPath.startsWith('/sosial-media') || rawPath.startsWith('/sosmed') || rawPath.startsWith('/kontak/sosial-media') || rawPath.startsWith('/kontak/sosmed')) {
+        setActiveTabState('social-media');
+        setSelectedOrganizationSlugState(null);
+        document.title = TAB_ROUTES['social-media'].title;
       } else if (rawPath.startsWith('/kontak') || rawPath.startsWith('/pengaduan') || rawPath.startsWith('/aduan')) {
         setActiveTabState('contact');
         setSelectedOrganizationSlugState(null);
@@ -6128,6 +6177,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return updateDataRequest(id, { isActive: !target.isActive });
   };
 
+  const updateSocialMediaItem = (item: SocialMediaItem) => {
+    setSocialMedia((prev) => {
+      const updated = prev.map((p) => (p.platform === item.platform ? item : p));
+      setLocalSocialMedia(updated);
+      return updated;
+    });
+  };
+
+  const saveSocialMediaSettings = async (items: SocialMediaItem[]): Promise<boolean> => {
+    const normalized = normalizeSocialMediaList(items);
+    setSocialMedia(normalized);
+    const ok = await saveSocialMediaToSupabase(normalized);
+    triggerActivityLog(
+      'UBAH DATA',
+      'Media Sosial',
+      'Memperbarui tautan dan pengaturan akun media sosial resmi'
+    );
+    if (ok) {
+      showToast('Pengaturan media sosial berhasil disimpan!', 'success');
+    } else {
+      showToast('Tersimpan di browser lokal (Supabase belum tersambung)', 'info');
+    }
+    return ok;
+  };
+
+  const resetSocialMediaDefaults = async (): Promise<boolean> => {
+    setSocialMedia(initialSocialMedia);
+    const ok = await saveSocialMediaToSupabase(initialSocialMedia);
+    triggerActivityLog(
+      'RESET DATA',
+      'Media Sosial',
+      'Mereset pengaturan media sosial ke bawaan awal'
+    );
+    showToast('Pengaturan media sosial direset ke bawaan!', 'info');
+    return ok;
+  };
+
   const resetToDefaultData = () => {
     triggerActivityLog(
       'RESET DATA',
@@ -6147,6 +6233,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeachers(initialTeachers);
     setServiceRequirements(initialServiceRequirements);
     setDataRequests(initialDataRequests);
+    setSocialMedia(initialSocialMedia);
+    setLocalSocialMedia(initialSocialMedia);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
@@ -6198,6 +6286,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateDataRequest,
         deleteDataRequest,
         toggleDataRequestActive,
+        socialMedia,
+        updateSocialMediaItem,
+        saveSocialMediaSettings,
+        resetSocialMediaDefaults,
         activeTab,
         setActiveTab,
         selectedNews,

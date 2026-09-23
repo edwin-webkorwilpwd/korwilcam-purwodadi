@@ -274,4 +274,23 @@ export interface DataRequestLink {
   updatedAt?: string;
 }
 
+export type SocialPlatform = 'instagram' | 'youtube' | 'tiktok' | 'facebook' | 'x';
+
+export interface SocialMediaItem {
+  id: string;
+  platform: SocialPlatform;
+  name: string;
+  badge: string;
+  username: string;
+  followers: string;
+  description: string;
+  buttonLabel: string;
+  url: string;
+  isActive: boolean;
+  order?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+
 

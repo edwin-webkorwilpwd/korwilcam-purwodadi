@@ -66,7 +66,8 @@ import {
   Sliders,
   Search,
   ClipboardList,
-  UserCheck
+  UserCheck,
+  Share2
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -104,7 +105,7 @@ import {
   GalleryItem, 
   DocumentDownload, 
   Announcement, 
-  ComplaintMessage,
+  ComplaintMessage, 
   AdminUser,
   AdminRole,
   EducationalOrganization,
@@ -112,7 +113,8 @@ import {
   OrganizationOfficial,
   TeacherNominative,
   ServiceRequirement,
-  DataRequestLink
+  DataRequestLink,
+  SocialMediaItem
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { 
@@ -120,6 +122,7 @@ import {
   FacebookIcon, 
   InstagramIcon, 
   YoutubeIcon, 
+  XIcon,
   WebsiteIcon, 
   formatExternalUrl 
 } from '../../components/SocialIcons';
@@ -211,7 +214,10 @@ export const AdminDashboard: React.FC = () => {
     showConfirmDialog,
     showNoticePopup,
     activityLogUrl,
-    updateActivityLogUrl
+    updateActivityLogUrl,
+    socialMedia,
+    saveSocialMediaSettings,
+    resetSocialMediaDefaults
   } = useApp();
 
   type AdminSection = 
@@ -228,6 +234,7 @@ export const AdminDashboard: React.FC = () => {
     | 'data-request-cms'
     | 'gallery-cms' 
     | 'contact-cms' 
+    | 'social-media-cms'
     | 'users-cms'
     | 'activity-log-cms';
 
@@ -273,10 +280,53 @@ export const AdminDashboard: React.FC = () => {
       }
     } else if (currentSection === 'organization-cms' && !canAccessOrganizationCms) {
       setCurrentSection('overview');
+    } else if (currentSection === 'social-media-cms' && !isAdminOrSuperAdmin) {
+      setCurrentSection('overview');
     } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms') && !isSuperAdmin) {
       setCurrentSection('overview');
     }
-  }, [isWriter, currentSection, canAccessOrganizationCms, isSuperAdmin]);
+  }, [isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
+
+  // ==========================================================
+  // STATE & HANDLER MEDIA SOSIAL RESMI CMS
+  // ==========================================================
+  const [editingSocialMedia, setEditingSocialMedia] = useState<SocialMediaItem[]>([]);
+  const [isSavingSocialMedia, setIsSavingSocialMedia] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (socialMedia && Array.isArray(socialMedia) && socialMedia.length > 0) {
+      setEditingSocialMedia(JSON.parse(JSON.stringify(socialMedia)));
+    }
+  }, [socialMedia]);
+
+  const handleSocialMediaChange = (platform: string, field: keyof SocialMediaItem, value: any) => {
+    setEditingSocialMedia((prev) =>
+      prev.map((item) => (item.platform === platform ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleSaveSocialMedia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSocialMedia(true);
+    try {
+      await saveSocialMediaSettings(editingSocialMedia);
+    } finally {
+      setIsSavingSocialMedia(false);
+    }
+  };
+
+  const handleResetSocialMedia = async () => {
+    const confirmed = await showConfirmDialog({
+      title: 'Reset Media Sosial',
+      message: 'Apakah Anda yakin ingin mereset seluruh akun dan link media sosial ke pengaturan awal?',
+      type: 'warning',
+      confirmText: 'Ya, Reset',
+      cancelText: 'Batal'
+    });
+    if (confirmed) {
+      await resetSocialMediaDefaults();
+    }
+  };
 
   // ==========================================================
   // STATE & HANDLER PERMINTAAN DATA (WEBVIEW) CMS
@@ -3669,6 +3719,39 @@ export const AdminDashboard: React.FC = () => {
             </button>
           )}
 
+          {/* 7.5. Media Sosial Resmi (Khusus Super Admin & Admin) */}
+          {isAdminOrSuperAdmin && (
+            <button
+              type="button"
+              onClick={() => setCurrentSection('social-media-cms')}
+              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                currentSection === 'social-media-cms'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  currentSection === 'social-media-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                }`}>
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'social-media-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Media Sosial Resmi
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'social-media-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    Link & Akun Medsos
+                  </span>
+                </div>
+              </div>
+            </button>
+          )}
+
           {/* 8. Pengaturan Akun & Hak Akses (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
             <>
@@ -3973,7 +4056,8 @@ export const AdminDashboard: React.FC = () => {
                     { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'data-request-cms', title: 'Permintaan Data', desc: 'Kelola formulir dan tautan webview permintaan data kedinasan', icon: Database, color: 'text-blue-600 bg-blue-50' },
                     { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
-                    { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' }
+                    { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' },
+                    ...(isAdminOrSuperAdmin ? [{ id: 'social-media-cms', title: 'Media Sosial Resmi', desc: 'Atur tautan akun medsos, status aktif, dan statistik pengikut untuk halaman publik', icon: Share2, color: 'text-blue-600 bg-blue-50' }] : [])
                   ].map((menu, i) => {
                     const Icon = menu.icon;
                     return (
@@ -10771,6 +10855,278 @@ export const AdminDashboard: React.FC = () => {
                 </form>
               )}
 
+            </div>
+          )}
+
+          {/* TAB 7.5: KELOLA MEDIA SOSIAL RESMI */}
+          {currentSection === 'social-media-cms' && isAdminOrSuperAdmin && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                      Kelola Akun & Link Media Sosial Resmi
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-100 text-blue-800 border border-blue-200">
+                      Publik: Sos Med
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Atur tautan akun media sosial resmi Korwilcam Purwodadi. Akun yang tautannya tidak diisi (kosong) atau dinonaktifkan secara otomatis <strong>TIDAK AKAN DITAMPILKAN</strong> di website publik.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('social-media', '/media-sosial')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs shadow-xs transition-colors"
+                  >
+                    <span>Lihat Halaman Sos Med</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetSocialMedia}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                    title="Kembalikan seluruh akun ke data bawaan awal"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Bawaan</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Ringkasan & Aturan Kondisional */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Platform</div>
+                    <div className="text-xl font-black text-slate-900">{editingSocialMedia.length} Platform</div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Aktif & Tampil di Web</div>
+                    <div className="text-xl font-black text-emerald-700">
+                      {editingSocialMedia.filter((i) => i.isActive !== false && i.url && i.url.trim() !== '').length} Akun
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Disembunyikan (Kosong/Off)</div>
+                    <div className="text-xl font-black text-amber-700">
+                      {editingSocialMedia.filter((i) => i.isActive === false || !i.url || i.url.trim() === '').length} Akun
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Banner Aturan Kondisional */}
+              <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200/80 text-blue-900 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong>Aturan Tampilan Kondisional:</strong> Kartu akun di halaman web depan <strong>hanya akan muncul jika tautan (URL) terisi</strong> dan statusnya dalam keadaan <strong>Aktif</strong>. Jika Anda mengosongkan kolom tautan suatu platform, kartu akun tersebut akan otomatis disembunyikan dari halaman depan.
+                </div>
+              </div>
+
+              {/* Form Daftar Akun Media Sosial */}
+              <form onSubmit={handleSaveSocialMedia} className="space-y-5">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+                  {editingSocialMedia.map((item) => {
+                    const isVisibleOnWeb = item.isActive !== false && item.url && item.url.trim() !== '';
+                    const isLinkEmpty = !item.url || item.url.trim() === '';
+
+                    return (
+                      <div
+                        key={item.platform}
+                        className={`bg-white rounded-2xl p-5 border transition-all space-y-4 shadow-xs ${
+                          isVisibleOnWeb
+                            ? 'border-slate-200 hover:border-blue-400'
+                            : 'border-dashed border-slate-300 bg-slate-50/50'
+                        }`}
+                      >
+                        {/* Header Kartu Platform */}
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Branded Icon */}
+                            {item.platform === 'instagram' && (
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] flex items-center justify-center text-white shrink-0 shadow-xs">
+                                <InstagramIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                            {item.platform === 'youtube' && (
+                              <div className="w-10 h-10 rounded-xl bg-[#FF0000] flex items-center justify-center text-white shrink-0 shadow-xs">
+                                <YoutubeIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                            {item.platform === 'tiktok' && (
+                              <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-white shrink-0 shadow-xs">
+                                <TikTokIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                            {item.platform === 'facebook' && (
+                              <div className="w-10 h-10 rounded-xl bg-[#1877F2] flex items-center justify-center text-white shrink-0 shadow-xs">
+                                <FacebookIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                            {item.platform === 'x' && (
+                              <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-white shrink-0 shadow-xs">
+                                <XIcon className="w-4 h-4" />
+                              </div>
+                            )}
+
+                            <div className="min-w-0">
+                              <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
+                              <span className="text-[10px] text-slate-400 font-mono">ID: {item.platform}</span>
+                            </div>
+                          </div>
+
+                          {/* Status Badge & Toggle Aktif */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isVisibleOnWeb ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                ● Tampil di Web
+                              </span>
+                            ) : isLinkEmpty ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                ⚠ Link Kosong
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                                ○ Dinonaktifkan
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleSocialMediaChange(item.platform, 'isActive', !item.isActive)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                                item.isActive !== false
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                              }`}
+                            >
+                              {item.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Form Fields */}
+                        <div className="space-y-3">
+                          {/* 1. URL Tautan */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700">
+                                Tautan URL Profil / Halaman <span className="text-rose-500">*</span>
+                              </label>
+                              {item.url && item.url.trim() !== '' && (
+                                <a
+                                  href={formatExternalUrl(item.url)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5 font-semibold"
+                                >
+                                  <span>Uji Tautan</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              value={item.url || ''}
+                              onChange={(e) => handleSocialMediaChange(item.platform, 'url', e.target.value)}
+                              placeholder={`Contoh: https://${item.platform === 'youtube' ? 'youtube.com/@korwilcam' : `${item.platform}.com/korwilcam_purwodadi`}`}
+                              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                            <p className="text-[10px] text-slate-400">
+                              *Kosongkan kolom ini jika ingin menyembunyikan kartu {item.name} dari website.
+                            </p>
+                          </div>
+
+                          {/* 2. Username & Follower Stat */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700">Nama Akun / Handle</label>
+                              <input
+                                type="text"
+                                value={item.username || ''}
+                                onChange={(e) => handleSocialMediaChange(item.platform, 'username', e.target.value)}
+                                placeholder="Contoh: @korwilcam_purwodadi"
+                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700">Jumlah Pengikut / Stat</label>
+                              <input
+                                type="text"
+                                value={item.followers || ''}
+                                onChange={(e) => handleSocialMediaChange(item.platform, 'followers', e.target.value)}
+                                placeholder="Contoh: 15K+ Pengikut"
+                                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          {/* 3. Teks Tombol Ikuti */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-700">Teks Tombol Ikuti</label>
+                            <input
+                              type="text"
+                              value={item.buttonLabel || ''}
+                              onChange={(e) => handleSocialMediaChange(item.platform, 'buttonLabel', e.target.value)}
+                              placeholder={`Contoh: Ikuti di ${item.name}`}
+                              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* 4. Deskripsi Singkat */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-700">Deskripsi Singkat</label>
+                            <textarea
+                              rows={2}
+                              value={item.description || ''}
+                              onChange={(e) => handleSocialMediaChange(item.platform, 'description', e.target.value)}
+                              placeholder="Keterangan singkat seputar konten yang dibagikan pada akun ini..."
+                              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Tombol Simpan Bawah */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="text-xs text-slate-500">
+                    Pastikan tautan sudah benar sebelum menyimpan. Data akan disinkronkan ke Supabase Cloud dan LocalStorage.
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSocialMedia}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition-all disabled:opacity-50 shrink-0"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{isSavingSocialMedia ? 'Menyimpan...' : 'Simpan Semua Pengaturan Media Sosial'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
