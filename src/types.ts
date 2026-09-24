@@ -312,5 +312,45 @@ export interface OneSignalConfig {
   isEnabled: boolean;
 }
 
+export type AchievementCategory = 'Siswa' | 'Guru';
+
+export type AchievementLevel = 
+  | 'Kecamatan' 
+  | 'Kabupaten' 
+  | 'Provinsi' 
+  | 'Nasional' 
+  | 'Internasional';
+
+export type AchievementField = 
+  | 'Sains / OSN' 
+  | 'Olahraga / O2SN' 
+  | 'Seni & Budaya / FLS2N' 
+  | 'Keagamaan / MAPSI' 
+  | 'Literasi / FTBI' 
+  | 'Inovasi GTK' 
+  | 'Lainnya';
+
+export interface Achievement {
+  id: string;
+  title: string;              // Nama ajang / kompetisi (misal: "FLS2N Tari Tradisional", "OSN Matematika")
+  category: AchievementCategory; // Siswa | Guru
+  field: AchievementField | string; // Bidang
+  rank: string;               // Juara 1, Juara 2, Juara 3, Harapan 1, dll.
+  level: AchievementLevel;    // Tingkat
+  recipientName: string;      // Nama siswa / guru
+  schoolName: string;         // Asal sekolah
+  year: number;               // Tahun (misal: 2026)
+  eventDate?: string;         // Tanggal pelaksanaan
+  mentorName?: string;        // Pembimbing / Pelatih
+  photoUrl?: string;          // Link Google Drive foto peraih / piala
+  certificateUrl?: string;    // Link Google Drive foto piagam
+  description?: string;       // Catatan / Deskripsi singkat
+  createdAt?: string;
+  updatedAt?: string;
+  authorId?: string;          // ID Akun pembuat (misal: usr-superadmin, usr-penulis-1)
+  authorName?: string;        // Nama pembuat (misal: "Budi Santoso", "Admin")
+  authorRole?: string;        // Role pembuat (misal: "Penulis", "Super Admin")
+}
+
 
 

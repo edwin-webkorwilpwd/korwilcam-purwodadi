@@ -12,7 +12,8 @@ import {
   TeacherNominative,
   ServiceRequirement,
   DataRequestLink,
-  SocialMediaItem
+  SocialMediaItem,
+  Achievement
 } from '../types';
 
 export const initialOfficeProfile: OfficeProfile = {
@@ -851,4 +852,6 @@ export const initialSocialMedia: SocialMediaItem[] = [
     order: 5
   }
 ];
+
+export const initialAchievements: Achievement[] = [];
 

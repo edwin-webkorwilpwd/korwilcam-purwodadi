@@ -17,6 +17,7 @@ const SchoolsPage = React.lazy(() => import('./pages/SchoolsPage').then(m => ({ 
 const NominativePage = React.lazy(() => import('./pages/NominativePage').then(m => ({ default: m.NominativePage })));
 const NewsPage = React.lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m => ({ default: m.NewsDetailPage })));
+const AchievementsPage = React.lazy(() => import('./pages/AchievementsPage').then(m => ({ default: m.AchievementsPage })));
 const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
 const OrganizationPage = React.lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
 const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
@@ -158,6 +159,7 @@ const MainContent: React.FC = () => {
               {activeTab === 'schools' && <SchoolsPage />}
               {(activeTab === 'nominatif' || activeTab === 'nominative') && <NominativePage />}
               {activeTab === 'news' && <NewsPage />}
+              {(activeTab === 'achievements' || activeTab === 'prestasi') && <AchievementsPage />}
               {activeTab === 'organization' && <OrganizationPage />}
               {activeTab === 'service-requirements' && <ServiceRequirementsPage />}
               {activeTab === 'downloads' && <DownloadsPage />}

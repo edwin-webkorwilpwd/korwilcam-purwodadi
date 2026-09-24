@@ -18,7 +18,8 @@ import {
   ServiceRequirement,
   DataRequestLink,
   SocialMediaItem,
-  BroadcastNotification
+  BroadcastNotification,
+  Achievement
 } from '../types';
 import { 
   initialSchools, 
@@ -34,7 +35,8 @@ import {
   initialTeachers,
   initialServiceRequirements,
   initialDataRequests,
-  initialSocialMedia
+  initialSocialMedia,
+  initialAchievements
 } from '../data/initialData';
 
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
@@ -207,6 +209,12 @@ interface AppContextType {
   sendBroadcastNotification: (params: SendBroadcastParams) => Promise<SendBroadcastResult>;
   deleteBroadcastNotification: (id: string) => Promise<boolean>;
   refreshBroadcastHistory: () => Promise<void>;
+
+  // Prestasi Siswa & Guru
+  achievements: Achievement[];
+  addAchievement: (item: Omit<Achievement, 'id'>) => Promise<boolean>;
+  updateAchievement: (id: string, item: Partial<Achievement>) => Promise<boolean>;
+  deleteAchievement: (id: string) => Promise<boolean>;
 
   // Auth & Roles
   isAuthenticated: boolean;
@@ -738,6 +746,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [achievements, setAchievements] = useState<Achievement[]>(() => {
+    try {
+      const saved = localStorage.getItem('korwilcam_achievements');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Bersihkan data dummy awal (seperti ach-1 s/d ach-6 atau nama dummy) jika pernah tersimpan di browser
+          const cleaned = parsed.filter((a: any) => 
+            !['ach-1', 'ach-2', 'ach-3', 'ach-4', 'ach-5', 'ach-6'].includes(a.id) &&
+            !a.recipientName?.includes('Rangga Pratama') &&
+            !a.recipientName?.includes('Siti Nurhaliza') &&
+            !a.recipientName?.includes('Bambang Sudarsono')
+          );
+          if (cleaned.length !== parsed.length) {
+            try {
+              localStorage.setItem('korwilcam_achievements', JSON.stringify(cleaned));
+            } catch {}
+          }
+          return cleaned;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
       const saved = localStorage.getItem('korwilcam_current_user');
@@ -1181,6 +1216,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         } catch (errBc) {
           console.warn('Tabel broadcast_notifications belum terbaca:', errBc);
+        }
+      })();
+
+      // 0.18 Fetch achievements IMMEDIATELY IN PARALLEL (Prestasi Siswa & Guru)
+      const achievementsFetchPromise = (async () => {
+        try {
+          const { data: dbAchievements, error: achErr } = await client
+            .from('achievements')
+            .select('*')
+            .order('year', { ascending: false });
+
+          if (!achErr && dbAchievements) {
+            if (dbAchievements.length > 0) {
+              const mapped: Achievement[] = dbAchievements.map((item: any) => ({
+                id: String(item.id),
+                title: item.title || '',
+                category: item.category || 'Siswa',
+                field: item.field || 'Lainnya',
+                rank: item.rank || '',
+                level: item.level || 'Kecamatan',
+                recipientName: item.recipient_name || item.recipientName || '',
+                schoolName: item.school_name || item.schoolName || '',
+                year: Number(item.year) || new Date().getFullYear(),
+                eventDate: item.event_date || item.eventDate || '',
+                mentorName: item.mentor_name || item.mentorName || '',
+                photoUrl: item.photo_url || item.photoUrl || '',
+                certificateUrl: item.certificate_url || item.certificateUrl || '',
+                description: item.description || '',
+                createdAt: item.created_at || item.createdAt || '',
+                updatedAt: item.updated_at || item.updatedAt || '',
+                authorId: item.author_id || item.authorId || '',
+                authorName: item.author_name || item.authorName || '',
+                authorRole: item.author_role || item.authorRole || ''
+              }));
+              setAchievements(mapped);
+              try {
+                localStorage.setItem('korwilcam_achievements', JSON.stringify(mapped));
+              } catch {}
+            } else {
+              // Jika di tabel Supabase kosong (0 data), wajib kosongkan state & localStorage (tanpa dummy data)
+              setAchievements([]);
+              try {
+                localStorage.setItem('korwilcam_achievements', JSON.stringify([]));
+              } catch {}
+            }
+          } else {
+            // Jika tabel belum dibuat atau kosong
+            setAchievements([]);
+            try {
+              localStorage.setItem('korwilcam_achievements', JSON.stringify([]));
+            } catch {}
+          }
+        } catch (errAch) {
+          console.warn('Tabel achievements belum terbaca:', errAch);
+          setAchievements([]);
+          try {
+            localStorage.setItem('korwilcam_achievements', JSON.stringify([]));
+          } catch {}
         }
       })();
 
@@ -2291,6 +2384,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel activity_log_settings:', logErr);
       }
 
+      // 16. Export achievements (Prestasi Siswa & Guru)
+      try {
+        if (achievements && achievements.length > 0) {
+          const achPayload = achievements.map((a) => ({
+            id: a.id,
+            title: a.title,
+            category: a.category,
+            field: a.field,
+            rank: a.rank,
+            level: a.level,
+            recipient_name: a.recipientName,
+            school_name: a.schoolName,
+            year: a.year,
+            event_date: a.eventDate || null,
+            mentor_name: a.mentorName || null,
+            photo_url: a.photoUrl || null,
+            certificate_url: a.certificateUrl || null,
+            description: a.description || null,
+            created_at: a.createdAt || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            author_id: a.authorId || null,
+            author_name: a.authorName || null,
+            author_role: a.authorRole || null
+          }));
+          const { error: upsertErr } = await client.from('achievements').upsert(achPayload);
+          if (upsertErr) {
+            // Fallback jika kolom author belum ada di Supabase
+            const safeAch = achPayload.map(({ author_id, author_name, author_role, ...rest }: any) => rest);
+            await client.from('achievements').upsert(safeAch);
+          }
+        }
+      } catch (achErr) {
+        console.warn('Gagal ekspor tabel achievements:', achErr);
+      }
+
       setSyncStatus('connected');
       setIsSupabaseActive(true);
       showToast('Seluruh data berhasil diekspor & disinkronkan ke Supabase!', 'success');
@@ -2462,6 +2590,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           } catch (e) {
             console.warn('Realtime broadcast_notifications error:', e);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'achievements' },
+        async () => {
+          try {
+            const { data: dbAchievements } = await client
+              .from('achievements')
+              .select('*')
+              .order('year', { ascending: false });
+            if (dbAchievements && dbAchievements.length > 0) {
+              const mapped: Achievement[] = dbAchievements.map((item: any) => ({
+                id: String(item.id),
+                title: item.title || '',
+                category: item.category || 'Siswa',
+                field: item.field || 'Lainnya',
+                rank: item.rank || '',
+                level: item.level || 'Kecamatan',
+                recipientName: item.recipient_name || item.recipientName || '',
+                schoolName: item.school_name || item.schoolName || '',
+                year: Number(item.year) || new Date().getFullYear(),
+                eventDate: item.event_date || item.eventDate || '',
+                mentorName: item.mentor_name || item.mentorName || '',
+                photoUrl: item.photo_url || item.photoUrl || '',
+                certificateUrl: item.certificate_url || item.certificateUrl || '',
+                description: item.description || '',
+                createdAt: item.created_at || item.createdAt || '',
+                updatedAt: item.updated_at || item.updatedAt || '',
+                authorId: item.author_id || item.authorId || '',
+                authorName: item.author_name || item.authorName || '',
+                authorRole: item.author_role || item.authorRole || ''
+              }));
+              setAchievements(mapped);
+              try {
+                localStorage.setItem('korwilcam_achievements', JSON.stringify(mapped));
+              } catch {}
+            } else if (dbAchievements && dbAchievements.length === 0) {
+              setAchievements([]);
+              try {
+                localStorage.setItem('korwilcam_achievements', JSON.stringify([]));
+              } catch {}
+            }
+          } catch (e) {
+            console.warn('Realtime achievements error:', e);
           }
         }
       )
@@ -6329,6 +6503,163 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBroadcastHistory(list);
   };
 
+  const sanitizeDriveUrl = (url?: string) => {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (isGoogleDriveUrl(trimmed)) {
+      return formatGoogleDriveImageUrl(trimmed, 800);
+    }
+    return trimmed;
+  };
+
+  const addAchievement = async (item: Omit<Achievement, 'id'>): Promise<boolean> => {
+    const newId = `ach-${Date.now()}`;
+    const formattedItem: Achievement = {
+      ...item,
+      id: newId,
+      photoUrl: sanitizeDriveUrl(item.photoUrl),
+      certificateUrl: sanitizeDriveUrl(item.certificateUrl),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const updated = [formattedItem, ...achievements];
+    setAchievements(updated);
+    try {
+      localStorage.setItem('korwilcam_achievements', JSON.stringify(updated));
+    } catch {}
+
+    triggerActivityLog(
+      'TAMBAH DATA',
+      'Prestasi',
+      `Menambahkan prestasi "${formattedItem.title}" - ${formattedItem.recipientName} (${formattedItem.schoolName})`
+    );
+
+    showToast('Data prestasi berhasil ditambahkan!', 'success');
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const payload: any = {
+          id: formattedItem.id,
+          title: formattedItem.title,
+          category: formattedItem.category,
+          field: formattedItem.field,
+          rank: formattedItem.rank,
+          level: formattedItem.level,
+          recipient_name: formattedItem.recipientName,
+          school_name: formattedItem.schoolName,
+          year: formattedItem.year,
+          event_date: formattedItem.eventDate || null,
+          mentor_name: formattedItem.mentorName || null,
+          photo_url: formattedItem.photoUrl || null,
+          certificate_url: formattedItem.certificateUrl || null,
+          description: formattedItem.description || null,
+          created_at: formattedItem.createdAt,
+          updated_at: formattedItem.updatedAt,
+          author_id: formattedItem.authorId || null,
+          author_name: formattedItem.authorName || null,
+          author_role: formattedItem.authorRole || null
+        };
+        const { error: insErr } = await client.from('achievements').insert(payload);
+        if (insErr) {
+          // Fallback tanpa kolom author jika belum ditambahkan di Supabase
+          const { author_id, author_name, author_role, ...safePayload } = payload;
+          await client.from('achievements').insert(safePayload);
+        }
+      } catch (err) {
+        console.warn('Gagal insert prestasi ke Supabase:', err);
+      }
+    }
+    return true;
+  };
+
+  const updateAchievement = async (id: string, item: Partial<Achievement>): Promise<boolean> => {
+    const now = new Date().toISOString();
+    const formattedItem: Partial<Achievement> = {
+      ...item,
+      ...(item.photoUrl !== undefined ? { photoUrl: sanitizeDriveUrl(item.photoUrl) } : {}),
+      ...(item.certificateUrl !== undefined ? { certificateUrl: sanitizeDriveUrl(item.certificateUrl) } : {}),
+      updatedAt: now
+    };
+
+    const updated = achievements.map((a) => (a.id === id ? { ...a, ...formattedItem } : a));
+    setAchievements(updated);
+    try {
+      localStorage.setItem('korwilcam_achievements', JSON.stringify(updated));
+    } catch {}
+
+    const target = updated.find((a) => a.id === id);
+    triggerActivityLog(
+      'UBAH DATA',
+      'Prestasi',
+      `Memperbarui data prestasi "${target?.title || id}"`
+    );
+
+    showToast('Data prestasi berhasil diperbarui!', 'success');
+
+    const client = getSupabaseClient();
+    if (client && target) {
+      try {
+        const updatePayload: any = {
+          title: target.title,
+          category: target.category,
+          field: target.field,
+          rank: target.rank,
+          level: target.level,
+          recipient_name: target.recipientName,
+          school_name: target.schoolName,
+          year: target.year,
+          event_date: target.eventDate || null,
+          mentor_name: target.mentorName || null,
+          photo_url: target.photoUrl || null,
+          certificate_url: target.certificateUrl || null,
+          description: target.description || null,
+          updated_at: now,
+          author_id: target.authorId || null,
+          author_name: target.authorName || null,
+          author_role: target.authorRole || null
+        };
+        const { error: updErr } = await client.from('achievements').update(updatePayload).eq('id', id);
+        if (updErr) {
+          // Fallback tanpa kolom author jika belum ditambahkan di Supabase
+          const { author_id, author_name, author_role, ...safeUpdatePayload } = updatePayload;
+          await client.from('achievements').update(safeUpdatePayload).eq('id', id);
+        }
+      } catch (err) {
+        console.warn('Gagal update prestasi di Supabase:', err);
+      }
+    }
+    return true;
+  };
+
+  const deleteAchievement = async (id: string): Promise<boolean> => {
+    const target = achievements.find((a) => a.id === id);
+    const updated = achievements.filter((a) => a.id !== id);
+    setAchievements(updated);
+    try {
+      localStorage.setItem('korwilcam_achievements', JSON.stringify(updated));
+    } catch {}
+
+    triggerActivityLog(
+      'HAPUS DATA',
+      'Prestasi',
+      `Menghapus data prestasi "${target?.title || id}"`
+    );
+
+    showToast('Data prestasi berhasil dihapus!', 'info');
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.from('achievements').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Gagal delete prestasi di Supabase:', err);
+      }
+    }
+    return true;
+  };
+
   const resetToDefaultData = () => {
     triggerActivityLog(
       'RESET DATA',
@@ -6350,6 +6681,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDataRequests(initialDataRequests);
     setSocialMedia(initialSocialMedia);
     setLocalSocialMedia(initialSocialMedia);
+    setAchievements(initialAchievements);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
@@ -6409,6 +6741,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sendBroadcastNotification,
         deleteBroadcastNotification,
         refreshBroadcastHistory,
+        achievements,
+        addAchievement,
+        updateAchievement,
+        deleteAchievement,
         activeTab,
         setActiveTab,
         selectedNews,

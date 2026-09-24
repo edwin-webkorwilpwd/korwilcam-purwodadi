@@ -70,7 +70,9 @@ import {
   Share2,
   Radio,
   Send,
-  Smartphone
+  Smartphone,
+  Trophy,
+  Medal
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -109,7 +111,7 @@ import {
   DocumentDownload, 
   Announcement, 
   ComplaintMessage, 
-  AdminUser,
+  AdminUser, 
   AdminRole,
   EducationalOrganization,
   OrganizationLeader,
@@ -118,7 +120,11 @@ import {
   ServiceRequirement,
   DataRequestLink,
   SocialMediaItem,
-  BroadcastNotification
+  BroadcastNotification,
+  Achievement,
+  AchievementCategory,
+  AchievementLevel,
+  AchievementField
 } from '../../types';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { 
@@ -224,7 +230,11 @@ export const AdminDashboard: React.FC = () => {
     resetSocialMediaDefaults,
     broadcastHistory,
     sendBroadcastNotification,
-    deleteBroadcastNotification
+    deleteBroadcastNotification,
+    achievements,
+    addAchievement,
+    updateAchievement,
+    deleteAchievement
   } = useApp();
 
   type AdminSection = 
@@ -235,6 +245,7 @@ export const AdminDashboard: React.FC = () => {
     | 'schools-cms' 
     | 'nominatif-cms' 
     | 'news-cms' 
+    | 'achievements-cms'
     | 'organization-cms' 
     | 'service-requirements-cms'
     | 'downloads-cms' 
@@ -253,6 +264,8 @@ export const AdminDashboard: React.FC = () => {
   const isAdmin = currentUser?.role === 'Admin';
   const isAdminOrSuperAdmin = isSuperAdmin || isAdmin;
   const isWriter = currentUser?.role === 'Penulis';
+  const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
+  const activeUserRole = (currentUser?.role || 'Admin') as string;
 
   // Hak akses khusus Organisasi:
   // Super Admin & Admin dapat mengakses semua organisasi.
@@ -279,7 +292,7 @@ export const AdminDashboard: React.FC = () => {
   // Guard: Pastikan role Penulis hanya berada di menu yang diizinkan (news-cms, gallery-cms, organization-cms jika ditugaskan)
   useEffect(() => {
     if (isWriter) {
-      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms'];
+      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'achievements-cms'];
       if (canAccessOrganizationCms) {
         allowedSections.push('organization-cms');
       }
@@ -430,6 +443,228 @@ export const AdminDashboard: React.FC = () => {
       await deleteBroadcastNotification(id);
     }
   };
+
+  // ==========================================================
+  // STATE & HANDLER PRESTASI SISWA & GURU CMS
+  // ==========================================================
+  const [achievementSearch, setAchievementSearch] = useState('');
+  const [achievementCategoryFilter, setAchievementCategoryFilter] = useState<'ALL' | AchievementCategory>('ALL');
+  const [achievementLevelFilter, setAchievementLevelFilter] = useState<'ALL' | AchievementLevel>('ALL');
+  const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
+  const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
+
+  const [achievementFilterTab, setAchievementFilterTab] = useState<'all' | 'mine'>('all');
+
+  // Helper cek kepemilikan data prestasi berdasarkan akun/role login aktif
+  const isAchievementItemOwner = (item: Achievement) => {
+    if (!currentUser) return false;
+
+    // Cocokkan authorId jika tersedia
+    if (item.authorId && currentUser.id && item.authorId === currentUser.id) {
+      return true;
+    }
+
+    // Jika authorId milik Super Admin tetapi yang login bukan Super Admin / Admin
+    if (item.authorId === 'usr-superadmin' && !isAdminOrSuperAdmin) {
+      return false;
+    }
+
+    // Cek kecocokan nama pembuat (case-insensitive)
+    if (item.authorName && activeAuthorName && item.authorName.trim().toLowerCase() === activeAuthorName.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Cek kecocokan username
+    if (item.authorName && currentUser.username && item.authorName.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Hanya Admin / Super Admin yang boleh mencocokkan berdasarkan sesama role admin
+    if (isAdminOrSuperAdmin && item.authorRole && activeUserRole && item.authorRole.trim().toLowerCase() === activeUserRole.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Jika dibuat oleh Super Administrator dan user login bukan Super Admin / Admin
+    const isSuperAdminAuthor = ['super administrator', 'super admin'].some((adm) =>
+      (item.authorName || '').toLowerCase().includes(adm)
+    );
+    if (isSuperAdminAuthor && !isAdminOrSuperAdmin) {
+      return false;
+    }
+
+    return false;
+  };
+
+  // Daftar data prestasi yang dapat diakses:
+  // Super Admin & Admin dapat melihat seluruh data prestasi (atau filter ke prestasi miliknya)
+  // Role non-admin (misal: Penulis): HANYA dapat melihat data prestasi yang dibuat oleh akun dirinya sendiri
+  const displayedAchievements = useMemo(() => {
+    if (isAdminOrSuperAdmin) {
+      if (achievementFilterTab === 'mine') {
+        return achievements.filter((item) => isAchievementItemOwner(item));
+      }
+      return achievements;
+    }
+    // Penulis / Role lain: HANYA menampilkan data prestasi yang dibuat akun login dirinya sendiri
+    return achievements.filter((item) => isAchievementItemOwner(item));
+  }, [achievements, isAdminOrSuperAdmin, achievementFilterTab, currentUser, activeAuthorName, activeUserRole]);
+
+  const initialAchievementFormData = {
+    title: '',
+    category: 'Siswa' as AchievementCategory,
+    field: 'Sains / OSN',
+    rank: 'Juara 1',
+    level: 'Kabupaten' as AchievementLevel,
+    recipientName: '',
+    schoolName: '',
+    year: new Date().getFullYear(),
+    eventDate: '',
+    mentorName: '',
+    photoUrl: '',
+    certificateUrl: '',
+    description: '',
+    authorId: currentUser?.id || '',
+    authorName: currentUser?.name || activeAuthorName,
+    authorRole: (currentUser?.role || activeUserRole) as string
+  };
+
+  const [achievementForm, setAchievementForm] = useState(initialAchievementFormData);
+  const [isSavingAchievement, setIsSavingAchievement] = useState(false);
+
+  const openNewAchievementModal = () => {
+    setEditingAchievementId(null);
+    setAchievementForm({
+      ...initialAchievementFormData,
+      schoolName: schools[0]?.name || '',
+      authorId: currentUser?.id || '',
+      authorName: currentUser?.name || activeAuthorName,
+      authorRole: (currentUser?.role || activeUserRole) as string
+    });
+    setIsAchievementModalOpen(true);
+  };
+
+  const openEditAchievementModal = (item: Achievement) => {
+    if (!isAdminOrSuperAdmin && !isAchievementItemOwner(item)) {
+      showNoticePopup({
+        title: 'Akses Ditolak!',
+        message: 'Anda tidak memiliki izin untuk mengubah data prestasi yang ditambahkan oleh akun/role lain.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setEditingAchievementId(item.id);
+    setAchievementForm({
+      title: item.title,
+      category: item.category,
+      field: item.field || 'Lainnya',
+      rank: item.rank,
+      level: item.level,
+      recipientName: item.recipientName,
+      schoolName: item.schoolName,
+      year: item.year,
+      eventDate: item.eventDate || '',
+      mentorName: item.mentorName || '',
+      photoUrl: item.photoUrl || '',
+      certificateUrl: item.certificateUrl || '',
+      description: item.description || '',
+      authorId: item.authorId || currentUser?.id || '',
+      authorName: item.authorName || currentUser?.name || activeAuthorName,
+      authorRole: (item.authorRole || currentUser?.role || activeUserRole) as string
+    });
+    setIsAchievementModalOpen(true);
+  };
+
+  const handleSaveAchievement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!achievementForm.title.trim()) {
+      showToast('Judul kompetisi / ajang wajib diisi!', 'error');
+      return;
+    }
+    if (!achievementForm.recipientName.trim()) {
+      showToast('Nama peraih prestasi wajib diisi!', 'error');
+      return;
+    }
+    if (!achievementForm.schoolName.trim()) {
+      showToast('Asal sekolah wajib diisi!', 'error');
+      return;
+    }
+
+    if (editingAchievementId) {
+      const existing = achievements.find((a) => a.id === editingAchievementId);
+      if (existing && !isAdminOrSuperAdmin && !isAchievementItemOwner(existing)) {
+        showNoticePopup({
+          title: 'Akses Ditolak!',
+          message: 'Anda tidak memiliki izin untuk mengubah data prestasi milik pengguna/role lain.',
+          type: 'warning'
+        });
+        return;
+      }
+    }
+
+    setIsSavingAchievement(true);
+    try {
+      if (editingAchievementId) {
+        const existing = achievements.find((a) => a.id === editingAchievementId);
+        await updateAchievement(editingAchievementId, {
+          ...achievementForm,
+          authorId: existing?.authorId || currentUser?.id || '',
+          authorName: existing?.authorName || currentUser?.name || activeAuthorName,
+          authorRole: existing?.authorRole || currentUser?.role || activeUserRole
+        });
+      } else {
+        await addAchievement({
+          ...achievementForm,
+          authorId: currentUser?.id || '',
+          authorName: currentUser?.name || activeAuthorName,
+          authorRole: currentUser?.role || activeUserRole
+        });
+      }
+      setIsAchievementModalOpen(false);
+      setEditingAchievementId(null);
+    } catch (err: any) {
+      showToast(`Gagal menyimpan prestasi: ${err.message || err}`, 'error');
+    } finally {
+      setIsSavingAchievement(false);
+    }
+  };
+
+  const handleDeleteAchievement = async (item: Achievement) => {
+    if (!isAdminOrSuperAdmin && !isAchievementItemOwner(item)) {
+      showNoticePopup({
+        title: 'Akses Ditolak!',
+        message: 'Anda tidak memiliki izin untuk menghapus data prestasi yang ditambahkan oleh akun/role lain.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const confirmed = await showConfirmDialog({
+      title: 'Hapus Data Prestasi',
+      message: `Apakah Anda yakin ingin menghapus data prestasi "${item.title}" atas nama ${item.recipientName}? Tindakan ini tidak dapat dibatalkan.`,
+      type: 'danger',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal'
+    });
+    if (confirmed) {
+      await deleteAchievement(item.id);
+    }
+  };
+
+  const filteredAchievementsCms = useMemo(() => {
+    return displayedAchievements.filter((item) => {
+      const matchSearch =
+        item.title.toLowerCase().includes(achievementSearch.toLowerCase()) ||
+        item.recipientName.toLowerCase().includes(achievementSearch.toLowerCase()) ||
+        item.schoolName.toLowerCase().includes(achievementSearch.toLowerCase()) ||
+        (item.mentorName && item.mentorName.toLowerCase().includes(achievementSearch.toLowerCase()));
+
+      const matchCategory = achievementCategoryFilter === 'ALL' || item.category === achievementCategoryFilter;
+      const matchLevel = achievementLevelFilter === 'ALL' || item.level === achievementLevelFilter;
+
+      return matchSearch && matchCategory && matchLevel;
+    });
+  }, [displayedAchievements, achievementSearch, achievementCategoryFilter, achievementLevelFilter]);
 
   // ==========================================================
   // STATE & HANDLER PERMINTAAN DATA (WEBVIEW) CMS
@@ -1734,8 +1969,6 @@ export const AdminDashboard: React.FC = () => {
 
   // News form
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
-  const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
-  const activeUserRole = currentUser?.role || 'Admin';
   const [newsForm, setNewsForm] = useState({
     title: '',
     category: 'Kedinasan' as NewsCategory,
@@ -3591,6 +3824,42 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
+          {/* 4.2. Kelola Prestasi Siswa & Guru */}
+          <button
+            type="button"
+            onClick={() => setCurrentSection('achievements-cms')}
+            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              currentSection === 'achievements-cms'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
+              }`}>
+                <Trophy className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className={`text-xs font-bold truncate leading-tight ${
+                  currentSection === 'achievements-cms' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  Kelola Prestasi
+                </span>
+                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                  currentSection === 'achievements-cms' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  {isAdminOrSuperAdmin ? 'Prestasi Siswa & Guru' : 'Prestasi Saya'}
+                </span>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+              currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {isAdminOrSuperAdmin ? achievements.length : displayedAchievements.length}
+            </span>
+          </button>
+
           {/* 4.5. Organisasi (Khusus Admin/Super Admin atau Akun yang Ditunjuk) */}
           {canAccessOrganizationCms && (
             <button
@@ -4019,6 +4288,12 @@ export const AdminDashboard: React.FC = () => {
                   Buka Menu Warta & Informasi
                 </button>
                 <button
+                  onClick={() => setCurrentSection('achievements-cms')}
+                  className="px-4 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md hover:bg-amber-700 transition-all"
+                >
+                  Buka Menu Prestasi
+                </button>
+                <button
                   onClick={() => setCurrentSection('gallery-cms')}
                   className="px-4 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs shadow-md hover:bg-slate-900 transition-all"
                 >
@@ -4027,7 +4302,7 @@ export const AdminDashboard: React.FC = () => {
                 {canAccessOrganizationCms && (
                   <button
                     onClick={() => setCurrentSection('organization-cms')}
-                    className="px-4 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md hover:bg-amber-700 transition-all"
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md hover:bg-indigo-700 transition-all"
                   >
                     Buka Menu Organisasi
                   </button>
@@ -4049,7 +4324,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               {/* KPI Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div 
                   onClick={() => setCurrentSection('news-cms')}
                   className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
@@ -4057,6 +4332,15 @@ export const AdminDashboard: React.FC = () => {
                   <span className="text-xs font-bold text-slate-500 uppercase">Warta Berita</span>
                   <div className="text-3xl font-extrabold text-blue-600">{news.length}</div>
                   <span className="text-[11px] text-slate-400">Artikel aktif</span>
+                </div>
+
+                <div 
+                  onClick={() => setCurrentSection('achievements-cms')}
+                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
+                >
+                  <span className="text-xs font-bold text-slate-500 uppercase">Prestasi</span>
+                  <div className="text-3xl font-extrabold text-amber-500">{achievements.length}</div>
+                  <span className="text-[11px] text-slate-400">Siswa & Guru</span>
                 </div>
 
                 <div 
@@ -7566,6 +7850,694 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* TAB 4.2: KELOLA PRESTASI SISWA & GURU */}
+          {currentSection === 'achievements-cms' && (
+            <div className="space-y-6">
+              {/* Header Title & Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+                      <Trophy className="w-4 h-4" />
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                      Kelola Prestasi Siswa & Guru
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    {isAdminOrSuperAdmin 
+                      ? 'Manajemen data kejuaraan, medali, dan penghargaan putra-putri serta pendidik Korwilcam Purwodadi.'
+                      : `Manajemen data prestasi yang dibuat dan dikelola oleh akun ${currentUser?.name || 'Anda'} (${currentUser?.role || activeUserRole}).`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openNewAchievementModal}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tambah Prestasi Baru</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Informational Callout regarding Google Drive Storage */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 flex items-start gap-3.5 shadow-2xs">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                  <Sparkles className="w-5 h-5 text-yellow-300" />
+                </div>
+                <div className="space-y-1 text-xs sm:text-sm text-slate-700">
+                  <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                    <span>Penyimpanan Foto Google Drive (Aman & Hemat Kuota Database)</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                      Zero Storage Cost
+                    </span>
+                  </h4>
+                  <p className="text-slate-600 leading-relaxed text-xs">
+                    Foto siswa, guru, dan piagam disimpan langsung di <strong>Google Drive</strong> Anda tanpa memakan kapasitas database Supabase. Cukup salin tautan file sharing Google Drive (pastikan akses disetel <em>Siapa saja yang memiliki link dapat melihat</em>), sistem otomatis mengonversinya menjadi foto berkecepatan tinggi di website publik.
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Tab Kepemilikan (Semua Prestasi vs Prestasi Saya) jika Admin/Super Admin */}
+              {isAdminOrSuperAdmin ? (
+                <div className="flex border-b border-slate-200 gap-6">
+                  <button
+                    type="button"
+                    onClick={() => setAchievementFilterTab('all')}
+                    className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+                      achievementFilterTab === 'all'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <Trophy className="w-4 h-4" />
+                    <span>Semua Prestasi ({achievements.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAchievementFilterTab('mine')}
+                    className={`pb-3 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+                      achievementFilterTab === 'mine'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Prestasi Saya ({achievements.filter((a) => isAchievementItemOwner(a)).length})</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-800 flex items-center gap-2.5">
+                  <User className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>
+                    Menampilkan daftar prestasi yang diinput dan dikelola oleh akun Anda (<strong>{currentUser?.name || activeAuthorName}</strong>).
+                  </span>
+                </div>
+              )}
+
+              {/* Stats Counters Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-slate-500">Total Prestasi</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-2xl font-black text-slate-800">{displayedAchievements.length}</span>
+                    <Trophy className="w-5 h-5 text-amber-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-slate-500">Prestasi Siswa</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-2xl font-black text-emerald-600">
+                      {displayedAchievements.filter((a) => a.category === 'Siswa').length}
+                    </span>
+                    <GraduationCap className="w-5 h-5 text-emerald-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-slate-500">Prestasi Guru</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-2xl font-black text-indigo-600">
+                      {displayedAchievements.filter((a) => a.category === 'Guru').length}
+                    </span>
+                    <User className="w-5 h-5 text-indigo-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-slate-500">Tk. Nasional & Provinsi</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-2xl font-black text-rose-600">
+                      {displayedAchievements.filter((a) => a.level === 'Nasional' || a.level === 'Provinsi' || a.level === 'Internasional').length}
+                    </span>
+                    <Medal className="w-5 h-5 text-rose-500" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Search & Filters */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  {/* Search Input */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={achievementSearch}
+                      onChange={(e) => setAchievementSearch(e.target.value)}
+                      placeholder="Cari prestasi, siswa/guru, sekolah, pembimbing..."
+                      className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    />
+                    {achievementSearch && (
+                      <button
+                        onClick={() => setAchievementSearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Pills & Select */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Category Filter */}
+                    <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200">
+                      {(['ALL', 'Siswa', 'Guru'] as const).map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setAchievementCategoryFilter(cat)}
+                          className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                            achievementCategoryFilter === cat
+                              ? 'bg-white text-blue-600 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {cat === 'ALL' ? 'Semua' : cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Level Filter */}
+                    <select
+                      value={achievementLevelFilter}
+                      onChange={(e) => setAchievementLevelFilter(e.target.value as any)}
+                      aria-label="Filter Tingkat Lomba"
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                    >
+                      <option value="ALL">Semua Tingkat</option>
+                      <option value="Internasional">Internasional</option>
+                      <option value="Nasional">Nasional</option>
+                      <option value="Provinsi">Provinsi</option>
+                      <option value="Kabupaten">Kabupaten</option>
+                      <option value="Kecamatan">Kecamatan</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                  <span>
+                    Ditemukan <strong className="text-slate-800">{filteredAchievementsCms.length}</strong> data prestasi
+                  </span>
+                  {(achievementSearch || achievementCategoryFilter !== 'ALL' || achievementLevelFilter !== 'ALL') && (
+                    <button
+                      onClick={() => {
+                        setAchievementSearch('');
+                        setAchievementCategoryFilter('ALL');
+                        setAchievementLevelFilter('ALL');
+                      }}
+                      className="text-blue-600 hover:underline font-semibold flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Reset Filter
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Achievements Data Table */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                {filteredAchievementsCms.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase text-[11px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3.5">Foto</th>
+                          <th className="px-4 py-3.5">Peraih & Sekolah</th>
+                          <th className="px-4 py-3.5">Ajang & Bidang</th>
+                          <th className="px-4 py-3.5">Peringkat & Tingkat</th>
+                          <th className="px-4 py-3.5">Tahun / Waktu</th>
+                          {isAdminOrSuperAdmin && <th className="px-4 py-3.5">Diinput Oleh</th>}
+                          <th className="px-4 py-3.5 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredAchievementsCms.map((item) => {
+                          const photo = item.photoUrl ? formatGoogleDriveImageUrl(item.photoUrl, 200) : '';
+
+                          return (
+                            <tr key={item.id} className="hover:bg-blue-50/40 transition-colors">
+                              {/* Foto Thumbnail */}
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative group">
+                                  {photo ? (
+                                    <img
+                                      src={photo}
+                                      alt={item.recipientName}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                      <Trophy className="w-5 h-5" />
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Peraih & Sekolah */}
+                              <td className="px-4 py-3.5">
+                                <div className="font-bold text-slate-900 line-clamp-1">{item.recipientName}</div>
+                                <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                  <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span className="truncate">{item.schoolName}</span>
+                                </div>
+                                {item.mentorName && (
+                                  <div className="text-[11px] text-slate-400 mt-0.5">
+                                    Pembimbing: {item.mentorName}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Ajang & Bidang */}
+                              <td className="px-4 py-3.5 max-w-xs">
+                                <div className="font-semibold text-slate-800 line-clamp-2 leading-snug">
+                                  {item.title}
+                                </div>
+                                {item.field && (
+                                  <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">
+                                    {item.field}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Peringkat & Tingkat */}
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                <div className="flex flex-col gap-1 items-start">
+                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                    {item.rank}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                    Tingkat {item.level}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* Tahun / Waktu */}
+                              <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-600">
+                                <div className="font-bold text-slate-800">{item.year}</div>
+                                {item.eventDate && (
+                                  <div className="text-[11px] text-slate-400 mt-0.5">{item.eventDate}</div>
+                                )}
+                              </td>
+
+                              {/* Kolom Diinput Oleh (Khusus Admin / Super Admin) */}
+                              {isAdminOrSuperAdmin && (
+                                <td className="px-4 py-3.5 whitespace-nowrap text-xs">
+                                  <div className="font-semibold text-slate-800">
+                                    {item.authorName || 'Super Admin'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500">
+                                    {item.authorRole || 'Admin'}
+                                  </div>
+                                </td>
+                              )}
+
+                              {/* Aksi */}
+                              <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {item.photoUrl && (
+                                    <a
+                                      href={getGoogleDriveViewUrl(item.photoUrl)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                                      title="Buka Foto di Google Drive"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                  )}
+                                  {(isAdminOrSuperAdmin || isAchievementItemOwner(item)) && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditAchievementModal(item)}
+                                        className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                                        title="Edit Prestasi"
+                                      >
+                                        <Edit3 className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteAchievement(item)}
+                                        className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition"
+                                        title="Hapus Prestasi"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                      <Trophy className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-slate-700">Belum ada data prestasi</h4>
+                      <p className="text-xs text-slate-400">
+                        {achievementSearch ? 'Tidak ada hasil yang sesuai dengan kata kunci pencarian.' : 'Klik tombol di bawah untuk mencatat prestasi baru.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openNewAchievementModal}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Tambah Prestasi Sekarang</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* MODAL FORM TAMBAH / EDIT PRESTASI */}
+              {isAchievementModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+                  <div 
+                    className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Modal Header */}
+                    <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                          <Trophy className="w-5 h-5 text-yellow-300" />
+                        </div>
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold">
+                            {editingAchievementId ? 'Edit Data Prestasi' : 'Tambah Prestasi Baru'}
+                          </h3>
+                          <p className="text-xs text-blue-100">
+                            Lengkapi informasi penghargaan dan sertakan link Google Drive foto.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAchievementModalOpen(false)}
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Modal Form Scrollable Body */}
+                    <form onSubmit={handleSaveAchievement} className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
+                      {/* Info Akun Pembuat / Pengelola */}
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/90 text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-800">
+                              {editingAchievementId ? 'Penulis / Pembuat Terdaftar' : 'Akun Penginput Prestasi'}
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              {achievementForm.authorName || currentUser?.name || 'Administrator'} • <span className="font-medium text-blue-600">{achievementForm.authorRole || currentUser?.role || 'Admin'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 shadow-2xs">
+                          {isAdminOrSuperAdmin ? 'Hak Akses Admin' : 'Hak Milik Akun'}
+                        </span>
+                      </div>
+
+                      {/* Judul Kompetisi */}
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">
+                          Nama Ajang / Kompetisi <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={achievementForm.title}
+                          onChange={(e) => setAchievementForm({ ...achievementForm, title: e.target.value })}
+                          placeholder="Misal: Festival dan Lomba Seni Siswa Nasional (FLS2N)"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      </div>
+
+                      {/* Kategori, Bidang Lomba, Tingkat */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Kategori <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            value={achievementForm.category}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, category: e.target.value as AchievementCategory })}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                          >
+                            <option value="Siswa">Siswa</option>
+                            <option value="Guru">Guru & Tendik</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Bidang Lomba
+                          </label>
+                          <select
+                            value={achievementForm.field}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, field: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                          >
+                            <option value="Sains / OSN">Sains / OSN</option>
+                            <option value="Olahraga / O2SN">Olahraga / O2SN</option>
+                            <option value="Seni & Budaya / FLS2N">Seni & Budaya / FLS2N</option>
+                            <option value="Keagamaan / MAPSI">Keagamaan / MAPSI</option>
+                            <option value="Literasi / FTBI">Literasi / FTBI</option>
+                            <option value="Inovasi GTK">Inovasi GTK</option>
+                            <option value="Lainnya">Lainnya</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Tingkat <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            value={achievementForm.level}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, level: e.target.value as AchievementLevel })}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                          >
+                            <option value="Kecamatan">Kecamatan</option>
+                            <option value="Kabupaten">Kabupaten</option>
+                            <option value="Provinsi">Provinsi</option>
+                            <option value="Nasional">Nasional</option>
+                            <option value="Internasional">Internasional</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Peringkat & Tahun */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Peringkat / Kejuaraan <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={achievementForm.rank}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, rank: e.target.value })}
+                            placeholder="Misal: Juara 1, Juara 2, Juara Harapan 1, Medali Emas"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Tahun Prestasi <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            value={achievementForm.year}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, year: parseInt(e.target.value, 10) || new Date().getFullYear() })}
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Nama Peraih & Asal Sekolah */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Nama Lengkap Peraih <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={achievementForm.recipientName}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, recipientName: e.target.value })}
+                            placeholder="Nama siswa atau guru"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Asal Satuan Pendidikan / Sekolah <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            list="school-suggestions"
+                            value={achievementForm.schoolName}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, schoolName: e.target.value })}
+                            placeholder="Ketik atau pilih dari daftar sekolah"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <datalist id="school-suggestions">
+                            {schools.map((s) => (
+                              <option key={s.id} value={s.name} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+
+                      {/* Pembimbing & Tanggal Pelaksanaan */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Nama Guru Pembimbing / Pelatih
+                          </label>
+                          <input
+                            type="text"
+                            value={achievementForm.mentorName}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, mentorName: e.target.value })}
+                            placeholder="Opsional (misal: Dra. Endang Purwanti)"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Waktu / Bulan Pelaksanaan
+                          </label>
+                          <input
+                            type="text"
+                            value={achievementForm.eventDate}
+                            onChange={(e) => setAchievementForm({ ...achievementForm, eventDate: e.target.value })}
+                            placeholder="Misal: Maret 2026 atau 15-18 Agustus 2025"
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Link Foto Google Drive */}
+                      <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200/80 space-y-2">
+                        <label className="block font-bold text-slate-800">
+                          Link Foto Google Drive (Siswa / Guru / Piala)
+                        </label>
+                        <input
+                          type="url"
+                          value={achievementForm.photoUrl}
+                          onChange={(e) => setAchievementForm({ ...achievementForm, photoUrl: e.target.value })}
+                          placeholder="https://drive.google.com/file/d/1A2B3C.../view?usp=sharing"
+                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-mono"
+                        />
+                        <p className="text-[11px] text-slate-500">
+                          Pastikan link Google Drive disetel <em>Siapa saja yang memiliki link dapat melihat</em>. Tidak perlu unggah gambar ke Supabase.
+                        </p>
+
+                        {/* Live Image Preview */}
+                        {achievementForm.photoUrl && (
+                          <div className="pt-2 flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-lg bg-slate-200 overflow-hidden border border-slate-300 shrink-0">
+                              <img
+                                src={formatGoogleDriveImageUrl(achievementForm.photoUrl, 200)}
+                                alt="Pratinjau Foto"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200';
+                                }}
+                              />
+                            </div>
+                            <div className="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span>Pratinjau foto langsung terhubung</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Link Piagam Google Drive */}
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">
+                          Link Piagam / Sertifikat (Google Drive)
+                        </label>
+                        <input
+                          type="url"
+                          value={achievementForm.certificateUrl}
+                          onChange={(e) => setAchievementForm({ ...achievementForm, certificateUrl: e.target.value })}
+                          placeholder="https://drive.google.com/file/d/... (Opsional)"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-mono"
+                        />
+                      </div>
+
+                      {/* Catatan / Cerita Singkat */}
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">
+                          Catatan / Deskripsi Singkat Prestasi
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={achievementForm.description}
+                          onChange={(e) => setAchievementForm({ ...achievementForm, description: e.target.value })}
+                          placeholder="Tuliskan kisah perjuangan singkat, nomor cabang perlombaan, atau kutipan apresiasi..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-sm leading-relaxed"
+                        />
+                      </div>
+
+                      {/* Modal Footer Buttons */}
+                      <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsAchievementModalOpen(false)}
+                          className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs transition"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSavingAchievement}
+                          className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition disabled:opacity-50"
+                        >
+                          {isSavingAchievement ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Menyimpan...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              <span>{editingAchievementId ? 'Simpan Perubahan' : 'Simpan Prestasi'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
