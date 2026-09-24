@@ -2655,6 +2655,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'nominatif': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'nominative': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
+    'achievements': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
+    'prestasi': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'organization': { path: '/profil#organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
     'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
@@ -3064,7 +3066,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // 2. Support /berita/:slug (excluding subtabs)
-      if (rawPath.startsWith('/berita/') && !rawPath.startsWith('/berita/pengumuman') && rawPath !== '/berita/agenda' && rawPath !== '/berita/liputan') {
+      if (
+        rawPath.startsWith('/berita/') &&
+        !rawPath.startsWith('/berita/pengumuman') &&
+        rawPath !== '/berita/agenda' &&
+        rawPath !== '/berita/liputan' &&
+        rawPath !== '/berita/prestasi' &&
+        !rawPath.startsWith('/berita/prestasi')
+      ) {
         const slug = decodeURIComponent(rawPath.replace(/^\/berita\//, '')).trim();
         const cleanSlug = slug.replace(/(^-|-$)/g, '').toLowerCase();
         setActiveTabState('news');
@@ -3401,7 +3410,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Clear selectedNews, selectedAnnouncement, selectedGallery, selectedDocument, selectedSchool, selectedServiceRequirement, and selectedDataRequestSlug if not viewing detail
-      const isNewsSubtabPath = rawPath === '/berita' || rawPath === '/berita/pengumuman' || rawPath === '/berita/agenda' || rawPath === '/berita/liputan';
+      const isNewsSubtabPath =
+        rawPath === '/berita' ||
+        rawPath === '/berita/pengumuman' ||
+        rawPath === '/berita/agenda' ||
+        rawPath === '/berita/liputan' ||
+        rawPath === '/berita/prestasi' ||
+        rawPath.startsWith('/berita/prestasi') ||
+        rawPath === '/prestasi' ||
+        rawPath.startsWith('/prestasi');
       if ((!rawPath.startsWith('/berita/') && !rawPath.startsWith('/b/') && !searchParams.get('berita')) || isNewsSubtabPath) {
         setSelectedNewsState(null);
       }
@@ -3462,6 +3479,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabState('nominatif');
         setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
+      } else if (rawPath === '/berita/prestasi' || rawPath.startsWith('/berita/prestasi') || rawPath === '/prestasi' || rawPath.startsWith('/prestasi')) {
+        setActiveTabState('achievements');
+        setSelectedOrganizationSlugState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedGalleryState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        document.title = TAB_ROUTES['achievements']?.title || 'Prestasi Siswa & Guru - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/berita')) {
         setActiveTabState('news');
         setSelectedOrganizationSlugState(null);
@@ -3575,7 +3602,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('popstate', handleUrlRoute);
       window.removeEventListener('hashchange', handleUrlRoute);
     };
-  }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements, dataRequests]);
+  }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements, dataRequests, achievements]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();
