@@ -189,124 +189,151 @@ export const sendPushBroadcast = async (
     cleanUrl = `https://${cleanUrl}`;
   }
 
-  const payload: any = {
-    app_id: config.appId,
-    included_segments: ['Total Subscriptions', 'Subscribed Users'],
-    headings: {
-      en: cleanTitle,
-      id: cleanTitle
-    },
-    contents: {
-      en: cleanMessage,
-      id: cleanMessage
-    },
-    url: cleanUrl || 'https://korwilcampurwodadi.web.id',
-    chrome_web_icon: 'https://korwilcampurwodadi.web.id/logo.png',
-    chrome_web_badge: 'https://korwilcampurwodadi.web.id/logo.png',
-    firefox_icon: 'https://korwilcampurwodadi.web.id/logo.png',
-    priority: 10, // Prioritas Tertinggi (High Priority FCM) agar langsung tembus ke HP tanpa ditunda batch
-    ttl: 259200 // Masa aktif 3 hari jika perangkat sedang offline
-  };
+  let broadcastSuccess = false;
+  let oneSignalId = '';
+  let recipients = 0;
+  let errMsg = '';
+  let hasNoSubscribersWarning = false;
 
-  if (params.imageUrl && params.imageUrl.trim()) {
-    payload.chrome_web_image = params.imageUrl.trim();
-    payload.big_picture = params.imageUrl.trim();
-  }
-
+  // 1. Prioritas Utama: Kirim via Serverless API Vercel (/api/broadcast)
+  // Aman: Kunci OneSignal REST API Key berada di server dan tidak bocor ke browser pengunjung
   try {
-    const res = await fetch('https://api.onesignal.com/notifications', {
+    const apiRes = await fetch('/api/broadcast', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Authorization': `Key ${config.apiKey}`
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      const errMsg = (data?.errors && Array.isArray(data.errors) ? data.errors.join(', ') : data?.errors) || res.statusText || 'Gagal mengirim push notification ke OneSignal.';
-      
-      const failedRecord: BroadcastNotification = {
-        id: `bc_${Date.now()}`,
+      body: JSON.stringify({
         title: cleanTitle,
         message: cleanMessage,
         targetUrl: cleanUrl,
         imageUrl: params.imageUrl || undefined,
-        sentAt: new Date().toISOString(),
-        recipientsCount: 0,
-        status: 'failed',
-        errorMessage: String(errMsg),
-        createdBy: params.createdBy || 'Super Administrator Korwilcam'
-      };
-      await saveBroadcastRecord(failedRecord);
+        createdBy: params.createdBy
+      })
+    });
 
-      return {
-        success: false,
-        message: `Gagal: ${errMsg}`,
-        record: failedRecord
-      };
+    if (apiRes.status !== 404) {
+      const apiData = await apiRes.json();
+      if (apiRes.ok && apiData.success) {
+        broadcastSuccess = true;
+        oneSignalId = apiData.oneSignalId || `os_${Date.now()}`;
+        recipients = apiData.recipientsCount || 0;
+        const detailsErrors = apiData.data?.errors;
+        hasNoSubscribersWarning = Array.isArray(detailsErrors) && detailsErrors.some((e: string) => e.toLowerCase().includes('not subscribed'));
+      } else {
+        errMsg = apiData.message || 'Gagal mengirim push notification dari server.';
+      }
+    } else {
+      // 404: Lingkungan dev lokal tanpa serverless runtime Vercel
+      throw new Error('API_ENDPOINT_404');
     }
+  } catch (serverlessErr: any) {
+    // 2. Fallback untuk lingkungan pengujian lokal offline jika /api/broadcast tidak merespons
+    if (config.apiKey) {
+      try {
+        const payload: any = {
+          app_id: config.appId,
+          included_segments: ['Total Subscriptions', 'Subscribed Users'],
+          headings: {
+            en: cleanTitle,
+            id: cleanTitle
+          },
+          contents: {
+            en: cleanMessage,
+            id: cleanMessage
+          },
+          url: cleanUrl || 'https://korwilcampurwodadi.web.id',
+          chrome_web_icon: 'https://korwilcampurwodadi.web.id/logo.png',
+          chrome_web_badge: 'https://korwilcampurwodadi.web.id/logo.png',
+          firefox_icon: 'https://korwilcampurwodadi.web.id/logo.png',
+          priority: 10,
+          ttl: 259200
+        };
 
-    // Jika OneSignal mengembalikan respons berhasil
-    // Note: jika belum ada subscriber, OneSignal mengembalikan: { id: "", errors: ["All included players are not subscribed"] }
-    const hasNoSubscribersWarning = Array.isArray(data?.errors) && data.errors.some((e: string) => e.toLowerCase().includes('not subscribed'));
-    const recipients = data?.recipients || (hasNoSubscribersWarning ? 0 : 1);
-    const oneSignalId = data?.id || `os_${Date.now()}`;
+        if (params.imageUrl && params.imageUrl.trim()) {
+          payload.chrome_web_image = params.imageUrl.trim();
+          payload.big_picture = params.imageUrl.trim();
+        }
 
-    const successRecord: BroadcastNotification = {
+        const res = await fetch('https://api.onesignal.com/notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': `Key ${config.apiKey}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          broadcastSuccess = true;
+          oneSignalId = data?.id || `os_${Date.now()}`;
+          hasNoSubscribersWarning = Array.isArray(data?.errors) && data.errors.some((e: string) => e.toLowerCase().includes('not subscribed'));
+          recipients = data?.recipients || (hasNoSubscribersWarning ? 0 : 1);
+        } else {
+          errMsg = (data?.errors && Array.isArray(data.errors) ? data.errors.join(', ') : data?.errors) || res.statusText || 'Gagal mengirim push notification ke OneSignal.';
+        }
+      } catch (directErr: any) {
+        errMsg = directErr?.message || 'Gagal menghubungi server OneSignal.';
+      }
+    } else {
+      errMsg = 'Gagal menghubungi server pengiriman notifikasi /api/broadcast.';
+    }
+  }
+
+  if (!broadcastSuccess) {
+    const failedRecord: BroadcastNotification = {
       id: `bc_${Date.now()}`,
       title: cleanTitle,
       message: cleanMessage,
       targetUrl: cleanUrl,
       imageUrl: params.imageUrl || undefined,
       sentAt: new Date().toISOString(),
-      recipientsCount: recipients,
-      oneSignalId,
-      status: 'sent',
-      errorMessage: hasNoSubscribersWarning ? 'Sinyal terkirim ke OneSignal. Belum ada perangkat pengunjung yang mengklik "Izinkan" notifikasi.' : undefined,
-      createdBy: params.createdBy || 'Super Administrator Korwilcam'
-    };
-
-    await saveBroadcastRecord(successRecord);
-
-    if (hasNoSubscribersWarning) {
-      return {
-        success: true,
-        message: 'Broadcast berhasil dikirim ke server OneSignal! Namun saat ini belum ada perangkat pengunjung yang mengaktifkan izin notifikasi.',
-        oneSignalId,
-        recipientsCount: 0,
-        record: successRecord
-      };
-    }
-
-    return {
-      success: true,
-      message: `Broadcast berhasil dikirim ke perangkat pelanggan! (ID: ${oneSignalId.slice(0, 8)}...)`,
-      oneSignalId,
-      recipientsCount: recipients,
-      record: successRecord
-    };
-  } catch (err: any) {
-    const errorString = err?.message || 'Terjadi kesalahan koneksi saat mengirim broadcast.';
-    const failedRecord: BroadcastNotification = {
-      id: `bc_${Date.now()}`,
-      title: cleanTitle,
-      message: cleanMessage,
-      targetUrl: cleanUrl,
-      sentAt: new Date().toISOString(),
       recipientsCount: 0,
       status: 'failed',
-      errorMessage: errorString,
-      createdBy: params.createdBy || 'Admin'
+      errorMessage: String(errMsg || 'Gagal mengirim push notification.'),
+      createdBy: params.createdBy || 'Super Administrator Korwilcam'
     };
     await saveBroadcastRecord(failedRecord);
 
     return {
       success: false,
-      message: `Terjadi kendala jaringan: ${errorString}`,
+      message: `Gagal: ${errMsg || 'Tidak dapat mengirim notifikasi.'}`,
       record: failedRecord
     };
   }
+
+  const successRecord: BroadcastNotification = {
+    id: `bc_${Date.now()}`,
+    title: cleanTitle,
+    message: cleanMessage,
+    targetUrl: cleanUrl,
+    imageUrl: params.imageUrl || undefined,
+    sentAt: new Date().toISOString(),
+    recipientsCount: recipients,
+    oneSignalId: oneSignalId || `os_${Date.now()}`,
+    status: 'sent',
+    errorMessage: hasNoSubscribersWarning ? 'Sinyal terkirim ke OneSignal. Belum ada perangkat pengunjung yang mengklik "Izinkan" notifikasi.' : undefined,
+    createdBy: params.createdBy || 'Super Administrator Korwilcam'
+  };
+
+  await saveBroadcastRecord(successRecord);
+
+  if (hasNoSubscribersWarning) {
+    return {
+      success: true,
+      message: 'Broadcast berhasil dikirim ke server OneSignal! Namun saat ini belum ada perangkat pengunjung yang mengaktifkan izin notifikasi.',
+      oneSignalId,
+      recipientsCount: 0,
+      record: successRecord
+    };
+  }
+
+  return {
+    success: true,
+    message: `Broadcast berhasil dikirim ke perangkat pelanggan! (ID: ${(oneSignalId || '').slice(0, 8)}...)`,
+    oneSignalId,
+    recipientsCount: recipients,
+    record: successRecord
+  };
 };

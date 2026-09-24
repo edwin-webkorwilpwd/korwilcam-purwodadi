@@ -809,11 +809,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
-      localStorage.setItem('korwilcam_admin_users', JSON.stringify(adminUsers));
+      if (isAuthenticated && currentUser?.role === 'Super Admin') {
+        localStorage.setItem('korwilcam_admin_users', JSON.stringify(adminUsers));
+      } else {
+        localStorage.removeItem('korwilcam_admin_users');
+      }
     } catch {
       // ignore
     }
-  }, [adminUsers]);
+  }, [adminUsers, isAuthenticated, currentUser]);
 
   useEffect(() => {
     try {
@@ -1870,14 +1874,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
-      // Fetch admin_users
+      // Fetch admin_users (HANYA kolom non-sensitif, kolom password tidak pernah ditarik ke browser)
       try {
-        const { data: dbUsers, error: usersErr } = await client.from('admin_users').select('*');
+        const { data: dbUsers, error: usersErr } = await client
+          .from('admin_users')
+          .select('id, username, name, role, email, avatar, status, created_at, updated_at');
         if (!usersErr && dbUsers && dbUsers.length > 0) {
           setAdminUsers(dbUsers.map((u: any) => ({
             id: u.id,
             username: u.username,
-            password: u.password,
             name: u.name,
             role: u.role as AdminRole,
             email: u.email || '',
@@ -2133,18 +2138,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
       await client.from('complaints').upsert(compPayload);
 
-      // 10. Admin Users
+      // 10. Admin Users (Hanya data profil, password di database tidak ditimpa sembarangan)
       try {
-        const usersPayload = adminUsers.map((u) => ({
-          id: u.id,
-          username: u.username,
-          password: u.password || 'admin123',
-          name: u.name,
-          role: u.role,
-          email: u.email || '',
-          avatar: u.avatar || '',
-          status: u.status || 'Aktif'
-        }));
+        const usersPayload = adminUsers.map((u) => {
+          const item: any = {
+            id: u.id,
+            username: u.username,
+            name: u.name,
+            role: u.role,
+            email: u.email || '',
+            avatar: u.avatar || '',
+            status: u.status || 'Aktif'
+          };
+          if (u.password) {
+            item.password = u.password;
+          }
+          return item;
+        });
         await client.from('admin_users').upsert(usersPayload);
       } catch (uErr) {
         console.warn('Gagal ekspor tabel admin_users:', uErr);
@@ -2389,12 +2399,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'postgres_changes',
         { event: '*', schema: 'public', table: 'admin_users' },
         async () => {
-          const { data: dbUsers } = await client.from('admin_users').select('*');
+          const { data: dbUsers } = await client
+            .from('admin_users')
+            .select('id, username, name, role, email, avatar, status, created_at, updated_at');
           if (dbUsers) {
             setAdminUsers(dbUsers.map((u: any) => ({
               id: u.id,
               username: u.username,
-              password: u.password,
               name: u.name,
               role: u.role as AdminRole,
               email: u.email || '',
@@ -3427,28 +3438,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (client) {
       try {
-        // Escape PostgREST wildcard characters (% and _) to prevent wildcard injection
-        const sanitizedUser = trimmedUser.replace(/[%_\\]/g, '\\$&');
+        let u: any = null;
 
-        const { data, error } = await client
-          .from('admin_users')
-          .select('*')
-          .ilike('username', sanitizedUser)
-          .eq('password', trimmedPass)
-          .limit(1);
+        // METODE 1 (AMAN): Panggil RPC verify_admin_login yang berjalan terlindungi di dalam server Supabase
+        const { data: rpcData, error: rpcError } = await client.rpc('verify_admin_login', {
+          p_username: trimmedUser,
+          p_password: trimmedPass
+        });
 
-        if (error) {
-          console.error('Supabase query error saat login admin_users:', error);
-          setIsAuthenticated(false);
-          setCurrentUser(null);
-          localStorage.removeItem('korwilcam_admin_auth');
-          localStorage.removeItem('korwilcam_current_user');
-          showToast('Terjadi gangguan saat memverifikasi akun ke Supabase: ' + error.message, 'error');
-          return false;
+        if (!rpcError && Array.isArray(rpcData)) {
+          if (rpcData.length > 0) {
+            u = rpcData[0];
+          }
+        } else {
+          // METODE 2 (FALLBACK): Jika script SQL RPC belum sempat dieksekusi di Supabase SQL Editor
+          const sanitizedUser = trimmedUser.replace(/[%_\\]/g, '\\$&');
+
+          const { data, error } = await client
+            .from('admin_users')
+            .select('id, username, name, role, email, avatar, status, created_at, updated_at')
+            .ilike('username', sanitizedUser)
+            .eq('password', trimmedPass)
+            .limit(1);
+
+          if (error) {
+            console.error('Supabase query error saat login admin_users:', error);
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            localStorage.removeItem('korwilcam_admin_auth');
+            localStorage.removeItem('korwilcam_current_user');
+            showToast('Terjadi gangguan saat memverifikasi akun ke Supabase: ' + error.message, 'error');
+            return false;
+          }
+
+          if (data && data.length > 0) {
+            u = data[0];
+          }
         }
 
-        if (data && data.length > 0) {
-          const u = data[0];
+        if (u) {
           // Validasi ketat username persis sama (case-insensitive)
           if (u.username.toLowerCase() !== trimmedUser.toLowerCase()) {
             recordAttempt('admin_login', 5, 180, 60);
