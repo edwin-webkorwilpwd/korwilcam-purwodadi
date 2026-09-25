@@ -166,6 +166,19 @@ export function getGoogleDriveFolderViewUrl(url: string): string {
 }
 
 /**
+ * Mendapatkan URL Google Drive embedded folder view untuk ditampilkan dalam iframe
+ */
+export function getGoogleDriveEmbeddedFolderUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const folderId = extractGoogleDriveFolderId(trimmed);
+  if (folderId) {
+    return `https://drive.google.com/embeddedfolderview?id=${folderId}#grid`;
+  }
+  return trimmed;
+}
+
+/**
  * Mengekstrak banyak URL / File ID Google Drive dari sebuah blok teks (multi-link/multi-line)
  */
 export function parseGoogleDriveImageLinks(text: string): string[] {

@@ -72,7 +72,8 @@ import {
   Send,
   Smartphone,
   Trophy,
-  Medal
+  Medal,
+  HelpCircle
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -81,6 +82,7 @@ import {
   extractGoogleDriveFolderId,
   isGoogleDriveFolderUrl,
   getGoogleDriveFolderViewUrl,
+  getGoogleDriveEmbeddedFolderUrl,
   parseGoogleDriveImageLinks
 } from '../../lib/driveHelper';
 import { 
@@ -821,7 +823,7 @@ export const AdminDashboard: React.FC = () => {
     setTestResult(res);
     if (res.success) {
       showToast('Koneksi Supabase tersimpan permanen & aktif otomatis untuk semua pengunjung!', 'success');
-      await refreshFromSupabase();
+      await refreshFromSupabase(true);
     } else {
       showToast('Kredensial disimpan, namun koneksi belum terverifikasi.', 'info');
     }
@@ -2653,13 +2655,14 @@ export const AdminDashboard: React.FC = () => {
   const [galleryForm, setGalleryForm] = useState({
     title: '',
     category: 'Kegiatan Belajar' as string,
-    image: '',
-    images: [] as string[],
+    driveFolderUrl: '',
+    coverImage: '',
     description: '',
     authorId: currentUser?.id || '',
     authorName: activeAuthorName as string,
     authorRole: activeUserRole as string
   });
+  const [showDriveEmbedPreview, setShowDriveEmbedPreview] = useState<boolean>(false);
 
   // Helper cek kepemilikan album galeri berdasarkan akun/role login
   const isGalleryItemOwner = (item: GalleryItem) => {
@@ -2720,69 +2723,28 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const galleryMultiPhotoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleGalleryMultiUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    showToast(`Memproses ${files.length} foto untuk album...`, 'info');
-    const newPhotos: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      try {
-        const dataUrl = await compressImage(files[i], 1200, 0.82);
-        newPhotos.push(dataUrl);
-      } catch (err) {
-        console.error('Failed to compress gallery photo:', err);
-      }
-    }
-
-    if (newPhotos.length > 0) {
-      setGalleryForm((prev) => {
-        const updatedImages = [...prev.images, ...newPhotos];
-        return {
-          ...prev,
-          images: updatedImages,
-          image: prev.image || updatedImages[0]
-        };
-      });
-      showToast(`${newPhotos.length} foto berhasil ditambahkan ke folder album!`, 'success');
-    }
-    e.target.value = '';
-  };
-
-  const handleRemoveGalleryPhoto = (index: number) => {
-    setGalleryForm((prev) => {
-      const updatedImages = prev.images.filter((_, idx) => idx !== index);
-      return {
-        ...prev,
-        images: updatedImages,
-        image: updatedImages[0] || ''
-      };
-    });
-  };
-
-  const handleSetCoverPhoto = (photoUrl: string) => {
-    setGalleryForm((prev) => ({
-      ...prev,
-      image: photoUrl
-    }));
-    showToast('Foto sampul folder album berhasil diatur.', 'info');
-  };
-
   const handleSaveGallery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!galleryForm.title) {
+    const trimmedTitle = galleryForm.title.trim();
+    if (!trimmedTitle) {
       showToast('Judul album kegiatan wajib diisi!', 'error');
       return;
     }
-    if (galleryForm.images.length === 0 && !galleryForm.image) {
-      showToast('Harap upload minimal 1 foto ke dalam folder album!', 'error');
+    const trimmedDriveUrl = galleryForm.driveFolderUrl.trim();
+    if (!trimmedDriveUrl) {
+      showToast('Link folder Google Drive wajib diisi!', 'error');
+      return;
+    }
+    const folderId = extractGoogleDriveFolderId(trimmedDriveUrl);
+    if (!folderId) {
+      showToast('Format link folder Google Drive tidak valid! Pastikan link berupa tautan folder Google Drive (drive.google.com/drive/folders/...).', 'error');
       return;
     }
 
-    const primaryCover = galleryForm.image || galleryForm.images[0];
-    const imagesList = galleryForm.images.length > 0 ? galleryForm.images : [primaryCover];
+    const trimmedCover = galleryForm.coverImage.trim();
+    const formattedCover = trimmedCover ? formatGoogleDriveImageUrl(trimmedCover) : '';
+    const primaryCover = formattedCover || trimmedDriveUrl;
+    const imagesList = formattedCover ? [formattedCover] : [];
 
     if (editingGalleryId) {
       const existingItem = gallery.find((g) => g.id === editingGalleryId);
@@ -2795,18 +2757,19 @@ export const AdminDashboard: React.FC = () => {
         title: 'Konfirmasi Perubahan Album Galeri',
         message: 'Apakah Anda yakin ingin menyimpan perubahan pada album galeri ini?',
         type: 'edit',
-        itemName: galleryForm.title,
+        itemName: trimmedTitle,
         confirmText: 'Ya, Perbarui',
         cancelText: 'Tidak, Batalkan'
       });
       if (!confirmed) return;
 
       await updateGalleryItem(editingGalleryId, {
-        title: galleryForm.title,
+        title: trimmedTitle,
         category: galleryForm.category,
+        driveFolderUrl: trimmedDriveUrl,
         image: primaryCover,
         images: imagesList,
-        description: galleryForm.description,
+        description: galleryForm.description.trim(),
         authorId: existingItem?.authorId || currentUser?.id,
         authorName: galleryForm.authorName || activeAuthorName,
         authorRole: galleryForm.authorRole || activeUserRole
@@ -2814,16 +2777,17 @@ export const AdminDashboard: React.FC = () => {
       setEditingGalleryId(null);
       showNoticePopup({
         title: 'Galeri Diperbarui!',
-        message: `Album kegiatan "${galleryForm.title}" berhasil diperbarui.`,
+        message: `Album kegiatan "${trimmedTitle}" berhasil diperbarui.`,
         type: 'success'
       });
     } else {
       await addGalleryItem({
-        title: galleryForm.title,
+        title: trimmedTitle,
         category: galleryForm.category,
+        driveFolderUrl: trimmedDriveUrl,
         image: primaryCover,
         images: imagesList,
-        description: galleryForm.description,
+        description: galleryForm.description.trim(),
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
         authorId: currentUser?.id,
         authorName: currentUser?.name || galleryForm.authorName || activeAuthorName,
@@ -2831,7 +2795,7 @@ export const AdminDashboard: React.FC = () => {
       });
       showNoticePopup({
         title: 'Album Galeri Dibuat!',
-        message: `Album kegiatan "${galleryForm.title}" berhasil disimpan dan tayang di website.`,
+        message: `Album kegiatan "${trimmedTitle}" berhasil disimpan dan tayang di website.`,
         type: 'success'
       });
     }
@@ -2839,13 +2803,14 @@ export const AdminDashboard: React.FC = () => {
     setGalleryForm({
       title: '',
       category: 'Kegiatan Belajar',
-      image: '',
-      images: [],
+      driveFolderUrl: '',
+      coverImage: '',
       description: '',
       authorId: currentUser?.id || '',
       authorName: activeAuthorName,
       authorRole: activeUserRole
     });
+    setShowDriveEmbedPreview(false);
   };
 
   // --- 7. CONTACT & COMPLAINTS CMS STATE ---
@@ -4432,7 +4397,7 @@ export const AdminDashboard: React.FC = () => {
                           disabled={isExporting}
                           onClick={async () => {
                             setIsExporting(true);
-                            const success = await refreshFromSupabase();
+                            const success = await refreshFromSupabase(true);
                             setIsExporting(false);
                             if (success) {
                               showToast('Data terbaru dari database Supabase Cloud berhasil dimuat!', 'success');
@@ -5011,7 +4976,7 @@ export const AdminDashboard: React.FC = () => {
                       onClick={async () => {
                         setIsSyncingStaff(true);
                         try {
-                          await refreshFromSupabase();
+                          await refreshFromSupabase(true);
                           showToast('Data staf & foto berhasil dimuat ulang langsung dari Supabase Cloud!', 'success');
                         } finally {
                           setIsSyncingStaff(false);
@@ -11446,103 +11411,168 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Upload Multi-Foto Folder Album Kegiatan */}
-                <div className="space-y-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                {/* 1. INPUT LINK FOLDER GOOGLE DRIVE */}
+                <div className="space-y-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200/80 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <Folder className="w-4 h-4 text-amber-500" />
-                        <span>Koleksi Foto Album Kegiatan (Bisa Upload Lebih dari 1 Foto) *</span>
+                        <Folder className="w-4 h-4 text-amber-500 fill-amber-500/20" />
+                        <span>Link Folder Google Drive (Dokumentasi Foto) *</span>
                       </label>
-                      <p className="text-[11px] text-slate-500">
-                        Pilih foto-foto dari komputer Anda. Semua foto ini akan dikelompokkan dalam 1 folder judul kegiatan.
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Salin tautan folder dari Google Drive yang memuat seluruh foto dokumentasi kegiatan ini.
                       </p>
                     </div>
 
-                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shrink-0 self-start sm:self-auto">
-                      {galleryForm.images.length} Foto Siap Disimpan
-                    </span>
+                    {extractGoogleDriveFolderId(galleryForm.driveFolderUrl) ? (
+                      <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100/90 px-3 py-1 rounded-full border border-emerald-300 shrink-0 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 stroke-[3] text-emerald-600" />
+                        <span>Link Folder Valid</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-3 py-1 rounded-full border border-amber-200 shrink-0">
+                        Wajib Diisi Link Folder Drive
+                      </span>
+                    )}
                   </div>
 
-                  {/* Upload Button & Trigger */}
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => galleryMultiPhotoInputRef.current?.click()}
-                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-colors flex items-center gap-2"
-                    >
-                      <UploadCloud className="w-4 h-4" />
-                      <span>Pilih & Upload Foto dari Komputer</span>
-                    </button>
-                    <span className="text-xs text-slate-400">
-                      *Mendukung upload banyak file foto sekaligus (JPG, PNG, WebP)
-                    </span>
-                    <input
-                      ref={galleryMultiPhotoInputRef}
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleGalleryMultiUpload}
-                      className="hidden"
-                    />
-                  </div>
-
-                  {/* Uploaded Photos Grid */}
-                  {galleryForm.images.length > 0 ? (
-                    <div className="space-y-2 pt-2 border-t border-slate-200/80">
-                      <div className="flex items-center justify-between text-[11px] text-slate-500">
-                        <span>Daftar Foto dalam Album ini (Klik ikon bintang untuk memilih Sampul Utama):</span>
-                        <span className="font-semibold text-slate-700">{galleryForm.images.length} Foto Terpilih</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                        {galleryForm.images.map((photo, pIdx) => {
-                          const isPrimaryCover = (galleryForm.image === photo) || (!galleryForm.image && pIdx === 0);
-                          return (
-                            <div 
-                              key={pIdx}
-                              className={`relative group rounded-xl overflow-hidden border-2 shadow-sm aspect-square bg-slate-900 ${
-                                isPrimaryCover ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-slate-200'
-                              }`}
-                            >
-                              <img src={photo} alt={`Foto ${pIdx + 1}`} className="w-full h-full object-cover" />
-                              
-                              {/* Primary Cover Badge */}
-                              {isPrimaryCover && (
-                                <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500 text-white shadow flex items-center gap-0.5">
-                                  <Star className="w-2.5 h-2.5 fill-white" /> Sampul
-                                </span>
-                              )}
-
-                              {/* Action Overlay */}
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 p-1">
-                                {!isPrimaryCover && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSetCoverPhoto(photo)}
-                                    className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold transition-colors"
-                                    title="Jadikan Foto Sampul Utama"
-                                  >
-                                    <Star className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveGalleryPhoto(pIdx)}
-                                  className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors"
-                                  title="Hapus foto ini dari album"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                  {/* Input URL Folder */}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="url"
+                        required
+                        value={galleryForm.driveFolderUrl}
+                        onChange={(e) => setGalleryForm({ ...galleryForm, driveFolderUrl: e.target.value })}
+                        placeholder="Contoh: https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-blue-300 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs"
+                      />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 pointer-events-none">
+                        <Folder className="w-4 h-4" />
                       </div>
                     </div>
-                  ) : (
-                    <div className="p-6 rounded-xl border border-dashed border-slate-300 text-center text-slate-400 text-xs">
-                      Belum ada foto yang dipilih. Klik tombol di atas untuk memilih foto dari laptop/komputer Anda.
+
+                    {/* Feedback / Validation Status */}
+                    {galleryForm.driveFolderUrl.trim() && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                        {extractGoogleDriveFolderId(galleryForm.driveFolderUrl) ? (
+                          <div className="flex items-center gap-2 text-emerald-700 font-semibold text-[11px]">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>Folder Terdeteksi (ID: <code className="bg-white px-1.5 py-0.5 rounded border border-emerald-200 font-mono text-[10px]">{extractGoogleDriveFolderId(galleryForm.driveFolderUrl)}</code>)</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-rose-600 text-[11px] font-medium">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>Tautan bukan tautan folder Google Drive yang valid. Pastikan link memiliki format: <code>drive.google.com/drive/folders/[ID]</code></span>
+                          </div>
+                        )}
+
+                        {extractGoogleDriveFolderId(galleryForm.driveFolderUrl) && (
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={getGoogleDriveFolderViewUrl(galleryForm.driveFolderUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold shadow-xs hover:bg-blue-700 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Uji Buka Folder</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setShowDriveEmbedPreview(!showDriveEmbedPreview)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold transition-colors"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>{showDriveEmbedPreview ? 'Tutup Preview' : 'Preview Foto'}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Live Embedded Folder Preview Inside Form */}
+                    {showDriveEmbedPreview && extractGoogleDriveFolderId(galleryForm.driveFolderUrl) && (
+                      <div className="mt-3 rounded-2xl overflow-hidden border border-blue-300 shadow-sm bg-slate-900">
+                        <div className="px-3 py-2 bg-slate-800 text-white text-xs font-bold flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Folder className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Preview Tampilan Folder Google Drive</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowDriveEmbedPreview(false)}
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="w-full h-80 bg-slate-100">
+                          <iframe
+                            src={getGoogleDriveEmbeddedFolderUrl(galleryForm.driveFolderUrl)}
+                            className="w-full h-full border-0"
+                            title="Preview Folder Google Drive"
+                            allow="autoplay"
+                            loading="lazy"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Panduan Cara Berbagi Folder Google Drive */}
+                  <div className="p-3.5 rounded-xl bg-blue-100/60 border border-blue-200/80 text-[11px] text-blue-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-blue-950">
+                      <HelpCircle className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Cara Mengatur Akses Publik Folder Google Drive:</span>
+                    </p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-blue-800/90 pl-1 leading-relaxed">
+                      <li>Buka Google Drive (<a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-blue-700 hover:text-blue-900">drive.google.com</a>) dan buka/buat folder kegiatan Anda.</li>
+                      <li>Klik kanan pada folder tersebut &gt; pilih <strong>Bagikan (Share)</strong>.</li>
+                      <li>Pada bagian <strong>Akses umum</strong>, ubah dari <em>Dibatasi</em> menjadi <strong>Siapa saja yang memiliki link (Pelihat)</strong>.</li>
+                      <li>Klik <strong>Salin link</strong>, lalu tempelkan (paste) ke dalam kolom di atas.</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* 2. INPUT LINK FOTO SAMPUL / COVER (OPSIONAL) */}
+                <div className="space-y-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Link Foto Sampul Album (Opsional)</span>
+                    </label>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Masukkan link salah satu foto dari Google Drive untuk dijadikan thumbnail sampul album di halaman depan. Jika dikosongkan, sistem akan otomatis menggunakan sampul visual resmi Google Drive.
+                    </p>
+                  </div>
+
+                  <input
+                    type="url"
+                    value={galleryForm.coverImage}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, coverImage: e.target.value })}
+                    placeholder="Contoh: https://drive.google.com/file/d/1aBcDe.../view?usp=sharing atau link gambar langsung"
+                    className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  />
+
+                  {galleryForm.coverImage.trim() && (
+                    <div className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-200">
+                      <div className="w-16 h-12 rounded-lg bg-slate-900 overflow-hidden shrink-0 border border-slate-200">
+                        <img
+                          src={formatGoogleDriveImageUrl(galleryForm.coverImage, 200)}
+                          alt="Preview Sampul"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs min-w-0">
+                        <span className="font-bold text-slate-800 block truncate">Preview Foto Sampul Utama</span>
+                        <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
+                          <Check className="w-3 h-3" /> Foto sampul berhasil terdeteksi
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -11574,13 +11604,14 @@ export const AdminDashboard: React.FC = () => {
                         setGalleryForm({
                           title: '',
                           category: 'Kegiatan Belajar',
-                          image: '',
-                          images: [],
+                          driveFolderUrl: '',
+                          coverImage: '',
                           description: '',
                           authorId: currentUser?.id || '',
                           authorName: activeAuthorName,
                           authorRole: activeUserRole
                         });
+                        setShowDriveEmbedPreview(false);
                       }}
                       className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-xs"
                     >
@@ -11641,28 +11672,59 @@ export const AdminDashboard: React.FC = () => {
               {displayedGallery.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {displayedGallery.map((item) => {
-                    const totalPhotos = (item.images && item.images.length > 0) ? item.images.length : (item.image ? 1 : 0);
+                    const isDrive = Boolean(item.driveFolderUrl || isGoogleDriveFolderUrl(item.image));
+                    const hasCover = Boolean(item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders'));
+                    const coverSrc = hasCover ? formatGoogleDriveImageUrl(item.image, 500) : '';
+                    const folderUrl = item.driveFolderUrl || (isGoogleDriveFolderUrl(item.image) ? item.image : '');
                     const canManageItem = isGalleryItemOwner(item) || isAdminOrSuperAdmin;
 
                     return (
                       <div key={item.id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm group">
                         <div className="relative h-44 bg-slate-900">
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                          {coverSrc ? (
+                            <>
+                              <img src={coverSrc} alt={item.title} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                            </>
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-[#1b56ce] via-[#163fa8] to-[#0f172a] p-4 flex flex-col justify-between">
+                              <div className="flex items-center justify-between">
+                                <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center">
+                                  <Folder className="w-4 h-4 text-amber-300 fill-amber-300/30" />
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-white/20 text-white">
+                                  Google Drive
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-extrabold uppercase text-blue-200">Cloud Album</span>
+                                <p className="text-xs font-bold text-white line-clamp-2 mt-0.5">
+                                  {item.title}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                           
                           <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white">
                             {item.category}
                           </span>
 
-                          {/* Folder badge with count */}
-                          <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-sm flex items-center gap-1">
-                            <Folder className="w-3 h-3" />
-                            <span>{totalPhotos} Foto</span>
-                          </span>
+                          {/* Drive folder badge */}
+                          {isDrive ? (
+                            <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white shadow-sm flex items-center gap-1 border border-white/30">
+                              <Folder className="w-3 h-3 text-amber-300 fill-amber-300/20" />
+                              <span>Folder Drive</span>
+                            </span>
+                          ) : (
+                            <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-sm flex items-center gap-1">
+                              <Folder className="w-3 h-3" />
+                              <span>{item.images?.length || 1} Foto</span>
+                            </span>
+                          )}
                         </div>
                         <div className="p-3.5 space-y-2">
                           <h4 className="font-bold text-slate-900 text-xs line-clamp-1">{item.title}</h4>
-                          <p className="text-[11px] text-slate-500 line-clamp-1">{item.description}</p>
+                          <p className="text-[11px] text-slate-500 line-clamp-1">{item.description || 'Tidak ada deskripsi'}</p>
                           
                           {/* Pengunggah Info Badge */}
                           <div className="flex items-center gap-1.5 text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100 w-fit">
@@ -11673,67 +11735,84 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[11px]">
                             <span className="text-slate-400 font-mono">{item.date}</span>
                             
-                            {canManageItem ? (
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={() => {
-                                    setEditingGalleryId(item.id);
-                                    setGalleryForm({
-                                      title: item.title,
-                                      category: item.category,
-                                      image: item.image,
-                                      images: (item.images && item.images.length > 0) ? [...item.images] : [item.image],
-                                      description: item.description,
-                                      authorId: item.authorId || '',
-                                      authorName: item.authorName || activeAuthorName,
-                                      authorRole: item.authorRole || activeUserRole
-                                    });
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  }}
-                                  className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                  title={isAdminOrSuperAdmin ? "Edit Album" : "Edit Album Saya"}
+                            <div className="flex items-center gap-1.5">
+                              {folderUrl && (
+                                <a
+                                  href={getGoogleDriveFolderViewUrl(folderUrl)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                                  title="Buka Folder di Google Drive"
                                 >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    if (!isGalleryItemOwner(item) && !isAdminOrSuperAdmin) {
-                                      showNoticePopup({
-                                        title: 'Akses Ditolak!',
-                                        message: 'Anda tidak memiliki hak akses untuk menghapus album yang diunggah oleh akun atau role lain.',
-                                        type: 'warning'
-                                      });
-                                      return;
-                                    }
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              )}
 
-                                    const confirmed = await showConfirmDialog({
-                                      title: 'Hapus Album Galeri Ini?',
-                                      message: `Apakah Anda yakin ingin menghapus album galeri "${item.title}"?`,
-                                      type: 'delete',
-                                      itemName: item.title,
-                                      confirmText: 'Ya, Hapus Album',
-                                      cancelText: 'Tidak, Batalkan'
-                                    });
-                                    if (!confirmed) return;
-                                    deleteGalleryItem(item.id);
-                                    showNoticePopup({
-                                      title: 'Album Galeri Dihapus!',
-                                      message: `Album "${item.title}" telah berhasil dihapus.`,
-                                      type: 'success'
-                                    });
-                                  }}
-                                  className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                                  title="Hapus Album"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200" title="Hanya akun pengunggah atau Administrator yang dapat mengedit/menghapus">
-                                <Lock className="w-2.5 h-2.5 text-slate-400" />
-                                <span>Hanya Pemilik</span>
-                              </span>
-                            )}
+                              {canManageItem ? (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      const itemFolder = item.driveFolderUrl || (isGoogleDriveFolderUrl(item.image) ? item.image : '');
+                                      const itemCover = item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders') ? item.image : '';
+                                      setEditingGalleryId(item.id);
+                                      setGalleryForm({
+                                        title: item.title,
+                                        category: item.category,
+                                        driveFolderUrl: itemFolder,
+                                        coverImage: itemCover,
+                                        description: item.description || '',
+                                        authorId: item.authorId || '',
+                                        authorName: item.authorName || activeAuthorName,
+                                        authorRole: item.authorRole || activeUserRole
+                                      });
+                                      setShowDriveEmbedPreview(false);
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                    title={isAdminOrSuperAdmin ? "Edit Album" : "Edit Album Saya"}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      if (!isGalleryItemOwner(item) && !isAdminOrSuperAdmin) {
+                                        showNoticePopup({
+                                          title: 'Akses Ditolak!',
+                                          message: 'Anda tidak memiliki hak akses untuk menghapus album yang diunggah oleh akun atau role lain.',
+                                          type: 'warning'
+                                        });
+                                        return;
+                                      }
+
+                                      const confirmed = await showConfirmDialog({
+                                        title: 'Hapus Album Galeri Ini?',
+                                        message: `Apakah Anda yakin ingin menghapus album galeri "${item.title}"?`,
+                                        type: 'delete',
+                                        itemName: item.title,
+                                        confirmText: 'Ya, Hapus Album',
+                                        cancelText: 'Tidak, Batalkan'
+                                      });
+                                      if (!confirmed) return;
+                                      deleteGalleryItem(item.id);
+                                      showNoticePopup({
+                                        title: 'Album Galeri Dihapus!',
+                                        message: `Album "${item.title}" telah berhasil dihapus.`,
+                                        type: 'success'
+                                      });
+                                    }}
+                                    className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                    title="Hapus Album"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200" title="Hanya akun pengunggah atau Administrator yang dapat mengedit/menghapus">
+                                  <Lock className="w-2.5 h-2.5 text-slate-400" />
+                                  <span>Hanya Pemilik</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -13485,7 +13564,7 @@ export const AdminDashboard: React.FC = () => {
                     disabled={isExporting}
                     onClick={async () => {
                       setIsExporting(true);
-                      const success = await refreshFromSupabase();
+                      const success = await refreshFromSupabase(true);
                       setIsExporting(false);
                       if (success) {
                         showToast('Berhasil menarik seluruh data terbaru dari Supabase Cloud! Website Anda kini 100% tersinkronisasi.', 'success');

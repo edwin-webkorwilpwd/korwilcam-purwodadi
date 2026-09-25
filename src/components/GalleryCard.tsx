@@ -1,13 +1,15 @@
 import React from 'react';
 import { GalleryItem } from '../types';
 import { getGalleryDetailPath } from '../lib/galleryHelper';
+import { isGoogleDriveFolderUrl, formatGoogleDriveImageUrl } from '../lib/driveHelper';
 import { 
   Calendar, 
   Camera, 
   Folder, 
   ArrowRight, 
   User, 
-  Images 
+  Images,
+  ExternalLink 
 } from 'lucide-react';
 
 interface GalleryCardProps {
@@ -25,7 +27,9 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
     ? item.images 
     : (item.image ? [item.image] : []);
   const count = photoList.length || 1;
-  const coverImage = item.image || photoList[0] || '';
+  const isDriveAlbum = Boolean(item.driveFolderUrl || isGoogleDriveFolderUrl(item.image));
+  const hasValidCoverImage = Boolean(item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders'));
+  const coverImage = hasValidCoverImage ? formatGoogleDriveImageUrl(item.image, 600) : '';
   const detailUrl = getGalleryDetailPath(item);
   const authorName = item.authorName || 'Super Administrator';
   const subtitle = item.description || `${item.date}. ${item.title}`;
@@ -39,15 +43,40 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
     >
       {/* 1. Cover Photo Stage */}
       <div className="relative h-40 sm:h-44 bg-slate-950 overflow-hidden">
-        <img
-          src={coverImage}
-          alt={item.title}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover group-hover:scale-106 transition-transform duration-700"
-        />
-        {/* Subtle Dark Vignette / Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30 pointer-events-none" />
+        {coverImage ? (
+          <>
+            <img
+              src={coverImage}
+              alt={item.title}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover group-hover:scale-106 transition-transform duration-700"
+            />
+            {/* Subtle Dark Vignette / Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30 pointer-events-none" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#1b56ce] via-[#163fa8] to-[#0f172a] p-3.5 flex flex-col justify-between relative group-hover:scale-105 transition-transform duration-700">
+            <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-blue-400/20 blur-xl pointer-events-none" />
+            <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-amber-400/15 blur-xl pointer-events-none" />
+            
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xs">
+                <Folder className="w-4 h-4 text-amber-300 fill-amber-300/30" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-white/20 text-white border border-white/30 backdrop-blur-md flex items-center gap-1">
+                <span>Google Drive</span>
+              </span>
+            </div>
+
+            <div className="relative z-10 space-y-0.5">
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-blue-200">Album Foto Cloud</span>
+              <p className="text-xs font-bold text-white line-clamp-2 leading-snug drop-shadow-xs">
+                {item.title}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Category Badge - Top Left */}
         <div className="absolute top-2.5 left-2.5 z-10">
@@ -57,12 +86,19 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
           </span>
         </div>
 
-        {/* Photo Counter Badge - Top Right */}
+        {/* Badge - Top Right */}
         <div className="absolute top-2.5 right-2.5 z-10">
-          <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-extrabold bg-white text-slate-800 shadow-md flex items-center gap-1 border border-white/80">
-            <Camera className="w-3 h-3 text-blue-600" />
-            <span>{count} Foto</span>
-          </span>
+          {isDriveAlbum ? (
+            <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-extrabold bg-blue-600 text-white shadow-md flex items-center gap-1 border border-white/40">
+              <Folder className="w-3 h-3 text-amber-300 fill-amber-300/20" />
+              <span>Folder Drive</span>
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-extrabold bg-white text-slate-800 shadow-md flex items-center gap-1 border border-white/80">
+              <Camera className="w-3 h-3 text-blue-600" />
+              <span>{count} Foto</span>
+            </span>
+          )}
         </div>
 
         {/* Date Display - Bottom Left */}

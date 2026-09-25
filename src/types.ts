@@ -108,6 +108,7 @@ export interface GalleryItem {
   date: string;
   image: string;
   images?: string[];
+  driveFolderUrl?: string;
   description: string;
   createdAt?: string;
   authorId?: string;

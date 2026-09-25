@@ -44,7 +44,7 @@ import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDes
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } from '../lib/galleryHelper';
-import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, isGoogleDriveUrl, isGoogleDriveFolderUrl } from '../lib/driveHelper';
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
@@ -230,7 +230,7 @@ interface AppContextType {
   isSupabaseActive: boolean;
   syncStatus: 'connected' | 'offline' | 'syncing';
   exportAllToSupabase: () => Promise<boolean>;
-  refreshFromSupabase: () => Promise<boolean>;
+  refreshFromSupabase: (force?: boolean) => Promise<boolean>;
 
   // CRUD actions
   addSchool: (school: Omit<School, 'id'>) => void;
@@ -993,8 +993,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveStorageDeferred('korwilcam_data_requests', dataRequests);
   }, [dataRequests]);
 
+  // Durasi masa aktif cache browser publik (20 menit).
+  // Selama dalam 20 menit, pengunjung yang me-refresh atau berpindah halaman
+  // TIDAK AKAN menembak kueri ke Supabase sama sekali (0 Byte Egress).
+  const CACHE_TTL_MS = 20 * 60 * 1000;
+
   // Initial fetch from Supabase if connected
-  const refreshFromSupabase = async (): Promise<boolean> => {
+  const refreshFromSupabase = async (force: boolean = false): Promise<boolean> => {
     const client = getSupabaseClient();
     if (!client) {
       setSyncStatus('offline');
@@ -1002,13 +1007,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    // Jika force=false dan pengguna bukan admin yang sedang mengelola CMS,
+    // periksa apakah cache lokal di browser masih segar/valid.
+    const shouldBypassCache = force || isAuthenticated;
+    if (!shouldBypassCache) {
+      try {
+        const lastSync = localStorage.getItem('korwilcam_last_supabase_sync');
+        const hasCachedSchools = localStorage.getItem('korwilcam_schools');
+        const hasCachedNews = localStorage.getItem('korwilcam_news');
+        if (lastSync && hasCachedSchools && hasCachedNews) {
+          const age = Date.now() - Number(lastSync);
+          if (age < CACHE_TTL_MS) {
+            // Cache masih segar! Gunakan data cache tanpa membebani egress Supabase
+            setSyncStatus('connected');
+            setIsSupabaseActive(true);
+            return true;
+          }
+        }
+      } catch (_) {}
+    }
+
     try {
       setSyncStatus('syncing');
 
       // 0. Fetch daftar_guru IMMEDIATELY IN PARALLEL (Nominatif Guru)
-      // Supaya nominatif langsung tampil cepat tanpa harus menunggu 11 tabel lainnya selesai secara berurutan!
       const teachersFetchPromise = (async () => {
         try {
+          // Jika bukan admin dan data guru sudah tersimpan di cache lokal, lewati fetch kueri untuk menghemat egress
+          const cachedTeachersStr = localStorage.getItem('korwilcam_teachers');
+          if (!shouldBypassCache && cachedTeachersStr) {
+            try {
+              const cachedTeachers = JSON.parse(cachedTeachersStr);
+              if (Array.isArray(cachedTeachers) && cachedTeachers.length > 0) {
+                _inMemoryTeachersCache = cachedTeachers;
+                setTeachers(cachedTeachers);
+                return;
+              }
+            } catch {}
+          }
+
           const { data: dbTeachers, error: teachErr } = await client
             .from('daftar_guru')
             .select('*')
@@ -1339,6 +1376,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 }
                 return g.image ? [g.image] : [];
               })(),
+              driveFolderUrl: g.drive_folder_url || g.driveFolderUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '',
               description: g.description || g.deskripsi || '',
               date: g.date || g.tanggal || '',
               createdAt: g.created_at || g.createdAt,
@@ -1952,41 +1990,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Await parallel gallery & documents fetch
       await Promise.all([galleryFetchPromise, documentsFetchPromise]);
 
-      // Fetch complaints
-      const { data: dbComplaints, error: compErr } = await client.from('complaints').select('*').order('created_at', { ascending: false });
-      if (!compErr && dbComplaints) {
-        setComplaints(dbComplaints.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          phone: c.phone,
-          schoolOrOrigin: c.school_or_origin,
-          category: c.category,
-          message: c.message,
-          date: c.date,
-          status: c.status
-        })));
+      // Fetch complaints HANYA untuk Admin (menghemat egress publik & menjaga privasi isi pengaduan warga)
+      if (isAuthenticated) {
+        try {
+          const { data: dbComplaints, error: compErr } = await client.from('complaints').select('*').order('created_at', { ascending: false });
+          if (!compErr && dbComplaints) {
+            setComplaints(dbComplaints.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone,
+              schoolOrOrigin: c.school_or_origin,
+              category: c.category,
+              message: c.message,
+              date: c.date,
+              status: c.status
+            })));
+          }
+        } catch (_) {}
       }
 
-      // Fetch admin_users (HANYA kolom non-sensitif, kolom password tidak pernah ditarik ke browser)
-      try {
-        const { data: dbUsers, error: usersErr } = await client
-          .from('admin_users')
-          .select('id, username, name, role, email, avatar, status, created_at, updated_at');
-        if (!usersErr && dbUsers && dbUsers.length > 0) {
-          setAdminUsers(dbUsers.map((u: any) => ({
-            id: u.id,
-            username: u.username,
-            name: u.name,
-            role: u.role as AdminRole,
-            email: u.email || '',
-            avatar: u.avatar || '',
-            status: (u.status || 'Aktif') as 'Aktif' | 'Nonaktif',
-            createdAt: u.created_at,
-            updatedAt: u.updated_at
-          })));
+      // Fetch admin_users HANYA untuk Admin yang sedang login mengelola CMS
+      if (isAuthenticated) {
+        try {
+          const { data: dbUsers, error: usersErr } = await client
+            .from('admin_users')
+            .select('id, username, name, role, email, avatar, status, created_at, updated_at');
+          if (!usersErr && dbUsers && dbUsers.length > 0) {
+            setAdminUsers(dbUsers.map((u: any) => ({
+              id: u.id,
+              username: u.username,
+              name: u.name,
+              role: u.role as AdminRole,
+              email: u.email || '',
+              avatar: u.avatar || '',
+              status: (u.status || 'Aktif') as 'Aktif' | 'Nonaktif',
+              createdAt: u.created_at,
+              updatedAt: u.updated_at
+            })));
+          }
+        } catch (errUsers) {
+          console.warn('Tabel admin_users belum terbaca:', errUsers);
         }
-      } catch (errUsers) {
-        console.warn('Tabel admin_users belum terbaca:', errUsers);
       }
 
       // 14. Muat URL Webhook Google Apps Script dari tabel activity_log_settings Supabase
@@ -2019,6 +2063,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (errParallel) {
         console.warn('Parallel fetch warning:', errParallel);
       }
+
+      // Simpan timestamp sinkronisasi terakhir untuk mengaktifkan smart cache 20 menit
+      try {
+        localStorage.setItem('korwilcam_last_supabase_sync', String(Date.now()));
+      } catch (_) {}
 
       setSyncStatus('connected');
       setIsSupabaseActive(true);
@@ -2195,6 +2244,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         category: g.category,
         image: g.image,
         images: g.images && g.images.length > 0 ? g.images : [g.image],
+        drive_folder_url: g.driveFolderUrl || null,
         description: g.description,
         date: g.date,
         author_id: g.authorId,
@@ -2203,7 +2253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
       let { error: galErr } = await client.from('gallery').upsert(galPayload);
       if (galErr && galErr.message?.toLowerCase().includes('column')) {
-        const safeGal = galPayload.map(({ images, ...rest }: any) => rest);
+        const safeGal = galPayload.map(({ drive_folder_url, images, ...rest }: any) => rest);
         await client.from('gallery').upsert(safeGal);
       }
 
@@ -2447,11 +2497,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!client) return;
 
+    // 3. Realtime Postgres Changes Subscription:
+    // HANYA aktif jika Admin sedang login (isAuthenticated).
+    // Pengunjung publik cukup menggunakan Smart Cache tanpa membuka websocket yang menguras kuota Egress.
+    if (!isAuthenticated) return;
+
     let refreshDebounceTimer: any = null;
     const triggerDebouncedRefresh = () => {
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
       refreshDebounceTimer = setTimeout(() => {
-        refreshFromSupabase();
+        refreshFromSupabase(true);
       }, 1200);
     };
 
@@ -2645,7 +2700,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
       client.removeChannel(channel);
     };
-  }, [isSupabaseActive]);
+  }, [isSupabaseActive, isAuthenticated]);
 
   const TAB_ROUTES: Record<string, { path: string; title: string }> = {
     'home': { path: '/beranda', title: 'Korwilcam Purwodadi Grobogan - Layanan Pendidikan Kecamatan Purwodadi' },
@@ -5161,12 +5216,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addGalleryItem = async (itemData: Omit<GalleryItem, 'id'>) => {
     const imagesList = itemData.images && itemData.images.length > 0 
       ? itemData.images 
-      : [itemData.image];
+      : (itemData.image ? [itemData.image] : []);
 
     const newItem: GalleryItem = {
       ...itemData,
-      image: imagesList[0] || itemData.image,
+      image: itemData.image || itemData.driveFolderUrl || '',
       images: imagesList,
+      driveFolderUrl: itemData.driveFolderUrl || '',
       id: `gal-${Date.now()}`,
       createdAt: new Date().toISOString()
     };
@@ -5181,16 +5237,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
-        let { error } = await client.from('gallery').upsert({
+        const payload: any = {
           id: newItem.id,
           title: newItem.title,
           category: newItem.category,
           image: newItem.image,
           images: newItem.images,
+          drive_folder_url: newItem.driveFolderUrl || null,
           description: newItem.description,
           date: newItem.date,
-          created_at: newItem.createdAt
-        });
+          created_at: newItem.createdAt,
+          author_id: newItem.authorId || null,
+          author_name: newItem.authorName || null,
+          author_role: newItem.authorRole || null
+        };
+        let { error } = await client.from('gallery').upsert(payload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const fallbackPayload: any = {
+            id: newItem.id,
+            title: newItem.title,
+            category: newItem.category,
+            image: newItem.image || newItem.driveFolderUrl || '',
+            images: newItem.images || [],
+            description: newItem.description,
+            date: newItem.date,
+            created_at: newItem.createdAt
+          };
+          const retryRes = await client.from('gallery').upsert(fallbackPayload);
+          error = retryRes.error;
+        }
         if (error) {
           console.error('Supabase addGallery error:', error);
           showToast(`Galeri disimpan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
@@ -5203,13 +5278,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSyncStatus('connected');
       }
     } else {
-      showToast(`Album galeri "${newItem.title}" (${imagesList.length} foto) berhasil ditambahkan ke penyimpanan lokal.`, 'success');
+      showToast(`Album galeri "${newItem.title}" berhasil ditambahkan ke penyimpanan lokal.`, 'success');
     }
 
     triggerActivityLog(
       'TAMBAH DATA',
       'Galeri Kegiatan',
-      `Menambahkan album galeri: "${newItem.title}" (${newItem.category}, ${imagesList.length} foto)`
+      `Menambahkan album galeri: "${newItem.title}" (${newItem.category})`
     );
   };
 
@@ -5247,15 +5322,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       try {
         const g = mergedGallery as GalleryItem;
-        const { error } = await client.from('gallery').upsert({
+        const payload: any = {
           id: g.id,
           title: g.title,
           category: g.category,
           image: g.image,
           images: g.images,
+          drive_folder_url: g.driveFolderUrl || null,
           description: g.description,
-          date: g.date
-        });
+          date: g.date,
+          author_id: g.authorId || null,
+          author_name: g.authorName || null,
+          author_role: g.authorRole || null
+        };
+        let { error } = await client.from('gallery').upsert(payload);
+        if (error && error.message?.toLowerCase().includes('column')) {
+          const fallbackPayload: any = {
+            id: g.id,
+            title: g.title,
+            category: g.category,
+            image: g.image || g.driveFolderUrl || '',
+            images: g.images || [],
+            description: g.description,
+            date: g.date
+          };
+          const retryRes = await client.from('gallery').upsert(fallbackPayload);
+          error = retryRes.error;
+        }
         if (error) {
           showToast(`Galeri diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
         } else {
