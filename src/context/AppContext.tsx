@@ -44,7 +44,14 @@ import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDes
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } from '../lib/galleryHelper';
-import { formatGoogleDriveImageUrl, isGoogleDriveUrl, isGoogleDriveFolderUrl } from '../lib/driveHelper';
+import { 
+  formatGoogleDriveImageUrl, 
+  isGoogleDriveUrl, 
+  isGoogleDriveFolderUrl, 
+  embedGalleryMetadata, 
+  extractGalleryMetadata, 
+  parseGoogleDriveImageLinks 
+} from '../lib/driveHelper';
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
@@ -1361,12 +1368,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(loadedGalCategories));
             } catch {}
 
-            const mappedGal: GalleryItem[] = actualGal.map((g: any) => ({
-              id: String(g.id || `gal-${Date.now()}`),
-              title: String(g.title || g.judul || '').trim(),
-              category: g.category || g.kategori || 'Dokumentasi',
-              image: g.image || g.gambar || '',
-              images: (() => {
+            const mappedGal: GalleryItem[] = actualGal.map((g: any) => {
+              const rawDesc = g.description || g.deskripsi || '';
+              const { cleanDescription, driveFolderUrl: metaDriveUrl, images: metaImages } = extractGalleryMetadata(rawDesc);
+              const driveFolderUrl = g.drive_folder_url || g.driveFolderUrl || metaDriveUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '';
+
+              const imagesList = (() => {
                 if (Array.isArray(g.images) && g.images.length > 0) return g.images;
                 if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
                   try {
@@ -1374,16 +1381,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     if (Array.isArray(parsed) && parsed.length > 0) return parsed;
                   } catch (_) {}
                 }
+                if (Array.isArray(metaImages) && metaImages.length > 0) return metaImages;
                 return g.image ? [g.image] : [];
-              })(),
-              driveFolderUrl: g.drive_folder_url || g.driveFolderUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '',
-              description: g.description || g.deskripsi || '',
-              date: g.date || g.tanggal || '',
-              createdAt: g.created_at || g.createdAt,
-              authorId: g.author_id || g.authorId || '',
-              authorName: g.author_name || g.authorName || g.author || 'Super Administrator',
-              authorRole: g.author_role || g.authorRole || 'Super Admin'
-            }));
+              })();
+
+              return {
+                id: String(g.id || `gal-${Date.now()}`),
+                title: String(g.title || g.judul || '').trim(),
+                category: g.category || g.kategori || 'Dokumentasi',
+                image: g.image || g.gambar || (imagesList[0] || ''),
+                images: imagesList,
+                driveFolderUrl,
+                description: cleanDescription,
+                date: g.date || g.tanggal || '',
+                createdAt: g.created_at || g.createdAt,
+                authorId: g.author_id || g.authorId || '',
+                authorName: g.author_name || g.authorName || g.author || 'Super Administrator',
+                authorRole: g.author_role || g.authorRole || 'Super Admin'
+              };
+            });
 
             // Pastikan terurut secara descending (terbaru paling atas)
             const sortedGal = sortGalleryDescending(mappedGal);
@@ -2238,19 +2254,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await client.from('documents').upsert(docPayload);
 
       // 7. Gallery
-      const galPayload = gallery.map((g) => ({
-        id: g.id,
-        title: g.title,
-        category: g.category,
-        image: g.image,
-        images: g.images && g.images.length > 0 ? g.images : [g.image],
-        drive_folder_url: g.driveFolderUrl || null,
-        description: g.description,
-        date: g.date,
-        author_id: g.authorId,
-        author_name: g.authorName,
-        author_role: g.authorRole
-      }));
+      const galPayload = gallery.map((g) => {
+        const safeImages = g.images && g.images.length > 0 ? g.images : (g.image ? [g.image] : []);
+        const safeDesc = embedGalleryMetadata(g.description || '', {
+          driveFolderUrl: g.driveFolderUrl,
+          images: safeImages
+        });
+        return {
+          id: g.id,
+          title: g.title,
+          category: g.category,
+          image: g.image || (safeImages[0] || ''),
+          images: safeImages,
+          drive_folder_url: g.driveFolderUrl || null,
+          description: safeDesc,
+          date: g.date,
+          author_id: g.authorId,
+          author_name: g.authorName,
+          author_role: g.authorRole
+        };
+      });
       let { error: galErr } = await client.from('gallery').upsert(galPayload);
       if (galErr && galErr.message?.toLowerCase().includes('column')) {
         const safeGal = galPayload.map(({ drive_folder_url, images, ...rest }: any) => rest);
@@ -5237,6 +5260,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (client) {
       setSyncStatus('syncing');
       try {
+        const safeDesc = embedGalleryMetadata(newItem.description || '', {
+          driveFolderUrl: newItem.driveFolderUrl,
+          images: newItem.images
+        });
         const payload: any = {
           id: newItem.id,
           title: newItem.title,
@@ -5244,7 +5271,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           image: newItem.image,
           images: newItem.images,
           drive_folder_url: newItem.driveFolderUrl || null,
-          description: newItem.description,
+          description: safeDesc,
           date: newItem.date,
           created_at: newItem.createdAt,
           author_id: newItem.authorId || null,
@@ -5259,11 +5286,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             category: newItem.category,
             image: newItem.image || newItem.driveFolderUrl || '',
             images: newItem.images || [],
-            description: newItem.description,
+            description: safeDesc,
             date: newItem.date,
             created_at: newItem.createdAt
           };
-          const retryRes = await client.from('gallery').upsert(fallbackPayload);
+          let retryRes = await client.from('gallery').upsert(fallbackPayload);
+          if (retryRes.error && retryRes.error.message?.toLowerCase().includes('column')) {
+            const ultraFallback: any = {
+              id: newItem.id,
+              title: newItem.title,
+              category: newItem.category,
+              image: newItem.image || newItem.driveFolderUrl || '',
+              description: safeDesc,
+              date: newItem.date,
+              created_at: newItem.createdAt
+            };
+            retryRes = await client.from('gallery').upsert(ultraFallback);
+          }
           error = retryRes.error;
         }
         if (error) {
@@ -5322,6 +5361,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
       try {
         const g = mergedGallery as GalleryItem;
+        const safeDesc = embedGalleryMetadata(g.description || '', {
+          driveFolderUrl: g.driveFolderUrl,
+          images: g.images
+        });
         const payload: any = {
           id: g.id,
           title: g.title,
@@ -5329,7 +5372,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           image: g.image,
           images: g.images,
           drive_folder_url: g.driveFolderUrl || null,
-          description: g.description,
+          description: safeDesc,
           date: g.date,
           author_id: g.authorId || null,
           author_name: g.authorName || null,
@@ -5343,10 +5386,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             category: g.category,
             image: g.image || g.driveFolderUrl || '',
             images: g.images || [],
-            description: g.description,
+            description: safeDesc,
             date: g.date
           };
-          const retryRes = await client.from('gallery').upsert(fallbackPayload);
+          let retryRes = await client.from('gallery').upsert(fallbackPayload);
+          if (retryRes.error && retryRes.error.message?.toLowerCase().includes('column')) {
+            const ultraFallback: any = {
+              id: g.id,
+              title: g.title,
+              category: g.category,
+              image: g.image || g.driveFolderUrl || '',
+              description: safeDesc,
+              date: g.date
+            };
+            retryRes = await client.from('gallery').upsert(ultraFallback);
+          }
           error = retryRes.error;
         }
         if (error) {

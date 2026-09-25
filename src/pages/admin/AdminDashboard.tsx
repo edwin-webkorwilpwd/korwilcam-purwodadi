@@ -39,6 +39,7 @@ import {
   Layers,
   ArrowUpRight,
   Camera,
+  Link2,
   Folder,
   FolderOpen,
   Images,
@@ -135,6 +136,7 @@ import {
   InstagramIcon, 
   YoutubeIcon, 
   XIcon,
+  WhatsAppIcon,
   WebsiteIcon, 
   formatExternalUrl 
 } from '../../components/SocialIcons';
@@ -473,6 +475,11 @@ export const AdminDashboard: React.FC = () => {
 
     // Cek kecocokan nama pembuat (case-insensitive)
     if (item.authorName && activeAuthorName && item.authorName.trim().toLowerCase() === activeAuthorName.trim().toLowerCase()) {
+      return true;
+    }
+
+    // Cek kecocokan nama currentUser
+    if (item.authorName && currentUser.name && item.authorName.trim().toLowerCase() === currentUser.name.trim().toLowerCase()) {
       return true;
     }
 
@@ -2069,23 +2076,6 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [currentUser, editingNewsId, activeAuthorName, activeUserRole]);
 
-  // NEWS COVER PHOTO UPLOAD
-  const newsPhotoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleNewsPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      showToast('Memproses gambar sampul berita...', 'info');
-      const dataUrl = await compressImage(file, 1200, 0.82);
-      setNewsForm((prev) => ({ ...prev, image: dataUrl }));
-      showToast('Gambar sampul berita berhasil dipilih & siap disimpan ke database!', 'success');
-    } catch (err) {
-      showToast('Gagal memproses gambar sampul berita!', 'error');
-    }
-  };
-
   const handleSaveNews = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsForm.title || !newsForm.content) {
@@ -2128,6 +2118,10 @@ export const AdminDashboard: React.FC = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') || `berita-${editingNewsId}`;
 
+      const finalImage = newsForm.image && isGoogleDriveUrl(newsForm.image)
+        ? formatGoogleDriveImageUrl(newsForm.image)
+        : (newsForm.image || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000');
+
       await updateNews(editingNewsId, {
         title: newsForm.title.trim(),
         slug: cleanSlug,
@@ -2137,7 +2131,7 @@ export const AdminDashboard: React.FC = () => {
         author: newsForm.author,
         authorId: newsForm.authorId || currentUser?.id || '',
         authorRole: newsForm.authorRole || activeUserRole,
-        image: newsForm.image,
+        image: finalImage,
         tags: tagsArray,
         views: parsedViews
       });
@@ -2157,6 +2151,10 @@ export const AdminDashboard: React.FC = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') || `berita-${Date.now()}`;
 
+      const finalImage = newsForm.image && isGoogleDriveUrl(newsForm.image)
+        ? formatGoogleDriveImageUrl(newsForm.image)
+        : (newsForm.image || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000');
+
       await addNews({
         title: newsForm.title.trim(),
         slug: cleanSlug,
@@ -2167,7 +2165,7 @@ export const AdminDashboard: React.FC = () => {
         authorId: currentUser?.id || '',
         authorRole: activeUserRole,
         date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-        image: newsForm.image,
+        image: finalImage,
         views: parsedViews,
         tags: tagsArray
       });
@@ -2657,12 +2655,16 @@ export const AdminDashboard: React.FC = () => {
     category: 'Kegiatan Belajar' as string,
     driveFolderUrl: '',
     coverImage: '',
+    images: [] as string[],
     description: '',
     authorId: currentUser?.id || '',
     authorName: activeAuthorName as string,
     authorRole: activeUserRole as string
   });
   const [showDriveEmbedPreview, setShowDriveEmbedPreview] = useState<boolean>(false);
+  const [galleryBatchInput, setGalleryBatchInput] = useState<string>('');
+  const [isGalleryBatchMode, setIsGalleryBatchMode] = useState<boolean>(true);
+  const [singleGalleryPhotoInput, setSingleGalleryPhotoInput] = useState<string>('');
 
   // Helper cek kepemilikan album galeri berdasarkan akun/role login
   const isGalleryItemOwner = (item: GalleryItem) => {
@@ -2723,6 +2725,87 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Handlers Foto Dokumentasi Galeri Google Drive
+  const handleAddBatchGalleryPhotos = () => {
+    const trimmed = galleryBatchInput.trim();
+    if (!trimmed) {
+      showToast('Silakan tempelkan link foto Google Drive terlebih dahulu!', 'error');
+      return;
+    }
+    const extracted = parseGoogleDriveImageLinks(trimmed);
+    if (extracted.length === 0) {
+      showToast('Tidak ada link foto Google Drive yang valid terdeteksi dari teks yang ditempelkan.', 'error');
+      return;
+    }
+
+    setGalleryForm((prev) => {
+      const combined = [...prev.images];
+      extracted.forEach((url) => {
+        if (!combined.includes(url)) combined.push(url);
+      });
+      const newCover = prev.coverImage || combined[0] || '';
+      return {
+        ...prev,
+        images: combined,
+        coverImage: newCover
+      };
+    });
+
+    setGalleryBatchInput('');
+    showToast(`Berhasil menambahkan ${extracted.length} foto ke daftar dokumentasi!`, 'success');
+  };
+
+  const handleAddSingleGalleryPhoto = () => {
+    const trimmed = singleGalleryPhotoInput.trim();
+    if (!trimmed) {
+      showToast('Masukkan link foto Google Drive terlebih dahulu!', 'error');
+      return;
+    }
+    const extracted = parseGoogleDriveImageLinks(trimmed);
+    const photoUrl = extracted[0] || (isGoogleDriveUrl(trimmed) ? formatGoogleDriveImageUrl(trimmed) : trimmed);
+    if (!photoUrl) {
+      showToast('Format link foto tidak valid!', 'error');
+      return;
+    }
+
+    setGalleryForm((prev) => {
+      const combined = prev.images.includes(photoUrl) ? prev.images : [...prev.images, photoUrl];
+      const newCover = prev.coverImage || combined[0] || '';
+      return {
+        ...prev,
+        images: combined,
+        coverImage: newCover
+      };
+    });
+
+    setSingleGalleryPhotoInput('');
+    showToast('Foto berhasil ditambahkan!', 'success');
+  };
+
+  const handleRemoveGalleryPhoto = (indexToRemove: number) => {
+    setGalleryForm((prev) => {
+      const targetPhoto = prev.images[indexToRemove];
+      const filtered = prev.images.filter((_, idx) => idx !== indexToRemove);
+      let newCover = prev.coverImage;
+      if (newCover === targetPhoto) {
+        newCover = filtered[0] || '';
+      }
+      return {
+        ...prev,
+        images: filtered,
+        coverImage: newCover
+      };
+    });
+  };
+
+  const handleSetGalleryCover = (photoUrl: string) => {
+    setGalleryForm((prev) => ({
+      ...prev,
+      coverImage: photoUrl
+    }));
+    showToast('Foto sampul utama berhasil dipilih!', 'info');
+  };
+
   const handleSaveGallery = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedTitle = galleryForm.title.trim();
@@ -2730,21 +2813,26 @@ export const AdminDashboard: React.FC = () => {
       showToast('Judul album kegiatan wajib diisi!', 'error');
       return;
     }
-    const trimmedDriveUrl = galleryForm.driveFolderUrl.trim();
-    if (!trimmedDriveUrl) {
-      showToast('Link folder Google Drive wajib diisi!', 'error');
-      return;
+
+    // Siapkan daftar foto yang akan disimpan
+    let imagesList = [...galleryForm.images];
+    const trimmedCover = galleryForm.coverImage.trim();
+    const formattedCover = trimmedCover ? (isGoogleDriveUrl(trimmedCover) ? formatGoogleDriveImageUrl(trimmedCover) : trimmedCover) : '';
+
+    if (formattedCover && !imagesList.includes(formattedCover) && !isGoogleDriveFolderUrl(formattedCover)) {
+      imagesList = [formattedCover, ...imagesList];
     }
-    const folderId = extractGoogleDriveFolderId(trimmedDriveUrl);
-    if (!folderId) {
-      showToast('Format link folder Google Drive tidak valid! Pastikan link berupa tautan folder Google Drive (drive.google.com/drive/folders/...).', 'error');
+    if (imagesList.length === 0 && formattedCover) {
+      imagesList = [formattedCover];
+    }
+
+    if (imagesList.length === 0) {
+      showToast('Tambahkan minimal 1 tautan foto pada daftar foto dokumentasi!', 'error');
       return;
     }
 
-    const trimmedCover = galleryForm.coverImage.trim();
-    const formattedCover = trimmedCover ? formatGoogleDriveImageUrl(trimmedCover) : '';
-    const primaryCover = formattedCover || trimmedDriveUrl;
-    const imagesList = formattedCover ? [formattedCover] : [];
+    const primaryCover = formattedCover || imagesList[0] || '';
+    const trimmedDriveUrl = galleryForm.driveFolderUrl?.trim() || '';
 
     if (editingGalleryId) {
       const existingItem = gallery.find((g) => g.id === editingGalleryId);
@@ -2755,7 +2843,7 @@ export const AdminDashboard: React.FC = () => {
 
       const confirmed = await showConfirmDialog({
         title: 'Konfirmasi Perubahan Album Galeri',
-        message: 'Apakah Anda yakin ingin menyimpan perubahan pada album galeri ini?',
+        message: `Apakah Anda yakin ingin menyimpan perubahan pada album galeri ini (${imagesList.length} foto)?`,
         type: 'edit',
         itemName: trimmedTitle,
         confirmText: 'Ya, Perbarui',
@@ -2777,7 +2865,7 @@ export const AdminDashboard: React.FC = () => {
       setEditingGalleryId(null);
       showNoticePopup({
         title: 'Galeri Diperbarui!',
-        message: `Album kegiatan "${trimmedTitle}" berhasil diperbarui.`,
+        message: `Album kegiatan "${trimmedTitle}" berhasil diperbarui dengan ${imagesList.length} foto dokumentasi.`,
         type: 'success'
       });
     } else {
@@ -2795,7 +2883,7 @@ export const AdminDashboard: React.FC = () => {
       });
       showNoticePopup({
         title: 'Album Galeri Dibuat!',
-        message: `Album kegiatan "${trimmedTitle}" berhasil disimpan dan tayang di website.`,
+        message: `Album kegiatan "${trimmedTitle}" berhasil disimpan dengan ${imagesList.length} foto dan tayang di website.`,
         type: 'success'
       });
     }
@@ -2805,11 +2893,14 @@ export const AdminDashboard: React.FC = () => {
       category: 'Kegiatan Belajar',
       driveFolderUrl: '',
       coverImage: '',
+      images: [],
       description: '',
       authorId: currentUser?.id || '',
       authorName: activeAuthorName,
       authorRole: activeUserRole
     });
+    setGalleryBatchInput('');
+    setSingleGalleryPhotoInput('');
     setShowDriveEmbedPreview(false);
   };
 
@@ -4236,14 +4327,14 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
+          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'achievements-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Lock className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong>, <strong>Galeri Kegiatan</strong>{canAccessOrganizationCms ? ', serta Organisasi yang ditugaskan kepada Anda' : ''}.
+                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong>, <strong>Kelola Prestasi</strong>, <strong>Galeri Kegiatan</strong>{canAccessOrganizationCms ? ', serta Organisasi yang ditugaskan kepada Anda' : ''}.
               </p>
               <div className="flex flex-wrap justify-center gap-2.5">
                 <button
@@ -6742,63 +6833,92 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Upload Gambar Sampul Berita */}
-                    <div className="space-y-2 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                      <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Camera className="w-3.5 h-3.5 text-blue-600" />
+                    {/* Gambar Sampul / Banner Berita dengan Google Drive */}
+                    <div className="space-y-3 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 border border-slate-200">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Camera className="w-4 h-4 text-blue-600" />
                           <span>Gambar Sampul / Banner Berita *</span>
-                        </span>
-                        <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                          Disimpan ke Database Supabase
-                        </span>
-                      </label>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Google Drive CDN (Bebas Kuota Supabase 0 MB)</span>
+                          </span>
+                        </div>
+                      </div>
 
-                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                         {/* Preview Image */}
-                        <div className="relative group shrink-0">
-                          <img
-                            src={newsForm.image || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000'}
-                            alt="Sampul Berita"
-                            className="w-36 h-24 sm:w-44 sm:h-28 object-cover rounded-xl border-2 border-white shadow-md bg-slate-200"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => newsPhotoInputRef.current?.click()}
-                            className="absolute inset-0 bg-black/40 text-white rounded-xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-1"
-                          >
-                            <Camera className="w-4 h-4" />
-                            <span>Ganti Sampul</span>
-                          </button>
+                        <div className="md:col-span-4 lg:col-span-3 flex flex-col items-center gap-1.5">
+                          <div className="relative group w-full aspect-[16/10] rounded-xl overflow-hidden border-2 border-white shadow-md bg-slate-200">
+                            <img
+                              src={formatGoogleDriveImageUrl(newsForm.image, 600) || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000'}
+                              alt="Sampul Berita"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                              }}
+                            />
+                            <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9px] px-1.5 py-0.5 rounded font-medium">
+                              Pratinjau Sampul
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-slate-400 text-center">
+                            Foto sampul di halaman berita
+                          </span>
                         </div>
 
-                        {/* Controls */}
-                        <div className="flex-1 space-y-2 text-center sm:text-left">
-                          <p className="text-xs text-slate-600">
-                            Upload foto dokumentasi atau banner berita langsung dari file komputer Anda (JPG, PNG, WebP).
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
-                            <button
-                              type="button"
-                              onClick={() => newsPhotoInputRef.current?.click()}
-                              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-colors flex items-center gap-1.5"
-                            >
-                              <UploadCloud className="w-3.5 h-3.5" />
-                              <span>Pilih Gambar Sampul dari Komputer</span>
-                            </button>
-                            {newsForm.image && newsForm.image.startsWith('data:') && (
-                              <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Gambar sampul siap disimpan ke database
+                        {/* Controls & Google Drive Input */}
+                        <div className="md:col-span-8 lg:col-span-9 space-y-2.5">
+                          {/* Input Link Google Drive */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                                <Link2 className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Tempel Link Foto Google Drive:</span>
+                              </label>
+                              <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                                Rekomendasi (0 MB Supabase)
                               </span>
-                            )}
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={newsForm.image && !newsForm.image.startsWith('data:') ? newsForm.image : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value.trim();
+                                  if (!val) {
+                                    setNewsForm((prev) => ({ ...prev, image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000' }));
+                                  } else {
+                                    const formatted = formatGoogleDriveImageUrl(val);
+                                    setNewsForm((prev) => ({ ...prev, image: formatted }));
+                                  }
+                                }}
+                                placeholder="Contoh: https://drive.google.com/file/d/1abc.../view?usp=sharing"
+                                className="w-full px-3.5 py-2 pl-9 pr-16 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs text-slate-800 transition-all font-mono"
+                              />
+                              <Link2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                              {newsForm.image && newsForm.image !== 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setNewsForm((prev) => ({ ...prev, image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000' }))}
+                                  className="absolute right-2 top-1.5 text-[10px] font-bold text-slate-400 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors"
+                                  title="Reset ke Gambar Bawaan"
+                                >
+                                  Reset
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <input
-                            ref={newsPhotoInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleNewsPhotoUpload}
-                            className="hidden"
-                          />
+
+                          {/* Tips Box */}
+                          <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200/70 text-[11px] text-blue-900 leading-relaxed flex items-start gap-2">
+                            <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                            <p className="text-[10.5px]">
+                              <b>Tips Google Drive:</b> Buka Google Drive &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Salin link lalu tempelkan di atas.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -7035,7 +7155,14 @@ export const AdminDashboard: React.FC = () => {
                           return (
                             <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                               <div className="flex items-center gap-3 min-w-0">
-                                <img src={item.image} alt={item.title} className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                <img 
+                                  src={formatGoogleDriveImageUrl(item.image, 200)} 
+                                  alt={item.title} 
+                                  className="w-12 h-12 rounded-lg object-cover shrink-0 bg-slate-100" 
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                                  }}
+                                />
                                 <div className="min-w-0">
                                   <h4 className="font-bold text-slate-900 text-xs truncate">{item.title}</h4>
                                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
@@ -11411,139 +11538,205 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 1. INPUT LINK FOLDER GOOGLE DRIVE */}
-                <div className="space-y-4 p-5 rounded-2xl bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200/80 shadow-xs">
+                {/* PENGELOLA FOTO DOKUMENTASI KEGIATAN (GOOGLE DRIVE MULTI-PHOTO) */}
+                <div className="space-y-4 p-5 rounded-2xl bg-slate-50 border border-slate-200">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <Folder className="w-4 h-4 text-amber-500 fill-amber-500/20" />
-                        <span>Link Folder Google Drive (Dokumentasi Foto) *</span>
-                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <Images className="w-4 h-4 text-blue-600" />
+                          <span>Daftar Foto Dokumentasi Kegiatan (Google Drive) *</span>
+                        </label>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          galleryForm.images.length > 0 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {galleryForm.images.length} Foto Siap Tayang
+                        </span>
+                      </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Salin tautan folder dari Google Drive yang memuat seluruh foto dokumentasi kegiatan ini.
+                        Seluruh foto yang ditambahkan di sini akan tampil berurutan pada <strong>Slide Show</strong> halaman detail galeri.
                       </p>
                     </div>
 
-                    {extractGoogleDriveFolderId(galleryForm.driveFolderUrl) ? (
-                      <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100/90 px-3 py-1 rounded-full border border-emerald-300 shrink-0 flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5 stroke-[3] text-emerald-600" />
-                        <span>Link Folder Valid</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-3 py-1 rounded-full border border-amber-200 shrink-0">
-                        Wajib Diisi Link Folder Drive
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setIsGalleryBatchMode(!isGalleryBatchMode)}
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 text-[11px] font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                      >
+                        {isGalleryBatchMode ? '← Mode Input Satuan' : '📋 Tempel Banyak Link Sekaligus'}
+                      </button>
+
+                      {galleryForm.images.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Hapus semua foto dari daftar dokumentasi album ini?')) {
+                              setGalleryForm((prev) => ({ ...prev, images: [], coverImage: '' }));
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-200 text-[11px] font-bold transition-colors"
+                          title="Kosongkan Semua Foto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Input URL Folder */}
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <input
-                        type="url"
-                        required
-                        value={galleryForm.driveFolderUrl}
-                        onChange={(e) => setGalleryForm({ ...galleryForm, driveFolderUrl: e.target.value })}
-                        placeholder="Contoh: https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-blue-300 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs"
+                  {/* Mode Batch: Tempel Banyak Sekaligus */}
+                  {isGalleryBatchMode ? (
+                    <div className="space-y-3 p-4 bg-white rounded-2xl border border-blue-200 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>Tempel Daftar Link Foto Google Drive:</span>
+                        </label>
+                        <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">
+                          Satu link per baris atau dipisah koma/spasi
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={4}
+                        value={galleryBatchInput}
+                        onChange={(e) => setGalleryBatchInput(e.target.value)}
+                        placeholder="Contoh:&#10;https://drive.google.com/file/d/1ABC123.../view&#10;https://drive.google.com/file/d/2XYZ789.../view&#10;https://lh3.googleusercontent.com/d/3DEF456..."
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono text-slate-800 focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
                       />
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 pointer-events-none">
-                        <Folder className="w-4 h-4" />
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                        <p className="text-[11px] text-slate-500">
+                          💡 <strong>Tips Cepat dari Drive:</strong> Buka folder Google Drive &gt; Tekan <kbd className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 font-mono text-[10px]">Ctrl + A</kbd> (pilih semua) &gt; Klik kanan <strong>Salin tautan (Copy link)</strong> &gt; Tempel di sini.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleAddBatchGalleryPhotos}
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 shrink-0 transition-all hover:scale-102"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Ekstrak & Tambahkan Semua Foto</span>
+                        </button>
                       </div>
                     </div>
-
-                    {/* Feedback / Validation Status */}
-                    {galleryForm.driveFolderUrl.trim() && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
-                        {extractGoogleDriveFolderId(galleryForm.driveFolderUrl) ? (
-                          <div className="flex items-center gap-2 text-emerald-700 font-semibold text-[11px]">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <span>Folder Terdeteksi (ID: <code className="bg-white px-1.5 py-0.5 rounded border border-emerald-200 font-mono text-[10px]">{extractGoogleDriveFolderId(galleryForm.driveFolderUrl)}</code>)</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-rose-600 text-[11px] font-medium">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>Tautan bukan tautan folder Google Drive yang valid. Pastikan link memiliki format: <code>drive.google.com/drive/folders/[ID]</code></span>
-                          </div>
-                        )}
-
-                        {extractGoogleDriveFolderId(galleryForm.driveFolderUrl) && (
-                          <div className="flex items-center gap-2">
-                            <a
-                              href={getGoogleDriveFolderViewUrl(galleryForm.driveFolderUrl)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold shadow-xs hover:bg-blue-700 transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              <span>Uji Buka Folder</span>
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => setShowDriveEmbedPreview(!showDriveEmbedPreview)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold transition-colors"
-                            >
-                              <Eye className="w-3 h-3" />
-                              <span>{showDriveEmbedPreview ? 'Tutup Preview' : 'Preview Foto'}</span>
-                            </button>
-                          </div>
-                        )}
+                  ) : (
+                    /* Mode Satuan */
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={singleGalleryPhotoInput}
+                          onChange={(e) => setSingleGalleryPhotoInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleGalleryPhoto();
+                            }
+                          }}
+                          placeholder="Tempel link foto Google Drive (Contoh: https://drive.google.com/file/d/1.../view)"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs"
+                        />
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={handleAddSingleGalleryPhoto}
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 shrink-0 transition-all hover:scale-102"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Tambah Foto</span>
+                      </button>
+                    </div>
+                  )}
 
-                    {/* Live Embedded Folder Preview Inside Form */}
-                    {showDriveEmbedPreview && extractGoogleDriveFolderId(galleryForm.driveFolderUrl) && (
-                      <div className="mt-3 rounded-2xl overflow-hidden border border-blue-300 shadow-sm bg-slate-900">
-                        <div className="px-3 py-2 bg-slate-800 text-white text-xs font-bold flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
-                            <Folder className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Preview Tampilan Folder Google Drive</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setShowDriveEmbedPreview(false)}
-                            className="text-slate-400 hover:text-white"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="w-full h-80 bg-slate-100">
-                          <iframe
-                            src={getGoogleDriveEmbeddedFolderUrl(galleryForm.driveFolderUrl)}
-                            className="w-full h-full border-0"
-                            title="Preview Folder Google Drive"
-                            allow="autoplay"
-                            loading="lazy"
-                          />
-                        </div>
+                  {/* Thumbnail List of Added Photos */}
+                  {galleryForm.images.length > 0 ? (
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span className="font-semibold">Foto Dokumentasi Terdaftar ({galleryForm.images.length} foto):</span>
+                        <span className="text-[11px] text-slate-400">Klik "Jadikan Sampul" untuk memilih sampul utama album</span>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Panduan Cara Berbagi Folder Google Drive */}
-                  <div className="p-3.5 rounded-xl bg-blue-100/60 border border-blue-200/80 text-[11px] text-blue-900 space-y-1">
-                    <p className="font-bold flex items-center gap-1 text-blue-950">
-                      <HelpCircle className="w-3.5 h-3.5 text-blue-700" />
-                      <span>Cara Mengatur Akses Publik Folder Google Drive:</span>
-                    </p>
-                    <ol className="list-decimal list-inside space-y-0.5 text-blue-800/90 pl-1 leading-relaxed">
-                      <li>Buka Google Drive (<a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-blue-700 hover:text-blue-900">drive.google.com</a>) dan buka/buat folder kegiatan Anda.</li>
-                      <li>Klik kanan pada folder tersebut &gt; pilih <strong>Bagikan (Share)</strong>.</li>
-                      <li>Pada bagian <strong>Akses umum</strong>, ubah dari <em>Dibatasi</em> menjadi <strong>Siapa saja yang memiliki link (Pelihat)</strong>.</li>
-                      <li>Klik <strong>Salin link</strong>, lalu tempelkan (paste) ke dalam kolom di atas.</li>
-                    </ol>
-                  </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-slate-300">
+                        {galleryForm.images.map((photoUrl, idx) => {
+                          const isCover = galleryForm.coverImage === photoUrl || (!galleryForm.coverImage && idx === 0);
+                          return (
+                            <div
+                              key={idx}
+                              className={`group relative bg-white rounded-xl border overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col ${
+                                isCover ? 'ring-2 ring-amber-500 border-amber-300' : 'border-slate-200'
+                              }`}
+                            >
+                              <div className="relative aspect-video w-full bg-slate-900 overflow-hidden">
+                                <img
+                                  src={photoUrl}
+                                  alt={`Foto ${idx + 1}`}
+                                  loading="lazy"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.opacity = '0.3';
+                                  }}
+                                />
+                                <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] font-bold text-white font-mono shadow-xs">
+                                  #{idx + 1}
+                                </div>
+                                {isCover && (
+                                  <div className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[10px] font-extrabold flex items-center gap-1 shadow-sm">
+                                    <Star className="w-3 h-3 fill-slate-950" />
+                                    <span>Sampul</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="p-2 flex items-center justify-between gap-1 bg-white">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetGalleryCover(photoUrl)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors ${
+                                    isCover 
+                                      ? 'bg-amber-100 text-amber-800' 
+                                      : 'bg-slate-100 hover:bg-amber-50 hover:text-amber-700 text-slate-600'
+                                  }`}
+                                  title="Jadikan sebagai foto sampul utama album"
+                                >
+                                  <Star className={`w-3 h-3 ${isCover ? 'fill-amber-600 text-amber-600' : ''}`} />
+                                  <span>{isCover ? 'Sampul Aktif' : 'Jadikan Sampul'}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveGalleryPhoto(idx)}
+                                  className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                                  title="Hapus foto ini dari album"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-white border border-dashed border-slate-300 text-center space-y-1">
+                      <Images className="w-8 h-8 text-slate-400 mx-auto" />
+                      <p className="text-xs font-bold text-slate-700">Belum Ada Foto Terdaftar di Slide Show</p>
+                      <p className="text-[11px] text-slate-400">
+                        Tempel link foto Google Drive di atas agar seluruh foto kegiatan tampil di slide show pengunjung.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {/* 2. INPUT LINK FOTO SAMPUL / COVER (OPSIONAL) */}
+                {/* 3. INPUT LINK FOTO SAMPUL / COVER (OPSIONAL) */}
                 <div className="space-y-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
                   <div>
                     <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Link Foto Sampul Album (Opsional)</span>
+                      <span>Link Foto Sampul Album (Opsional Override)</span>
                     </label>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Masukkan link salah satu foto dari Google Drive untuk dijadikan thumbnail sampul album di halaman depan. Jika dikosongkan, sistem akan otomatis menggunakan sampul visual resmi Google Drive.
+                      Foto sampul utama secara default diambil dari foto pertama pada daftar di atas atau dengan mengklik tombol "Jadikan Sampul". Anda juga dapat memasukkan tautan khusus di sini jika diinginkan.
                     </p>
                   </div>
 
@@ -11568,7 +11761,7 @@ export const AdminDashboard: React.FC = () => {
                         />
                       </div>
                       <div className="text-xs min-w-0">
-                        <span className="font-bold text-slate-800 block truncate">Preview Foto Sampul Utama</span>
+                        <span className="font-bold text-slate-800 block truncate">Preview Foto Sampul Utama Terpilih</span>
                         <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
                           <Check className="w-3 h-3" /> Foto sampul berhasil terdeteksi
                         </span>
@@ -11606,11 +11799,14 @@ export const AdminDashboard: React.FC = () => {
                           category: 'Kegiatan Belajar',
                           driveFolderUrl: '',
                           coverImage: '',
+                          images: [],
                           description: '',
                           authorId: currentUser?.id || '',
                           authorName: activeAuthorName,
                           authorRole: activeUserRole
                         });
+                        setGalleryBatchInput('');
+                        setSingleGalleryPhotoInput('');
                         setShowDriveEmbedPreview(false);
                       }}
                       className="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-xs"
@@ -11754,17 +11950,24 @@ export const AdminDashboard: React.FC = () => {
                                     onClick={() => {
                                       const itemFolder = item.driveFolderUrl || (isGoogleDriveFolderUrl(item.image) ? item.image : '');
                                       const itemCover = item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders') ? item.image : '';
+                                      const itemImages = (item.images && item.images.length > 0)
+                                        ? item.images.filter((img) => !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
+                                        : (itemCover ? [itemCover] : []);
+
                                       setEditingGalleryId(item.id);
                                       setGalleryForm({
                                         title: item.title,
                                         category: item.category,
                                         driveFolderUrl: itemFolder,
                                         coverImage: itemCover,
+                                        images: itemImages,
                                         description: item.description || '',
                                         authorId: item.authorId || '',
                                         authorName: item.authorName || activeAuthorName,
                                         authorRole: item.authorRole || activeUserRole
                                       });
+                                      setGalleryBatchInput('');
+                                      setSingleGalleryPhotoInput('');
                                       setShowDriveEmbedPreview(false);
                                       window.scrollTo({ top: 0, behavior: 'smooth' });
                                     }}
@@ -12176,6 +12379,11 @@ export const AdminDashboard: React.FC = () => {
                                 <XIcon className="w-4 h-4" />
                               </div>
                             )}
+                            {item.platform === 'whatsapp' && (
+                              <div className="w-10 h-10 rounded-xl bg-[#25D366] flex items-center justify-center text-white shrink-0 shadow-xs">
+                                <WhatsAppIcon className="w-5 h-5" />
+                              </div>
+                            )}
 
                             <div className="min-w-0">
                               <h4 className="font-extrabold text-slate-900 text-sm">{item.name}</h4>
@@ -12237,7 +12445,7 @@ export const AdminDashboard: React.FC = () => {
                               type="text"
                               value={item.url || ''}
                               onChange={(e) => handleSocialMediaChange(item.platform, 'url', e.target.value)}
-                              placeholder={`Contoh: https://${item.platform === 'youtube' ? 'youtube.com/@korwilcam' : `${item.platform}.com/korwilcam_purwodadi`}`}
+                              placeholder={`Contoh: https://${item.platform === 'youtube' ? 'youtube.com/@korwilcam' : item.platform === 'whatsapp' ? 'whatsapp.com/channel/...' : `${item.platform}.com/korwilcam_purwodadi`}`}
                               className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
                             />
                             <p className="text-[10px] text-slate-400">

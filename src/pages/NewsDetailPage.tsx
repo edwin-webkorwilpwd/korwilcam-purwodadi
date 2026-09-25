@@ -23,6 +23,7 @@ import { paginateArticleContent } from '../lib/articlePaginator';
 import { getNewsShortUrl, getNewsShortCode } from '../lib/shortLink';
 import { stripHtml } from '../lib/stripHtml';
 import { sanitizeHtml } from '../lib/sanitizeHtml';
+import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -469,11 +470,14 @@ export const NewsDetailPage: React.FC = () => {
         {selectedNews.image && (
           <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 bg-slate-100">
             <img
-              src={selectedNews.image}
+              src={formatGoogleDriveImageUrl(selectedNews.image, 1600)}
               alt={selectedNews.title}
               decoding="async"
               fetchPriority="high"
               className="w-full max-h-[560px] object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+              }}
             />
           </div>
         )}

@@ -180,25 +180,118 @@ export function getGoogleDriveEmbeddedFolderUrl(url: string): string {
 
 /**
  * Mengekstrak banyak URL / File ID Google Drive dari sebuah blok teks (multi-link/multi-line)
+ * dan mengonversinya menjadi URL langsung berkecepatan tinggi.
  */
 export function parseGoogleDriveImageLinks(text: string): string[] {
   if (!text || typeof text !== 'string') return [];
   
-  // Split berdasarkan baris baru, koma, spasi, atau titik koma
-  const tokens = text.split(/[\r\n,;]+/).map((t) => t.trim()).filter(Boolean);
+  // Pisahkan berdasarkan baris baru, spasi ganda, koma, titik koma, kutip, tanda kurung siku atau kurung biasa
+  const rawTokens = text.split(/[\r\n,;\s"'\(\)\[\]]+/).map((t) => t.trim()).filter(Boolean);
   const result: string[] = [];
   const seenIds = new Set<string>();
 
-  for (const token of tokens) {
+  for (const token of rawTokens) {
+    // Abaikan jika ini hanya folder link tanpa file
+    if (token.includes('/drive/folders/') || token.includes('embeddedfolderview')) {
+      continue;
+    }
+
     const driveId = extractGoogleDriveId(token);
     if (driveId && !seenIds.has(driveId)) {
       seenIds.add(driveId);
-      result.push(token);
-    } else if (!driveId && (token.startsWith('http://') || token.startsWith('https://'))) {
-      result.push(token);
+      result.push(formatGoogleDriveImageUrl(token));
+    } else if (!driveId && (token.startsWith('http://') || token.startsWith('https://') || token.startsWith('/'))) {
+      if (!seenIds.has(token)) {
+        seenIds.add(token);
+        result.push(token);
+      }
     }
   }
 
   return result;
 }
+
+/**
+ * Metadata Galeri Fallback untuk Supabase
+ * Memungkinkan penyimpanan daftar foto (images) dan driveFolderUrl di dalam kolom description
+ * sehingga data foto dokumentasi 100% aman tersimpan dan tidak hilang meskipun tabel Supabase
+ * belum memiliki kolom `images` atau `drive_folder_url`.
+ */
+const META_START_TAG = '<!--DRIVE_META:';
+const META_END_TAG = ':DRIVE_META-->';
+
+export interface GalleryMetaPayload {
+  driveFolderUrl?: string;
+  images?: string[];
+}
+
+export function embedGalleryMetadata(description: string, meta: GalleryMetaPayload): string {
+  const baseDesc = (description || '').replace(/<!--DRIVE_META:[\s\S]*?:DRIVE_META-->/g, '').trim();
+  const hasMeta = Boolean((meta.driveFolderUrl && meta.driveFolderUrl.trim()) || (meta.images && meta.images.length > 0));
+  
+  if (!hasMeta) return baseDesc;
+
+  try {
+    const jsonStr = JSON.stringify({
+      driveFolderUrl: meta.driveFolderUrl?.trim() || '',
+      images: Array.isArray(meta.images) ? meta.images : []
+    });
+    return `${baseDesc ? baseDesc + '\n\n' : ''}${META_START_TAG}${jsonStr}${META_END_TAG}`;
+  } catch {
+    return baseDesc;
+  }
+}
+
+export function extractGalleryMetadata(description: string): {
+  cleanDescription: string;
+  driveFolderUrl?: string;
+  images?: string[];
+} {
+  if (!description || typeof description !== 'string') {
+    return { cleanDescription: '' };
+  }
+
+  const match = description.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
+  const cleanDescription = description.replace(/<!--DRIVE_META:[\s\S]*?:DRIVE_META-->/g, '').trim();
+
+  if (!match || !match[1]) {
+    return { cleanDescription };
+  }
+
+  try {
+    const parsed = JSON.parse(match[1]);
+    return {
+      cleanDescription,
+      driveFolderUrl: typeof parsed.driveFolderUrl === 'string' ? parsed.driveFolderUrl : undefined,
+      images: Array.isArray(parsed.images) ? parsed.images : undefined
+    };
+  } catch {
+    return { cleanDescription };
+  }
+}
+
+/**
+ * Mengambil daftar foto dari Google Drive API v3 (jika API Key tersedia)
+ */
+export async function fetchGoogleDriveFolderPhotos(folderId: string, apiKey?: string): Promise<string[]> {
+  if (!folderId) return [];
+  const key = apiKey || (import.meta as any).env?.VITE_GOOGLE_DRIVE_API_KEY;
+  if (!key) return [];
+
+  try {
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and (mimeType contains 'image/' or mimeType = 'application/vnd.google-apps.photo')`);
+    const fields = encodeURIComponent('files(id, name, mimeType)');
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&key=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.files && Array.isArray(data.files)) {
+      return data.files.map((file: any) => `https://lh3.googleusercontent.com/d/${file.id}`);
+    }
+  } catch (err) {
+    console.warn('Gagal memuat Google Drive API:', err);
+  }
+  return [];
+}
+
 

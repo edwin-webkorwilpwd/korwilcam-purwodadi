@@ -4,6 +4,7 @@ import { X, Calendar, Eye, User, Share2, Tag, BookOpen, Clock } from 'lucide-rea
 import { getArticleReadingStats } from '../lib/readingTime';
 import { stripHtml } from '../lib/stripHtml';
 import { sanitizeHtml } from '../lib/sanitizeHtml';
+import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
 
 export const ModalDetailNews: React.FC = () => {
   const { selectedNews, setSelectedNews, showToast } = useApp();
@@ -85,9 +86,12 @@ export const ModalDetailNews: React.FC = () => {
           {/* Featured Image */}
           <div className="relative rounded-2xl overflow-hidden bg-slate-100 shadow-md aspect-video">
             <img
-              src={selectedNews.image}
+              src={formatGoogleDriveImageUrl(selectedNews.image, 1200)}
               alt={selectedNews.title}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+              }}
             />
           </div>
 

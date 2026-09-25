@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { getArticleReadingStats } from '../lib/readingTime';
 import { stripHtml } from '../lib/stripHtml';
+import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -28,11 +29,14 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
       {/* 1. Cover Image with Category Badge, Bottom Curve & Blue Leaf Wave */}
       <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-slate-100">
         <img
-          src={article.image}
+          src={formatGoogleDriveImageUrl(article.image, 600)}
           alt={article.title}
           loading="lazy"
           decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+          }}
         />
 
         {/* Top-Left Category Badge (Graduation Cap + Text in Blue Pill) */}

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { formatIndonesianDate, compareAgendaDatesDescending } from '../services/googleSheetService';
 import { stripHtml } from '../lib/stripHtml';
+import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
 
 export const HomePage: React.FC = () => {
   const { news, schools, announcements, aulaBookings, setActiveTab, setSelectedAnnouncement, setSelectedNews } = useApp();
@@ -157,11 +158,14 @@ export const HomePage: React.FC = () => {
                 >
                   <div className="relative w-full aspect-[16/10] sm:h-72 md:h-80 overflow-hidden bg-slate-100">
                     <img
-                      src={featuredNews.image}
+                      src={formatGoogleDriveImageUrl(featuredNews.image, 1000)}
                       alt={featuredNews.title}
                       loading="lazy"
                       decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                      }}
                     />
                     <div className="absolute top-4 left-4 z-10">
                       <span className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-md">
@@ -210,11 +214,14 @@ export const HomePage: React.FC = () => {
                     {/* Thumbnail */}
                     <div className="w-28 sm:w-36 md:w-40 h-20 sm:h-22 rounded-lg overflow-hidden bg-slate-100 shrink-0">
                       <img
-                        src={art.image}
+                        src={formatGoogleDriveImageUrl(art.image, 400)}
                         alt={art.title}
                         loading="lazy"
                         decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                        }}
                       />
                     </div>
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowUpRight, Share2, PhoneCall } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatExternalUrl, TikTokIcon, FacebookIcon, InstagramIcon, YoutubeIcon, XIcon } from '../components/SocialIcons';
+import { formatExternalUrl, TikTokIcon, FacebookIcon, InstagramIcon, YoutubeIcon, XIcon, WhatsAppIcon } from '../components/SocialIcons';
 import { SocialMediaItem } from '../types';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
@@ -40,6 +40,12 @@ export const SocialMediaPage: React.FC = () => {
         return (
           <div className="w-14 h-14 rounded-2xl bg-[#1877F2] flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
             <FacebookIcon className="w-7 h-7" />
+          </div>
+        );
+      case 'whatsapp':
+        return (
+          <div className="w-14 h-14 rounded-2xl bg-[#25D366] flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
+            <WhatsAppIcon className="w-7 h-7" />
           </div>
         );
       case 'x':
@@ -88,7 +94,9 @@ export const SocialMediaPage: React.FC = () => {
                 ? 'max-w-4xl mx-auto grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
                 : visibleSocialMedia.length === 4
                 ? 'max-w-5xl mx-auto grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
-                : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'
+                : visibleSocialMedia.length === 5
+                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'
+                : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6'
             }`}
           >
             {visibleSocialMedia.map((item: SocialMediaItem) => (

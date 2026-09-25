@@ -25,9 +25,19 @@ import {
   ChevronDown,
   ArrowUp,
   ArrowDown,
-  Trash2
+  Trash2,
+  X,
+  ExternalLink,
+  Check,
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
 import { isSafeUrl } from '../lib/sanitizeHtml';
+import { 
+  formatGoogleDriveImageUrl, 
+  isGoogleDriveUrl, 
+  extractGoogleDriveId 
+} from '../lib/driveHelper';
 
 interface RichTextEditorProps {
   value: string;
@@ -42,12 +52,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
-  const inlineImageInputRef = useRef<HTMLInputElement | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [driveImageUrl, setDriveImageUrl] = useState('');
+  const [imageCaption, setImageCaption] = useState('');
+  const savedRangeRef = useRef<Range | null>(null);
 
   const scrollToTop = () => {
     if (canvasContainerRef.current) {
@@ -254,50 +267,82 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   };
 
-  const handleInlineImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleOpenImageModal = () => {
+    // Simpan posisi kursor saat ini di dalam editor jika ada
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    } else {
+      savedRangeRef.current = null;
+    }
+    setDriveImageUrl('');
+    setImageCaption('');
+    setIsImageModalOpen(true);
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const imgUrl = event.target?.result as string;
-      if (imgUrl && editorRef.current) {
-        editorRef.current.focus();
+  const handleInsertDriveImage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!driveImageUrl.trim()) return;
 
-        // Format gambar disisipkan: Otomatis RATA TENGAH, ukuran proporsional BESAR (85%), border-radius, dan shadow halus
-        const imgHtml = `<p style="text-align: center; margin: 24px 0;" class="article-img-wrapper"><img src="${imgUrl}" alt="Dokumentasi Berita" data-align="center" data-size="large" style="display: block; margin-left: auto; margin-right: auto; width: 85%; max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);" /></p><p><br></p>`;
+    const trimmed = driveImageUrl.trim();
+    const cdnUrl = formatGoogleDriveImageUrl(trimmed, 1600);
+    if (!cdnUrl || !isSafeUrl(cdnUrl, true)) {
+      alert('Link foto tidak valid. Pastikan menggunakan tautan Google Drive atau URL foto yang valid.');
+      return;
+    }
 
-        let inserted = false;
+    const altText = imageCaption.trim() || 'Dokumentasi Berita';
+    const captionHtml = imageCaption.trim()
+      ? `<figcaption style="text-align: center; font-size: 13px; color: #64748b; margin-top: 8px; font-style: italic;">${imageCaption.trim()}</figcaption>`
+      : '';
+    const imgHtml = `<p style="text-align: center; margin: 24px 0;" class="article-img-wrapper"><img src="${cdnUrl}" alt="${altText}" data-align="center" data-size="large" style="display: block; margin-left: auto; margin-right: auto; width: 85%; max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);" />${captionHtml}</p><p><br></p>`;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+
+      let inserted = false;
+      if (savedRangeRef.current) {
+        try {
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(savedRangeRef.current);
+          inserted = document.execCommand('insertHTML', false, imgHtml);
+        } catch {}
+      }
+
+      if (!inserted) {
         try {
           inserted = document.execCommand('insertHTML', false, imgHtml);
         } catch {}
-
-        if (!inserted && editorRef.current) {
-          const div = document.createElement('div');
-          div.innerHTML = imgHtml;
-          while (div.firstChild) {
-            editorRef.current.appendChild(div.firstChild);
-          }
-        }
-
-        handleInput();
-
-        // Otomatis aktifkan seleksi gambar baru agar admin bisa langsung atur jika diinginkan
-        setTimeout(() => {
-          if (!editorRef.current) return;
-          const imgs = editorRef.current.querySelectorAll('img');
-          const lastImg = imgs[imgs.length - 1];
-          if (lastImg) {
-            editorRef.current.querySelectorAll('img').forEach((el) => el.classList.remove('selected-img-active'));
-            lastImg.classList.add('selected-img-active');
-            setSelectedImage(lastImg);
-            lastImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 120);
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+
+      if (!inserted && editorRef.current) {
+        const div = document.createElement('div');
+        div.innerHTML = imgHtml;
+        while (div.firstChild) {
+          editorRef.current.appendChild(div.firstChild);
+        }
+      }
+
+      handleInput();
+
+      setTimeout(() => {
+        if (!editorRef.current) return;
+        const imgs = editorRef.current.querySelectorAll('img');
+        const lastImg = imgs[imgs.length - 1];
+        if (lastImg) {
+          editorRef.current.querySelectorAll('img').forEach((el) => el.classList.remove('selected-img-active'));
+          lastImg.classList.add('selected-img-active');
+          setSelectedImage(lastImg);
+          lastImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 120);
+    }
+
+    setIsImageModalOpen(false);
+    setDriveImageUrl('');
+    setImageCaption('');
+    savedRangeRef.current = null;
   };
 
   const textColors = [
@@ -590,21 +635,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
           <button
             type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => inlineImageInputRef.current?.click()}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700 flex items-center gap-1"
-            title="Sisipkan Gambar ke Lembar Naskah"
+            onMouseDown={() => {
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+                savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+              }
+            }}
+            onClick={handleOpenImageModal}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-700 flex items-center gap-1 transition-colors"
+            title="Sisipkan Foto dari Google Drive (Hemat Penyimpanan)"
           >
             <ImageIcon className="w-4 h-4 text-blue-600" />
             <span className="text-[11px] font-semibold hidden md:inline">Sisipkan Foto</span>
           </button>
-          <input
-            ref={inlineImageInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleInlineImageUpload}
-            className="hidden"
-          />
 
           <button
             type="button"
@@ -829,6 +872,160 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Modal / Dialog Sisipkan Foto dari Google Drive */}
+      {isImageModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setIsImageModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                    Sisipkan Foto dari Google Drive
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Bebas kuota Supabase • Foto langsung tampil di detail berita
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                title="Tutup dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Input Link Google Drive */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>Tautan / Link Foto Google Drive *</span>
+                <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                  Akses: Anyone with link
+                </span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={driveImageUrl}
+                  onChange={(e) => setDriveImageUrl(e.target.value)}
+                  placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+                  className="w-full px-3.5 py-2.5 pl-9 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs text-slate-800 transition-all font-mono"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleInsertDriveImage();
+                    }
+                  }}
+                />
+                <Link2 className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                {driveImageUrl.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setDriveImageUrl('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    title="Hapus tautan"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Input Keterangan Foto (Alt / Caption) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                Keterangan Foto / Teks Gambar (Opsional)
+              </label>
+              <input
+                type="text"
+                value={imageCaption}
+                onChange={(e) => setImageCaption(e.target.value)}
+                placeholder="Contoh: Suasana Pelatihan Guru di Aula Korwilcam"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs text-slate-800 transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleInsertDriveImage();
+                  }
+                }}
+              />
+            </div>
+
+            {/* Live Preview Box */}
+            {driveImageUrl.trim() && (
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700">Pratinjau Foto:</span>
+                  {isGoogleDriveUrl(driveImageUrl) || driveImageUrl.includes('lh3.googleusercontent.com') ? (
+                    <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Link Google Drive Valid
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-blue-600 font-medium">
+                      URL Gambar Web
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-40 overflow-hidden rounded-xl border border-slate-200 bg-white flex items-center justify-center p-1.5">
+                  <img
+                    src={formatGoogleDriveImageUrl(driveImageUrl.trim(), 800)}
+                    alt="Pratinjau Foto"
+                    className="max-h-36 w-auto max-w-full rounded-lg object-contain shadow-xs"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Petunjuk Penggunaan */}
+            <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200/80 text-[11px] text-blue-900 leading-relaxed space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-blue-800">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>Cara menyalin link foto dari Google Drive:</span>
+              </div>
+              <p className="text-blue-900/90 text-[10.5px]">
+                Buka Google Drive &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses Umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Klik <b>Salin link</b> &gt; Tempelkan pada kotak di atas.
+              </p>
+            </div>
+
+            {/* Footer Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsImageModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInsertDriveImage()}
+                disabled={!driveImageUrl.trim()}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 active:scale-95"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Sisipkan ke Naskah</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

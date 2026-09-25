@@ -850,6 +850,19 @@ export const initialSocialMedia: SocialMediaItem[] = [
     url: 'https://x.com/KorwilcamPwd',
     isActive: true,
     order: 5
+  },
+  {
+    id: 'whatsapp',
+    platform: 'whatsapp',
+    name: 'Chanel WhatsApp',
+    badge: 'SALURAN INFORMASI',
+    username: 'Korwilcam Purwodadi',
+    followers: 'Saluran Resmi',
+    description: 'Saluran resmi WhatsApp untuk edaran dinas kilat, informasi kedinasan, dan berita kegiatan pendidikan.',
+    buttonLabel: 'Ikuti Saluran WhatsApp',
+    url: 'https://whatsapp.com/channel/',
+    isActive: true,
+    order: 6
   }
 ];
 

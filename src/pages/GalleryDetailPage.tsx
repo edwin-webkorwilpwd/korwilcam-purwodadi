@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   ArrowLeft, 
@@ -17,16 +17,17 @@ import {
   Layers,
   ArrowRight,
   AlertCircle,
-  User
+  User,
+  Eye
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { getGallerySlug } from '../lib/galleryHelper';
 import { GalleryCard } from '../components/GalleryCard';
 import { 
   isGoogleDriveFolderUrl, 
-  extractGoogleDriveFolderId, 
-  getGoogleDriveFolderViewUrl, 
-  getGoogleDriveEmbeddedFolderUrl 
+  isGoogleDriveUrl,
+  formatGoogleDriveImageUrl,
+  extractGalleryMetadata
 } from '../lib/driveHelper';
 
 export const GalleryDetailPage: React.FC = () => {
@@ -48,19 +49,44 @@ export const GalleryDetailPage: React.FC = () => {
     setActivePhotoIndex(0);
   }, [selectedGallery?.id]);
 
+  // Ekstrak metadata terkemas dari deskripsi jika ada
+  const meta = useMemo(() => {
+    return extractGalleryMetadata(selectedGallery?.description || '');
+  }, [selectedGallery?.description]);
+
+  const cleanDescription = meta.cleanDescription || selectedGallery?.description || '';
+
+  // Seluruh daftar foto dokumentasi untuk Slide Show
+  const albumPhotos = useMemo(() => {
+    if (!selectedGallery) return [];
+    let list: string[] = [];
+
+    if (Array.isArray(selectedGallery.images) && selectedGallery.images.length > 0) {
+      list = selectedGallery.images;
+    } else if (Array.isArray(meta.images) && meta.images.length > 0) {
+      list = meta.images;
+    } else if (selectedGallery.image) {
+      list = [selectedGallery.image];
+    }
+
+    return list
+      .filter((img) => typeof img === 'string' && img.trim().length > 0 && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
+      .map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
+  }, [selectedGallery, meta]);
+
+  const totalPhotos = albumPhotos.length;
+  const currentPhoto = albumPhotos[activePhotoIndex] || albumPhotos[0] || '';
+  const currentUrl = window.location.href;
+
   // Keyboard navigation for lightbox
   useEffect(() => {
-    if (!isLightboxOpen || !selectedGallery) return;
-
-    const photos = (selectedGallery.images && selectedGallery.images.length > 0)
-      ? selectedGallery.images
-      : [selectedGallery.image];
+    if (!isLightboxOpen || albumPhotos.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
-        setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+        setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : albumPhotos.length - 1));
       } else if (e.key === 'ArrowRight') {
-        setActivePhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+        setActivePhotoIndex((prev) => (prev < albumPhotos.length - 1 ? prev + 1 : 0));
       } else if (e.key === 'Escape') {
         setIsLightboxOpen(false);
       }
@@ -68,7 +94,7 @@ export const GalleryDetailPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLightboxOpen, selectedGallery]);
+  }, [isLightboxOpen, albumPhotos]);
 
   if (!selectedGallery) {
     return (
@@ -94,22 +120,6 @@ export const GalleryDetailPage: React.FC = () => {
     );
   }
 
-  // Check if item has a Google Drive folder link
-  const rawDriveUrl = selectedGallery.driveFolderUrl || (isGoogleDriveFolderUrl(selectedGallery.image) ? selectedGallery.image : '');
-  const isDriveAlbum = Boolean(rawDriveUrl);
-  const driveFolderId = isDriveAlbum ? extractGoogleDriveFolderId(rawDriveUrl) : null;
-  const driveFolderViewUrl = isDriveAlbum ? getGoogleDriveFolderViewUrl(rawDriveUrl) : '';
-  const driveEmbeddedUrl = isDriveAlbum ? getGoogleDriveEmbeddedFolderUrl(rawDriveUrl) : '';
-
-  // All photos in this gallery item (for legacy direct photos or cover)
-  const legacyPhotos = (selectedGallery.images && selectedGallery.images.length > 0)
-    ? selectedGallery.images.filter((img) => !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
-    : (selectedGallery.image && !isGoogleDriveFolderUrl(selectedGallery.image) && !selectedGallery.image.includes('/drive/folders') ? [selectedGallery.image] : []);
-
-  const totalPhotos = legacyPhotos.length;
-  const currentPhoto = legacyPhotos[activePhotoIndex] || legacyPhotos[0] || '';
-  const currentUrl = window.location.href;
-
   const handleCopyLink = () => {
     navigator.clipboard.writeText(currentUrl);
     setCopied(true);
@@ -121,9 +131,7 @@ export const GalleryDetailPage: React.FC = () => {
     const authorText = selectedGallery.authorName 
       ? `Diunggah oleh: ${selectedGallery.authorName}${selectedGallery.authorRole ? ` (${selectedGallery.authorRole})` : ''}\n` 
       : '';
-    const albumSourceText = isDriveAlbum
-      ? `Sumber Dokumentasi: Google Drive Cloud Album Resmi Korwilcam\n`
-      : `Jumlah Foto: ${totalPhotos} Foto Dokumentasi\n`;
+    const albumSourceText = `Jumlah Foto: ${totalPhotos} Foto Dokumentasi\n`;
 
     const text = encodeURIComponent(
       `*DOKUMENTASI KEGIATAN KORWILCAM PURWODADI*\n\n` +
@@ -131,8 +139,8 @@ export const GalleryDetailPage: React.FC = () => {
       `Kategori: ${selectedGallery.category} | Tanggal: ${selectedGallery.date}\n` +
       albumSourceText +
       authorText +
-      `\nKeterangan:\n${selectedGallery.description || 'Dokumentasi kegiatan pendidikan se-Kecamatan Purwodadi.'}\n\n` +
-      `Lihat seluruh foto lengkapnya pada tautan resmi berikut:\n${currentUrl}`
+      `\nKeterangan:\n${cleanDescription || 'Dokumentasi kegiatan pendidikan se-Kecamatan Purwodadi.'}\n\n` +
+      `Lihat seluruh slide show foto lengkapnya pada tautan resmi berikut:\n${currentUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
@@ -149,7 +157,7 @@ export const GalleryDetailPage: React.FC = () => {
   };
 
   const handleDownloadAllPhotos = () => {
-    legacyPhotos.forEach((photoUrl, idx) => {
+    albumPhotos.forEach((photoUrl, idx) => {
       setTimeout(() => {
         handleDownloadPhoto(photoUrl, idx);
       }, idx * 350);
@@ -216,17 +224,10 @@ export const GalleryDetailPage: React.FC = () => {
               <Calendar className="w-3.5 h-3.5 text-amber-500" />
               {selectedGallery.date}
             </span>
-            {isDriveAlbum ? (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 flex items-center gap-1.5 border border-blue-200">
-                <Folder className="w-3.5 h-3.5 text-blue-600" />
-                <span>Album Google Drive</span>
-              </span>
-            ) : (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 flex items-center gap-1.5 border border-amber-200">
-                <Images className="w-3.5 h-3.5 text-amber-700" />
-                <span>{totalPhotos} Foto Dokumentasi</span>
-              </span>
-            )}
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 flex items-center gap-1.5 border border-blue-200">
+              <Images className="w-3.5 h-3.5 text-blue-600" />
+              <span>{totalPhotos} Foto Dokumentasi</span>
+            </span>
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 flex items-center gap-1.5 border border-purple-200">
               <User className="w-3.5 h-3.5 text-purple-600" />
               <span>
@@ -240,14 +241,14 @@ export const GalleryDetailPage: React.FC = () => {
             {selectedGallery.title}
           </h1>
 
-          {selectedGallery.description && (
+          {cleanDescription && (
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-4xl pt-1">
-              {selectedGallery.description}
+              {cleanDescription}
             </p>
           )}
 
-          {!isDriveAlbum && totalPhotos > 1 && (
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-wrap items-center gap-3">
+            {totalPhotos > 1 && (
               <button
                 onClick={handleDownloadAllPhotos}
                 className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
@@ -255,183 +256,117 @@ export const GalleryDetailPage: React.FC = () => {
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>Unduh Seluruh {totalPhotos} Foto (Batch)</span>
               </button>
+            )}
+
+            {totalPhotos > 1 && (
               <span className="text-xs text-slate-400">
                 Gunakan tombol panah atau klik thumbnail di bawah untuk berpindah antar foto.
               </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* SECTION 1: GOOGLE DRIVE EMBEDDED VIEWER (Jika Menggunakan Link Folder Google Drive) */}
-        {isDriveAlbum ? (
-          <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-slate-200 flex flex-col">
-            {/* Top Bar for Drive Album */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#1b56ce] via-[#1e40af] to-[#0f172a] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
-                  <Folder className="w-6 h-6 text-amber-300 fill-amber-300/30" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-sm sm:text-base text-white">
-                      Dokumentasi Foto Google Drive
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950 uppercase tracking-wider shadow-xs">
-                      Cloud Folder
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-100 mt-0.5">
-                    Seluruh foto kegiatan dimuat langsung dari cloud resmi Google Drive tanpa batas kapasitas
-                  </p>
-                </div>
+        {/* SECTION 1: SLIDE SHOW FOTO DOKUMENTASI KEGIATAN UTAMA */}
+        {totalPhotos > 0 && (
+          <div className="bg-slate-950 rounded-3xl overflow-hidden shadow-xl border border-slate-900 flex flex-col">
+            {/* Top Bar for Album Context */}
+            <div className="px-4 py-2.5 bg-gradient-to-r from-blue-900/90 via-indigo-950/80 to-slate-950 text-white border-b border-white/10 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Images className="w-3.5 h-3.5 text-amber-400" />
+                <span className="font-bold text-slate-200">Dokumentasi Foto Kegiatan</span>
+                <span className="text-slate-400 hidden sm:inline">• Seluruh foto dimuat langsung dengan resolusi tinggi</span>
+              </div>
+            </div>
+
+            {/* Main Photo Viewing Area */}
+            <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[580px] bg-black flex items-center justify-center group overflow-hidden select-none">
+              <img
+                src={currentPhoto}
+                alt={`${selectedGallery.title} - Foto ${activePhotoIndex + 1}`}
+                className="w-full h-full object-contain transition-all duration-300"
+              />
+
+              {/* Photo Counter Pill */}
+              <div className="absolute top-4 left-4 z-10 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold flex items-center gap-2 border border-white/10">
+                <Images className="w-3.5 h-3.5 text-amber-400" />
+                <span>Foto {activePhotoIndex + 1} dari {totalPhotos}</span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <a
-                  href={driveFolderViewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-blue-50 text-blue-700 text-xs font-bold flex items-center gap-2 shadow-sm transition-all hover:scale-102"
+              {/* Action Top Right: Fullscreen Lightbox & Download */}
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                <button
+                  onClick={() => setIsLightboxOpen(true)}
+                  className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all hover:scale-105"
+                  title="Perbesar Layar Penuh (Fullscreen)"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Buka Folder di Google Drive</span>
-                </a>
+                  <Maximize2 className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline">Layar Penuh</span>
+                </button>
 
                 <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(driveFolderViewUrl);
-                    showToast('Tautan folder Google Drive berhasil disalin!', 'success');
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-blue-800/80 hover:bg-blue-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors border border-white/20"
-                  title="Salin Link Folder Drive"
+                  onClick={() => handleDownloadPhoto(currentPhoto, activePhotoIndex)}
+                  className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all hover:scale-105"
+                  title="Unduh foto yang sedang ditampilkan"
                 >
-                  <Share2 className="w-3.5 h-3.5 text-blue-200" />
-                  <span>Salin Link</span>
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden sm:inline">Unduh Foto</span>
                 </button>
               </div>
-            </div>
 
-            {/* Embedded Google Drive Folder Grid Viewer */}
-            <div className="relative w-full h-[580px] sm:h-[700px] bg-slate-100">
-              <iframe
-                src={driveEmbeddedUrl}
-                className="w-full h-full border-0"
-                title={`Folder Galeri: ${selectedGallery.title}`}
-                allow="autoplay"
-                loading="lazy"
-              />
-            </div>
-
-            {/* Footer Guide */}
-            <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                <span>
-                  Klik dua kali pada foto di atas untuk melihat resolusi penuh, atau klik tombol <strong>Buka Folder di Google Drive</strong> untuk mengunduh semua foto.
-                </span>
-              </div>
-              {driveFolderId && (
-                <span className="text-[11px] text-slate-400 font-mono shrink-0">
-                  Folder ID: <span className="text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200 font-semibold">{driveFolderId}</span>
-                </span>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* SECTION 1B: STAGE SOROTAN UTAMA UNTUK ALBUM LEGACY */
-          totalPhotos > 0 && (
-            <div className="bg-slate-950 rounded-3xl overflow-hidden shadow-xl border border-slate-900 flex flex-col">
-              {/* Main Photo Viewing Area */}
-              <div className="relative w-full h-[360px] sm:h-[480px] lg:h-[580px] bg-black flex items-center justify-center group overflow-hidden select-none">
-                <img
-                  src={currentPhoto}
-                  alt={`${selectedGallery.title} - Foto ${activePhotoIndex + 1}`}
-                  className="w-full h-full object-contain transition-all duration-300"
-                />
-
-                {/* Photo Counter Pill */}
-                <div className="absolute top-4 left-4 z-10 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold flex items-center gap-2 border border-white/10">
-                  <Images className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Foto {activePhotoIndex + 1} dari {totalPhotos}</span>
-                </div>
-
-                {/* Action Top Right: Fullscreen Lightbox & Download */}
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                  <button
-                    onClick={() => setIsLightboxOpen(true)}
-                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all hover:scale-105"
-                    title="Perbesar Layar Penuh (Fullscreen)"
-                  >
-                    <Maximize2 className="w-4 h-4 text-amber-400" />
-                    <span className="hidden sm:inline">Layar Penuh</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleDownloadPhoto(currentPhoto, activePhotoIndex)}
-                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all hover:scale-105"
-                    title="Unduh foto yang sedang ditampilkan"
-                  >
-                    <Download className="w-4 h-4 text-emerald-400" />
-                    <span className="hidden sm:inline">Unduh Foto</span>
-                  </button>
-                </div>
-
-                {/* Previous Arrow Button */}
-                {totalPhotos > 1 && (
-                  <button
-                    onClick={() => setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : totalPhotos - 1))}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition-all hover:scale-110 shadow-lg"
-                    title="Foto Sebelumnya"
-                  >
-                    <ChevronLeft className="w-7 h-7" />
-                  </button>
-                )}
-
-                {/* Next Arrow Button */}
-                {totalPhotos > 1 && (
-                  <button
-                    onClick={() => setActivePhotoIndex((prev) => (prev < totalPhotos - 1 ? prev + 1 : 0))}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition-all hover:scale-110 shadow-lg"
-                    title="Foto Selanjutnya"
-                  >
-                    <ChevronRight className="w-7 h-7" />
-                  </button>
-                )}
-              </div>
-
-              {/* Bottom Thumbnails Strip (Jika foto > 1) */}
+              {/* Previous Arrow Button */}
               {totalPhotos > 1 && (
-                <div className="p-4 sm:p-5 bg-slate-900 border-t border-slate-800">
-                  <div className="flex items-center justify-between pb-2 text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300">Pilih Foto untuk Ditampilkan:</span>
-                    <span>{activePhotoIndex + 1} / {totalPhotos}</span>
-                  </div>
-                  <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700">
-                    {legacyPhotos.map((photo, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActivePhotoIndex(idx)}
-                        className={`relative w-20 h-14 sm:w-28 sm:h-20 rounded-2xl overflow-hidden shrink-0 transition-all duration-200 ${
-                          activePhotoIndex === idx
-                            ? 'ring-3 ring-amber-400 scale-105 shadow-lg shadow-amber-500/20 opacity-100'
-                            : 'opacity-50 hover:opacity-90 hover:scale-102'
-                        }`}
-                      >
-                        <img src={photo} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                        <span className="absolute bottom-1 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/70 text-white font-mono">
-                          #{idx + 1}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <button
+                  onClick={() => setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : totalPhotos - 1))}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition-all hover:scale-110 shadow-lg"
+                  title="Foto Sebelumnya"
+                >
+                  <ChevronLeft className="w-7 h-7" />
+                </button>
+              )}
+
+              {/* Next Arrow Button */}
+              {totalPhotos > 1 && (
+                <button
+                  onClick={() => setActivePhotoIndex((prev) => (prev < totalPhotos - 1 ? prev + 1 : 0))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition-all hover:scale-110 shadow-lg"
+                  title="Foto Selanjutnya"
+                >
+                  <ChevronRight className="w-7 h-7" />
+                </button>
               )}
             </div>
-          )
+
+            {/* Bottom Thumbnails Strip (Jika foto > 1) */}
+            {totalPhotos > 1 && (
+              <div className="p-4 sm:p-5 bg-slate-900 border-t border-slate-800">
+                <div className="flex items-center justify-between pb-2 text-xs text-slate-400">
+                  <span className="font-semibold text-slate-300">Pilih Foto untuk Ditampilkan:</span>
+                  <span>{activePhotoIndex + 1} / {totalPhotos}</span>
+                </div>
+                <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700">
+                  {albumPhotos.map((photo, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActivePhotoIndex(idx)}
+                      className={`relative w-20 h-14 sm:w-28 sm:h-20 rounded-2xl overflow-hidden shrink-0 transition-all duration-200 ${
+                        activePhotoIndex === idx
+                          ? 'ring-3 ring-amber-400 scale-105 shadow-lg shadow-amber-500/20 opacity-100'
+                          : 'opacity-50 hover:opacity-90 hover:scale-102'
+                      }`}
+                    >
+                      <img src={photo} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                      <span className="absolute bottom-1 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/70 text-white font-mono">
+                        #{idx + 1}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
-        {/* SECTION 3: REKOMENDASI ALBUM KEGIATAN LAINNYA */}
+        {/* SECTION 2: REKOMENDASI ALBUM KEGIATAN LAINNYA */}
         {otherAlbums.length > 0 && (
           <div className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
@@ -548,7 +483,7 @@ export const GalleryDetailPage: React.FC = () => {
               className="px-6 py-3 border-t border-white/10 bg-black/40 overflow-x-auto flex items-center justify-center gap-2"
               onClick={(e) => e.stopPropagation()}
             >
-              {legacyPhotos.map((photo, idx) => (
+              {albumPhotos.map((photo, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActivePhotoIndex(idx)}

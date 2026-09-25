@@ -275,7 +275,7 @@ export interface DataRequestLink {
   updatedAt?: string;
 }
 
-export type SocialPlatform = 'instagram' | 'youtube' | 'tiktok' | 'facebook' | 'x';
+export type SocialPlatform = 'instagram' | 'youtube' | 'tiktok' | 'facebook' | 'x' | 'whatsapp';
 
 export interface SocialMediaItem {
   id: string;

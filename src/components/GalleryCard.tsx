@@ -1,7 +1,7 @@
 import React from 'react';
 import { GalleryItem } from '../types';
 import { getGalleryDetailPath } from '../lib/galleryHelper';
-import { isGoogleDriveFolderUrl, formatGoogleDriveImageUrl } from '../lib/driveHelper';
+import { isGoogleDriveFolderUrl, formatGoogleDriveImageUrl, extractGalleryMetadata } from '../lib/driveHelper';
 import { 
   Calendar, 
   Camera, 
@@ -23,16 +23,20 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
   onClick, 
   className = '' 
 }) => {
+  const meta = extractGalleryMetadata(item.description || '');
+  const cleanDescription = meta.cleanDescription || item.description;
   const photoList = (item.images && item.images.length > 0) 
     ? item.images 
-    : (item.image ? [item.image] : []);
+    : (meta.images && meta.images.length > 0 ? meta.images : (item.image ? [item.image] : []));
   const count = photoList.length || 1;
-  const isDriveAlbum = Boolean(item.driveFolderUrl || isGoogleDriveFolderUrl(item.image));
+  const isDriveAlbum = Boolean(item.driveFolderUrl || meta.driveFolderUrl || isGoogleDriveFolderUrl(item.image));
   const hasValidCoverImage = Boolean(item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders'));
-  const coverImage = hasValidCoverImage ? formatGoogleDriveImageUrl(item.image, 600) : '';
+  const coverImage = hasValidCoverImage 
+    ? formatGoogleDriveImageUrl(item.image, 600) 
+    : (photoList[0] && !isGoogleDriveFolderUrl(photoList[0]) ? formatGoogleDriveImageUrl(photoList[0], 600) : '');
   const detailUrl = getGalleryDetailPath(item);
   const authorName = item.authorName || 'Super Administrator';
-  const subtitle = item.description || `${item.date}. ${item.title}`;
+  const subtitle = cleanDescription || `${item.date}. ${item.title}`;
 
   return (
     <a
@@ -88,17 +92,10 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
 
         {/* Badge - Top Right */}
         <div className="absolute top-2.5 right-2.5 z-10">
-          {isDriveAlbum ? (
-            <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-extrabold bg-blue-600 text-white shadow-md flex items-center gap-1 border border-white/40">
-              <Folder className="w-3 h-3 text-amber-300 fill-amber-300/20" />
-              <span>Folder Drive</span>
-            </span>
-          ) : (
-            <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-extrabold bg-white text-slate-800 shadow-md flex items-center gap-1 border border-white/80">
-              <Camera className="w-3 h-3 text-blue-600" />
-              <span>{count} Foto</span>
-            </span>
-          )}
+          <span className="px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-extrabold bg-blue-600 text-white shadow-md flex items-center gap-1 border border-white/40">
+            <Camera className="w-3 h-3 text-white" />
+            <span>{count} Foto</span>
+          </span>
         </div>
 
         {/* Date Display - Bottom Left */}
