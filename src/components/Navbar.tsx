@@ -13,8 +13,6 @@ import {
   FileCheck,
   Image as ImageIcon, 
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ArrowRight,
   Share2,
   Briefcase
@@ -211,9 +209,9 @@ export const Navbar: React.FC = () => {
     }, 250);
   };
 
-  // Top 3 Berita & Informasi Terbaru
-  const topThreeNews = useMemo(() => {
-    return (news || []).slice(0, 3);
+  // Top 10 Berita & Informasi Terbaru
+  const topTenNews = useMemo(() => {
+    return (news || []).slice(0, 10);
   }, [news]);
 
   const [currentTickerIndex, setCurrentTickerIndex] = useState(0);
@@ -221,12 +219,12 @@ export const Navbar: React.FC = () => {
 
   // Auto rotate ticker setiap 4.5 detik
   useEffect(() => {
-    if (topThreeNews.length <= 1 || isTickerHovered) return;
+    if (topTenNews.length <= 1 || isTickerHovered) return;
     const timer = setInterval(() => {
-      setCurrentTickerIndex((prev) => (prev + 1) % topThreeNews.length);
+      setCurrentTickerIndex((prev) => (prev + 1) % topTenNews.length);
     }, 4500);
     return () => clearInterval(timer);
-  }, [topThreeNews.length, isTickerHovered]);
+  }, [topTenNews.length, isTickerHovered]);
 
   // Clean up timeouts on unmount and click outside detection
   const navbarRef = useRef<HTMLElement | null>(null);
@@ -250,22 +248,8 @@ export const Navbar: React.FC = () => {
     };
   }, []);
 
-  const handleNextTicker = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (topThreeNews.length > 0) {
-      setCurrentTickerIndex((prev) => (prev + 1) % topThreeNews.length);
-    }
-  };
-
-  const handlePrevTicker = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (topThreeNews.length > 0) {
-      setCurrentTickerIndex((prev) => (prev - 1 + topThreeNews.length) % topThreeNews.length);
-    }
-  };
-
   const handleTickerClick = () => {
-    const currentItem = topThreeNews[currentTickerIndex];
+    const currentItem = topTenNews[currentTickerIndex];
     if (currentItem) {
       setSelectedNews(currentItem);
     }
@@ -293,7 +277,7 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const currentNews = topThreeNews[currentTickerIndex];
+  const currentNews = topTenNews[currentTickerIndex];
 
   return (
     <header ref={navbarRef} onMouseLeave={handleHeaderLeave} className="sticky top-0 z-40 w-full shadow-lg bg-[#163fa8]">
@@ -301,7 +285,7 @@ export const Navbar: React.FC = () => {
       <div className="bg-[#143794] text-blue-100 text-[11px] py-1.5 border-b border-white/15 select-none">
         <div className="w-full px-2 sm:px-3 flex flex-col md:flex-row justify-between items-center gap-2">
           
-          {/* Announcement ticker: 3 Berita & Informasi Terbaru */}
+          {/* Announcement ticker: 10 Berita & Informasi Terbaru */}
           <div 
             className="flex items-center gap-2.5 overflow-hidden w-full md:w-auto min-w-0"
             onMouseEnter={() => setIsTickerHovered(true)}
@@ -313,36 +297,7 @@ export const Navbar: React.FC = () => {
               <span>Info Terkini</span>
             </span>
 
-            {/* Counter: 1/3, 2/3, 3/3 */}
-            {topThreeNews.length > 0 && (
-              <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-white/15 text-white font-mono text-[10px] shrink-0 border border-white/20 font-semibold">
-                {currentTickerIndex + 1}/{topThreeNews.length}
-              </span>
-            )}
-
-            {/* Navigasi Prev/Next */}
-            {topThreeNews.length > 1 && (
-              <div className="hidden sm:flex items-center gap-0.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={handlePrevTicker}
-                  className="p-0.5 rounded hover:bg-white/15 text-blue-200 hover:text-white transition-colors"
-                  title="Berita sebelumnya"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleNextTicker}
-                  className="p-0.5 rounded hover:bg-white/15 text-blue-200 hover:text-white transition-colors"
-                  title="Berita selanjutnya"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Judul Berita Interaktif & Dapat Diklik */}
+            {/* Judul Berita Interaktif & Dapat Diklik Langsung di Sebelahnya */}
             <div className="min-w-0 flex-1 flex items-center gap-2">
               {currentNews ? (
                 <button
@@ -352,9 +307,6 @@ export const Navbar: React.FC = () => {
                   className="text-left truncate text-blue-100 hover:text-white font-medium text-xs transition-all flex items-center gap-2 group max-w-full"
                   title={`Klik untuk membaca selengkapnya: "${currentNews.title}"`}
                 >
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-white/20 text-white border border-white/30 shrink-0 hidden md:inline-block">
-                    {currentNews.category}
-                  </span>
                   <span className="truncate group-hover:underline">
                     {currentNews.title}
                   </span>

@@ -72,7 +72,7 @@ export const Footer: React.FC = () => {
               Navigasi Halaman
             </h4>
             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
-              {/* Sisi Kiri */}
+              {/* Sisi Kiri: Menu Utama & Informasi (6 Item) */}
               <ul className="space-y-1">
                 <li>
                   <button 
@@ -112,6 +112,15 @@ export const Footer: React.FC = () => {
                 </li>
                 <li>
                   <button 
+                    onClick={() => setActiveTab('gallery')}
+                    className="hover:text-blue-400 transition-colors flex items-center gap-1 text-left group w-full"
+                  >
+                    <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0" />
+                    <span className="truncate">Galeri Kegiatan</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
                     onClick={() => setActiveTab('downloads')}
                     className="hover:text-blue-400 transition-colors flex items-center gap-1 text-left group w-full"
                   >
@@ -121,7 +130,7 @@ export const Footer: React.FC = () => {
                 </li>
               </ul>
 
-              {/* Sisi Kanan */}
+              {/* Sisi Kanan: Layanan Online & Kontak (6 Item) */}
               <ul className="space-y-1">
                 <li>
                   <button 
@@ -157,15 +166,6 @@ export const Footer: React.FC = () => {
                   >
                     <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0" />
                     <span className="truncate">Permintaan Data</span>
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => setActiveTab('gallery')}
-                    className="hover:text-blue-400 transition-colors flex items-center gap-1 text-left group w-full"
-                  >
-                    <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-blue-400 shrink-0" />
-                    <span className="truncate">Galeri Kegiatan</span>
                   </button>
                 </li>
                 <li>
@@ -348,7 +348,7 @@ export const Footer: React.FC = () => {
         <div className="pt-3 flex flex-col sm:flex-row items-center justify-between text-[10px] text-blue-200/70 gap-1.5">
           <p>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</p>
           <div className="flex items-center gap-1 text-blue-200/90">
-            <span>Website ini dikembangkan oleh Tim IT Korwilcam Purwodadi</span>
+            <span>Website ini dikembangkan oleh tim ~IT Korwilcam Purwodadi~</span>
           </div>
         </div>
 
