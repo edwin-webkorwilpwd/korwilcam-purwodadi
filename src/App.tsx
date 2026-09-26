@@ -6,6 +6,7 @@ import { ToastContainer } from './components/ToastContainer';
 import { ModalDetailSchool } from './components/ModalDetailSchool';
 import { ModernNoticeModal } from './components/ModernNoticeModal';
 import { NotificationPrompt } from './components/NotificationPrompt';
+import { initVisitorTracker, recordPageView } from './lib/visitorTracker';
 
 // Eagerly loaded primary landing page
 import { HomePage } from './pages/HomePage';
@@ -88,6 +89,11 @@ const MainContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAuthenticated, setActiveTab]);
 
+  // Inisialisasi pelacakan sesi dan durasi pengunjung website
+  useEffect(() => {
+    initVisitorTracker(activeTab);
+  }, []);
+
   // Melacak webview mana saja yang sudah pernah dimount agar tetap hidup di memori (keep-alive)
   const [visitedWebViews, setVisitedWebViews] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -101,6 +107,8 @@ const MainContent: React.FC = () => {
     if (WEBVIEW_SERVICES.some((s) => s.id === activeTab)) {
       setVisitedWebViews((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
     }
+    // Catat penambahan tayangan halaman riil saat pengunjung membuka/berpindah halaman
+    recordPageView(activeTab);
   }, [activeTab]);
 
   // Admin routing

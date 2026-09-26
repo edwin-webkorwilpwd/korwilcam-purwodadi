@@ -671,3 +671,53 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
+
+-- ==========================================================
+-- 22. TABEL "analitik website" (ANALITIK KUNJUNGAN REAL-TIME)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public."analitik website" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id TEXT NOT NULL,
+  visitor_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  city TEXT NOT NULL DEFAULT 'Purwodadi',
+  region TEXT DEFAULT 'Jawa Tengah',
+  country TEXT NOT NULL DEFAULT 'Indonesia',
+  device_type TEXT NOT NULL DEFAULT 'Desktop',
+  browser TEXT NOT NULL DEFAULT 'Google Chrome',
+  os TEXT DEFAULT 'Windows',
+  traffic_source TEXT NOT NULL DEFAULT 'Langsung',
+  referrer TEXT DEFAULT '',
+  landing_page TEXT NOT NULL DEFAULT 'Beranda',
+  current_page TEXT NOT NULL DEFAULT 'Beranda',
+  pages_visited JSONB DEFAULT '["Beranda"]'::jsonb,
+  page_views INTEGER NOT NULL DEFAULT 1,
+  duration_seconds INTEGER NOT NULL DEFAULT 0,
+  is_bounce BOOLEAN NOT NULL DEFAULT TRUE,
+  is_logged_in BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_analitik_created_at ON public."analitik website" (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analitik_session_id ON public."analitik website" (session_id);
+CREATE INDEX IF NOT EXISTS idx_analitik_visitor_id ON public."analitik website" (visitor_id);
+CREATE INDEX IF NOT EXISTS idx_analitik_city ON public."analitik website" (city);
+CREATE INDEX IF NOT EXISTS idx_analitik_device ON public."analitik website" (device_type);
+CREATE INDEX IF NOT EXISTS idx_analitik_traffic ON public."analitik website" (traffic_source);
+CREATE INDEX IF NOT EXISTS idx_analitik_browser ON public."analitik website" (browser);
+
+ALTER TABLE public."analitik website" ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'analitik website' AND policyname = 'Public insert analitik website') THEN
+    CREATE POLICY "Public insert analitik website" ON public."analitik website" FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'analitik website' AND policyname = 'Public update analitik website') THEN
+    CREATE POLICY "Public update analitik website" ON public."analitik website" FOR UPDATE USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'analitik website' AND policyname = 'Public read analitik website') THEN
+    CREATE POLICY "Public read analitik website" ON public."analitik website" FOR SELECT USING (true);
+  END IF;
+END $$;
+

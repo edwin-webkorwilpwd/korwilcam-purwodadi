@@ -86,6 +86,7 @@ import {
   getGoogleDriveEmbeddedFolderUrl,
   parseGoogleDriveImageLinks
 } from '../../lib/driveHelper';
+import { VisitorAnalyticsChart } from '../../components/admin/VisitorAnalyticsChart';
 import { 
   getSupabaseConfig, 
   setCustomSupabaseConfig, 
@@ -4513,58 +4514,8 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Navigation Matrix */}
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-900 text-sm">
-                  Pilih Menu yang Ingin Diubah Sesuai Tampilan Web Depan:
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {[
-                    { id: 'home-cms', title: 'Halaman Beranda', desc: 'Ubah teks headline, subtitle hero, badge, dan semboyan instansi', icon: Home, color: 'text-blue-600 bg-blue-50' },
-                    { id: 'profile-cms', title: 'Halaman Profil', desc: 'Ubah visi misi, sambutan korwil, dan daftar pengawas/penilik', icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
-                    { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file database', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
-                    { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, KB, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
-                    { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, Guru TK & Guru KB di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
-                    { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
-                    ...(canAccessOrganizationCms ? [{ id: 'organization-cms', title: 'Organisasi', desc: 'Atur sambutan ketua, daftar pengurus, dan visi misi organisasi mitra (PGRI, K3S, IGTKI, dsb.)', icon: Users, color: 'text-amber-600 bg-amber-50' }] : []),
-                    { id: 'service-requirements-cms', title: 'Persyaratan Pelayanan', desc: 'Atur standar berkas persyaratan pelayanan pendidikan dan kepegawaian', icon: ClipboardList, color: 'text-blue-600 bg-blue-50' },
-                    { id: 'downloads-cms', title: 'Layanan Unduhan', desc: 'Kelola modul ajar Kurikulum Merdeka, blanko SKP, dan formulir', icon: Download, color: 'text-emerald-600 bg-emerald-50' },
-                    { id: 'data-request-cms', title: 'Permintaan Data', desc: 'Kelola formulir dan tautan webview permintaan data kedinasan', icon: Database, color: 'text-blue-600 bg-blue-50' },
-                    { id: 'gallery-cms', title: 'Galeri Kegiatan', desc: 'Upload foto dokumentasi kegiatan belajar, lomba, dan upacara', icon: ImageIcon, color: 'text-purple-600 bg-purple-50' },
-                    { id: 'contact-cms', title: 'Kontak & Pengaduan', desc: 'Ubah alamat, telepon, WhatsApp, dan cek kotak masuk aspirasi', icon: Phone, color: 'text-rose-600 bg-rose-50' },
-                    ...(isAdminOrSuperAdmin ? [{ id: 'social-media-cms', title: 'Media Sosial Resmi', desc: 'Atur tautan akun medsos, status aktif, dan statistik pengikut untuk halaman publik', icon: Share2, color: 'text-blue-600 bg-blue-50' }] : []),
-                    ...(isAdminOrSuperAdmin ? [{ id: 'broadcast-cms', title: 'Broadcast Notifikasi', desc: 'Siarkan notifikasi langsung ke layar HP & komputer pengguna yang menginstal aplikasi web', icon: Radio, color: 'text-amber-600 bg-amber-50' }] : [])
-                  ].map((menu, i) => {
-                    const Icon = menu.icon;
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          if (menu.id === 'service-requirements-cms') {
-                            setReqCategoryFilter('Semua');
-                            setReqSearchQuery('');
-                          }
-                          setCurrentSection(menu.id as AdminSection);
-                        }}
-                        className="p-4 rounded-xl border border-slate-200/80 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group flex items-start gap-3"
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${menu.color} group-hover:scale-110 transition-transform`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-0.5">
-                          <h4 className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-blue-600 transition-colors">
-                            {menu.title}
-                          </h4>
-                          <p className="text-[11px] text-slate-500 leading-relaxed">
-                            {menu.desc}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Grafik Garis Jumlah Pengunjung & Durasi Website */}
+              <VisitorAnalyticsChart onNavigateToSection={(sec) => setCurrentSection(sec as AdminSection)} />
             </div>
           )}
 
