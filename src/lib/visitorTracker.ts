@@ -539,10 +539,10 @@ export async function fetchWebsiteAnalyticsFromSupabase(rangeDays: number = 30):
   }
 
   try {
-    // Query data dari tabel "analitik website" (filter out test artifacts)
+    // Query data dari tabel "analitik website" (hanya kolom yang diperlukan agar hemat egress)
     const { data: rawRows, error } = await supabase
       .from(SUPABASE_TABLE_NAME)
-      .select('*')
+      .select('id, created_at, visitor_id, session_id, city, device_type, browser, traffic_source, landing_page, current_page, page_views, duration_seconds, is_bounce')
       .neq('session_id', 'test_session_1')
       .gte('created_at', startDate.toISOString())
       .order('created_at', { ascending: false });

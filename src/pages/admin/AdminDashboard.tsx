@@ -262,15 +262,16 @@ export const AdminDashboard: React.FC = () => {
     | 'users-cms'
     | 'activity-log-cms';
 
-  const [currentSection, setCurrentSection] = useState<AdminSection>(() => 
-    currentUser?.role === 'Penulis' ? 'news-cms' : 'overview'
-  );
   const isSuperAdmin = currentUser?.role === 'Super Admin';
   const isAdmin = currentUser?.role === 'Admin';
   const isAdminOrSuperAdmin = isSuperAdmin || isAdmin;
   const isWriter = currentUser?.role === 'Penulis';
   const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
   const activeUserRole = (currentUser?.role || 'Admin') as string;
+
+  const [currentSection, setCurrentSection] = useState<AdminSection>(() => 
+    currentUser?.role === 'Super Admin' ? 'overview' : 'news-cms'
+  );
 
   // Hak akses khusus Organisasi:
   // Super Admin & Admin dapat mengakses semua organisasi.
@@ -294,7 +295,7 @@ export const AdminDashboard: React.FC = () => {
     );
   }, [isAdminOrSuperAdmin, currentUser?.username, organizations]);
 
-  // Guard: Pastikan role Penulis hanya berada di menu yang diizinkan (news-cms, gallery-cms, organization-cms jika ditugaskan)
+  // Guard: Pastikan role Penulis dan Admin hanya berada di menu yang diizinkan
   useEffect(() => {
     if (isWriter) {
       const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'achievements-cms'];
@@ -304,12 +305,15 @@ export const AdminDashboard: React.FC = () => {
       if (!allowedSections.includes(currentSection)) {
         setCurrentSection('news-cms');
       }
+    } else if (!isSuperAdmin && currentSection === 'overview') {
+      // Menu Ringkasan Dashboard hanya dapat diakses oleh Super Admin
+      setCurrentSection('news-cms');
     } else if (currentSection === 'organization-cms' && !canAccessOrganizationCms) {
-      setCurrentSection('overview');
+      setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
     } else if ((currentSection === 'social-media-cms' || currentSection === 'broadcast-cms') && !isAdminOrSuperAdmin) {
-      setCurrentSection('overview');
+      setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
     } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms') && !isSuperAdmin) {
-      setCurrentSection('overview');
+      setCurrentSection('news-cms');
     }
   }, [isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
 
@@ -3610,7 +3614,8 @@ export const AdminDashboard: React.FC = () => {
         {/* Sidebar Nav: Matched 1-to-1 with Public Menus */}
         <aside className="w-full lg:w-72 xl:w-80 bg-white border-r border-slate-200 p-3.5 space-y-1 shrink-0 select-none">
           
-          {!isWriter && (
+          {/* Menu Khusus Super Admin: Ringkasan Dashboard */}
+          {isSuperAdmin && (
             <>
               <div className="px-2.5 pt-1 pb-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
@@ -4328,7 +4333,26 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {currentUser?.role === 'Penulis' && currentSection !== 'overview' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'achievements-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
+          {(!isSuperAdmin && currentSection === 'overview') ? (
+            <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Menu <strong>Ringkasan Dashboard & Analitik Website</strong> hanya dapat diakses oleh akun dengan tingkat wewenang <strong className="text-purple-700">Super Admin</strong>.
+              </p>
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentSection('news-cms')}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-all"
+                >
+                  Buka Menu Warta & Informasi
+                </button>
+              </div>
+            </div>
+          ) : currentUser?.role === 'Penulis' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'achievements-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Lock className="w-8 h-8" />
@@ -4368,8 +4392,8 @@ export const AdminDashboard: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* TAB 0: OVERVIEW */}
-              {currentSection === 'overview' && (
+              {/* TAB 0: OVERVIEW (HANYA UNTUK SUPER ADMIN) */}
+              {currentSection === 'overview' && isSuperAdmin && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
