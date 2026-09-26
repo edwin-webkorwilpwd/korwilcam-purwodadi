@@ -1015,7 +1015,7 @@ export const AdminDashboard: React.FC = () => {
     e.preventDefault();
     const confirmed = await showConfirmDialog({
       title: 'Simpan Pengaturan Beranda & Slide Show?',
-      message: 'Apakah Anda yakin ingin menyimpan perubahan teks hero, semboyan, link folder Google Drive, dan foto slide show ke database Supabase?',
+      message: 'Apakah Anda yakin ingin menyimpan perubahan teks hero, semboyan, link folder database, dan foto slide show ke database Supabase?',
       type: 'save',
       confirmText: 'Ya, Simpan Perubahan',
       cancelText: 'Tidak, Batalkan'
@@ -1024,7 +1024,7 @@ export const AdminDashboard: React.FC = () => {
     await updateOfficeProfile(homeForm);
     showNoticePopup({
       title: 'Beranda & Slide Show Disimpan!',
-      message: 'Pengaturan tampilan beranda dan slide show foto Google Drive berhasil disimpan dan disinkronkan ke Supabase.',
+      message: 'Pengaturan tampilan beranda dan slide show foto database berhasil disimpan dan disinkronkan ke Supabase.',
       type: 'success'
     });
   };
@@ -2725,16 +2725,16 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Handlers Foto Dokumentasi Galeri Google Drive
+  // Handlers Foto Dokumentasi Galeri Database
   const handleAddBatchGalleryPhotos = () => {
     const trimmed = galleryBatchInput.trim();
     if (!trimmed) {
-      showToast('Silakan tempelkan link foto Google Drive terlebih dahulu!', 'error');
+      showToast('Silakan tempelkan link foto database terlebih dahulu!', 'error');
       return;
     }
     const extracted = parseGoogleDriveImageLinks(trimmed);
     if (extracted.length === 0) {
-      showToast('Tidak ada link foto Google Drive yang valid terdeteksi dari teks yang ditempelkan.', 'error');
+      showToast('Tidak ada link foto database yang valid terdeteksi dari teks yang ditempelkan.', 'error');
       return;
     }
 
@@ -2758,7 +2758,7 @@ export const AdminDashboard: React.FC = () => {
   const handleAddSingleGalleryPhoto = () => {
     const trimmed = singleGalleryPhotoInput.trim();
     if (!trimmed) {
-      showToast('Masukkan link foto Google Drive terlebih dahulu!', 'error');
+      showToast('Masukkan link foto database terlebih dahulu!', 'error');
       return;
     }
     const extracted = parseGoogleDriveImageLinks(trimmed);
@@ -3751,7 +3751,7 @@ export const AdminDashboard: React.FC = () => {
                     <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                       currentSection === 'sop-cms' ? 'text-blue-100' : 'text-slate-400'
                     }`}>
-                      Bagan Alur Google Drive
+                      Bagan Alur Database
                     </span>
                   </div>
                 </div>
@@ -4523,7 +4523,7 @@ export const AdminDashboard: React.FC = () => {
                   {[
                     { id: 'home-cms', title: 'Halaman Beranda', desc: 'Ubah teks headline, subtitle hero, badge, dan semboyan instansi', icon: Home, color: 'text-blue-600 bg-blue-50' },
                     { id: 'profile-cms', title: 'Halaman Profil', desc: 'Ubah visi misi, sambutan korwil, dan daftar pengawas/penilik', icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
-                    { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file Google Drive', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
+                    { id: 'sop-cms', title: 'SOP Pelayanan', desc: 'Atur tautan alur bagan SOP pelayanan via file database', icon: FileCheck2, color: 'text-teal-600 bg-teal-50' },
                     { id: 'schools-cms', title: 'Direktori Sekolah', desc: 'Tambah/edit data SD, TK, KB, NPSN, akreditasi, dan kepsek', icon: GraduationCap, color: 'text-sky-600 bg-sky-50' },
                     { id: 'nominatif-cms', title: 'Nominatif Guru', desc: 'Kelola data nominatif seluruh guru PNS, PPPK, Guru TK & Guru KB di Supabase', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
                     { id: 'news-cms', title: 'Warta & Informasi', desc: 'Kelola artikel berita, surat edaran penting, dan agenda kegiatan', icon: FileText, color: 'text-amber-600 bg-amber-50' },
@@ -4621,7 +4621,7 @@ export const AdminDashboard: React.FC = () => {
                   />
                 </div>
 
-                {/* SECTION: Latar Belakang Slide Show Foto (Google Drive) */}
+                {/* SECTION: Latar Belakang Slide Show Foto (Database) */}
                 <div className="pt-5 border-t border-slate-200/80 space-y-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -4630,7 +4630,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                          <span>Latar Belakang Slide Show Foto (Google Drive)</span>
+                          <span>Latar Belakang Slide Show Foto (Database)</span>
                           <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
                             {homeForm.heroSlideshowImages?.length || 0} Foto Aktif
                           </span>
@@ -4642,12 +4642,12 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 1. Input Link Folder Google Drive */}
+                  {/* 1. Input Link Folder Database */}
                   <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <Folder className="w-4 h-4 text-blue-600" />
-                        <span>Link Folder Gambar Google Drive</span>
+                        <span>Link Folder Gambar Database</span>
                       </label>
                       {homeForm.heroDriveFolderUrl && (
                         <a
@@ -4656,13 +4656,13 @@ export const AdminDashboard: React.FC = () => {
                           rel="noopener noreferrer"
                           className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 hover:underline"
                         >
-                          <span>Buka Folder di Google Drive</span>
+                          <span>Buka Folder di Database</span>
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
                     </div>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Masukkan tautan folder Google Drive tempat foto-foto kegiatan disimpan. Pastikan akses sharing diatur ke <b>&quot;Siapa saja yang memiliki link (Anyone with the link)&quot;</b>.
+                      Masukkan tautan folder database tempat foto-foto kegiatan disimpan. Pastikan akses sharing diatur ke <b>&quot;Siapa saja yang memiliki link (Anyone with the link)&quot;</b>.
                     </p>
                     <div className="relative">
                       <input
@@ -4682,7 +4682,7 @@ export const AdminDashboard: React.FC = () => {
                       <div>
                         <h4 className="text-xs font-bold text-slate-800">Daftar Foto yang Ditampilkan pada Slide Show</h4>
                         <p className="text-[11px] text-slate-500">
-                          Tambahkan link foto dari Google Drive untuk ditampilkan bergantian pada latar belakang beranda.
+                          Tambahkan link foto dari database untuk ditampilkan bergantian pada latar belakang beranda.
                         </p>
                       </div>
 
@@ -4699,7 +4699,7 @@ export const AdminDashboard: React.FC = () => {
                     {isBatchMode ? (
                       <div className="space-y-2.5 p-3.5 bg-white rounded-xl border border-slate-200 shadow-inner">
                         <label className="text-[11px] font-bold text-slate-700 block">
-                          Tempel Beberapa Link Foto Google Drive Sekaligus (Satu link per baris):
+                          Tempel Beberapa Link Foto Database Sekaligus (Satu link per baris):
                         </label>
                         <textarea
                           rows={4}
@@ -4709,7 +4709,7 @@ export const AdminDashboard: React.FC = () => {
                           className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none"
                         />
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-[11px] text-slate-400">Sistem otomatis mendeteksi ID file dari link Google Drive.</span>
+                          <span className="text-[11px] text-slate-400">Sistem otomatis mendeteksi ID file dari link database.</span>
                           <button
                             type="button"
                             onClick={handleAddBatchSlides}
@@ -4727,7 +4727,7 @@ export const AdminDashboard: React.FC = () => {
                             type="text"
                             value={newSlideUrl}
                             onChange={(e) => setNewSlideUrl(e.target.value)}
-                            placeholder="Tempel link foto Google Drive (Contoh: https://drive.google.com/file/d/1.../view)"
+                            placeholder="Tempel link foto database (Contoh: https://drive.google.com/file/d/1.../view)"
                             className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-sm"
                           />
                         </div>
@@ -5403,7 +5403,7 @@ export const AdminDashboard: React.FC = () => {
                     <span>Kelola SOP Pelayanan & Bagan Alur</span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Simpan tautan bagan gambar Standar Operasional Prosedur (SOP) Pelayanan. Mendukung tautan gambar langsung dan file dari Google Drive.
+                    Simpan tautan bagan gambar Standar Operasional Prosedur (SOP) Pelayanan. Mendukung tautan gambar langsung dan file dari database.
                   </p>
                 </div>
 
@@ -5420,7 +5420,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Panduan Google Drive Card */}
+              {/* Panduan Database Card */}
               <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-white rounded-2xl p-5 border border-blue-200/80 shadow-sm space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
@@ -5428,10 +5428,10 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900">
-                      Panduan Menggunakan Tautan Gambar dari Google Drive:
+                      Panduan Menggunakan Tautan Gambar dari Database:
                     </h3>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Sistem kami sudah dilengkapi <strong>fitur auto-converter cerdas</strong>. Anda cukup menyalin tautan berbagi (*share link*) dari Google Drive, dan sistem otomatis mengubahnya menjadi tampilan gambar bagan utuh beresolusi tinggi di website.
+                      Sistem kami sudah dilengkapi <strong>fitur auto-converter cerdas</strong>. Anda cukup menyalin tautan berbagi (*share link*) dari database, dan sistem otomatis mengubahnya menjadi tampilan gambar bagan utuh beresolusi tinggi di website.
                     </p>
                   </div>
                 </div>
@@ -5439,7 +5439,7 @@ export const AdminDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-[11px] text-slate-600 border-t border-blue-100">
                   <div className="flex items-start gap-2">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
-                    <span>Upload foto/diagram bagan SOP ke <strong>Google Drive</strong> Anda.</span>
+                    <span>Upload foto/diagram bagan SOP ke <strong>Database</strong> Anda.</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
@@ -5458,12 +5458,12 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <Paperclip className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Tautan Gambar Bagan SOP (Google Drive / Web URL) *</span>
+                      <span>Tautan Gambar Bagan SOP (Database / Web URL) *</span>
                     </label>
                     {sopInputUrl && isGoogleDriveUrl(sopInputUrl) && (
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        <span>Tautan Google Drive Terdeteksi</span>
+                        <span>Tautan Database Terdeteksi</span>
                       </span>
                     )}
                   </div>
@@ -5498,8 +5498,8 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-2 pt-1">
                     <span>
                       {sopInputUrl && isGoogleDriveUrl(sopInputUrl)
-                        ? 'URL Google Drive otomatis dikonversi ke gambar beresolusi tinggi.'
-                        : 'Mendukung format tautan Google Drive, link file gambar langsung (JPG, PNG, WebP), maupun Base64.'}
+                        ? 'URL database otomatis dikonversi ke gambar beresolusi tinggi.'
+                        : 'Mendukung format tautan database, link file gambar langsung (JPG, PNG, WebP), maupun Base64.'}
                     </span>
                     {isGoogleDriveUrl(sopInputUrl) && (
                       <a
@@ -5585,7 +5585,7 @@ export const AdminDashboard: React.FC = () => {
                             Pratinjau Gambar Tidak Dapat Dimuat
                           </h4>
                           <p className="text-xs text-slate-500 leading-relaxed">
-                            Pastikan tautan dapat diakses publik. Jika menggunakan Google Drive, periksa menu <strong>Bagikan &gt; Akses Umum &gt; Siapa saja yang memiliki link (Anyone with the link)</strong>.
+                            Pastikan tautan dapat diakses publik. Jika menggunakan database, periksa menu <strong>Bagikan &gt; Akses Umum &gt; Siapa saja yang memiliki link (Anyone with the link)</strong>.
                           </p>
                           {isGoogleDriveUrl(sopInputUrl) && (
                             <a
@@ -5594,7 +5594,7 @@ export const AdminDashboard: React.FC = () => {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
                             >
-                              <span>Buka File di Google Drive</span>
+                              <span>Buka File di Database</span>
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           )}
@@ -5631,7 +5631,7 @@ export const AdminDashboard: React.FC = () => {
                         Belum Ada Link Gambar SOP
                       </h4>
                       <p className="text-xs text-slate-400 leading-relaxed">
-                        Masukkan tautan Google Drive atau URL gambar bagan SOP Anda pada formulir di atas untuk melihat pratinjau langsung di sini.
+                        Masukkan tautan database atau URL gambar bagan SOP Anda pada formulir di atas untuk melihat pratinjau langsung di sini.
                       </p>
                     </div>
                   </div>
@@ -5850,12 +5850,12 @@ export const AdminDashboard: React.FC = () => {
 
                     {/* Inputs & Controls */}
                     <div className="flex-1 w-full space-y-3.5">
-                      {/* Form Link Google Drive */}
+                      {/* Form Link Database */}
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
                           <span className="flex items-center gap-1.5 text-blue-800">
                             <Paperclip className="w-3.5 h-3.5 text-blue-600" />
-                            Link Foto Google Drive:
+                            Link Foto Database:
                           </span>
                           <span className="text-[10px] text-slate-400 font-normal">
                             (Opsional jika tidak upload file)
@@ -5891,7 +5891,7 @@ export const AdminDashboard: React.FC = () => {
                           )}
                         </div>
                         <p className="text-[10px] text-slate-500 leading-normal">
-                          💡 <em>Tips:</em> Bagikan file gambar dari Google Drive, lalu pastikan opsi berbagi disetel ke <strong>"Siapa saja yang memiliki link (Anyone with the link)"</strong>.
+                          💡 <em>Tips:</em> Bagikan file gambar dari database, lalu pastikan opsi berbagi disetel ke <strong>"Siapa saja yang memiliki link (Anyone with the link)"</strong>.
                         </p>
                       </div>
 
@@ -5936,7 +5936,7 @@ export const AdminDashboard: React.FC = () => {
                           {isGoogleDriveUrl(schoolForm.image) ? (
                             <span className="text-[11px] font-semibold text-blue-700 flex items-center gap-1.5 bg-blue-50/80 px-2.5 py-1 rounded-lg border border-blue-200/80 inline-flex">
                               <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> 
-                              Link Google Drive terhubung & otomatis dikonversi ke gambar kartu
+                              Link database terhubung & otomatis dikonversi ke gambar kartu
                             </span>
                           ) : schoolForm.image.startsWith('data:') ? (
                             <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/80 inline-flex">
@@ -6836,14 +6836,14 @@ export const AdminDashboard: React.FC = () => {
                     {/* Gambar Sampul / Banner Berita dengan Google Drive */}
                     <div className="space-y-3 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 border border-slate-200">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Camera className="w-4 h-4 text-blue-600" />
                           <span>Gambar Sampul / Banner Berita *</span>
                         </label>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Google Drive CDN (Bebas Kuota Supabase 0 MB)</span>
+                            <span>Penyimpanan Foto Database (Bebas Kuota 0 MB)</span>
                           </span>
                         </div>
                       </div>
@@ -6869,17 +6869,17 @@ export const AdminDashboard: React.FC = () => {
                           </span>
                         </div>
 
-                        {/* Controls & Google Drive Input */}
+                        {/* Controls & Database Input */}
                         <div className="md:col-span-8 lg:col-span-9 space-y-2.5">
-                          {/* Input Link Google Drive */}
+                          {/* Input Link Database */}
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
                               <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                                 <Link2 className="w-3.5 h-3.5 text-blue-600" />
-                                <span>Tempel Link Foto Google Drive:</span>
+                                <span>Tempel Link Foto Database:</span>
                               </label>
                               <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                                Rekomendasi (0 MB Supabase)
+                                Rekomendasi Database Cloud
                               </span>
                             </div>
                             <div className="relative">
@@ -6916,7 +6916,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200/70 text-[11px] text-blue-900 leading-relaxed flex items-start gap-2">
                             <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                             <p className="text-[10.5px]">
-                              <b>Tips Google Drive:</b> Buka Google Drive &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Salin link lalu tempelkan di atas.
+                              <b>Tips Database:</b> Buka penyimpanan database &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Salin link lalu tempelkan di atas.
                             </p>
                           </div>
                         </div>
@@ -7978,20 +7978,20 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Informational Callout regarding Google Drive Storage */}
+              {/* Informational Callout regarding Database Storage */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 flex items-start gap-3.5 shadow-2xs">
                 <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                   <Sparkles className="w-5 h-5 text-yellow-300" />
                 </div>
                 <div className="space-y-1 text-xs sm:text-sm text-slate-700">
                   <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                    <span>Penyimpanan Foto Google Drive (Aman & Hemat Kuota Database)</span>
+                    <span>Penyimpanan Foto Database (Aman & Berkecepatan Tinggi)</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
                       Zero Storage Cost
                     </span>
                   </h4>
                   <p className="text-slate-600 leading-relaxed text-xs">
-                    Foto siswa, guru, dan piagam disimpan langsung di <strong>Google Drive</strong> Anda tanpa memakan kapasitas database Supabase. Cukup salin tautan file sharing Google Drive (pastikan akses disetel <em>Siapa saja yang memiliki link dapat melihat</em>), sistem otomatis mengonversinya menjadi foto berkecepatan tinggi di website publik.
+                    Foto siswa, guru, dan piagam disimpan langsung di <strong>Database</strong> Anda tanpa memakan kapasitas penyimpanan server. Cukup salin tautan file sharing database (pastikan akses disetel <em>Siapa saja yang memiliki link dapat melihat</em>), sistem otomatis mengonversinya menjadi foto berkecepatan tinggi di website publik.
                   </p>
                 </div>
               </div>
@@ -8261,7 +8261,7 @@ export const AdminDashboard: React.FC = () => {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
-                                      title="Buka Foto di Google Drive"
+                                      title="Buka Foto di Database"
                                     >
                                       <ExternalLink className="w-4 h-4" />
                                     </a>
@@ -8335,7 +8335,7 @@ export const AdminDashboard: React.FC = () => {
                             {editingAchievementId ? 'Edit Data Prestasi' : 'Tambah Prestasi Baru'}
                           </h3>
                           <p className="text-xs text-blue-100">
-                            Lengkapi informasi penghargaan dan sertakan link Google Drive foto.
+                            Lengkapi informasi penghargaan dan sertakan link database foto.
                           </p>
                         </div>
                       </div>
@@ -8534,10 +8534,10 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Link Foto Google Drive */}
+                      {/* Link Foto Database */}
                       <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200/80 space-y-2">
                         <label className="block font-bold text-slate-800">
-                          Link Foto Google Drive (Siswa / Guru / Piala)
+                          Link Foto Database (Siswa / Guru / Piala)
                         </label>
                         <input
                           type="url"
@@ -8547,7 +8547,7 @@ export const AdminDashboard: React.FC = () => {
                           className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-mono"
                         />
                         <p className="text-[11px] text-slate-500">
-                          Pastikan link Google Drive disetel <em>Siapa saja yang memiliki link dapat melihat</em>. Tidak perlu unggah gambar ke Supabase.
+                          Pastikan link database disetel <em>Siapa saja yang memiliki link dapat melihat</em>. Tidak perlu unggah gambar ke server.
                         </p>
 
                         {/* Live Image Preview */}
@@ -8571,10 +8571,10 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Link Piagam Google Drive */}
+                      {/* Link Piagam Database */}
                       <div>
                         <label className="block font-bold text-slate-700 mb-1">
-                          Link Piagam / Sertifikat (Google Drive)
+                          Link Piagam / Sertifikat (Database)
                         </label>
                         <input
                           type="url"
@@ -9190,7 +9190,7 @@ export const AdminDashboard: React.FC = () => {
                             <span>Foto Resmi Ketua Organisasi</span>
                           </span>
                           <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            Pilih File Atau Tautan Drive
+                            Pilih File Atau Tautan Database
                           </span>
                         </label>
 
@@ -9241,7 +9241,7 @@ export const AdminDashboard: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <input
                                 type="url"
-                                placeholder="Atau tempelkan tautan Google Drive / URL foto ketua..."
+                                placeholder="Atau tempelkan tautan database / URL foto ketua..."
                                 value={orgLeaderDriveInput}
                                 onChange={(e) => {
                                   setOrgLeaderDriveInput(e.target.value);
@@ -9610,7 +9610,7 @@ export const AdminDashboard: React.FC = () => {
                             <span>Logo Lambang Organisasi</span>
                           </span>
                           <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            Pilih File Atau Tautan Drive
+                            Pilih File Atau Tautan Database
                           </span>
                         </label>
 
@@ -9658,7 +9658,7 @@ export const AdminDashboard: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <input
                                 type="url"
-                                placeholder="Atau masukkan tautan Google Drive / URL logo..."
+                                placeholder="Atau masukkan tautan database / URL logo..."
                                 value={orgLogoDriveInput}
                                 onChange={(e) => {
                                   setOrgLogoDriveInput(e.target.value);
@@ -11545,7 +11545,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                           <Images className="w-4 h-4 text-blue-600" />
-                          <span>Daftar Foto Dokumentasi Kegiatan (Google Drive) *</span>
+                          <span>Daftar Foto Dokumentasi Kegiatan (Database) *</span>
                         </label>
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                           galleryForm.images.length > 0 
@@ -11591,7 +11591,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="space-y-3 p-4 bg-white rounded-2xl border border-blue-200 shadow-inner">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <span>Tempel Daftar Link Foto Google Drive:</span>
+                          <span>Tempel Daftar Link Foto Database:</span>
                         </label>
                         <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">
                           Satu link per baris atau dipisah koma/spasi
@@ -11608,7 +11608,7 @@ export const AdminDashboard: React.FC = () => {
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                         <p className="text-[11px] text-slate-500">
-                          💡 <strong>Tips Cepat dari Drive:</strong> Buka folder Google Drive &gt; Tekan <kbd className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 font-mono text-[10px]">Ctrl + A</kbd> (pilih semua) &gt; Klik kanan <strong>Salin tautan (Copy link)</strong> &gt; Tempel di sini.
+                          💡 <strong>Tips Cepat Database:</strong> Buka folder penyimpanan database &gt; Tekan <kbd className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 font-mono text-[10px]">Ctrl + A</kbd> (pilih semua) &gt; Klik kanan <strong>Salin tautan (Copy link)</strong> &gt; Tempel di sini.
                         </p>
                         <button
                           type="button"
@@ -11634,7 +11634,7 @@ export const AdminDashboard: React.FC = () => {
                               handleAddSingleGalleryPhoto();
                             }
                           }}
-                          placeholder="Tempel link foto Google Drive (Contoh: https://drive.google.com/file/d/1.../view)"
+                          placeholder="Tempel link foto database (Contoh: https://drive.google.com/file/d/1.../view)"
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs"
                         />
                       </div>
@@ -11722,7 +11722,7 @@ export const AdminDashboard: React.FC = () => {
                       <Images className="w-8 h-8 text-slate-400 mx-auto" />
                       <p className="text-xs font-bold text-slate-700">Belum Ada Foto Terdaftar di Slide Show</p>
                       <p className="text-[11px] text-slate-400">
-                        Tempel link foto Google Drive di atas agar seluruh foto kegiatan tampil di slide show pengunjung.
+                        Tempel link foto database di atas agar seluruh foto kegiatan tampil di slide show pengunjung.
                       </p>
                     </div>
                   )}
@@ -11889,7 +11889,7 @@ export const AdminDashboard: React.FC = () => {
                                   <Folder className="w-4 h-4 text-amber-300 fill-amber-300/30" />
                                 </div>
                                 <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-white/20 text-white">
-                                  Google Drive
+                                  Database Cloud
                                 </span>
                               </div>
                               <div>
@@ -11909,7 +11909,7 @@ export const AdminDashboard: React.FC = () => {
                           {isDrive ? (
                             <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white shadow-sm flex items-center gap-1 border border-white/30">
                               <Folder className="w-3 h-3 text-amber-300 fill-amber-300/20" />
-                              <span>Folder Drive</span>
+                              <span>Folder Database</span>
                             </span>
                           ) : (
                             <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-sm flex items-center gap-1">
@@ -11938,7 +11938,7 @@ export const AdminDashboard: React.FC = () => {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
-                                  title="Buka Folder di Google Drive"
+                                  title="Buka Folder di Database"
                                 >
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
@@ -14195,7 +14195,7 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                     <input
                       type="url"
-                      placeholder="Atau link Google Drive / URL foto..."
+                      placeholder="Atau link database / URL foto..."
                       value={officialPhotoDriveInput}
                       onChange={(e) => {
                         setOfficialPhotoDriveInput(e.target.value);

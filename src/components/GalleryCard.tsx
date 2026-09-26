@@ -69,7 +69,7 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
                 <Folder className="w-4 h-4 text-amber-300 fill-amber-300/30" />
               </div>
               <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-white/20 text-white border border-white/30 backdrop-blur-md flex items-center gap-1">
-                <span>Google Drive</span>
+                <span>Database Cloud</span>
               </span>
             </div>
 

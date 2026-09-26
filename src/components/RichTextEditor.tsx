@@ -287,7 +287,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const trimmed = driveImageUrl.trim();
     const cdnUrl = formatGoogleDriveImageUrl(trimmed, 1600);
     if (!cdnUrl || !isSafeUrl(cdnUrl, true)) {
-      alert('Link foto tidak valid. Pastikan menggunakan tautan Google Drive atau URL foto yang valid.');
+      alert('Link foto tidak valid. Pastikan menggunakan tautan database atau URL foto yang valid.');
       return;
     }
 
@@ -643,7 +643,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }}
             onClick={handleOpenImageModal}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-700 flex items-center gap-1 transition-colors"
-            title="Sisipkan Foto dari Google Drive (Hemat Penyimpanan)"
+            title="Sisipkan Foto dari Database"
           >
             <ImageIcon className="w-4 h-4 text-blue-600" />
             <span className="text-[11px] font-semibold hidden md:inline">Sisipkan Foto</span>
@@ -873,7 +873,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       </div>
 
-      {/* Modal / Dialog Sisipkan Foto dari Google Drive */}
+      {/* Modal / Dialog Sisipkan Foto dari Database */}
       {isImageModalOpen && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
@@ -891,7 +891,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                    Sisipkan Foto dari Google Drive
+                    Sisipkan Foto dari Database
                   </h3>
                   <p className="text-[11px] text-slate-500">
                     Bebas kuota Supabase • Foto langsung tampil di detail berita
@@ -908,10 +908,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               </button>
             </div>
 
-            {/* Input Link Google Drive */}
+            {/* Input Link Database */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Tautan / Link Foto Google Drive *</span>
+                <span>Tautan / Link Foto Database *</span>
                 <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
                   Akses: Anyone with link
                 </span>
@@ -972,7 +972,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   <span className="text-[11px] font-bold text-slate-700">Pratinjau Foto:</span>
                   {isGoogleDriveUrl(driveImageUrl) || driveImageUrl.includes('lh3.googleusercontent.com') ? (
                     <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Link Google Drive Valid
+                      <Check className="w-3 h-3" /> Link Database Valid
                     </span>
                   ) : (
                     <span className="text-[10px] text-blue-600 font-medium">
@@ -997,10 +997,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200/80 text-[11px] text-blue-900 leading-relaxed space-y-1">
               <div className="font-bold flex items-center gap-1.5 text-blue-800">
                 <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>Cara menyalin link foto dari Google Drive:</span>
+                <span>Cara menyalin link foto database:</span>
               </div>
               <p className="text-blue-900/90 text-[10.5px]">
-                Buka Google Drive &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses Umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Klik <b>Salin link</b> &gt; Tempelkan pada kotak di atas.
+                Buka penyimpanan database &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses Umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Klik <b>Salin link</b> &gt; Tempelkan pada kotak di atas.
               </p>
             </div>
 

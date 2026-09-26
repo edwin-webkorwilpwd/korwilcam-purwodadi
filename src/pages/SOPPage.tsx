@@ -149,7 +149,7 @@ export const SOPPage: React.FC = () => {
                       Gambar Belum Dapat Ditampilkan
                     </h3>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      Tautan Google Drive mungkin belum diatur untuk publik atau format file tidak sesuai. Pastikan akses file di Google Drive diset menjadi <strong className="text-slate-700">"Siapa saja yang memiliki link"</strong> (Anyone with link).
+                      Tautan database mungkin belum diatur untuk publik atau format file tidak sesuai. Pastikan akses file database diset menjadi <strong className="text-slate-700">"Siapa saja yang memiliki link"</strong> (Anyone with link).
                     </p>
                     {isGdrive && driveViewUrl && (
                       <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
@@ -160,7 +160,7 @@ export const SOPPage: React.FC = () => {
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-900 transition-colors"
                           >
                             <Eye className="w-3.5 h-3.5 text-blue-400" />
-                            <span>Buka dengan Google Viewer</span>
+                            <span>Buka dengan Dokumen Viewer</span>
                           </button>
                         )}
                         <a
@@ -169,7 +169,7 @@ export const SOPPage: React.FC = () => {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
                         >
-                          <span>Buka Langsung di Google Drive</span>
+                          <span>Buka Langsung di Database</span>
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
@@ -213,7 +213,7 @@ export const SOPPage: React.FC = () => {
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                   <span>
                     {useIframeMode 
-                      ? 'Menampilkan dokumen resmi via Google Drive Viewer' 
+                      ? 'Menampilkan dokumen resmi via Database Viewer' 
                       : 'Gambar ditampilkan utuh sesuai dokumen bagan resmi'}
                   </span>
                 </span>
@@ -530,7 +530,7 @@ export const SOPPage: React.FC = () => {
           <div className="text-center pt-2 text-slate-400 text-xs">
             {!useIframeMode 
               ? 'Gunakan kontrol di atas untuk memperbesar diagram alur agar tulisan terbaca jelas.'
-              : 'Gunakan penampil Google Drive untuk melihat dan menggulir seluruh isi dokumen.'}
+              : 'Gunakan penampil database untuk melihat dan menggulir seluruh isi dokumen.'}
           </div>
         </div>
       )}

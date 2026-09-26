@@ -624,7 +624,7 @@ export const AchievementsPage: React.FC = () => {
                       className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-semibold underline text-xs mt-0.5"
                     >
                       <FileCheck className="w-4 h-4" />
-                      <span>Lihat Piagam di Google Drive</span>
+                      <span>Lihat Piagam di Database</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
