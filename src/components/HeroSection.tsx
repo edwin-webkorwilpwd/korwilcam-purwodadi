@@ -5,11 +5,8 @@ import {
   ArrowRight, 
   Search, 
   Download, 
-  Award, 
-  BookOpen, 
-  ShieldCheck,
-  ChevronLeft,
-  ChevronRight
+  ChevronLeft, 
+  ChevronRight 
 } from 'lucide-react';
 import { formatGoogleDriveImageUrl, getGoogleDriveCandidates } from '../lib/driveHelper';
 
@@ -85,7 +82,7 @@ export const HeroSection: React.FC = () => {
     <section 
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="group relative overflow-hidden bg-[#133282] text-white py-12 sm:py-14 lg:py-18 border-b border-white/20 select-none"
+      className="group relative overflow-hidden bg-[#133282] text-white min-h-[520px] sm:min-h-[580px] lg:min-h-[640px] flex flex-col justify-center items-center py-16 sm:py-20 lg:py-24 border-b border-slate-200/40 select-none"
     >
       {/* 1. Dynamic Photo Slideshow Background (Google Drive / Photos) */}
       {slides.length > 0 ? (
@@ -178,22 +175,6 @@ export const HeroSection: React.FC = () => {
             </button>
           </div>
 
-          {/* Quick Badges under CTAs dengan background semi-transparan elegan */}
-          <div className="pt-6 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-white border-t border-white/20 w-full max-w-3xl">
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-md">
-              <Award className="w-4 h-4 text-amber-300" />
-              <span className="font-medium">Akreditasi Unggul & Transparan</span>
-            </div>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-md">
-              <BookOpen className="w-4 h-4 text-sky-300" />
-              <span className="font-medium">Dukungan Kurikulum Merdeka</span>
-            </div>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-md">
-              <ShieldCheck className="w-4 h-4 text-emerald-300" />
-              <span className="font-medium">Pelayanan Terpadu & Terpercaya</span>
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -219,7 +200,7 @@ export const HeroSection: React.FC = () => {
 
       {/* 5. Slideshow Controls: Indicator Dots */}
       {slides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-950/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg">
+        <div className="absolute bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-950/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 shadow-xl">
           {slides.map((_, idx) => (
             <button
               key={idx}

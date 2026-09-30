@@ -215,7 +215,7 @@ export const StatsCounter: React.FC = () => {
   ];
 
   return (
-    <div className="relative -mt-10 sm:-mt-12 w-full px-4 sm:px-8 lg:px-12 xl:px-16 z-20">
+    <div className="relative mt-6 sm:mt-8 lg:mt-10 w-full px-4 sm:px-8 lg:px-12 xl:px-16 z-20">
       {/* Decorative ambient background with soft gradients & dot grids */}
       <div className="relative rounded-3xl bg-gradient-to-b from-blue-50/50 via-slate-50/20 to-transparent px-3 pt-3 pb-2 sm:px-5 sm:pt-4 sm:pb-2">
         
