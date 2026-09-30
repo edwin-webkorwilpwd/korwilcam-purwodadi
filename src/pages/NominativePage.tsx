@@ -45,8 +45,34 @@ const matchesStatus = (teacherStatus: string = '', filter: string): boolean => {
 };
 
 export const NominativePage: React.FC = () => {
-  const { teachers, syncStatus } = useApp();
+  const { teachers, syncStatus, refreshTeachers } = useApp();
   const isInitialLoading = teachers.length === 0 && syncStatus === 'syncing';
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+
+  // Selalu perbarui data dari database Supabase saat halaman nominatif guru dibuka
+  React.useEffect(() => {
+    let active = true;
+    setIsRefreshing(true);
+    refreshTeachers(true)
+      .finally(() => {
+        if (active) setIsRefreshing(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshTeachers]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    const ok = await refreshTeachers(true);
+    setIsRefreshing(false);
+    if (ok) {
+      setRefreshNotice('Data nominatif berhasil disinkronkan dari database Supabase!');
+      setTimeout(() => setRefreshNotice(null), 4000);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
@@ -203,6 +229,25 @@ export const NominativePage: React.FC = () => {
               </div>
               <div className="text-[11px] text-blue-100 font-medium mt-0.5">Guru KB</div>
             </div>
+          </div>
+
+          {/* Action Sync Bar */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2 relative z-20">
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white text-xs font-semibold border border-white/30 shadow-xs backdrop-blur-md transition-all cursor-pointer disabled:opacity-60"
+              title="Sinkronkan data nominatif guru langsung dari database Supabase"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Menyinkronkan data...' : 'Segarkan Data'}</span>
+            </button>
+            {refreshNotice && (
+              <span className="text-xs text-emerald-950 bg-emerald-200/90 border border-emerald-300 px-3 py-1 rounded-full font-semibold shadow-xs">
+                ✓ {refreshNotice}
+              </span>
+            )}
           </div>
         </div>
         <CurvedHeaderArch />

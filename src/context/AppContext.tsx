@@ -183,6 +183,7 @@ interface AppContextType {
   deleteTeacher: (id: string) => Promise<boolean>;
   batchAddTeachers: (newTeachers: Omit<TeacherNominative, 'id'>[]) => Promise<boolean>;
   clearAllTeachers: () => Promise<boolean>;
+  refreshTeachers: (force?: boolean) => Promise<boolean>;
 
   // Persyaratan Pelayanan
   serviceRequirements: ServiceRequirement[];
@@ -1005,6 +1006,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // TIDAK AKAN menembak kueri ke Supabase sama sekali (0 Byte Egress).
   const CACHE_TTL_MS = 20 * 60 * 1000;
 
+  // Fungsi khusus untuk sinkronisasi daftar guru dari database Supabase secara real-time
+  const refreshTeachers = async (force: boolean = false): Promise<boolean> => {
+    const client = getSupabaseClient();
+    if (!client) return false;
+
+    try {
+      const { data: dbTeachers, error: teachErr } = await client
+        .from('daftar_guru')
+        .select('*')
+        .order('no', { ascending: true })
+        .limit(10000);
+
+      if (!teachErr && Array.isArray(dbTeachers)) {
+        const mappedTeachers: TeacherNominative[] = dbTeachers.map((t: any, index: number) => ({
+          id: String(t.id || `guru-${Date.now()}-${index}`),
+          no: typeof t.no === 'number' ? t.no : (parseInt(t.no, 10) || index + 1),
+          nama: String(t.nama || '').trim(),
+          nip: String(t.nip || '-').trim(),
+          statusPegawai: String(t.status_pegawai || t.statusPegawai || 'PNS').trim(),
+          instansi: String(t.instansi || '').trim(),
+          createdAt: t.created_at || t.createdAt,
+          updatedAt: t.updated_at || t.updatedAt
+        }));
+
+        _inMemoryTeachersCache = mappedTeachers;
+        setTeachers(mappedTeachers);
+        try {
+          sessionStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
+        } catch {}
+        try {
+          localStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
+        } catch {}
+        return true;
+      }
+      return false;
+    } catch (errTeach) {
+      console.warn('Tabel daftar_guru belum terbaca:', errTeach);
+      return false;
+    }
+  };
+
   // Initial fetch from Supabase if connected
   const refreshFromSupabase = async (force: boolean = false): Promise<boolean> => {
     const client = getSupabaseClient();
@@ -1038,49 +1080,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSyncStatus('syncing');
 
       // 0. Fetch daftar_guru IMMEDIATELY IN PARALLEL (Nominatif Guru)
-      const teachersFetchPromise = (async () => {
-        try {
-          // Jika bukan admin dan data guru sudah tersimpan di cache lokal, lewati fetch kueri untuk menghemat egress
-          const cachedTeachersStr = localStorage.getItem('korwilcam_teachers');
-          if (!shouldBypassCache && cachedTeachersStr) {
-            try {
-              const cachedTeachers = JSON.parse(cachedTeachersStr);
-              if (Array.isArray(cachedTeachers) && cachedTeachers.length > 0) {
-                _inMemoryTeachersCache = cachedTeachers;
-                setTeachers(cachedTeachers);
-                return;
-              }
-            } catch {}
-          }
-
-          const { data: dbTeachers, error: teachErr } = await client
-            .from('daftar_guru')
-            .select('*')
-            .order('no', { ascending: true });
-          if (!teachErr && Array.isArray(dbTeachers)) {
-            const mappedTeachers: TeacherNominative[] = dbTeachers.map((t: any, index: number) => ({
-              id: String(t.id || `guru-${Date.now()}-${index}`),
-              no: typeof t.no === 'number' ? t.no : (parseInt(t.no, 10) || index + 1),
-              nama: String(t.nama || '').trim(),
-              nip: String(t.nip || '-').trim(),
-              statusPegawai: String(t.status_pegawai || t.statusPegawai || 'PNS').trim(),
-              instansi: String(t.instansi || '').trim(),
-              createdAt: t.created_at || t.createdAt,
-              updatedAt: t.updated_at || t.updatedAt
-            }));
-            _inMemoryTeachersCache = mappedTeachers;
-            setTeachers(mappedTeachers);
-            try {
-              sessionStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
-            } catch {}
-            try {
-              localStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
-            } catch {}
-          }
-        } catch (errTeach) {
-          console.warn('Tabel daftar_guru belum terbaca:', errTeach);
-        }
-      })();
+      const teachersFetchPromise = refreshTeachers(true);
 
       // 0.1 Fetch service_requirements and categories IMMEDIATELY IN PARALLEL
       const serviceReqsFetchPromise = (async () => {
@@ -6890,6 +6890,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTeacher,
         batchAddTeachers,
         clearAllTeachers,
+        refreshTeachers,
         serviceRequirements,
         serviceRequirementCategories,
         selectedServiceRequirement,

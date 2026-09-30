@@ -213,6 +213,7 @@ export const AdminDashboard: React.FC = () => {
     deleteTeacher,
     batchAddTeachers,
     clearAllTeachers,
+    refreshTeachers,
     serviceRequirements,
     serviceRequirementCategories,
     addServiceRequirement,
@@ -1468,6 +1469,7 @@ export const AdminDashboard: React.FC = () => {
     statusPegawai: 'PNS',
     instansi: ''
   });
+  const [isSyncingTeachers, setIsSyncingTeachers] = useState(false);
 
   const handleSaveTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -6219,6 +6221,25 @@ export const AdminDashboard: React.FC = () => {
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span>Total {teachers.length} Guru</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsSyncingTeachers(true);
+                      const ok = await refreshTeachers(true);
+                      setIsSyncingTeachers(false);
+                      if (ok) {
+                        showToast('Data nominatif guru berhasil disinkronkan dari Supabase!', 'success');
+                      } else {
+                        showToast('Gagal menyinkronkan data atau database Supabase kosong.', 'info');
+                      }
+                    }}
+                    disabled={isSyncingTeachers}
+                    className="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-200 transition-all cursor-pointer shadow-xs disabled:opacity-60"
+                    title="Segarkan data nominatif guru langsung dari database Supabase"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncingTeachers ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                    <span>{isSyncingTeachers ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+                  </button>
                   {isSupabaseActive && (
                     <span className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 rounded-xl text-xs font-semibold">
                       Cloud Sync Aktif
