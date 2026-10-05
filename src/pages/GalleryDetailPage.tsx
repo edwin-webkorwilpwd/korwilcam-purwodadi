@@ -25,6 +25,7 @@ import {
   getGoogleDriveFolderViewUrl,
   extractGalleryMetadata
 } from '../lib/driveHelper';
+import { initialGallery } from '../data/initialData';
 
 export const GalleryDetailPage: React.FC = () => {
   const { 
@@ -64,33 +65,35 @@ export const GalleryDetailPage: React.FC = () => {
 
     // Cari item yang sesuai di array gallery context jika ada data yang lebih segar
     const galleryMatch = gallery.find((g) => g.id === selectedGallery.id);
-    const rawImages = Array.isArray(selectedGallery.images) ? selectedGallery.images : [];
-    const matchImages = (galleryMatch && Array.isArray(galleryMatch.images)) ? galleryMatch.images : [];
-    const metaImages = Array.isArray(meta.images) ? meta.images : [];
+    const initialMatch = initialGallery.find((init) => init.id === selectedGallery.id);
+    const rawImages = (Array.isArray(selectedGallery.images) ? selectedGallery.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+    const matchImages = (galleryMatch && Array.isArray(galleryMatch.images) ? galleryMatch.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+    const metaImages = (Array.isArray(meta.images) ? meta.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
     const matchMeta = galleryMatch ? extractGalleryMetadata(galleryMatch.description || '') : null;
-    const matchMetaImages = (matchMeta && Array.isArray(matchMeta.images)) ? matchMeta.images : [];
+    const matchMetaImages = (matchMeta && Array.isArray(matchMeta.images) ? matchMeta.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+    const initImages = (initialMatch && Array.isArray(initialMatch.images) ? initialMatch.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
 
     // Kumpulkan seluruh kandidat daftar foto dan urutkan berdasarkan jumlah foto terbanyak
-    const candidates = [rawImages, matchImages, metaImages, matchMetaImages];
+    const candidates = [rawImages, matchImages, metaImages, matchMetaImages, initImages];
     candidates.sort((a, b) => b.length - a.length);
 
     let list: string[] = candidates[0] && candidates[0].length > 0 ? [...candidates[0]] : [];
 
-    if (list.length === 0 && selectedGallery.image) {
+    if (list.length === 0 && selectedGallery.image && selectedGallery.image !== '#') {
       list = [selectedGallery.image];
     }
 
     // Pastikan tidak ada foto valid dari sumber lain yang tertinggal
     candidates.forEach((cand) => {
       cand.forEach((url) => {
-        if (typeof url === 'string' && url.trim().length > 0 && !list.includes(url)) {
+        if (typeof url === 'string' && url.trim().length > 0 && url !== '#' && !list.includes(url)) {
           list.push(url);
         }
       });
     });
 
     return list
-      .filter((img) => typeof img === 'string' && img.trim().length > 0 && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
+      .filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
       .map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
   }, [selectedGallery, meta, gallery]);
 

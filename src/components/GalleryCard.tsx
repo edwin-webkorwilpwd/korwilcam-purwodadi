@@ -25,11 +25,11 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
 }) => {
   const meta = extractGalleryMetadata(item.description || '');
   const cleanDescription = meta.cleanDescription || item.description;
-  const rawImages = Array.isArray(item.images) ? item.images : [];
-  const metaImages = Array.isArray(meta.images) ? meta.images : [];
+  const rawImages = (Array.isArray(item.images) ? item.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+  const metaImages = (Array.isArray(meta.images) ? meta.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
   const photoList = metaImages.length > rawImages.length
     ? metaImages
-    : (rawImages.length > 0 ? rawImages : (metaImages.length > 0 ? metaImages : (item.image ? [item.image] : [])));
+    : (rawImages.length > 0 ? rawImages : (metaImages.length > 0 ? metaImages : (item.image && item.image !== '#' ? [item.image] : [])));
   const count = photoList.length || 1;
   const isDriveAlbum = Boolean(item.driveFolderUrl || meta.driveFolderUrl || isGoogleDriveFolderUrl(item.image));
   const hasValidCoverImage = Boolean(item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders'));

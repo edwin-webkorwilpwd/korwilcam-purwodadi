@@ -721,3 +721,33 @@ BEGIN
   END IF;
 END $$;
 
+-- ==========================================================
+-- 23. TABEL PENGATURAN TAMPILAN MENU & SUB MENU (NAVIGATION_SETTINGS)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS public.navigation_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  items JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.navigation_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read navigation_settings" ON public.navigation_settings;
+CREATE POLICY "Public read navigation_settings" ON public.navigation_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on navigation_settings" ON public.navigation_settings FOR ALL USING (true);
+
+-- Tambahkan baris default jika belum ada
+INSERT INTO public.navigation_settings (id, items)
+VALUES ('default', '{}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+-- Publikasi Realtime untuk Multi-User / Multi-Browser Sync
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.navigation_settings;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+

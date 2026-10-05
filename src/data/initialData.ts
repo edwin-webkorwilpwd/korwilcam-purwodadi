@@ -3446,11 +3446,16 @@ export const initialGallery: GalleryItem[] = [
     category: "Upacara",
     date: "14 September 2026",
     createdAt: "2026-09-14T01:53:03.884035+00:00",
-    image: "/gallery/cover-14-agustus-2026.jpg",
+    image: "/gallery/apel-14-agustus-2026-1.jpg",
     images: [
-      "/gallery/cover-14-agustus-2026.jpg"
+      "/gallery/apel-14-agustus-2026-1.jpg",
+      "/gallery/apel-14-agustus-2026-2.jpg",
+      "/gallery/apel-14-agustus-2026-3.jpg",
+      "/gallery/apel-14-agustus-2026-4.jpg",
+      "/gallery/apel-14-agustus-2026-5.jpg",
+      "/gallery/apel-14-agustus-2026-6.jpg"
     ],
-    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 14 Agustus 2026.",
+    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 14 Agustus 2026.\n\n<!--DRIVE_META:{\"driveFolderUrl\":\"\",\"images\":[\"/gallery/apel-14-agustus-2026-1.jpg\",\"/gallery/apel-14-agustus-2026-2.jpg\",\"/gallery/apel-14-agustus-2026-3.jpg\",\"/gallery/apel-14-agustus-2026-4.jpg\",\"/gallery/apel-14-agustus-2026-5.jpg\",\"/gallery/apel-14-agustus-2026-6.jpg\"]}:DRIVE_META-->",
     authorId: "usr-superadmin",
     authorName: "Super Administrator",
     authorRole: "Super Admin"
@@ -3461,11 +3466,19 @@ export const initialGallery: GalleryItem[] = [
     category: "Upacara",
     date: "8 September 2026",
     createdAt: "2026-09-08T03:52:11.288125+00:00",
-    image: "/gallery/cover-7-agustus-2026.jpg",
+    image: "/gallery/apel-7-agustus-2026-1.jpg",
     images: [
-      "/gallery/cover-7-agustus-2026.jpg"
+      "/gallery/apel-7-agustus-2026-1.jpg",
+      "/gallery/apel-7-agustus-2026-2.jpg",
+      "/gallery/apel-7-agustus-2026-3.jpg",
+      "/gallery/apel-7-agustus-2026-4.jpg",
+      "/gallery/apel-7-agustus-2026-5.jpg",
+      "/gallery/apel-7-agustus-2026-6.jpg",
+      "/gallery/apel-7-agustus-2026-7.jpg",
+      "/gallery/apel-7-agustus-2026-8.jpg",
+      "/gallery/apel-7-agustus-2026-9.jpg"
     ],
-    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 7 Agustus 2026.",
+    description: "Dokumentasi Apel Pagi Pegawai Korwilcam Bidang Pendidikan Kecamatan Purwodadi tanggal 7 Agustus 2026.\n\n<!--DRIVE_META:{\"driveFolderUrl\":\"\",\"images\":[\"/gallery/apel-7-agustus-2026-1.jpg\",\"/gallery/apel-7-agustus-2026-2.jpg\",\"/gallery/apel-7-agustus-2026-3.jpg\",\"/gallery/apel-7-agustus-2026-4.jpg\",\"/gallery/apel-7-agustus-2026-5.jpg\",\"/gallery/apel-7-agustus-2026-6.jpg\",\"/gallery/apel-7-agustus-2026-7.jpg\",\"/gallery/apel-7-agustus-2026-8.jpg\",\"/gallery/apel-7-agustus-2026-9.jpg\"]}:DRIVE_META-->",
     authorId: "usr-superadmin",
     authorName: "Super Administrator",
     authorRole: "Super Admin"
