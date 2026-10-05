@@ -36,6 +36,12 @@ const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').t
 
 const WEBVIEW_SERVICES = [
   {
+    id: 'karyaku',
+    title: 'Karyaku - Korwilcam Purwodadi',
+    url: 'https://pustakapwd.blogspot.com/',
+    cropTop: 0
+  },
+  {
     id: 'service-aula',
     title: 'Peminjaman Aula Korwilcam Purwodadi',
     url: 'https://peminjamanaulakorwilpwd.blogspot.com/',

@@ -55,6 +55,7 @@ import {
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
+import { parseKaryakuPath, getKaryakuPath } from '../lib/karyakuHelper';
 import { 
   getLocalSocialMedia, 
   setLocalSocialMedia, 
@@ -2730,6 +2731,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'profile': { path: '/profil', title: 'Profil Instansi - Korwilcam Bidang Pendidikan Purwodadi' },
     'sop-pelayanan': { path: '/sop-pelayanan', title: 'SOP Pelayanan - Korwilcam Purwodadi' },
     'schools': { path: '/sekolah', title: 'Daftar Sekolah SD, TK & KB - Korwilcam Purwodadi' },
+    'karyaku': { path: '/karyaku', title: 'Karyaku - Korwilcam Purwodadi' },
     'nominatif': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'nominative': { path: '/profil#nominatif', title: 'Daftar Nominatif Guru - Korwilcam Purwodadi' },
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
@@ -2789,6 +2791,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const slug = matched.slug || getDataRequestSlug(matched);
         targetPath = `/layanan/permintaan-data/${encodeURIComponent(slug)}`;
         targetTitle = `${matched.title} - Korwilcam Purwodadi`;
+      }
+    }
+
+    if (tab === 'karyaku') {
+      const routeInfo = parseKaryakuPath(targetPath);
+      if (routeInfo.view === 'reader' && routeInfo.readableTitle) {
+        targetTitle = `${routeInfo.readableTitle} - Karyaku Korwilcam Purwodadi`;
+      } else if (routeInfo.view === 'author' && routeInfo.readableTitle) {
+        targetTitle = `${routeInfo.readableTitle} - Korwilcam Purwodadi`;
+      } else {
+        targetTitle = TAB_ROUTES['karyaku']?.title || 'Karyaku - Korwilcam Purwodadi';
       }
     }
 
@@ -3557,6 +3570,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabState('nominatif');
         setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['nominatif']?.title || 'Daftar Nominatif Guru - Korwilcam Purwodadi';
+      } else if (rawPath === '/karyaku' || rawPath.startsWith('/karyaku')) {
+        setActiveTabState('karyaku');
+        setSelectedOrganizationSlugState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedGalleryState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        
+        const routeInfo = parseKaryakuPath(rawPath);
+        if (routeInfo.view === 'reader' && routeInfo.readableTitle) {
+          document.title = `${routeInfo.readableTitle} - Karyaku Korwilcam Purwodadi`;
+        } else if (routeInfo.view === 'author' && routeInfo.readableTitle) {
+          document.title = `${routeInfo.readableTitle} - Korwilcam Purwodadi`;
+        } else {
+          document.title = TAB_ROUTES['karyaku']?.title || 'Karyaku - Korwilcam Purwodadi';
+        }
       } else if (rawPath === '/berita/prestasi' || rawPath.startsWith('/berita/prestasi') || rawPath === '/prestasi' || rawPath.startsWith('/prestasi')) {
         setActiveTabState('achievements');
         setSelectedOrganizationSlugState(null);
@@ -3681,6 +3712,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('hashchange', handleUrlRoute);
     };
   }, [news, announcements, gallery, documents, schools, organizations, teachers, serviceRequirements, dataRequests, achievements]);
+
+  // Sinkronisasi navigasi dinamis iframe Karyaku ke URL browser (postMessage event listener)
+  useEffect(() => {
+    const handleKaryakuMessage = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return;
+      const data = event.data;
+      if (data.type === 'KARYAKU_NAVIGATE') {
+        const { view, username, bookTitle } = data;
+        if (view === 'author' && username) {
+          const targetPath = getKaryakuPath(username);
+          const targetTitle = `Karyaku - Penulis: ${username} - Korwilcam Purwodadi`;
+          if (window.location.pathname !== targetPath) {
+            window.history.pushState({ tab: 'karyaku', path: targetPath }, '', targetPath);
+          }
+          document.title = targetTitle;
+        } else if (view === 'reader' && (bookTitle || username)) {
+          const targetPath = getKaryakuPath(username || 'penulis', bookTitle || 'buku');
+          const readableTitle = bookTitle ? String(bookTitle) : 'Baca Buku';
+          const targetTitle = `${readableTitle} - Karyaku Korwilcam Purwodadi`;
+          if (window.location.pathname !== targetPath) {
+            window.history.pushState({ tab: 'karyaku', path: targetPath }, '', targetPath);
+          }
+          document.title = targetTitle;
+        } else if (view === 'catalog' || view === 'home') {
+          const targetPath = '/karyaku';
+          const targetTitle = TAB_ROUTES['karyaku']?.title || 'Karyaku - Korwilcam Purwodadi';
+          if (window.location.pathname !== targetPath) {
+            window.history.pushState({ tab: 'karyaku', path: targetPath }, '', targetPath);
+          }
+          document.title = targetTitle;
+        }
+      }
+    };
+
+    window.addEventListener('message', handleKaryakuMessage);
+    return () => {
+      window.removeEventListener('message', handleKaryakuMessage);
+    };
+  }, []);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString();

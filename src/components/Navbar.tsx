@@ -486,6 +486,18 @@ export const Navbar: React.FC = () => {
                 <span>Sekolah</span>
               </button>
 
+              <button
+                onClick={() => handleNavClick('karyaku', '/karyaku')}
+                onMouseEnter={closeAllDropdowns}
+                className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap ${
+                  activeTab === 'karyaku' 
+                    ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
+                    : 'text-white/90 hover:text-white hover:bg-white/15'
+                }`}
+              >
+                <span>Karyaku</span>
+              </button>
+
               {/* Berita Dropdown */}
               <div 
                 className="relative"
@@ -894,6 +906,19 @@ export const Navbar: React.FC = () => {
           >
             <GraduationCap className={`w-4 h-4 ${activeTab === 'schools' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
             <span>Sekolah</span>
+          </button>
+
+          {/* 4.5. Karyaku */}
+          <button
+            onClick={() => handleNavClick('karyaku', '/karyaku')}
+            className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
+              activeTab === 'karyaku' 
+                ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
+                : 'text-white/90 hover:bg-white/10 active:bg-white/15'
+            }`}
+          >
+            <BookOpen className={`w-4 h-4 ${activeTab === 'karyaku' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
+            <span>Karyaku</span>
           </button>
 
           {/* 5. Berita (Dropdown Collapsible) */}
