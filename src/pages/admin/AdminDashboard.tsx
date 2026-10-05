@@ -1995,7 +1995,7 @@ export const AdminDashboard: React.FC = () => {
     author: activeAuthorName,
     authorId: currentUser?.id || '',
     authorRole: activeUserRole as string,
-    image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+    image: '',
     tags: 'Pendidikan, Purwodadi',
     views: 0
   });
@@ -2129,7 +2129,7 @@ export const AdminDashboard: React.FC = () => {
 
       const finalImage = newsForm.image && isGoogleDriveUrl(newsForm.image)
         ? formatGoogleDriveImageUrl(newsForm.image)
-        : (newsForm.image || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000');
+        : (newsForm.image || '');
 
       await updateNews(editingNewsId, {
         title: newsForm.title.trim(),
@@ -2162,7 +2162,7 @@ export const AdminDashboard: React.FC = () => {
 
       const finalImage = newsForm.image && isGoogleDriveUrl(newsForm.image)
         ? formatGoogleDriveImageUrl(newsForm.image)
-        : (newsForm.image || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000');
+        : (newsForm.image || '');
 
       await addNews({
         title: newsForm.title.trim(),
@@ -2193,7 +2193,7 @@ export const AdminDashboard: React.FC = () => {
       author: activeAuthorName,
       authorId: currentUser?.id || '',
       authorRole: activeUserRole,
-      image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+      image: '',
       tags: 'Pendidikan, Purwodadi',
       views: 0
     });
@@ -6887,11 +6887,11 @@ export const AdminDashboard: React.FC = () => {
                         <div className="md:col-span-4 lg:col-span-3 flex flex-col items-center gap-1.5">
                           <div className="relative group w-full aspect-[16/10] rounded-xl overflow-hidden border-2 border-white shadow-md bg-slate-200">
                             <img
-                              src={formatGoogleDriveImageUrl(newsForm.image, 600) || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000'}
+                              src={formatGoogleDriveImageUrl(newsForm.image, 600) || '/gallery/cover-7-agustus-2026.jpg'}
                               alt="Sampul Berita"
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                                (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                               }}
                             />
                             <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9px] px-1.5 py-0.5 rounded font-medium">
@@ -6923,7 +6923,7 @@ export const AdminDashboard: React.FC = () => {
                                 onChange={(e) => {
                                   const val = e.target.value.trim();
                                   if (!val) {
-                                    setNewsForm((prev) => ({ ...prev, image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000' }));
+                                    setNewsForm((prev) => ({ ...prev, image: '' }));
                                   } else {
                                     const formatted = formatGoogleDriveImageUrl(val);
                                     setNewsForm((prev) => ({ ...prev, image: formatted }));
@@ -6933,14 +6933,14 @@ export const AdminDashboard: React.FC = () => {
                                 className="w-full px-3.5 py-2 pl-9 pr-16 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs text-slate-800 transition-all font-mono"
                               />
                               <Link2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                              {newsForm.image && newsForm.image !== 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000' && (
+                              {newsForm.image && (
                                 <button
                                   type="button"
-                                  onClick={() => setNewsForm((prev) => ({ ...prev, image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000' }))}
+                                  onClick={() => setNewsForm((prev) => ({ ...prev, image: '' }))}
                                   className="absolute right-2 top-1.5 text-[10px] font-bold text-slate-400 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors"
-                                  title="Reset ke Gambar Bawaan"
+                                  title="Kosongkan Gambar"
                                 >
-                                  Reset
+                                  Kosongkan
                                 </button>
                               )}
                             </div>
@@ -7111,7 +7111,7 @@ export const AdminDashboard: React.FC = () => {
                               author: activeAuthorName,
                               authorId: currentUser?.id || '',
                               authorRole: activeUserRole,
-                              image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+                              image: '',
                               tags: 'Pendidikan, Purwodadi',
                               views: 0
                             });
@@ -7194,7 +7194,7 @@ export const AdminDashboard: React.FC = () => {
                                   alt={item.title} 
                                   className="w-12 h-12 rounded-lg object-cover shrink-0 bg-slate-100" 
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                                    (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                                   }}
                                 />
                                 <div className="min-w-0">
@@ -8217,7 +8217,7 @@ export const AdminDashboard: React.FC = () => {
                                       alt={item.recipientName}
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
-                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200';
+                                        (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                                       }}
                                     />
                                   ) : (
@@ -8593,7 +8593,7 @@ export const AdminDashboard: React.FC = () => {
                                 alt="Pratinjau Foto"
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200';
+                                  (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                                 }}
                               />
                             </div>

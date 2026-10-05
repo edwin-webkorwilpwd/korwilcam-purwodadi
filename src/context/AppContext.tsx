@@ -568,16 +568,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       return mergedList.map((item) => {
-        const rawImages = (Array.isArray(item.images) ? item.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
+        const filterValid = (arr: any) => (Array.isArray(arr) ? arr : [])
+          .filter((img): img is string => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.includes('unsplash.com'));
+
+        const rawImages = filterValid(item.images);
         const meta = extractGalleryMetadata(item.description || '');
-        const metaImages = (Array.isArray(meta.images) ? meta.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
+        const metaImages = filterValid(meta.images);
         const initialMatch = initialGallery.find((init) => init.id === item.id);
-        const initImages = (initialMatch && Array.isArray(initialMatch.images)) ? initialMatch.images.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-')) : [];
+        const initImages = initialMatch ? filterValid(initialMatch.images) : [];
 
         const candidates = [rawImages, metaImages, initImages];
         candidates.sort((a, b) => b.length - a.length);
-        const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : ((item.image && item.image !== '#' && !item.image.startsWith('/gallery/apel-')) ? [item.image] : (initialMatch?.images || []));
-        const validCover = (item.image && item.image !== '#' && !item.image.startsWith('/gallery/apel-')) ? item.image : (best[0] || (initialMatch ? initialMatch.image : ''));
+        const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : ((item.image && item.image !== '#' && !item.image.includes('unsplash.com')) ? [item.image] : (initialMatch ? filterValid(initialMatch.images) : []));
+        const validCover = (item.image && item.image !== '#' && !item.image.includes('unsplash.com')) ? item.image : (best[0] || (initialMatch ? initialMatch.image : ''));
 
         return {
           ...item,
@@ -1535,18 +1538,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     if (Array.isArray(parsed) && parsed.length > 0) fromCol = parsed;
                   } catch (_) {}
                 }
-                const validFromCol = fromCol.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
-                const validFromMeta = (Array.isArray(metaImages) ? metaImages : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
-                const validFromInit = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-')) : [];
+                const filterValid = (arr: any) => (Array.isArray(arr) ? arr : [])
+                  .filter((img): img is string => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.includes('unsplash.com'));
+
+                const validFromCol = filterValid(fromCol);
+                const validFromMeta = filterValid(metaImages);
+                const validFromInit = initMatch ? filterValid(initMatch.images) : [];
 
                 const candidates = [validFromCol, validFromMeta, validFromInit];
                 candidates.sort((a, b) => b.length - a.length);
 
                 if (candidates[0] && candidates[0].length > 0) return candidates[0];
-                return (g.image && g.image !== '#' && !g.image.startsWith('/gallery/apel-')) ? [g.image] : (initMatch?.images || []);
+                return (g.image && g.image !== '#' && !g.image.includes('unsplash.com')) ? [g.image] : (initMatch ? filterValid(initMatch.images) : []);
               })();
 
-              const validImage = (g.image && g.image !== '#' && !g.image.startsWith('/gallery/apel-')) ? g.image : (imagesList[0] || (initMatch ? initMatch.image : ''));
+              const validImage = (g.image && g.image !== '#' && !g.image.includes('unsplash.com')) ? g.image : (imagesList[0] || (initMatch ? initMatch.image : ''));
 
               return {
                 id: String(g.id || `gal-${Date.now()}`),
@@ -2096,7 +2102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             authorId: n.author_id || n.authorId || undefined,
             authorRole: n.author_role || n.authorRole || undefined,
             date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
-            image: n.image || n.gambar || 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000',
+            image: n.image || n.gambar || '',
             views: finalViews,
             totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
             readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),

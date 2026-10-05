@@ -67,7 +67,7 @@ export const GalleryDetailPage: React.FC = () => {
     const galleryMatch = gallery.find((g) => g.id === selectedGallery.id);
     const initialMatch = initialGallery.find((init) => init.id === selectedGallery.id);
     const filterValid = (arr: any) => (Array.isArray(arr) ? arr : [])
-      .filter((img): img is string => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-') && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'));
+      .filter((img): img is string => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.includes('unsplash.com') && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'));
 
     const rawImages = filterValid(selectedGallery.images);
     const matchImages = filterValid(galleryMatch?.images);
@@ -82,9 +82,9 @@ export const GalleryDetailPage: React.FC = () => {
 
     let list: string[] = candidates[0] && candidates[0].length > 0 ? [...candidates[0]] : [];
 
-    if (list.length === 0 && selectedGallery.image && selectedGallery.image !== '#' && !selectedGallery.image.startsWith('/gallery/apel-')) {
+    if (list.length === 0 && selectedGallery.image && selectedGallery.image !== '#' && !selectedGallery.image.includes('unsplash.com')) {
       list = [selectedGallery.image];
-    } else if (list.length === 0 && initialMatch?.image && !initialMatch.image.startsWith('/gallery/apel-')) {
+    } else if (list.length === 0 && initialMatch?.image && !initialMatch.image.includes('unsplash.com')) {
       list = [initialMatch.image];
     }
 

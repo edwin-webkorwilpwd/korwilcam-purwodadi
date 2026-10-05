@@ -382,7 +382,7 @@ export const AchievementsPage: React.FC = () => {
                             loading="lazy"
                             className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=600';
+                              (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                             }}
                           />
                         ) : (

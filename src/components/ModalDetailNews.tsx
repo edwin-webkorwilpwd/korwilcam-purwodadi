@@ -90,7 +90,7 @@ export const ModalDetailNews: React.FC = () => {
               alt={selectedNews.title}
               className="w-full h-full object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
+                (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
               }}
             />
           </div>
