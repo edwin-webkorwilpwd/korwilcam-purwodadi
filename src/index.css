@@ -101,41 +101,260 @@
 }
 
 /* ==========================================================
+   EDITORIAL TYPOGRAPHY FOR NEWS ARTICLES & RICH TEXT
+   Menyelaraskan tampilan pembaca (detail berita) dengan editor WYSIWYG
+   agar rapi, proporsional, nyaman dibaca, dan tidak berantakan.
+   ========================================================== */
+
+.article-body,
+.prose,
+.prose.prose-slate {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1e293b;
+  font-size: 1.0625rem; /* 17px */
+  line-height: 1.85;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .article-body,
+  .prose,
+  .prose.prose-slate {
+    font-size: 1rem; /* 16px di layar HP */
+    line-height: 1.75;
+  }
+}
+
+/* Paragraf dengan jarak antar-alinea yang lega dan rapi */
+.article-body p,
+.prose p,
+.prose.prose-slate p {
+  margin-top: 0 !important;
+  margin-bottom: 1.5rem !important;
+  line-height: 1.85 !important;
+  color: #334155 !important;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+@media (max-width: 640px) {
+  .article-body p,
+  .prose p,
+  .prose.prose-slate p {
+    margin-bottom: 1.25rem !important;
+    line-height: 1.75 !important;
+  }
+}
+
+/* Paragraf kosong / spasi br dari editor */
+.article-body p:has(> br:only-child),
+.prose p:has(> br:only-child),
+.article-body p:empty,
+.prose p:empty {
+  margin-bottom: 0.75rem !important;
+  height: 0.75rem;
+}
+
+/* Judul & Sub-judul (Heading) dengan jarak atas pemisah yang jelas */
+.article-body h1,
+.prose h1 {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  line-height: 1.35 !important;
+  margin-top: 2.5rem !important;
+  margin-bottom: 1rem !important;
+  letter-spacing: -0.02em;
+}
+
+.article-body h2,
+.prose h2 {
+  font-size: 1.375rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  line-height: 1.4 !important;
+  margin-top: 2.25rem !important;
+  margin-bottom: 0.85rem !important;
+  letter-spacing: -0.015em;
+}
+
+.article-body h3,
+.prose h3 {
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  line-height: 1.45 !important;
+  margin-top: 1.85rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.article-body h4,
+.prose h4 {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Elemen pertama di dalam artikel tidak perlu margin atas berlebihan */
+.article-body > *:first-child,
+.article-body .prose > *:first-child,
+.prose > *:first-child {
+  margin-top: 0 !important;
+}
+
+/* Penataan Elemen List (Daftar Poin & Nomor) */
+.article-body ul,
+.prose ul {
+  list-style-type: disc !important;
+  padding-left: 1.75rem !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.article-body ol,
+.prose ol {
+  list-style-type: decimal !important;
+  padding-left: 1.75rem !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.article-body li,
+.prose li {
+  margin-bottom: 0.5rem !important;
+  line-height: 1.8 !important;
+  color: #334155 !important;
+  text-align: justify;
+}
+
+/* Teks Tebal, Miring, Garis Bawah */
+.article-body strong,
+.article-body b,
+.prose strong,
+.prose b {
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+.article-body em,
+.article-body i,
+.prose em,
+.prose i {
+  font-style: italic !important;
+}
+
+.article-body u,
+.prose u {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+/* Kutipan (Blockquote) */
+.article-body blockquote,
+.prose blockquote {
+  border-left: 4px solid #2563eb !important;
+  padding: 0.85rem 1.35rem !important;
+  margin: 1.75rem 0 !important;
+  font-style: italic !important;
+  color: #334155 !important;
+  background-color: #f8fafc !important;
+  border-radius: 0 0.85rem 0.85rem 0 !important;
+  line-height: 1.75 !important;
+}
+
+/* Tautan Hyperlink */
+.article-body a,
+.prose a {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  font-weight: 600 !important;
+  transition: color 0.15s ease;
+}
+.article-body a:hover,
+.prose a:hover {
+  color: #1d4ed8 !important;
+}
+
+/* Garis Pemisah (Divider) */
+.article-body hr,
+.prose hr {
+  border: 0 !important;
+  border-top: 1px solid #e2e8f0 !important;
+  margin: 2.5rem 0 !important;
+}
+
+/* Tabel */
+.article-body table,
+.prose table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1.75rem 0 !important;
+  font-size: 0.95rem !important;
+}
+
+.article-body th,
+.article-body td,
+.prose th,
+.prose td {
+  border: 1px solid #cbd5e1 !important;
+  padding: 0.75rem 1rem !important;
+}
+
+.article-body th,
+.prose th {
+  background-color: #f1f5f9 !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  text-align: left !important;
+}
+
+/* ==========================================================
    STYLING GAMBAR ARTIKEL BERITA & DOKUMEN (RESPONSIVE & CENTERED)
-   Memastikan seluruh gambar di halaman detail berita & editor:
-   1. Otomatis berada di tengah (Rata Tengah)
-   2. Berukuran lebih besar, gagah, dan proporsional (max-w 820px, 85%-100% width)
    ========================================================== */
 .article-body img,
 .prose img {
-  display: block !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  width: 100% !important;
-  max-width: 820px !important;
-  min-width: min(100%, 520px);
-  height: auto !important;
-  border-radius: 1rem !important;
-  box-shadow: 0 6px 24px -4px rgba(0, 0, 0, 0.08) !important;
-  object-fit: cover !important;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
+  margin-top: 1.75rem;
+  margin-bottom: 1.75rem;
 }
 
-/* Jika admin sengaja menyetel rata kiri */
+.article-body img[data-size="medium"],
+.prose img[data-size="medium"] {
+  width: 60% !important;
+}
+
+.article-body img[data-size="large"],
+.prose img[data-size="large"] {
+  width: 85% !important;
+}
+
+.article-body img[data-size="full"],
+.prose img[data-size="full"] {
+  width: 100% !important;
+}
+
+/* Jika admin menyetel rata kiri */
 .article-body img[data-align="left"],
 .prose img[data-align="left"] {
   margin-left: 0 !important;
   margin-right: auto !important;
-  max-width: 65% !important;
-  min-width: 0 !important;
 }
 
-/* Jika admin sengaja menyetel rata kanan */
+/* Jika admin menyetel rata kanan */
 .article-body img[data-align="right"],
 .prose img[data-align="right"] {
   margin-left: auto !important;
   margin-right: 0 !important;
-  max-width: 65% !important;
-  min-width: 0 !important;
 }
 
 /* Penataan wrapper paragraf jika gambar berada di dalam <p> */

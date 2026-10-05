@@ -382,10 +382,10 @@ export const NewsDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 pt-8 sm:pt-12 space-y-8">
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 space-y-8">
         
         {/* Article Header Card */}
-        <header className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/80 shadow-sm space-y-6">
+        <header className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-sm space-y-6">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs">
               {selectedNews.category}
@@ -395,7 +395,7 @@ export const NewsDetailPage: React.FC = () => {
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.2]">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.25]">
             {selectedNews.title}
           </h1>
 
@@ -468,13 +468,13 @@ export const NewsDetailPage: React.FC = () => {
 
         {/* Featured Cover Image */}
         {selectedNews.image && (
-          <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 bg-slate-100">
+          <div className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-slate-200/90 bg-slate-100">
             <img
               src={formatGoogleDriveImageUrl(selectedNews.image, 1600)}
               alt={selectedNews.title}
               decoding="async"
               fetchPriority="high"
-              className="w-full max-h-[560px] object-cover"
+              className="w-full max-h-[520px] object-cover"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1000';
               }}
@@ -483,7 +483,7 @@ export const NewsDetailPage: React.FC = () => {
         )}
 
         {/* Main Article Body Container */}
-        <div ref={articleBodyRef} className="bg-white rounded-3xl p-6 sm:p-12 border border-slate-200/80 shadow-sm space-y-8 scroll-mt-28">
+        <div ref={articleBodyRef} className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/90 shadow-sm space-y-8 scroll-mt-28">
           
           {/* Summary Quote */}
           {selectedNews.summary && (
@@ -521,22 +521,26 @@ export const NewsDetailPage: React.FC = () => {
             {isPaginated && activePageData ? (
               activePageData.isHtml ? (
                 <div 
-                  className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:mx-auto prose-img:block prose-img:w-full prose-img:max-w-3xl prose-img:rounded-2xl prose-img:shadow-md prose-img:my-8 max-w-none text-base sm:text-lg"
+                  className="prose prose-slate max-w-none"
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(activePageData.content) }}
                 />
               ) : (
-                <div className="text-slate-700 text-base sm:text-lg leading-relaxed whitespace-pre-line font-normal space-y-4">
-                  {activePageData.content}
+                <div className="prose prose-slate max-w-none">
+                  {activePageData.content.split(/\n+/).filter(Boolean).map((para, idx) => (
+                    <p key={idx}>{para}</p>
+                  ))}
                 </div>
               )
             ) : selectedNews.content.includes('<') ? (
               <div 
-                className="prose prose-slate prose-headings:font-extrabold prose-headings:text-slate-900 prose-p:text-slate-700 prose-p:leading-relaxed prose-img:mx-auto prose-img:block prose-img:w-full prose-img:max-w-3xl prose-img:rounded-2xl prose-img:shadow-md prose-img:my-8 max-w-none text-base sm:text-lg"
+                className="prose prose-slate max-w-none"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
               />
             ) : (
-              <div className="text-slate-700 text-base sm:text-lg leading-relaxed whitespace-pre-line font-normal space-y-4">
-                {selectedNews.content}
+              <div className="prose prose-slate max-w-none">
+                {selectedNews.content.split(/\n+/).filter(Boolean).map((para, idx) => (
+                  <p key={idx}>{para}</p>
+                ))}
               </div>
             )}
           </div>
@@ -623,7 +627,7 @@ export const NewsDetailPage: React.FC = () => {
           )}
 
           {/* Social Sharing Footer Box */}
-          <div className="pt-8 border-t border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-12 -mb-6 sm:-mb-12 p-6 sm:p-10 rounded-b-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="pt-8 border-t border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-10 lg:-mx-12 -mb-6 sm:-mb-10 lg:-mb-12 p-6 sm:p-10 lg:p-12 rounded-b-2xl sm:rounded-b-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <h4 className="font-bold text-slate-900 text-sm">Bagikan Berita Ini</h4>
               <p className="text-xs text-slate-500">Bantu sebarkan kabar pendidikan bermanfaat ke rekan pendidik & masyarakat.</p>
