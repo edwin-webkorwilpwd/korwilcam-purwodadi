@@ -558,15 +558,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
+    const sanitizeCachedGalleryList = (items: GalleryItem[]): GalleryItem[] => {
+      const mergedList = [...items];
+      // Pastikan item dari initialGallery yang belum ada di cache tetap dimasukkan
+      initialGallery.forEach((initItem) => {
+        if (!mergedList.some((m) => m.id === initItem.id)) {
+          mergedList.push(initItem);
+        }
+      });
+
+      return mergedList.map((item) => {
+        const rawImages = Array.isArray(item.images) ? item.images : [];
+        const meta = extractGalleryMetadata(item.description || '');
+        const metaImages = Array.isArray(meta.images) ? meta.images : [];
+        const initialMatch = initialGallery.find((init) => init.id === item.id);
+        const initImages = (initialMatch && Array.isArray(initialMatch.images)) ? initialMatch.images : [];
+
+        const candidates = [rawImages, metaImages, initImages];
+        candidates.sort((a, b) => b.length - a.length);
+        const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : (item.image ? [item.image] : []);
+
+        return {
+          ...item,
+          images: best
+        };
+      });
+    };
+
     if (_inMemoryGalleryCache && _inMemoryGalleryCache.length > 0) {
-      return _inMemoryGalleryCache;
+      return sanitizeCachedGalleryList(_inMemoryGalleryCache);
     }
     try {
       const sessionSaved = sessionStorage.getItem('korwilcam_gallery');
       if (sessionSaved) {
         const parsed = JSON.parse(sessionSaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const sorted = sortGalleryDescending(parsed);
+          const sorted = sortGalleryDescending(sanitizeCachedGalleryList(parsed));
           _inMemoryGalleryCache = sorted;
           return sorted;
         }
@@ -577,7 +604,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const sorted = sortGalleryDescending(parsed);
+          const sorted = sortGalleryDescending(sanitizeCachedGalleryList(parsed));
           _inMemoryGalleryCache = sorted;
           return sorted;
         }
@@ -1495,14 +1522,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const driveFolderUrl = g.drive_folder_url || g.driveFolderUrl || metaDriveUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '';
 
               const imagesList = (() => {
-                if (Array.isArray(g.images) && g.images.length > 0) return g.images;
-                if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
+                let fromCol: string[] = [];
+                if (Array.isArray(g.images) && g.images.length > 0) {
+                  fromCol = g.images;
+                } else if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
                   try {
                     const parsed = JSON.parse(g.images);
-                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                    if (Array.isArray(parsed) && parsed.length > 0) fromCol = parsed;
                   } catch (_) {}
                 }
-                if (Array.isArray(metaImages) && metaImages.length > 0) return metaImages;
+                const fromMeta: string[] = Array.isArray(metaImages) && metaImages.length > 0 ? metaImages : [];
+                const initMatch = initialGallery.find((init) => init.id === g.id);
+                const fromInit: string[] = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images : [];
+
+                const candidates = [fromCol, fromMeta, fromInit];
+                candidates.sort((a, b) => b.length - a.length);
+
+                if (candidates[0] && candidates[0].length > 0) return candidates[0];
                 return g.image ? [g.image] : [];
               })();
 
@@ -1527,23 +1563,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             _inMemoryGalleryCache = sortedGal;
             setGallery(sortedGal);
 
+            // Jika ada album yang sedang dibuka pengunjung, langsung perbarui detailnya agar seluruh foto tampil
+            setSelectedGalleryState((curr) => {
+              if (!curr) return null;
+              const fresh = sortedGal.find((item) => item.id === curr.id);
+              if (fresh) {
+                const freshImages = Array.isArray(fresh.images) ? fresh.images : [];
+                const currImages = Array.isArray(curr.images) ? curr.images : [];
+                if (freshImages.length >= currImages.length) {
+                  return fresh;
+                }
+              }
+              return curr;
+            });
+
             try {
               sessionStorage.setItem('korwilcam_gallery', JSON.stringify(sortedGal));
             } catch {}
             try {
               localStorage.setItem('korwilcam_gallery', JSON.stringify(sortedGal));
             } catch (quotaErr) {
-              // Jika data base64 melebihi kuota 5MB browser, simpan versi cover image agar tetap super cepat
+              // Jika kuota localStorage browser terlampaui karena gambar base64 besar,
+              // pangkas data base64 yang sangat berat, tetapi TETAP PERTAHANKAN SELURUH link foto dokumentasi (Google Drive / Cloud URLs)
               try {
                 const lightweight = sortedGal.map(item => ({
-                  id: item.id,
-                  title: item.title,
-                  category: item.category,
-                  date: item.date,
-                  createdAt: item.createdAt,
-                  description: item.description,
-                  image: item.image,
-                  images: [item.image]
+                  ...item,
+                  image: item.image && item.image.startsWith('data:') && item.image.length > 2000 ? '#' : item.image,
+                  images: Array.isArray(item.images)
+                    ? item.images.map(img => (typeof img === 'string' && img.startsWith('data:') && img.length > 2000 ? '#' : img))
+                    : (item.image ? [item.image] : [])
                 }));
                 localStorage.setItem('korwilcam_gallery', JSON.stringify(lightweight));
               } catch {}
@@ -3011,8 +3059,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setSelectedGallery = (item: GalleryItem | null) => {
-    setSelectedGalleryState(item);
-    if (item) {
+    let resolvedItem = item;
+    if (resolvedItem) {
+      const galleryMatch = gallery.find((g) => g.id === resolvedItem!.id);
+      const rawImages = Array.isArray(resolvedItem.images) ? resolvedItem.images : [];
+      const matchImages = (galleryMatch && Array.isArray(galleryMatch.images)) ? galleryMatch.images : [];
+      const meta = extractGalleryMetadata(resolvedItem.description || '');
+      const metaImages = Array.isArray(meta.images) ? meta.images : [];
+      const initMatch = initialGallery.find((init) => init.id === resolvedItem!.id);
+      const initImages = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images : [];
+
+      const candidates = [rawImages, matchImages, metaImages, initImages];
+      candidates.sort((a, b) => b.length - a.length);
+      const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : (resolvedItem.image ? [resolvedItem.image] : []);
+
+      resolvedItem = {
+        ...resolvedItem,
+        images: best
+      };
+    }
+
+    setSelectedGalleryState(resolvedItem);
+    if (resolvedItem) {
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedDocumentState(null);
@@ -3020,12 +3088,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedOrganizationSlugState(null);
       setSelectedServiceRequirementState(null);
       setActiveTabState('gallery');
-      const slug = getGallerySlug(item);
+      const slug = getGallerySlug(resolvedItem);
       const newPath = `/galeri/${encodeURIComponent(slug)}`;
       if (window.location.pathname !== newPath) {
         window.history.pushState({ gallerySlug: slug, path: newPath }, '', newPath);
       }
-      document.title = `${item.title} - Galeri Korwilcam Purwodadi`;
+      document.title = `${resolvedItem.title} - Galeri Korwilcam Purwodadi`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       if (typeof window !== 'undefined' && window.location.pathname.startsWith('/galeri/') && window.history.length > 1) {
@@ -3363,7 +3431,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             getGallerySlug(g) === slug
           );
           if (found) {
-            setSelectedGalleryState(found);
+            const rawImages = Array.isArray(found.images) ? found.images : [];
+            const meta = extractGalleryMetadata(found.description || '');
+            const metaImages = Array.isArray(meta.images) ? meta.images : [];
+            const initMatch = initialGallery.find((init) => init.id === found.id);
+            const initImages = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images : [];
+
+            const candidates = [rawImages, metaImages, initImages];
+            candidates.sort((a, b) => b.length - a.length);
+            const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : (found.image ? [found.image] : []);
+
+            setSelectedGalleryState({ ...found, images: best });
             setSelectedNewsState(null);
             setSelectedAnnouncementState(null);
             setSelectedDocumentState(null);
@@ -3385,8 +3463,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           getGallerySlug(g) === queryGaleri
         );
         if (found) {
+          const rawImages = Array.isArray(found.images) ? found.images : [];
+          const meta = extractGalleryMetadata(found.description || '');
+          const metaImages = Array.isArray(meta.images) ? meta.images : [];
+          const initMatch = initialGallery.find((init) => init.id === found.id);
+          const initImages = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images : [];
+
+          const candidates = [rawImages, metaImages, initImages];
+          candidates.sort((a, b) => b.length - a.length);
+          const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : (found.image ? [found.image] : []);
+
           setActiveTabState('gallery');
-          setSelectedGalleryState(found);
+          setSelectedGalleryState({ ...found, images: best });
           setSelectedNewsState(null);
           setSelectedAnnouncementState(null);
           setSelectedDocumentState(null);

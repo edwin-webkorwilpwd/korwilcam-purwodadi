@@ -3423,6 +3423,24 @@ export const initialDocuments: DocumentDownload[] = [
 
 export const initialGallery: GalleryItem[] = [
   {
+    id: "gal-1791163139973",
+    title: "Apel Pagi 5 Oktober 2026",
+    category: "Upacara",
+    date: "5 Oktober 2026",
+    createdAt: "2026-10-05T01:18:59.973+00:00",
+    image: "https://lh3.googleusercontent.com/d/1_ysw9n4ehJVgpkq8unzfmrJdRijOqscq",
+    images: [
+      "https://lh3.googleusercontent.com/d/1_ysw9n4ehJVgpkq8unzfmrJdRijOqscq",
+      "https://lh3.googleusercontent.com/d/1S10FGenIJBmadevDev4VEgM0YN4nBs0t",
+      "https://lh3.googleusercontent.com/d/1O-Go4Eb4iQofxbXM508FioOO16ulaF_T",
+      "https://lh3.googleusercontent.com/d/1FAnJmAQYrLgz0eER_IanG2d4DwH9EZfs"
+    ],
+    description: "Apel Pagi 5 Oktober 2026\n\n<!--DRIVE_META:{\"driveFolderUrl\":\"\",\"images\":[\"https://lh3.googleusercontent.com/d/1_ysw9n4ehJVgpkq8unzfmrJdRijOqscq\",\"https://lh3.googleusercontent.com/d/1S10FGenIJBmadevDev4VEgM0YN4nBs0t\",\"https://lh3.googleusercontent.com/d/1O-Go4Eb4iQofxbXM508FioOO16ulaF_T\",\"https://lh3.googleusercontent.com/d/1FAnJmAQYrLgz0eER_IanG2d4DwH9EZfs\"]}:DRIVE_META-->",
+    authorId: "usr-superadmin",
+    authorName: "Super Administrator",
+    authorRole: "Super Admin"
+  },
+  {
     id: "gal-1789350781225",
     title: "14 Agustus 2026. Apel Pagi Pegawai Korwilcam Purwodadi",
     category: "Upacara",

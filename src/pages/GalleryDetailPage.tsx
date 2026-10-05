@@ -27,6 +27,7 @@ import {
   isGoogleDriveFolderUrl, 
   isGoogleDriveUrl,
   formatGoogleDriveImageUrl,
+  getGoogleDriveFolderViewUrl,
   extractGalleryMetadata
 } from '../lib/driveHelper';
 
@@ -56,23 +57,47 @@ export const GalleryDetailPage: React.FC = () => {
 
   const cleanDescription = meta.cleanDescription || selectedGallery?.description || '';
 
-  // Seluruh daftar foto dokumentasi untuk Slide Show
+  // Deteksi tautan folder database Google Drive jika ada
+  const folderUrl = useMemo(() => {
+    if (!selectedGallery) return '';
+    return selectedGallery.driveFolderUrl || meta.driveFolderUrl || (isGoogleDriveFolderUrl(selectedGallery.image) ? selectedGallery.image : '');
+  }, [selectedGallery, meta]);
+
+  // Seluruh daftar foto dokumentasi untuk Slide Show (sinkronisasi multi-tier agar tidak terpotong di HP)
   const albumPhotos = useMemo(() => {
     if (!selectedGallery) return [];
-    let list: string[] = [];
 
-    if (Array.isArray(selectedGallery.images) && selectedGallery.images.length > 0) {
-      list = selectedGallery.images;
-    } else if (Array.isArray(meta.images) && meta.images.length > 0) {
-      list = meta.images;
-    } else if (selectedGallery.image) {
+    // Cari item yang sesuai di array gallery context jika ada data yang lebih segar
+    const galleryMatch = gallery.find((g) => g.id === selectedGallery.id);
+    const rawImages = Array.isArray(selectedGallery.images) ? selectedGallery.images : [];
+    const matchImages = (galleryMatch && Array.isArray(galleryMatch.images)) ? galleryMatch.images : [];
+    const metaImages = Array.isArray(meta.images) ? meta.images : [];
+    const matchMeta = galleryMatch ? extractGalleryMetadata(galleryMatch.description || '') : null;
+    const matchMetaImages = (matchMeta && Array.isArray(matchMeta.images)) ? matchMeta.images : [];
+
+    // Kumpulkan seluruh kandidat daftar foto dan urutkan berdasarkan jumlah foto terbanyak
+    const candidates = [rawImages, matchImages, metaImages, matchMetaImages];
+    candidates.sort((a, b) => b.length - a.length);
+
+    let list: string[] = candidates[0] && candidates[0].length > 0 ? [...candidates[0]] : [];
+
+    if (list.length === 0 && selectedGallery.image) {
       list = [selectedGallery.image];
     }
+
+    // Pastikan tidak ada foto valid dari sumber lain yang tertinggal
+    candidates.forEach((cand) => {
+      cand.forEach((url) => {
+        if (typeof url === 'string' && url.trim().length > 0 && !list.includes(url)) {
+          list.push(url);
+        }
+      });
+    });
 
     return list
       .filter((img) => typeof img === 'string' && img.trim().length > 0 && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
       .map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
-  }, [selectedGallery, meta]);
+  }, [selectedGallery, meta, gallery]);
 
   const totalPhotos = albumPhotos.length;
   const currentPhoto = albumPhotos[activePhotoIndex] || albumPhotos[0] || '';
@@ -256,6 +281,20 @@ export const GalleryDetailPage: React.FC = () => {
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>Unduh Seluruh {totalPhotos} Foto (Batch)</span>
               </button>
+            )}
+
+            {folderUrl && (
+              <a
+                href={getGoogleDriveFolderViewUrl(folderUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
+                title="Buka seluruh isi folder foto di Google Drive"
+              >
+                <FolderOpen className="w-4 h-4 text-amber-300" />
+                <span>Buka Seluruh Foto di Folder Database</span>
+                <ExternalLink className="w-3.5 h-3.5 text-blue-200" />
+              </a>
             )}
 
             {totalPhotos > 1 && (
