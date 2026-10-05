@@ -2,11 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   ArrowLeft, 
-  Calendar, 
   Share2, 
   Download, 
   Images, 
-  Folder, 
   FolderOpen,
   ChevronLeft, 
   ChevronRight, 
@@ -14,11 +12,8 @@ import {
   X, 
   Check, 
   ExternalLink,
-  Layers,
   ArrowRight,
-  AlertCircle,
-  User,
-  Eye
+  AlertCircle
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { getGallerySlug } from '../lib/galleryHelper';
@@ -238,30 +233,8 @@ export const GalleryDetailPage: React.FC = () => {
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         
-        {/* Album Header Title & Metadata */}
+        {/* Album Header Title & Content */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 flex items-center gap-1.5">
-              <Folder className="w-3.5 h-3.5 text-blue-600" />
-              {selectedGallery.category}
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 flex items-center gap-1.5 font-mono">
-              <Calendar className="w-3.5 h-3.5 text-amber-500" />
-              {selectedGallery.date}
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 flex items-center gap-1.5 border border-blue-200">
-              <Images className="w-3.5 h-3.5 text-blue-600" />
-              <span>{totalPhotos} Foto Dokumentasi</span>
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 flex items-center gap-1.5 border border-purple-200">
-              <User className="w-3.5 h-3.5 text-purple-600" />
-              <span>
-                Diunggah oleh: <strong className="text-purple-950 font-extrabold">{selectedGallery.authorName || 'Super Administrator'}</strong>
-                {selectedGallery.authorRole ? ` (${selectedGallery.authorRole})` : ''}
-              </span>
-            </span>
-          </div>
-
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
             {selectedGallery.title}
           </h1>
