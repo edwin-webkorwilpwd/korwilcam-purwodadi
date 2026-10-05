@@ -80,6 +80,13 @@ import {
   fetchActivityLogUrlFromSupabase, 
   saveActivityLogUrlToSupabase 
 } from '../lib/activityLogger';
+import { MenuVisibilityMap, NAVIGATION_CONFIG } from '../config/navigationConfig';
+import { 
+  getLocalNavigationVisibility, 
+  fetchNavigationVisibilityFromSupabase, 
+  saveNavigationVisibilityToSupabase 
+} from '../lib/navigationHelper';
+
 
 export const initialAdminUsers: AdminUser[] = [
   {
@@ -307,6 +314,11 @@ interface AppContextType {
     description: string,
     status?: 'BERHASIL' | 'GAGAL'
   ) => void;
+
+  // Navigation & Menu Visibility Settings
+  menuVisibility: MenuVisibilityMap;
+  updateMenuVisibility: (updates: Partial<MenuVisibilityMap>) => Promise<boolean>;
+  resetMenuVisibility: () => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -765,6 +777,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedDataRequestSlug, setSelectedDataRequestSlug] = useState<string | null>(null);
 
   const [socialMedia, setSocialMedia] = useState<SocialMediaItem[]>(() => getLocalSocialMedia());
+  const [menuVisibility, setMenuVisibility] = useState<MenuVisibilityMap>(() => getLocalNavigationVisibility());
 
   const [broadcastHistory, setBroadcastHistory] = useState<BroadcastNotification[]>(() => {
     try {
@@ -1357,6 +1370,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Tabel broadcast_notifications belum terbaca:', errBc);
         }
       })();
+
+      // 0.175 Fetch navigation_settings IMMEDIATELY IN PARALLEL
+      const navSettingsFetchPromise = (async () => {
+        try {
+          const vis = await fetchNavigationVisibilityFromSupabase();
+          if (vis && typeof vis === 'object') {
+            setMenuVisibility(vis);
+          }
+        } catch (errNav) {
+          console.warn('Tabel navigation_settings belum terbaca:', errNav);
+        }
+      })();
+
 
       // 0.18 Fetch achievements IMMEDIATELY IN PARALLEL (Prestasi Siswa & Guru)
       const achievementsFetchPromise = (async () => {
@@ -2141,7 +2167,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           serviceReqsFetchPromise, 
           dataReqsFetchPromise,
           socialMediaFetchPromise,
-          broadcastFetchPromise
+          broadcastFetchPromise,
+          navSettingsFetchPromise
         ]);
       } catch (errParallel) {
         console.warn('Parallel fetch warning:', errParallel);
@@ -2725,6 +2752,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           } catch (e) {
             console.warn('Realtime social_media_settings error:', e);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'navigation_settings' },
+        async () => {
+          try {
+            const vis = await fetchNavigationVisibilityFromSupabase();
+            if (vis && typeof vis === 'object') {
+              setMenuVisibility(vis);
+            }
+          } catch (e) {
+            console.warn('Realtime navigation_settings error:', e);
           }
         }
       )
@@ -5931,6 +5972,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // PENGATURAN VISIBILITAS MENU & SUB MENU (NAVIGASI)
+  const updateMenuVisibility = async (updates: Partial<MenuVisibilityMap>): Promise<boolean> => {
+    const merged: MenuVisibilityMap = { ...menuVisibility };
+    Object.keys(updates).forEach((key) => {
+      const val = updates[key];
+      if (typeof val === 'boolean') {
+        merged[key] = val;
+      }
+    });
+    setMenuVisibility(merged);
+    const success = await saveNavigationVisibilityToSupabase(merged);
+    triggerActivityLog(
+      'UBAH DATA',
+      'Pengaturan Menu',
+      'Memperbarui status visibilitas menu dan sub-menu navigasi website'
+    );
+    return success;
+  };
+
+  const resetMenuVisibility = async (): Promise<boolean> => {
+    const defaultMap: MenuVisibilityMap = {};
+    NAVIGATION_CONFIG.forEach((item) => {
+      defaultMap[item.id] = true;
+      if (item.children) {
+        item.children.forEach((child) => {
+          defaultMap[child.id] = true;
+        });
+      }
+    });
+    setMenuVisibility(defaultMap);
+    const success = await saveNavigationVisibilityToSupabase(defaultMap);
+    triggerActivityLog(
+      'UBAH DATA',
+      'Pengaturan Menu',
+      'Mereset seluruh menu dan sub-menu navigasi website ke pengaturan bawaan aktif'
+    );
+    return success;
+  };
+
   // SOP PELAYANAN (Auto-save to Supabase sop_pelayanan table & local state)
   const updateSOPImageUrl = async (url: string): Promise<boolean> => {
     const formatted = formatGoogleDriveImageUrl(url);
@@ -7134,7 +7214,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         closeNoticePopup,
         activityLogUrl,
         updateActivityLogUrl,
-        logAdminActivity: triggerActivityLog
+        logAdminActivity: triggerActivityLog,
+        menuVisibility,
+        updateMenuVisibility,
+        resetMenuVisibility
       }}
     >
       {children}

@@ -87,6 +87,7 @@ import {
   parseGoogleDriveImageLinks
 } from '../../lib/driveHelper';
 import { VisitorAnalyticsChart } from '../../components/admin/VisitorAnalyticsChart';
+import { MenuSettingsCMS } from '../../components/admin/MenuSettingsCMS';
 import { 
   getSupabaseConfig, 
   setCustomSupabaseConfig, 
@@ -261,7 +262,8 @@ export const AdminDashboard: React.FC = () => {
     | 'social-media-cms'
     | 'broadcast-cms'
     | 'users-cms'
-    | 'activity-log-cms';
+    | 'activity-log-cms'
+    | 'menu-settings-cms';
 
   const isSuperAdmin = currentUser?.role === 'Super Admin';
   const isAdmin = currentUser?.role === 'Admin';
@@ -313,7 +315,7 @@ export const AdminDashboard: React.FC = () => {
       setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
     } else if ((currentSection === 'social-media-cms' || currentSection === 'broadcast-cms') && !isAdminOrSuperAdmin) {
       setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
-    } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms') && !isSuperAdmin) {
+    } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms' || currentSection === 'menu-settings-cms') && !isSuperAdmin) {
       setCurrentSection('news-cms');
     }
   }, [isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
@@ -4298,6 +4300,42 @@ export const AdminDashboard: React.FC = () => {
                   currentSection === 'activity-log-cms' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
                 }`}>
                   Live
+                </span>
+              </button>
+
+              {/* Menu Pengaturan Tampilan Menu & Sub Menu (Khusus Super Admin) */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('menu-settings-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all mt-1 ${
+                  currentSection === 'menu-settings-cms'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'menu-settings-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'menu-settings-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Pengaturan Menu
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'menu-settings-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Menu & Sub Menu Publik
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'menu-settings-cms' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  Super
                 </span>
               </button>
             </>
@@ -13550,6 +13588,11 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* TAB 10: PENGATURAN TAMPILAN MENU & SUB MENU (KHUSUS SUPER ADMIN) */}
+          {currentSection === 'menu-settings-cms' && isSuperAdmin && (
+            <MenuSettingsCMS onGoToWebsite={() => setActiveTab('home')} />
           )}
 
             </>
