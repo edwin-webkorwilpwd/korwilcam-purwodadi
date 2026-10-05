@@ -471,7 +471,7 @@ export const Navbar: React.FC = () => {
                     : 'text-white/90 hover:text-white hover:bg-white/15'
                 }`}
               >
-                SOP Pelayanan
+                SOP
               </button>
 
               <button
@@ -882,7 +882,7 @@ export const Navbar: React.FC = () => {
             )}
           </div>
 
-          {/* 3. SOP Pelayanan */}
+          {/* 3. SOP */}
           <button
             onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
             className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
@@ -892,7 +892,7 @@ export const Navbar: React.FC = () => {
             }`}
           >
             <FileCheck className={`w-4 h-4 ${activeTab === 'sop-pelayanan' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
-            <span>SOP Pelayanan</span>
+            <span>SOP</span>
           </button>
 
           {/* 4. Sekolah */}
