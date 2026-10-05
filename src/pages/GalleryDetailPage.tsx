@@ -66,12 +66,15 @@ export const GalleryDetailPage: React.FC = () => {
     // Cari item yang sesuai di array gallery context jika ada data yang lebih segar
     const galleryMatch = gallery.find((g) => g.id === selectedGallery.id);
     const initialMatch = initialGallery.find((init) => init.id === selectedGallery.id);
-    const rawImages = (Array.isArray(selectedGallery.images) ? selectedGallery.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
-    const matchImages = (galleryMatch && Array.isArray(galleryMatch.images) ? galleryMatch.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
-    const metaImages = (Array.isArray(meta.images) ? meta.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+    const filterValid = (arr: any) => (Array.isArray(arr) ? arr : [])
+      .filter((img): img is string => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-') && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'));
+
+    const rawImages = filterValid(selectedGallery.images);
+    const matchImages = filterValid(galleryMatch?.images);
+    const metaImages = filterValid(meta.images);
     const matchMeta = galleryMatch ? extractGalleryMetadata(galleryMatch.description || '') : null;
-    const matchMetaImages = (matchMeta && Array.isArray(matchMeta.images) ? matchMeta.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
-    const initImages = (initialMatch && Array.isArray(initialMatch.images) ? initialMatch.images : []).filter(img => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+    const matchMetaImages = filterValid(matchMeta?.images);
+    const initImages = filterValid(initialMatch?.images);
 
     // Kumpulkan seluruh kandidat daftar foto dan urutkan berdasarkan jumlah foto terbanyak
     const candidates = [rawImages, matchImages, metaImages, matchMetaImages, initImages];
@@ -79,22 +82,13 @@ export const GalleryDetailPage: React.FC = () => {
 
     let list: string[] = candidates[0] && candidates[0].length > 0 ? [...candidates[0]] : [];
 
-    if (list.length === 0 && selectedGallery.image && selectedGallery.image !== '#') {
+    if (list.length === 0 && selectedGallery.image && selectedGallery.image !== '#' && !selectedGallery.image.startsWith('/gallery/apel-')) {
       list = [selectedGallery.image];
+    } else if (list.length === 0 && initialMatch?.image && !initialMatch.image.startsWith('/gallery/apel-')) {
+      list = [initialMatch.image];
     }
 
-    // Pastikan tidak ada foto valid dari sumber lain yang tertinggal
-    candidates.forEach((cand) => {
-      cand.forEach((url) => {
-        if (typeof url === 'string' && url.trim().length > 0 && url !== '#' && !list.includes(url)) {
-          list.push(url);
-        }
-      });
-    });
-
-    return list
-      .filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !isGoogleDriveFolderUrl(img) && !img.includes('/drive/folders'))
-      .map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
+    return list.map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
   }, [selectedGallery, meta, gallery]);
 
   const totalPhotos = albumPhotos.length;

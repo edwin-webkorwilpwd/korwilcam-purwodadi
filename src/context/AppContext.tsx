@@ -568,16 +568,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       return mergedList.map((item) => {
-        const rawImages = (Array.isArray(item.images) ? item.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+        const rawImages = (Array.isArray(item.images) ? item.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
         const meta = extractGalleryMetadata(item.description || '');
-        const metaImages = (Array.isArray(meta.images) ? meta.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#');
+        const metaImages = (Array.isArray(meta.images) ? meta.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
         const initialMatch = initialGallery.find((init) => init.id === item.id);
-        const initImages = (initialMatch && Array.isArray(initialMatch.images)) ? initialMatch.images.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#') : [];
+        const initImages = (initialMatch && Array.isArray(initialMatch.images)) ? initialMatch.images.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-')) : [];
 
         const candidates = [rawImages, metaImages, initImages];
         candidates.sort((a, b) => b.length - a.length);
-        const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : (item.image && item.image !== '#' ? [item.image] : []);
-        const validCover = item.image && item.image !== '#' ? item.image : (best[0] || (initialMatch ? initialMatch.image : ''));
+        const best = candidates[0] && candidates[0].length > 0 ? candidates[0] : ((item.image && item.image !== '#' && !item.image.startsWith('/gallery/apel-')) ? [item.image] : (initialMatch?.images || []));
+        const validCover = (item.image && item.image !== '#' && !item.image.startsWith('/gallery/apel-')) ? item.image : (best[0] || (initialMatch ? initialMatch.image : ''));
 
         return {
           ...item,
@@ -1523,6 +1523,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const { cleanDescription, driveFolderUrl: metaDriveUrl, images: metaImages } = extractGalleryMetadata(rawDesc);
               const driveFolderUrl = g.drive_folder_url || g.driveFolderUrl || metaDriveUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '';
 
+              const initMatch = initialGallery.find((init) => init.id === g.id);
+
               const imagesList = (() => {
                 let fromCol: string[] = [];
                 if (Array.isArray(g.images) && g.images.length > 0) {
@@ -1533,19 +1535,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     if (Array.isArray(parsed) && parsed.length > 0) fromCol = parsed;
                   } catch (_) {}
                 }
-                const validFromCol = fromCol.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#');
-                const validFromMeta = (Array.isArray(metaImages) ? metaImages : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#');
-                const initMatch = initialGallery.find((init) => init.id === g.id);
-                const validFromInit = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#') : [];
+                const validFromCol = fromCol.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
+                const validFromMeta = (Array.isArray(metaImages) ? metaImages : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-'));
+                const validFromInit = (initMatch && Array.isArray(initMatch.images)) ? initMatch.images.filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.startsWith('/gallery/apel-')) : [];
 
                 const candidates = [validFromCol, validFromMeta, validFromInit];
                 candidates.sort((a, b) => b.length - a.length);
 
                 if (candidates[0] && candidates[0].length > 0) return candidates[0];
-                return g.image && g.image !== '#' ? [g.image] : [];
+                return (g.image && g.image !== '#' && !g.image.startsWith('/gallery/apel-')) ? [g.image] : (initMatch?.images || []);
               })();
 
-              const validImage = g.image && g.image !== '#' ? g.image : (imagesList[0] || '');
+              const validImage = (g.image && g.image !== '#' && !g.image.startsWith('/gallery/apel-')) ? g.image : (imagesList[0] || (initMatch ? initMatch.image : ''));
 
               return {
                 id: String(g.id || `gal-${Date.now()}`),

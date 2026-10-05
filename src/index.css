@@ -159,13 +159,13 @@
 /* Judul & Sub-judul (Heading) dengan jarak atas pemisah yang jelas */
 .article-body h1,
 .prose h1 {
-  font-size: 1.75rem !important;
+  font-size: 1.4rem !important;
   font-weight: 800 !important;
   color: #0f172a !important;
   line-height: 1.35 !important;
-  margin-top: 2.5rem !important;
-  margin-bottom: 1rem !important;
-  letter-spacing: -0.02em;
+  margin-top: 2rem !important;
+  margin-bottom: 0.85rem !important;
+  letter-spacing: -0.015em;
 }
 
 .article-body h2,
@@ -390,5 +390,61 @@
   outline: 3px solid #2563eb !important;
   outline-offset: 4px !important;
 }
+
+/* ==========================================================
+   WYSIWYG EDITOR CANVAS REAL-TIME PREVIEW
+   Menyelaraskan tampilan lembar kerja editor agar apa yang
+   dilihat penulis persis sama dengan yang tayang di website.
+   ========================================================== */
+.editor-canvas {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+  font-size: 1rem;
+  line-height: 1.85;
+}
+
+.editor-canvas p {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  line-height: 1.85;
+  color: #334155;
+  text-align: justify;
+}
+
+.editor-canvas h1 {
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  line-height: 1.35 !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.editor-canvas h2 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  line-height: 1.4 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.65rem !important;
+}
+
+.editor-canvas h3 {
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  line-height: 1.45 !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.editor-canvas blockquote {
+  border-left: 4px solid #2467ea;
+  padding-left: 1rem;
+  color: #475569;
+  font-style: italic;
+  margin: 1.25rem 0;
+}
+
 
 

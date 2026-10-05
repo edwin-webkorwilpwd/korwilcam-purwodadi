@@ -252,7 +252,65 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   const handleBlockFormat = (tag: string) => {
-    executeCommand('formatBlock', `<${tag}>`);
+    const targetTag = tag.toLowerCase();
+    const selection = window.getSelection();
+
+    if (selection && selection.rangeCount > 0 && editorRef.current) {
+      const range = selection.getRangeAt(0);
+      let container: Node | null = range.commonAncestorContainer;
+      if (container.nodeType === Node.TEXT_NODE) {
+        container = container.parentNode;
+      }
+
+      // Cari elemen blok terdekat di dalam editor canvas
+      const blockEl = (container as HTMLElement)?.closest?.(
+        'h1, h2, h3, h4, h5, h6, p, blockquote, div'
+      ) as HTMLElement | null;
+
+      if (blockEl && editorRef.current.contains(blockEl) && blockEl !== editorRef.current) {
+        if (blockEl.tagName.toLowerCase() !== targetTag) {
+          const newEl = document.createElement(targetTag);
+          // Salin atribut gaya & class (misal text-align: justify)
+          if (blockEl.getAttribute('style')) {
+            newEl.setAttribute('style', blockEl.getAttribute('style') || '');
+          }
+          if (blockEl.getAttribute('class')) {
+            newEl.setAttribute('class', blockEl.getAttribute('class') || '');
+          }
+          // Pindahkan seluruh anak/teks
+          while (blockEl.firstChild) {
+            newEl.appendChild(blockEl.firstChild);
+          }
+          blockEl.parentNode?.replaceChild(newEl, blockEl);
+
+          // Posisikan kursor seleksi di elemen baru
+          try {
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newEl);
+            newRange.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          } catch (_) {}
+
+          editorRef.current.focus();
+          handleInput();
+          return;
+        }
+      }
+    }
+
+    // Fallback execCommand untuk seleksi teks multi-elemen
+    try {
+      document.execCommand('formatBlock', false, targetTag);
+    } catch (_) {}
+    try {
+      document.execCommand('formatBlock', false, `<${targetTag}>`);
+    } catch (_) {}
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+      handleInput();
+    }
   };
 
   const handleInsertLink = () => {
@@ -395,10 +453,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => handleBlockFormat('p')}
             className="px-2 py-1 rounded text-xs font-semibold hover:bg-slate-200 text-slate-700 flex items-center gap-1"
-            title="Paragraf Normal"
+            title="Paragraf Normal (Teks biasa)"
           >
             <Type className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Normal</span>
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleBlockFormat('h1')}
+            className="px-2 py-1 rounded text-xs font-bold hover:bg-slate-200 text-slate-800"
+            title="Judul Utama (H1)"
+          >
+            H1
           </button>
           <button
             type="button"
@@ -808,7 +875,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               onInput={handleInput}
               onBlur={handleInput}
               data-placeholder={placeholder}
-              className="outline-none min-h-[460px] text-sm sm:text-base leading-relaxed text-slate-800"
+              className="editor-canvas outline-none min-h-[460px] text-sm sm:text-base leading-relaxed text-slate-800"
             />
           </div>
         </div>
