@@ -112,11 +112,12 @@ export const SchoolsPage: React.FC = () => {
         school.headmaster.toLowerCase().includes(query);
 
       // Level match
+      const sLvl = String(school.level || '').trim().toUpperCase();
       const matchLevel =
         selectedLevel === 'ALL' ||
-        school.level === selectedLevel ||
-        (selectedLevel === 'KB' && (school.level === 'KB' || school.level === 'PAUD')) ||
-        (selectedLevel === 'PAUD' && (school.level === 'KB' || school.level === 'PAUD'));
+        sLvl === selectedLevel.toUpperCase() ||
+        (selectedLevel.toUpperCase() === 'KB' && (sLvl === 'KB' || sLvl === 'PAUD')) ||
+        (selectedLevel.toUpperCase() === 'PAUD' && (sLvl === 'KB' || sLvl === 'PAUD'));
 
       // Status match
       const matchStatus = selectedStatus === 'ALL' || school.status === selectedStatus;

@@ -145,22 +145,25 @@ export const StatsCounter: React.FC = () => {
   const { schools, setActiveTab } = useApp();
 
   // 1. Data SD Real-time dari Database
-  const sdSchools = schools.filter((s) => s.level?.toUpperCase() === 'SD');
+  const sdSchools = schools.filter((s) => String(s.level || '').trim().toUpperCase() === 'SD');
   const sdCount = sdSchools.length;
-  const sdNegeri = sdSchools.filter((s) => s.status === 'Negeri').length;
-  const sdSwasta = sdSchools.filter((s) => s.status === 'Swasta').length;
+  const sdNegeri = sdSchools.filter((s) => String(s.status || '').trim().toLowerCase().includes('negeri')).length;
+  const sdSwasta = sdSchools.filter((s) => String(s.status || '').trim().toLowerCase().includes('swasta')).length;
 
   // 2. Data TK Real-time dari Database
-  const tkSchools = schools.filter((s) => s.level?.toUpperCase() === 'TK');
+  const tkSchools = schools.filter((s) => String(s.level || '').trim().toUpperCase() === 'TK');
   const tkCount = tkSchools.length;
-  const tkNegeri = tkSchools.filter((s) => s.status === 'Negeri').length;
-  const tkSwasta = tkSchools.filter((s) => s.status === 'Swasta').length;
+  const tkNegeri = tkSchools.filter((s) => String(s.status || '').trim().toLowerCase().includes('negeri')).length;
+  const tkSwasta = tkSchools.filter((s) => String(s.status || '').trim().toLowerCase().includes('swasta')).length;
 
   // 3. Data KB Real-time dari Database
-  const paudSchools = schools.filter((s) => s.level?.toUpperCase() === 'PAUD' || s.level?.toUpperCase() === 'KB');
+  const paudSchools = schools.filter((s) => {
+    const lvl = String(s.level || '').trim().toUpperCase();
+    return lvl === 'PAUD' || lvl === 'KB';
+  });
   const paudCount = paudSchools.length;
-  const paudNegeri = paudSchools.filter((s) => s.status === 'Negeri').length;
-  const paudSwasta = paudSchools.filter((s) => s.status === 'Swasta').length;
+  const paudNegeri = paudSchools.filter((s) => String(s.status || '').trim().toLowerCase().includes('negeri')).length;
+  const paudSwasta = paudSchools.filter((s) => String(s.status || '').trim().toLowerCase().includes('swasta')).length;
   
   // 4. Data Guru & Siswa Real-time dari Database
   const totalStudents = schools.reduce((acc, s) => acc + (Number(s.studentsCount) || 0), 0);

@@ -245,6 +245,7 @@ interface AppContextType {
   addSchool: (school: Omit<School, 'id'>) => void;
   updateSchool: (id: string, school: Partial<School>) => void;
   deleteSchool: (id: string) => void;
+  refreshSchools: (force?: boolean) => Promise<boolean>;
 
   addNews: (newsItem: Omit<NewsArticle, 'id'>) => void;
   updateNews: (id: string, newsItem: Partial<NewsArticle>) => void;
@@ -327,6 +328,8 @@ export const isDummySchoolImage = (url?: string): boolean => {
   return false;
 };
 
+// In-memory module cache for instant (0ms) schools display across navigation
+let _inMemorySchoolsCache: School[] | null = null;
 // In-memory module cache for instant (0ms) teacher nominative display across navigation
 let _inMemoryTeachersCache: TeacherNominative[] | null = null;
 // In-memory module cache for instant (0ms) gallery albums display across navigation & visitors
@@ -344,11 +347,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isDbConfigured = getSupabaseConfig().isConfigured;
 
   const [schools, setSchools] = useState<School[]>(() => {
+    if (_inMemorySchoolsCache && _inMemorySchoolsCache.length > 0) {
+      return _inMemorySchoolsCache;
+    }
+    try {
+      const sessionSaved = sessionStorage.getItem('korwilcam_schools');
+      if (sessionSaved) {
+        const parsed = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed) && parsed.length >= 100) {
+          _inMemorySchoolsCache = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
     const saved = localStorage.getItem('korwilcam_schools');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        // Validasi: hanya gunakan cache jika datanya lengkap (100+ sekolah serta memuat TK dan KB)
+        const hasTk = Array.isArray(parsed) && parsed.some((s: any) => s.level === 'TK');
+        const hasKb = Array.isArray(parsed) && parsed.some((s: any) => s.level === 'KB' || s.level === 'PAUD');
+        if (Array.isArray(parsed) && parsed.length >= 100 && hasTk && hasKb) {
+          _inMemorySchoolsCache = parsed;
           return parsed.map((s: School) => {
             let img = isDummySchoolImage(s.image) ? '' : s.image;
             if (img && isGoogleDriveUrl(img)) {
@@ -362,7 +382,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } catch {}
     }
-    return isDbConfigured ? [] : initialSchools;
+    // Jika cache kosong atau usang/parsial, gunakan initialSchools yang sudah berisi 166 sekolah komplit
+    return initialSchools;
   });
 
   const [news, setNews] = useState<NewsArticle[]>(() => {
@@ -1048,6 +1069,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Fungsi khusus untuk sinkronisasi data seluruh sekolah (SD, TK, KB) dari Supabase secara real-time
+  const refreshSchools = async (force: boolean = false): Promise<boolean> => {
+    const client = getSupabaseClient();
+    if (!client) return false;
+
+    try {
+      const { data: dbSchools, error: schErr } = await client
+        .from('schools')
+        .select('*')
+        .limit(2000);
+
+      if (!schErr && Array.isArray(dbSchools) && dbSchools.length > 0) {
+        const mappedSchools: School[] = dbSchools.map((s: any) => {
+          const rawImage = String(s.image || s.foto || s.gambar || '').trim();
+          let cleanImage = isDummySchoolImage(rawImage) ? '' : rawImage;
+          if (cleanImage && isGoogleDriveUrl(cleanImage)) {
+            cleanImage = formatGoogleDriveImageUrl(cleanImage);
+          }
+          const rawLvl = String(s.level || s.jenjang || 'SD').trim().toUpperCase();
+          const cleanLvl = rawLvl === 'PAUD' ? 'KB' : (rawLvl === 'TK' ? 'TK' : (rawLvl === 'KB' ? 'KB' : 'SD'));
+          const rawStatus = String(s.status || 'Negeri').trim();
+          const cleanStatus = rawStatus.toLowerCase().includes('swasta') ? 'Swasta' : 'Negeri';
+
+          return {
+            id: String(s.id || s.npsn || `sch-${Date.now()}`),
+            name: String(s.name || s.nama || s.nama_sekolah || '').trim(),
+            level: cleanLvl as any,
+            status: cleanStatus as any,
+            npsn: String(s.npsn || '').trim(),
+            akreditasi: (s.akreditasi || 'Belum Terakreditasi') as any,
+            headmaster: String(s.headmaster || s.kepala_sekolah || s.ks || '').trim(),
+            address: String(s.address || s.alamat || '').trim(),
+            desa: String(s.desa || s.kelurahan || '').trim(),
+            studentsCount: Number(s.students_count ?? s.studentsCount ?? s.jumlah_siswa ?? 0),
+            teachersCount: Number(s.teachers_count ?? s.teachersCount ?? s.jumlah_guru ?? 0),
+            phone: String(s.phone || s.telepon || s.no_hp || '').trim(),
+            email: String(s.email || '').trim(),
+            image: cleanImage,
+            coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
+            titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
+            featured: Boolean(s.featured)
+          };
+        });
+
+        _inMemorySchoolsCache = mappedSchools;
+        setSchools(mappedSchools);
+        try {
+          sessionStorage.setItem('korwilcam_schools', JSON.stringify(mappedSchools));
+        } catch {}
+        try {
+          localStorage.setItem('korwilcam_schools', JSON.stringify(mappedSchools));
+        } catch {}
+        return true;
+      }
+      return false;
+    } catch (errSch) {
+      console.warn('Tabel schools belum terbaca:', errSch);
+      return false;
+    }
+  };
+
   // Initial fetch from Supabase if connected
   const refreshFromSupabase = async (force: boolean = false): Promise<boolean> => {
     const client = getSupabaseClient();
@@ -1058,17 +1140,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Jika force=false dan pengguna bukan admin yang sedang mengelola CMS,
-    // periksa apakah cache lokal di browser masih segar/valid.
+    // periksa apakah cache lokal di browser masih segar/valid dan lengkap (100+ sekolah, ada TK & KB).
     const shouldBypassCache = force || isAuthenticated;
     if (!shouldBypassCache) {
       try {
         const lastSync = localStorage.getItem('korwilcam_last_supabase_sync');
-        const hasCachedSchools = localStorage.getItem('korwilcam_schools');
+        const cachedSchoolsRaw = localStorage.getItem('korwilcam_schools');
         const hasCachedNews = localStorage.getItem('korwilcam_news');
-        if (lastSync && hasCachedSchools && hasCachedNews) {
+
+        let isSchoolsCacheComplete = false;
+        if (cachedSchoolsRaw) {
+          try {
+            const parsed = JSON.parse(cachedSchoolsRaw);
+            const hasTk = Array.isArray(parsed) && parsed.some((s: any) => s.level === 'TK');
+            const hasKb = Array.isArray(parsed) && parsed.some((s: any) => s.level === 'KB' || s.level === 'PAUD');
+            isSchoolsCacheComplete = Array.isArray(parsed) && parsed.length >= 100 && hasTk && hasKb;
+          } catch {}
+        }
+
+        if (lastSync && isSchoolsCacheComplete && hasCachedNews) {
           const age = Date.now() - Number(lastSync);
           if (age < CACHE_TTL_MS) {
-            // Cache masih segar! Gunakan data cache tanpa membebani egress Supabase
+            // Cache masih segar & lengkap! Gunakan data cache tanpa membebani egress Supabase
             setSyncStatus('connected');
             setIsSupabaseActive(true);
             return true;
@@ -1080,7 +1173,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       setSyncStatus('syncing');
 
-      // 0. Fetch daftar_guru IMMEDIATELY IN PARALLEL (Nominatif Guru)
+      // 0. Fetch schools & daftar_guru IMMEDIATELY IN PARALLEL (Sekolah & Nominatif Guru)
+      const schoolsFetchPromise = refreshSchools(true);
       const teachersFetchPromise = refreshTeachers(true);
 
       // 0.1 Fetch service_requirements and categories IMMEDIATELY IN PARALLEL
@@ -1838,36 +1932,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Supabase fetch staff priority warning:', stErr);
       }
 
-      // Fetch schools
-      const { data: dbSchools, error: schErr } = await client.from('schools').select('*');
-      if (!schErr && dbSchools) {
-        setSchools(dbSchools.map((s: any) => {
-          const rawImage = String(s.image || s.foto || s.gambar || '').trim();
-          let cleanImage = isDummySchoolImage(rawImage) ? '' : rawImage;
-          if (cleanImage && isGoogleDriveUrl(cleanImage)) {
-            cleanImage = formatGoogleDriveImageUrl(cleanImage);
-          }
-          return {
-            id: String(s.id || s.npsn || `sch-${Date.now()}`),
-            name: String(s.name || s.nama || s.nama_sekolah || '').trim(),
-            level: (s.level === 'PAUD' ? 'KB' : (s.level || s.jenjang || 'SD')) as any,
-            status: (s.status || 'Negeri') as any,
-            npsn: String(s.npsn || '').trim(),
-            akreditasi: (s.akreditasi || 'Belum Terakreditasi') as any,
-            headmaster: s.headmaster || s.kepala_sekolah || s.ks || '',
-            address: s.address || s.alamat || '',
-            desa: s.desa || s.kelurahan || '',
-            studentsCount: Number(s.students_count ?? s.studentsCount ?? s.jumlah_siswa ?? 0),
-            teachersCount: Number(s.teachers_count ?? s.teachersCount ?? s.jumlah_guru ?? 0),
-            phone: String(s.phone || s.telepon || s.no_hp || ''),
-            email: String(s.email || ''),
-            image: cleanImage,
-            coordinates: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
-            titikKoordinat: normalizeToGoogleMapsUrl(s.titik_koordinat || s.coordinates || s.titikKoordinat || ''),
-            featured: Boolean(s.featured)
-          };
-        }));
-      }
+      // Tunggu selesainya sinkronisasi schools paralel
+      await schoolsFetchPromise;
 
       // Fetch news
       const { data: dbNews, error: newsErr } = await client.from('news').select('*').order('created_at', { ascending: false });
@@ -2514,8 +2580,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (client) {
       setIsSupabaseActive(true);
+      refreshSchools();
+      refreshTeachers();
       refreshFromSupabase();
     } else if (isSupabaseActive) {
+      refreshSchools();
+      refreshTeachers();
       refreshFromSupabase();
     }
 
@@ -7018,6 +7088,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addSchool,
         updateSchool,
         deleteSchool,
+        refreshSchools,
         addNews,
         updateNews,
         deleteNews,
