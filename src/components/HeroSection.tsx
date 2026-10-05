@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
-  Sparkles, 
   ArrowRight, 
   Search, 
   Download, 
   ChevronLeft, 
   ChevronRight 
 } from 'lucide-react';
-import { formatGoogleDriveImageUrl, getGoogleDriveCandidates } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, getGoogleDriveCandidates, prefetchGoogleDriveImage } from '../lib/driveHelper';
 
 export const HeroSection: React.FC = () => {
   const { officeProfile, setActiveTab } = useApp();
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
 
   // Normalisasi daftar foto slideshow
   const slides = useMemo(() => {
@@ -34,35 +32,36 @@ export const HeroSection: React.FC = () => {
     return valid;
   }, [officeProfile.heroSlideshowImages]);
 
-  const slideDuration = (officeProfile.heroSlideshowInterval || 5) * 1000;
+  // Durasi rotasi: ambil dari officeProfile (minimal 3 detik, default 5 detik)
+  const intervalSeconds = Number(officeProfile.heroSlideshowInterval);
+  const slideDuration = Math.max(3000, (!isNaN(intervalSeconds) && intervalSeconds > 0 ? intervalSeconds : 5) * 1000);
 
-  // Lacak indeks slide mana saja yang perlu dimuat (hanya slide aktif & slide berikutnya)
-  const [loadedIndices, setLoadedIndices] = useState<number[]>([0]);
-
+  // Pre-load semua gambar slideshow di latar belakang agar transisi instan dan mulus
   useEffect(() => {
     if (slides.length === 0) return;
-    setLoadedIndices((prev) => {
-      const nextIdx = (currentSlideIndex + 1) % slides.length;
-      if (prev.includes(currentSlideIndex) && (slides.length <= 1 || prev.includes(nextIdx))) {
-        return prev;
-      }
-      const set = new Set(prev);
-      set.add(currentSlideIndex);
-      if (slides.length > 1) set.add(nextIdx);
-      return Array.from(set);
+    slides.forEach((slide) => {
+      prefetchGoogleDriveImage(slide.raw);
     });
-  }, [currentSlideIndex, slides.length]);
+  }, [slides]);
 
-  // Auto-advance timer untuk rotasi slide
+  // Guard jika slides length berubah
   useEffect(() => {
-    if (slides.length <= 1 || isPaused) return;
+    if (slides.length > 0 && currentSlideIndex >= slides.length) {
+      setCurrentSlideIndex(0);
+    }
+  }, [slides.length, currentSlideIndex]);
+
+  // Auto-advance timer untuk rotasi slide otomatis saat halaman dibuka
+  // Berjalan otomatis secara langsung tanpa di-pause oleh hover pada area hero
+  useEffect(() => {
+    if (slides.length <= 1) return;
 
     const timer = setInterval(() => {
       setCurrentSlideIndex((prev) => (prev + 1) % slides.length);
     }, slideDuration);
 
     return () => clearInterval(timer);
-  }, [slides.length, slideDuration, isPaused]);
+  }, [slides.length, slideDuration, currentSlideIndex]);
 
   // Handle previous slide
   const handlePrevSlide = (e: React.MouseEvent) => {
@@ -80,8 +79,6 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section 
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
       className="group relative overflow-hidden bg-[#133282] text-white min-h-[520px] sm:min-h-[580px] lg:min-h-[640px] flex flex-col justify-center items-center py-16 sm:py-20 lg:py-24 border-b border-slate-200/40 select-none"
     >
       {/* 1. Dynamic Photo Slideshow Background (Google Drive / Photos) */}
@@ -89,36 +86,33 @@ export const HeroSection: React.FC = () => {
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           {slides.map((slide, idx) => {
             const isActive = idx === currentSlideIndex;
-            const shouldLoad = loadedIndices.includes(idx);
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                  isActive ? 'opacity-100 z-1' : 'opacity-0 z-0'
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out pointer-events-none ${
+                  isActive ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
                 }`}
               >
-                {shouldLoad && (
-                  <img
-                    src={slide.src}
-                    alt="Dokumentasi Korwilcam Purwodadi"
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                    loading={idx === 0 ? "eager" : "lazy"}
-                    decoding="async"
-                    fetchPriority={idx === 0 ? "high" : "low"}
-                    className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.85] contrast-[1.05] ${
-                      isActive ? 'scale-105' : 'scale-100'
-                    }`}
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const cands = slide.candidates;
-                      const nextCand = cands.find((c) => c !== target.src);
-                      if (nextCand) {
-                        target.src = nextCand;
-                      }
-                    }}
-                  />
-                )}
+                <img
+                  src={slide.src}
+                  alt={`Dokumentasi Korwilcam Purwodadi ${idx + 1}`}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  loading={idx === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={idx === 0 ? "high" : "low"}
+                  className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.85] contrast-[1.05] ${
+                    isActive ? 'scale-105' : 'scale-100'
+                  }`}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const cands = slide.candidates;
+                    const nextCand = cands.find((c) => c !== target.src);
+                    if (nextCand) {
+                      target.src = nextCand;
+                    }
+                  }}
+                />
               </div>
             );
           })}
