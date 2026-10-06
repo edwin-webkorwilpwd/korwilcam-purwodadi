@@ -354,11 +354,21 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom copyright & attribution */}
-        <div className="pt-3 flex flex-col sm:flex-row items-center justify-between text-[10px] text-blue-200/70 gap-1.5">
-          <p>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</p>
-          <div className="flex items-center gap-1 text-blue-200/90">
-            <span>Website ini dikembangkan oleh tim ~IT Korwilcam Purwodadi~</span>
-          </div>
+        <div className="pt-3 text-center text-xs sm:text-sm text-blue-100">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <span>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</span>
+            <span>
+              Website ini dikembangkan oleh tim{' '}
+              <a
+                href="https://wa.me/6285161717170"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-yellow-400 hover:text-yellow-300 transition-colors"
+              >
+                ~ZAV Design~
+              </a>
+            </span>
+          </p>
         </div>
 
       </div>
