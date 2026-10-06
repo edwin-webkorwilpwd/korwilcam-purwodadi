@@ -15,7 +15,9 @@ import {
   Clock,
   ChevronRight,
   ChevronLeft,
-  FileText
+  FileText,
+  ZoomIn,
+  X
 } from 'lucide-react';
 import { NewsCard } from '../components/NewsCard';
 import { getArticleReadingStats } from '../lib/readingTime';
@@ -42,6 +44,19 @@ export const NewsDetailPage: React.FC = () => {
     recordNewsReadingTime 
   } = useApp();
   const [copied, setCopied] = React.useState(false);
+  const [isImageZoomed, setIsImageZoomed] = React.useState(false);
+
+  // Close image zoom on Escape key
+  useEffect(() => {
+    if (!isImageZoomed) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsImageZoomed(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImageZoomed]);
 
   // Article Pagination State (Mode pembacaan per halaman: 600 kata per halaman)
   const [currentPage, setCurrentPage] = React.useState<number>(() => {
@@ -468,17 +483,26 @@ export const NewsDetailPage: React.FC = () => {
 
         {/* Featured Cover Image */}
         {selectedNews.image && (
-          <div className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-slate-200/90 bg-slate-100">
+          <div 
+            onClick={() => setIsImageZoomed(true)}
+            className="group relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-slate-200/90 bg-slate-100 cursor-pointer"
+            title="Klik untuk memperbesar gambar sampul"
+          >
             <img
               src={formatGoogleDriveImageUrl(selectedNews.image, 1600)}
               alt={selectedNews.title}
               decoding="async"
               fetchPriority="high"
-              className="w-full max-h-[520px] object-cover"
+              className="w-full max-h-[520px] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
               }}
             />
+            {/* Subtle Zoom Badge Hint */}
+            <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1.5 rounded-xl bg-black/60 group-hover:bg-black/80 backdrop-blur-md text-white text-xs font-semibold flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-all shadow-md select-none">
+              <ZoomIn className="w-3.5 h-3.5 text-amber-300" />
+              <span>Klik untuk perbesar</span>
+            </div>
           </div>
         )}
 
@@ -704,6 +728,59 @@ export const NewsDetailPage: React.FC = () => {
         )}
 
       </div>
+
+      {/* Lightbox / Modal Perbesar Foto Sampul */}
+      {isImageZoomed && selectedNews.image && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsImageZoomed(false)}
+        >
+          {/* Top Bar Lightbox */}
+          <div 
+            className="w-full flex items-center justify-between gap-4 text-white z-10 pb-3 border-b border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="min-w-0 pr-4">
+              <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider block">
+                Foto Sampul Berita
+              </span>
+              <h4 className="text-sm sm:text-base font-bold truncate text-slate-100">
+                {selectedNews.title}
+              </h4>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsImageZoomed(false)}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
+              title="Tutup (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Center Enlarged Image */}
+          <div 
+            className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden"
+            onClick={() => setIsImageZoomed(false)}
+          >
+            <img
+              src={formatGoogleDriveImageUrl(selectedNews.image, 2400) || selectedNews.image}
+              alt={selectedNews.title}
+              className="max-w-full max-h-[82vh] object-contain rounded-xl sm:rounded-2xl shadow-2xl select-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {/* Bottom Hint */}
+          <div 
+            className="text-center text-xs text-white/60 py-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Klik di mana saja atau tekan <kbd className="px-1.5 py-0.5 rounded bg-white/20 font-mono text-[10px] text-white">Esc</kbd> untuk menutup
+          </div>
+        </div>
+      )}
     </article>
   );
 };
