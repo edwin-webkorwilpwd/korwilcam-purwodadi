@@ -2611,6 +2611,11 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    if (!docForm.downloadUrl || docForm.downloadUrl === '#' || !docForm.downloadUrl.trim()) {
+      showToast('Silakan masukkan link berkas Google Drive terlebih dahulu!', 'error');
+      return;
+    }
+
     if (editingDocId) {
       const confirmed = await showConfirmDialog({
         title: 'Konfirmasi Perubahan Dokumen',
@@ -2636,7 +2641,7 @@ export const AdminDashboard: React.FC = () => {
       });
       showNoticePopup({
         title: 'Dokumen Ditambahkan!',
-        message: `Berkas "${docForm.title}" berhasil diunggah ke pusat unduhan.`,
+        message: `Berkas "${docForm.title}" berhasil ditambahkan ke pusat unduhan.`,
         type: 'success'
       });
     }
@@ -7342,7 +7347,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* File Attachment Section: 2 Cara (Upload Baru / Pilih dari Layanan Unduhan) */}
+                    {/* File Attachment Section: 2 Cara (Link Google Drive / Pilih dari Layanan Unduhan) */}
                     <div className="space-y-2.5">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -7361,8 +7366,8 @@ export const AdminDashboard: React.FC = () => {
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
-                            <UploadCloud className="w-3.5 h-3.5" />
-                            <span>1. Upload Berkas Baru</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>1. Input Link Google Drive</span>
                           </button>
                           <button
                             type="button"
@@ -7379,78 +7384,47 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Jika Berkas SUDAH Dipilih (baik dari upload maupun dari Layanan Unduhan) */}
-                      {uploadedAnnFile || (editingAnnId && annForm.fileUrl && annForm.fileUrl !== '#') ? (
-                        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm ${
-                          annForm.sourceDocumentId 
-                            ? 'bg-indigo-50/80 border-indigo-200' 
-                            : 'bg-blue-50/80 border-blue-200'
-                        }`}>
+                      {/* Jika Berkas Dipilih dari Layanan Unduhan */}
+                      {annForm.sourceDocumentId ? (
+                        <div className="p-4 rounded-2xl border bg-indigo-50/80 border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm ${
-                              annForm.sourceDocumentId ? 'bg-indigo-600' : 'bg-blue-600'
-                            }`}>
-                              {annForm.sourceDocumentId ? <FolderOpen className="w-5 h-5" /> : <Paperclip className="w-5 h-5" />}
+                            <div className="w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm bg-indigo-600">
+                              <FolderOpen className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 space-y-0.5">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-xs sm:text-sm font-bold text-slate-900 truncate max-w-xs sm:max-w-md">
-                                  {uploadedAnnFile?.name || annForm.fileName || `${annForm.title}.${(annForm.fileType || 'pdf').toLowerCase()}`}
+                                  {annForm.fileName || annForm.title}
                                 </span>
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>Berkas Siap Digunakan</span>
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                  <FolderOpen className="w-2.5 h-2.5 text-indigo-600" />
+                                  <span>Dari Layanan Unduhan (Bebas Duplikat)</span>
                                 </span>
-                                {annForm.sourceDocumentId ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                    <FolderOpen className="w-2.5 h-2.5 text-indigo-600" />
-                                    <span>Dari Layanan Unduhan (Bebas Duplikat)</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                                    <RefreshCw className="w-2.5 h-2.5 text-blue-600" />
-                                    <span>Otomatis Masuk Layanan Unduhan</span>
-                                  </span>
-                                )}
                               </div>
                               <p className="text-[11px] text-slate-500">
-                                Format: <strong className="text-slate-800">{uploadedAnnFile?.type || annForm.fileType || 'BERKAS'}</strong> • Ukuran: <strong className="text-slate-800">{uploadedAnnFile?.size || annForm.fileSize || 'Otomatis'}</strong>
+                                Format: <strong className="text-slate-800">{annForm.fileType || 'PDF'}</strong> • Ukuran: <strong className="text-slate-800">{annForm.fileSize || 'Otomatis'}</strong>
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                            {(uploadedAnnFile?.dataUrl || annForm.fileUrl) && (
+                            {annForm.fileUrl && annForm.fileUrl !== '#' && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const url = uploadedAnnFile?.dataUrl || annForm.fileUrl;
-                                  if (!url || url === '#') return;
-                                  const link = document.createElement('a');
-                                  link.href = url;
-                                  link.download = uploadedAnnFile?.name || annForm.fileName || 'lampiran_pengumuman';
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
+                                  window.open(annForm.fileUrl, '_blank', 'noopener,noreferrer');
                                 }}
                                 className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold transition-colors flex items-center gap-1 shadow-xs"
-                                title="Uji coba download berkas"
+                                title="Uji coba buka berkas"
                               >
-                                <Download className="w-3.5 h-3.5" />
-                                <span>Uji Download</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Uji Buka</span>
                               </button>
                             )}
 
                             <button
                               type="button"
-                              onClick={() => {
-                                if (annForm.sourceDocumentId) {
-                                  setAnnFileMode('existing');
-                                } else {
-                                  setAnnFileMode('upload');
-                                  annFileInputRef.current?.click();
-                                }
-                              }}
+                              onClick={() => setAnnFileMode('existing')}
                               className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 shadow-sm transition-all"
                             >
                               Ganti Berkas
@@ -7463,47 +7437,119 @@ export const AdminDashboard: React.FC = () => {
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
-                            <input
-                              ref={annFileInputRef}
-                              type="file"
-                              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.png,.jpg,.jpeg,application/*"
-                              onChange={handleAnnFileUpload}
-                              className="hidden"
-                            />
                           </div>
                         </div>
                       ) : (
-                        /* Jika BELUM Ada Berkas Dipilih: Tampilkan Form Sesuai Mode */
+                        /* Tampilkan Form Sesuai Mode */
                         <div>
                           {annFileMode === 'upload' ? (
-                            /* Mode 1: Upload Berkas Baru */
-                            <div
-                              onDragOver={handleAnnDragOver}
-                              onDragLeave={handleAnnDragLeave}
-                              onDrop={handleAnnDrop}
-                              onClick={() => annFileInputRef.current?.click()}
-                              className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer group ${
-                                isDraggingAnn 
-                                  ? 'border-blue-500 bg-blue-50 scale-[0.99]' 
-                                  : 'border-blue-200/80 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50/70'
-                              }`}
-                            >
-                              <input
-                                ref={annFileInputRef}
-                                type="file"
-                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.png,.jpg,.jpeg,application/*"
-                                onChange={handleAnnFileUpload}
-                                className="hidden"
-                              />
-                              <div className="w-10 h-10 mx-auto rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform shadow-sm">
-                                <UploadCloud className="w-5 h-5" />
+                            /* Mode 1: Input Link Google Drive */
+                            <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/50 border-2 border-dashed border-blue-200 space-y-3.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                                  <Link2 className="w-4 h-4 text-blue-600" />
+                                  <span>[Cara 1] Masukkan Link Berkas dari Google Drive</span>
+                                </span>
+                                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">
+                                  Hemat Kuota Supabase
+                                </span>
                               </div>
-                              <p className="text-xs font-bold text-slate-800">
-                                [Cara 1] Klik untuk memilih file lampiran baru atau seret (drag & drop) file ke sini
+
+                              <p className="text-[11px] text-slate-600 leading-relaxed">
+                                Salin link berbagi (sharing link) dokumen (PDF, Word, Excel) dari Google Drive. Pastikan perizinan Google Drive disetel ke <strong>"Siapa saja yang memiliki link" (Anyone with the link can view)</strong> agar pengunjung website dapat membuka dan mengunduh berkas.
                               </p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">
-                                Mendukung format: PDF, DOCX, XLSX, PPTX, ZIP, dll. (Maks 25 MB). Berkas baru ini akan otomatis masuk ke Layanan Unduhan.
-                              </p>
+
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <div className="relative flex-1">
+                                  <input
+                                    type="url"
+                                    placeholder="Contoh: https://drive.google.com/file/d/1A2b3C4d.../view?usp=sharing"
+                                    value={annForm.fileUrl === '#' ? '' : annForm.fileUrl}
+                                    onChange={(e) => {
+                                      const val = e.target.value.trim();
+                                      setAnnForm((prev) => ({
+                                        ...prev,
+                                        fileUrl: val,
+                                        fileName: prev.fileName || (val ? `${prev.title || 'Lampiran'}.${(prev.fileType || 'PDF').toLowerCase()}` : ''),
+                                        fileType: prev.fileType || 'PDF',
+                                        fileSize: prev.fileSize || 'Google Drive',
+                                        sourceDocumentId: ''
+                                      }));
+                                    }}
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-blue-200 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs font-mono"
+                                  />
+                                </div>
+
+                                {annForm.fileUrl && annForm.fileUrl !== '#' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      window.open(annForm.fileUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0"
+                                    title="Buka link di tab baru untuk menguji akses"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span>Uji Buka Link</span>
+                                  </button>
+                                )}
+
+                                {annForm.fileUrl && annForm.fileUrl !== '#' && (
+                                  <button
+                                    type="button"
+                                    onClick={handleRemoveAnnFile}
+                                    className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors shrink-0"
+                                    title="Hapus / Lepas Link Lampiran"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+
+                              {annForm.fileUrl && annForm.fileUrl !== '#' && (
+                                <div className="flex items-center gap-2 text-[11px] text-emerald-700 font-semibold">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>Link Google Drive terhubung. Pengunjung dapat mengunduh / membaca dokumen ini di website.</span>
+                                </div>
+                              )}
+
+                              {/* Form atribut tambahan berkas */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700">Format File</label>
+                                  <select
+                                    value={annForm.fileType || 'PDF'}
+                                    onChange={(e) => setAnnForm({ ...annForm, fileType: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                                  >
+                                    <option value="PDF">PDF (Portable Document)</option>
+                                    <option value="DOCX">DOCX (Microsoft Word)</option>
+                                    <option value="XLSX">XLSX (Microsoft Excel)</option>
+                                  </select>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700">Nama File Lampiran</label>
+                                  <input
+                                    type="text"
+                                    placeholder="Contoh: Surat_Edaran_Resmi.pdf"
+                                    value={annForm.fileName}
+                                    onChange={(e) => setAnnForm({ ...annForm, fileName: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700">Ukuran / Info Berkas</label>
+                                  <input
+                                    type="text"
+                                    placeholder="Contoh: 1.5 MB atau Google Drive"
+                                    value={annForm.fileSize}
+                                    onChange={(e) => setAnnForm({ ...annForm, fileSize: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
                             </div>
                           ) : (
                             /* Mode 2: Pilih dari Layanan Unduhan (Mencegah Duplikasi) */
@@ -7580,7 +7626,7 @@ export const AdminDashboard: React.FC = () => {
                         <div>
                           <strong className="font-semibold text-blue-950">Sinkronisasi Otomatis ke Layanan Unduhan:</strong>
                           <p className="text-blue-800/90 mt-0.5">
-                            Setiap file/berkas baru yang Anda lampirkan pada pengumuman ini akan otomatis masuk ke menu <strong className="font-semibold">Layanan Unduhan</strong> di CMS serta tayang di website publik pada sub menu <strong className="font-semibold">Unduh Berkas</strong>. Nama file di Layanan Unduhan akan otomatis menggunakan <strong className="font-semibold">Judul Pengumuman / Edaran</strong> yang Anda isikan di atas.
+                            Setiap link berkas Google Drive baru yang Anda lampirkan pada pengumuman ini akan otomatis masuk ke menu <strong className="font-semibold">Layanan Unduhan</strong> di CMS serta tayang di website publik pada sub menu <strong className="font-semibold">Unduh Berkas</strong>. Nama file di Layanan Unduhan akan otomatis menggunakan <strong className="font-semibold">Judul Pengumuman / Edaran</strong> yang Anda isikan di atas.
                           </p>
                         </div>
                       </div>
@@ -10570,99 +10616,73 @@ export const AdminDashboard: React.FC = () => {
               {/* Form */}
               <form onSubmit={handleSaveDocument} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5">
                 
-                {/* File Upload Dropzone / Preview */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <FolderUp className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Upload Berkas yang Akan Didownload Pengunjung *</span>
+                {/* Tautan Berkas Google Drive */}
+                <div className="space-y-2.5 p-5 rounded-2xl bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-blue-50/70 border border-blue-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                      <Link2 className="w-4 h-4 text-blue-600" />
+                      <span>Tautan / Link Berkas Google Drive *</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-blue-700 bg-white px-2.5 py-0.5 rounded-full border border-blue-200 shadow-2xs self-start sm:self-auto">
+                      Penyimpanan Cloud Google Drive (Hemat Database)
                     </span>
-                    <span className="text-[10px] text-slate-400 font-normal">Maksimal 25 MB (PDF, DOCX, XLSX)</span>
-                  </label>
+                  </div>
 
-                  {!uploadedFile && (!editingDocId || docForm.downloadUrl === '#') ? (
-                    <div
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center transition-all cursor-pointer group ${
-                        isDragging 
-                          ? 'border-blue-500 bg-blue-50 scale-[0.99]' 
-                          : 'border-blue-200/80 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50/70'
-                      }`}
-                    >
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Masukkan link sharing berkas dokumen dari Google Drive. Pastikan perizinan akses di Google Drive disetel ke <strong>"Siapa saja yang memiliki link" (Anyone with the link can view)</strong> agar pengunjung website dapat membuka dan mengunduh berkas ini secara langsung tanpa memenuhi kuota database Supabase.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                    <div className="relative flex-1">
                       <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx"
-                        onChange={handleFileUpload}
-                        className="hidden"
+                        type="url"
+                        required
+                        placeholder="Contoh: https://drive.google.com/file/d/1A2b3C4d.../view?usp=sharing"
+                        value={docForm.downloadUrl === '#' ? '' : docForm.downloadUrl}
+                        onChange={(e) => {
+                          const val = e.target.value.trim();
+                          setDocForm((prev) => ({
+                            ...prev,
+                            downloadUrl: val || '#'
+                          }));
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-blue-200 text-xs text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-xs font-mono"
                       />
-                      <div className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                        <UploadCloud className="w-7 h-7" />
-                      </div>
-                      <p className="text-xs sm:text-sm font-bold text-slate-800">
-                        Klik untuk Pilih Berkas atau Tarik (Drag & Drop) File ke Sini
-                      </p>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Format otomatis terdeteksi: <strong>.PDF</strong>, <strong>.DOCX</strong>, <strong>.XLSX</strong>
-                      </p>
-                      <div className="mt-3.5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm group-hover:bg-blue-700 transition-colors">
-                        <FolderUp className="w-4 h-4" />
-                        <span>Pilih Berkas dari Komputer / Laptop</span>
-                      </div>
                     </div>
-                  ) : (
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
-                          {docForm.fileType === 'XLSX' ? (
-                            <FileSpreadsheet className="w-6 h-6" />
-                          ) : (
-                            <FileText className="w-6 h-6" />
-                          )}
-                        </div>
-                        <div className="min-w-0 text-left space-y-0.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 truncate max-w-xs sm:max-w-md">
-                              {uploadedFile?.name || `${docForm.title}.${docForm.fileType.toLowerCase()}`}
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Berkas Siap Diunduh</span>
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500">
-                            Format: <strong className="text-slate-800">{docForm.fileType}</strong> • Ukuran: <strong className="text-slate-800">{docForm.fileSize}</strong>
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 shadow-sm transition-all"
-                        >
-                          Ganti Berkas
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleRemoveFile}
-                          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
-                          title="Hapus Berkas Ini"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                      </div>
+                    {docForm.downloadUrl && docForm.downloadUrl !== '#' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.open(docForm.downloadUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0"
+                        title="Buka link di tab baru untuk menguji akses file"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Uji Buka Link</span>
+                      </button>
+                    )}
+
+                    {docForm.downloadUrl && docForm.downloadUrl !== '#' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDocForm((prev) => ({ ...prev, downloadUrl: '#' }));
+                          showToast('Tautan berkas Google Drive dilepas.', 'info');
+                        }}
+                        className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors shrink-0"
+                        title="Hapus / Kosongkan Link"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {docForm.downloadUrl && docForm.downloadUrl !== '#' && (
+                    <div className="flex items-center gap-2 pt-0.5 text-[11px] text-emerald-700 font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>Link Google Drive terpasang. Berkas siap diakses dan diunduh oleh pengunjung web.</span>
                     </div>
                   )}
                 </div>
@@ -10891,12 +10911,22 @@ export const AdminDashboard: React.FC = () => {
                       {doc.downloadUrl && doc.downloadUrl !== '#' && (
                         <div className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-1">
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>File unduhan terlampir siap didownload</span>
+                          <span>Link Google Drive terhubung</span>
                         </div>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {doc.downloadUrl && doc.downloadUrl !== '#' && (
+                        <button
+                          type="button"
+                          onClick={() => window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer')}
+                          className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                          title="Buka Link Google Drive di Tab Baru"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setEditingDocId(doc.id);

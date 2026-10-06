@@ -131,13 +131,19 @@ export const AnnouncementDetailPage: React.FC = () => {
 
   const handleDownloadFile = () => {
     if (selectedAnnouncement?.fileUrl && selectedAnnouncement.fileUrl !== '#') {
-      const link = document.createElement('a');
-      link.href = selectedAnnouncement.fileUrl;
-      link.download = selectedAnnouncement.fileName || `${selectedAnnouncement.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(selectedAnnouncement.fileType || 'pdf').toLowerCase()}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast('Sedang mengunduh berkas lampiran resmi...', 'info');
+      const url = selectedAnnouncement.fileUrl.trim();
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        showToast('Membuka berkas lampiran resmi di Google Drive...', 'info');
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = selectedAnnouncement.fileName || `${selectedAnnouncement.title.replace(/[/\\?%*:|"<>]/g, '_')}.${(selectedAnnouncement.fileType || 'pdf').toLowerCase()}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Sedang mengunduh berkas lampiran resmi...', 'info');
+      }
     } else {
       showToast('Pengumuman ini tidak menyertakan berkas lampiran fisik terpisah.', 'info');
     }

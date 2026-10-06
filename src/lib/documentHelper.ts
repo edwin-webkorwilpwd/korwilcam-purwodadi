@@ -38,7 +38,7 @@ export const triggerDocumentDownload = (doc: DocumentDownload): void => {
     link.click();
     document.body.removeChild(link);
   } else if (doc.downloadUrl && doc.downloadUrl !== '#' && (doc.downloadUrl.startsWith('http://') || doc.downloadUrl.startsWith('https://'))) {
-    window.open(doc.downloadUrl, '_blank');
+    window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer');
   } else {
     // Dokumen teks terstruktur resmi jika link belum berupa file biner
     const content = `==========================================================\nPORTAL RESMI KORWILCAM BIDANG PENDIDIKAN PURWODADI\nDINAS PENDIDIKAN KABUPATEN GROBOGAN\n==========================================================\n\nJudul Dokumen  : ${doc.title}\nKategori       : ${doc.category}\nFormat Berkas  : ${doc.fileType}\nUkuran Berkas  : ${doc.fileSize}\nTanggal Rilis  : ${doc.date}\n\nKETERANGAN / DESKRIPSI:\n${doc.description}\n\n----------------------------------------------------------\nDokumen ini merupakan arsip digital resmi yang diterbitkan oleh Kantor Koordinator Wilayah Bidang Pendidikan Kecamatan Purwodadi untuk satuan pendidikan SD, TK, dan KB.\n----------------------------------------------------------`;
