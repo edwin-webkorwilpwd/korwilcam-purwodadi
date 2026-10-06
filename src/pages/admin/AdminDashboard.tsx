@@ -7091,6 +7091,7 @@ export const AdminDashboard: React.FC = () => {
                       <RichTextEditor
                         value={newsForm.content}
                         onChange={(content) => setNewsForm((prev) => ({ ...prev, content }))}
+                        newsList={news}
                         placeholder="Mulai menulis berita & liputan di lembar dokumen ini... Gunakan bilah alat di atas untuk mengatur judul bab, huruf tebal/miring, warna teks, kutipan, dan menyisipkan foto dokumentasi."
                       />
                     </div>

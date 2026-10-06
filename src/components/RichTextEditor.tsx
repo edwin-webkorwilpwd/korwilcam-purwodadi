@@ -30,7 +30,10 @@ import {
   ExternalLink,
   Check,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Search,
+  FileEdit,
+  Newspaper
 } from 'lucide-react';
 import { isSafeUrl } from '../lib/sanitizeHtml';
 import { 
@@ -38,17 +41,21 @@ import {
   isGoogleDriveUrl, 
   extractGoogleDriveId 
 } from '../lib/driveHelper';
+import { useApp } from '../context/AppContext';
+import { NewsArticle } from '../types';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (content: string) => void;
   placeholder?: string;
+  newsList?: NewsArticle[];
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value,
   onChange,
-  placeholder = 'Mulai menulis isi naskah berita lengkap di lembar kerja ini...'
+  placeholder = 'Mulai menulis isi naskah berita lengkap di lembar kerja ini...',
+  newsList
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -61,6 +68,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [driveImageUrl, setDriveImageUrl] = useState('');
   const [imageCaption, setImageCaption] = useState('');
   const savedRangeRef = useRef<Range | null>(null);
+
+  // State Fitur "Baca Juga"
+  const { news: contextNews, refreshFromSupabase } = useApp();
+  const availableNews = (newsList && newsList.length > 0) ? newsList : (contextNews || []);
+  const [isBacaJugaModalOpen, setIsBacaJugaModalOpen] = useState(false);
+  const [bacaJugaSearchInput, setBacaJugaSearchInput] = useState('');
+  const [bacaJugaSearchQuery, setBacaJugaSearchQuery] = useState('');
+  const [bacaJugaCategory, setBacaJugaCategory] = useState('all');
+  const [bacaJugaPage, setBacaJugaPage] = useState(1);
+  const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+  const itemsPerPage = 10;
 
   const scrollToTop = () => {
     if (canvasContainerRef.current) {
@@ -403,6 +421,172 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     savedRangeRef.current = null;
   };
 
+  const formatDisplayDate = (rawDate?: string): string => {
+    if (!rawDate) return '-';
+    try {
+      const indonesianMonths: Record<string, string> = {
+        januari: 'Jan', februari: 'Feb', maret: 'Mar', april: 'Apr',
+        mei: 'May', juni: 'Jun', juli: 'Jul', agustus: 'Aug',
+        september: 'Sep', oktober: 'Oct', november: 'Nov', desember: 'Dec'
+      };
+
+      let parsedDate: Date | null = null;
+      const directDate = new Date(rawDate);
+      if (!isNaN(directDate.getTime())) {
+        parsedDate = directDate;
+      } else {
+        let converted = rawDate.toLowerCase();
+        for (const [indo, eng] of Object.entries(indonesianMonths)) {
+          if (converted.includes(indo)) {
+            converted = converted.replace(indo, eng);
+            break;
+          }
+        }
+        const attempt = new Date(converted);
+        if (!isNaN(attempt.getTime())) {
+          parsedDate = attempt;
+        }
+      }
+
+      if (parsedDate) {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const day = pad(parsedDate.getDate());
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = monthNames[parsedDate.getMonth()];
+        const year = parsedDate.getFullYear();
+        const hours = pad(parsedDate.getHours());
+        const mins = pad(parsedDate.getMinutes());
+        const secs = pad(parsedDate.getSeconds());
+        return `${day}-${month}-${year} ${hours}:${mins}:${secs}`;
+      }
+    } catch {}
+    return rawDate;
+  };
+
+  const allCategories = React.useMemo(() => {
+    const cats = new Set<string>();
+    availableNews.forEach((n) => {
+      if (n.category) cats.add(n.category);
+    });
+    return Array.from(cats);
+  }, [availableNews]);
+
+  const filteredArticles = React.useMemo(() => {
+    return availableNews.filter((art) => {
+      if (bacaJugaCategory !== 'all' && art.category !== bacaJugaCategory) {
+        return false;
+      }
+      if (bacaJugaSearchQuery.trim()) {
+        const q = bacaJugaSearchQuery.toLowerCase().trim();
+        const matchTitle = (art.title || '').toLowerCase().includes(q);
+        const matchAuthor = (art.author || '').toLowerCase().includes(q);
+        const matchCategory = (art.category || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchAuthor && !matchCategory) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [availableNews, bacaJugaCategory, bacaJugaSearchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / itemsPerPage));
+
+  const paginatedArticles = React.useMemo(() => {
+    const start = (bacaJugaPage - 1) * itemsPerPage;
+    return filteredArticles.slice(start, start + itemsPerPage);
+  }, [filteredArticles, bacaJugaPage, itemsPerPage]);
+
+  const pageNumbers = React.useMemo(() => {
+    const pages: number[] = [];
+    const maxButtons = 5;
+    let start = Math.max(1, bacaJugaPage - 2);
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+      start = Math.max(1, end - maxButtons + 1);
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [totalPages, bacaJugaPage]);
+
+  const handleOpenBacaJugaModal = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    } else {
+      savedRangeRef.current = null;
+    }
+    setBacaJugaSearchInput('');
+    setBacaJugaSearchQuery('');
+    setBacaJugaCategory('all');
+    setBacaJugaPage(1);
+    setIsBacaJugaModalOpen(true);
+  };
+
+  const handleRefreshBacaJuga = async () => {
+    setBacaJugaSearchInput('');
+    setBacaJugaSearchQuery('');
+    setBacaJugaCategory('all');
+    setBacaJugaPage(1);
+    if (refreshFromSupabase) {
+      setIsRefreshingNews(true);
+      try {
+        await refreshFromSupabase(true);
+      } finally {
+        setIsRefreshingNews(false);
+      }
+    }
+  };
+
+  const handleSearchBacaJuga = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setBacaJugaSearchQuery(bacaJugaSearchInput.trim());
+    setBacaJugaPage(1);
+  };
+
+  const handleChooseArticle = (article: NewsArticle) => {
+    const targetUrl = `/berita/${article.slug || article.id}`;
+    const bacaJugaHtml = `<p class="baca-juga-card" style="margin: 16px 0; padding: 12px 16px; background-color: #f8fafc; border-left: 4px solid #2563eb; border-radius: 6px;"><strong style="color: #1e40af; font-size: 14px;">Baca Juga: </strong><a href="${targetUrl}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; text-decoration: underline; font-size: 14px;">${article.title}</a></p><p><br></p>`;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+
+      let inserted = false;
+      if (savedRangeRef.current) {
+        try {
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(savedRangeRef.current);
+          inserted = document.execCommand('insertHTML', false, bacaJugaHtml);
+        } catch (err) {
+          console.warn('Range insertion error:', err);
+        }
+      }
+
+      if (!inserted) {
+        try {
+          inserted = document.execCommand('insertHTML', false, bacaJugaHtml);
+        } catch (err) {
+          console.warn('execCommand insertion error:', err);
+        }
+      }
+
+      if (!inserted && editorRef.current) {
+        const div = document.createElement('div');
+        div.innerHTML = bacaJugaHtml;
+        while (div.firstChild) {
+          editorRef.current.appendChild(div.firstChild);
+        }
+      }
+
+      handleInput();
+    }
+
+    setIsBacaJugaModalOpen(false);
+    savedRangeRef.current = null;
+  };
+
   const textColors = [
     { name: 'Default', value: '#1e293b' },
     { name: 'Biru Korwil', value: '#2467ea' },
@@ -714,6 +898,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           >
             <ImageIcon className="w-4 h-4 text-blue-600" />
             <span className="text-[11px] font-semibold hidden md:inline">Sisipkan Foto</span>
+          </button>
+
+          {/* Tombol Sisipkan Baca Juga */}
+          <button
+            type="button"
+            onMouseDown={() => {
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+                savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+              }
+            }}
+            onClick={handleOpenBacaJugaModal}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-700 flex items-center gap-1 transition-colors"
+            title="Sisipkan Rekomendasi Baca Juga"
+          >
+            <Newspaper className="w-4 h-4 text-blue-600" />
+            <span className="text-[11px] font-semibold hidden md:inline">Baca Juga</span>
           </button>
 
           <button
@@ -1089,6 +1290,214 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <Check className="w-3.5 h-3.5" />
                 <span>Sisipkan ke Naskah</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Popup Fitur "Baca Juga" (Sesuai Gambar 2 Pengguna) */}
+      {isBacaJugaModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+          onClick={() => setIsBacaJugaModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Dialog: Judul "Baca Juga" & Tombol Silang (X) */}
+            <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-none">
+                Baca Juga
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsBacaJugaModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                title="Tutup dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sub-Header: Ikon Pensil / Editorial - Published */}
+            <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2 text-slate-700 font-bold text-xs sm:text-sm shrink-0">
+              <FileEdit className="w-4 h-4 text-slate-600" />
+              <span>Editorial - Published</span>
+            </div>
+
+            {/* Bilah Kontrol: Tombol Refresh, Dropdown All Rubrik, Input Search, Tombol Search */}
+            <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white shrink-0">
+              {/* Tombol Refresh */}
+              <button
+                type="button"
+                onClick={handleRefreshBacaJuga}
+                className="px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
+                title="Muat ulang daftar berita"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-slate-600 ${isRefreshingNews ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+
+              {/* Form Filter Kategori Rubrik & Pencarian */}
+              <form 
+                onSubmit={handleSearchBacaJuga}
+                className="flex flex-wrap items-center gap-2"
+              >
+                {/* Dropdown Filter Rubrik */}
+                <select
+                  value={bacaJugaCategory}
+                  onChange={(e) => {
+                    setBacaJugaCategory(e.target.value);
+                    setBacaJugaPage(1);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-xs cursor-pointer"
+                >
+                  <option value="all">All Rubrik</option>
+                  {allCategories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+
+                {/* Input Pencarian */}
+                <input
+                  type="text"
+                  value={bacaJugaSearchInput}
+                  onChange={(e) => setBacaJugaSearchInput(e.target.value)}
+                  placeholder="Search..."
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44 sm:w-60 shadow-xs"
+                />
+
+                {/* Tombol Search */}
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Search</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Pagination Atas (Di atas tabel, rata kanan, sesuai Gambar 2 Pengguna) */}
+            <div className="px-5 py-2 flex items-center justify-end gap-1 bg-white shrink-0">
+              {pageNumbers.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setBacaJugaPage(p)}
+                  className={`min-w-[28px] h-7 px-2 rounded text-xs font-bold transition-colors ${
+                    bacaJugaPage === p
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              {bacaJugaPage < totalPages && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setBacaJugaPage((prev) => Math.min(totalPages, prev + 1))}
+                    className="h-7 px-2.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold"
+                    title="Halaman Berikutnya"
+                  >
+                    &gt;
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBacaJugaPage(totalPages)}
+                    className="h-7 px-2.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold"
+                    title="Halaman Terakhir"
+                  >
+                    Last ›
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Tabel Daftar Berita */}
+            <div className="flex-1 overflow-x-auto overflow-y-auto px-5 pb-5">
+              <table className="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden border-collapse">
+                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-3 w-12 text-center border-r border-slate-200">No</th>
+                    <th className="py-2.5 px-3 min-w-[260px] border-r border-slate-200">Title</th>
+                    <th className="py-2.5 px-3 w-28 text-center border-r border-slate-200">Status</th>
+                    <th className="py-2.5 px-3 w-28 text-center border-r border-slate-200">Rubrik</th>
+                    <th className="py-2.5 px-3 w-24 border-r border-slate-200">Author</th>
+                    <th className="py-2.5 px-3 w-24 border-r border-slate-200">Editor</th>
+                    <th className="py-2.5 px-3 w-36 border-r border-slate-200">Published Date</th>
+                    <th className="py-2.5 px-3 w-24 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {paginatedArticles.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-500 text-xs">
+                        {bacaJugaSearchQuery || bacaJugaCategory !== 'all'
+                          ? 'Tidak ada berita yang cocok dengan filter / pencarian.'
+                          : 'Belum ada berita yang dipublikasikan.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedArticles.map((art, idx) => {
+                      const rowNo = (bacaJugaPage - 1) * itemsPerPage + idx + 1;
+                      return (
+                        <tr key={art.id || idx} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="py-2.5 px-3 text-center text-slate-600 font-medium border-r border-slate-200">
+                            {rowNo}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-900 border-r border-slate-200">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-800 leading-snug">{art.title}</span>
+                              <a
+                                href={`/berita/${art.slug || art.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-slate-300 bg-slate-50 hover:bg-slate-100 text-[10px] font-medium text-slate-600 transition-colors shrink-0"
+                                title="Lihat pratinjau berita di tab baru"
+                              >
+                                <ExternalLink className="w-2.5 h-2.5" />
+                                <span>View</span>
+                              </a>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-center border-r border-slate-200">
+                            <span className="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#10b981] text-white">
+                              Published
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center border-r border-slate-200">
+                            <span className="inline-block px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-200 text-slate-700">
+                              {art.category || 'Umum'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 font-medium border-r border-slate-200 truncate max-w-[120px]">
+                            {art.author || 'Admin'}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 font-medium border-r border-slate-200 truncate max-w-[120px]">
+                            {art.authorRole || art.author || 'Editor'}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 text-[11px] font-medium border-r border-slate-200 whitespace-nowrap font-mono">
+                            {formatDisplayDate(art.date)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleChooseArticle(art)}
+                              className="px-3.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors shadow-xs hover:border-slate-400"
+                            >
+                              Choose
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
