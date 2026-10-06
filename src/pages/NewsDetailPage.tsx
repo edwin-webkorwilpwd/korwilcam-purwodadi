@@ -382,7 +382,7 @@ export const NewsDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 space-y-8">
+      <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 pt-6 sm:pt-8 space-y-8">
         
         {/* Article Header Card */}
         <header className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-sm space-y-6">
