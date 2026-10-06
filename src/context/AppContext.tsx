@@ -4324,28 +4324,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (cleanUpdatedData.image && isGoogleDriveUrl(cleanUpdatedData.image)) {
       cleanUpdatedData.image = formatGoogleDriveImageUrl(cleanUpdatedData.image);
     }
-    let mergedSchool: School | null = null;
-    setSchools((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          mergedSchool = { ...s, ...cleanUpdatedData };
-          return mergedSchool;
-        }
-        return s;
-      })
+    const existingSchool = schools.find((s) => s.id === id) || (_inMemorySchoolsCache || []).find((s) => s.id === id);
+    const mergedSchool: School = existingSchool
+      ? { ...existingSchool, ...cleanUpdatedData }
+      : ({ id, ...cleanUpdatedData } as School);
+
+    setSchools((prev) => prev.map((s) => (s.id === id ? mergedSchool : s)));
+
+    setSelectedSchoolState((curr) => (curr?.id === id ? mergedSchool : curr));
+    triggerActivityLog(
+      'UBAH DATA',
+      'Sekolah',
+      `Memperbarui data sekolah: "${mergedSchool.name}"`
     );
 
-    if (mergedSchool) {
-      setSelectedSchoolState((curr) => (curr?.id === id ? mergedSchool : curr));
-      triggerActivityLog(
-        'UBAH DATA',
-        'Sekolah',
-        `Memperbarui data sekolah: "${(mergedSchool as School).name}"`
-      );
-    }
-
     const client = getSupabaseClient();
-    if (client && mergedSchool) {
+    if (client) {
       setSyncStatus('syncing');
       try {
         const s = mergedSchool as School;
@@ -4497,22 +4491,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? (stripHtml(updatedData.summary) || (updatedData.content ? generateSummary(updatedData.content, 180) : ''))
       : undefined;
 
-    let mergedNews: NewsArticle | null = null;
+    const existingNews = news.find((n) => n.id === id) || (_inMemoryNewsCache || []).find((n) => n.id === id);
+    const itemSummary = cleanSummary !== undefined 
+      ? cleanSummary 
+      : (existingNews ? (stripHtml(existingNews.summary) || generateSummary(existingNews.content, 180)) : '');
+    const itemSlug = updatedData.slug || (existingNews?.slug) || (updatedData.title || existingNews?.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `berita-${id}`;
+
+    const mergedNews: NewsArticle = existingNews
+      ? { ...existingNews, ...updatedData, summary: itemSummary, slug: itemSlug }
+      : ({ id, ...updatedData, summary: itemSummary, slug: itemSlug } as NewsArticle);
+
     setNews((prev) => {
-      const updated = prev.map((n) => {
-        if (n.id === id) {
-          const itemSummary = cleanSummary !== undefined ? cleanSummary : (stripHtml(n.summary) || generateSummary(n.content, 180));
-          const itemSlug = updatedData.slug || n.slug || (updatedData.title || n.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `berita-${id}`;
-          mergedNews = {
-            ...n,
-            ...updatedData,
-            summary: itemSummary,
-            slug: itemSlug
-          };
-          return mergedNews;
-        }
-        return n;
-      });
+      const updated = prev.map((n) => (n.id === id ? mergedNews : n));
+      if (!prev.some((n) => n.id === id)) {
+        updated.unshift(mergedNews);
+      }
       _inMemoryNewsCache = updated;
       try {
         sessionStorage.setItem('korwilcam_news', JSON.stringify(updated));
@@ -4521,22 +4514,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    if (mergedNews) {
-      setSelectedNewsState((current) => {
-        if (current && (current.id === id || current.slug === (mergedNews as NewsArticle).slug)) {
-          return mergedNews;
-        }
-        return current;
-      });
-      triggerActivityLog(
-        'UBAH DATA',
-        'Berita & Warta',
-        `Memperbarui artikel berita: "${(mergedNews as NewsArticle).title}"`
-      );
-    }
+    setSelectedNewsState((current) => {
+      if (current && (current.id === id || current.slug === mergedNews.slug)) {
+        return mergedNews;
+      }
+      return current;
+    });
+    triggerActivityLog(
+      'UBAH DATA',
+      'Berita & Warta',
+      `Memperbarui artikel berita: "${mergedNews.title}"`
+    );
 
     const client = getSupabaseClient();
-    if (client && mergedNews) {
+    if (client) {
       setSyncStatus('syncing');
       try {
         const n = mergedNews as NewsArticle;
@@ -4987,24 +4978,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAnnouncement = async (id: string, updatedData: Partial<Announcement>) => {
-    let mergedAnn: Announcement | null = null;
+    // 1. Temukan pengumuman yang ada secara sinkron agar tidak kehilangan data saat batching React
+    const existingAnn = announcements.find((a) => a.id === id) || (_inMemoryAnnouncementsCache || []).find((a) => a.id === id);
+    const mergedAnn: Announcement = existingAnn
+      ? { ...existingAnn, ...updatedData }
+      : ({ id, ...updatedData } as Announcement);
+
+    // 2. Perbarui state lokal dan cache memori secara instan
     setAnnouncements((prev) => {
-      const updated = prev.map((a) => {
-        if (a.id === id) {
-          mergedAnn = { ...a, ...updatedData };
-          return mergedAnn;
-        }
-        return a;
-      });
+      const updated = prev.map((a) => (a.id === id ? mergedAnn : a));
+      if (!prev.some((a) => a.id === id)) {
+        updated.unshift(mergedAnn);
+      }
       _inMemoryAnnouncementsCache = updated;
       try { sessionStorage.setItem('korwilcam_announcements', JSON.stringify(updated)); } catch (_) {}
+      try { localStorage.setItem('korwilcam_announcements', JSON.stringify(updated)); } catch (_) {}
       return updated;
     });
 
     const docId = `doc-ann-${id}`;
     let syncedDoc: DocumentDownload | null = null;
-    const targetAnn = (mergedAnn || null) as unknown as Announcement | null;
-    const hasFile = Boolean(targetAnn && targetAnn.fileUrl && targetAnn.fileUrl?.trim() !== '' && targetAnn.fileUrl !== '#');
+    const targetAnn = mergedAnn;
+    const hasFile = Boolean(targetAnn && targetAnn.fileUrl && targetAnn.fileUrl.trim() !== '' && targetAnn.fileUrl !== '#');
     
     // Deteksi cerdas: Cek apakah berkas berasal dari dokumen master yang sudah ada di Layanan Unduhan
     const existingMasterDoc = documents.find((d) => 
@@ -5050,20 +5045,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     }
 
-    if (mergedAnn) {
-      setSelectedAnnouncementState((curr) => (curr?.id === id ? mergedAnn : curr));
-      triggerActivityLog(
-        'UBAH DATA',
-        'Pengumuman & Edaran',
-        `Memperbarui pengumuman: "${(mergedAnn as unknown as Announcement).title}"`
-      );
-    }
+    setSelectedAnnouncementState((curr) => (curr?.id === id ? mergedAnn : curr));
+    triggerActivityLog(
+      'UBAH DATA',
+      'Pengumuman & Edaran',
+      `Memperbarui pengumuman: "${mergedAnn.title}"`
+    );
 
     const client = getSupabaseClient();
-    if (client && mergedAnn) {
+    if (client) {
       setSyncStatus('syncing');
       try {
-        const target = mergedAnn as unknown as Announcement;
+        const target = mergedAnn;
         const packedFileSize = [
           target.fileSize || '',
           target.fileName || '',
@@ -5077,20 +5070,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           target.authorRole || ''
         ].join('|');
 
-        const { error } = await client.from('announcements').upsert({
-          id: target.id,
+        const payload = {
           title: target.title,
-          date: target.date,
-          urgency: target.urgency,
-          target: target.target,
+          date: target.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+          urgency: target.urgency || 'Biasa',
+          target: target.target || 'Semua Satuan',
           file_size: packedFileSize,
-          summary: target.summary
-        });
+          summary: target.summary || target.title
+        };
+
+        // 1. Coba update record yang sudah ada terlebih dahulu di Supabase
+        const { data: updateData, error: updateErr } = await client
+          .from('announcements')
+          .update(payload)
+          .eq('id', target.id)
+          .select();
+
+        let saveError = updateErr;
+
+        // 2. Jika baris belum ada di Supabase, gunakan upsert
+        if (!saveError && (!updateData || updateData.length === 0)) {
+          const { error: upsertErr } = await client
+            .from('announcements')
+            .upsert({ id: target.id, ...payload });
+          saveError = upsertErr;
+        }
 
         // Sinkronkan ke tabel documents di Supabase
         if (syncedDoc) {
-          await client.from('documents').upsert({
-            id: syncedDoc.id,
+          const docPayload = {
             title: syncedDoc.title,
             category: syncedDoc.category,
             file_type: syncedDoc.fileType,
@@ -5099,16 +5107,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             date: syncedDoc.date,
             description: syncedDoc.description,
             download_url: syncedDoc.downloadUrl
-          });
+          };
+          const { data: docUpdateData, error: docUpdateErr } = await client
+            .from('documents')
+            .update(docPayload)
+            .eq('id', syncedDoc.id)
+            .select();
+          if (!docUpdateErr && (!docUpdateData || docUpdateData.length === 0)) {
+            await client.from('documents').upsert({ id: syncedDoc.id, ...docPayload });
+          }
         } else {
           try {
             await client.from('documents').delete().eq('id', docId);
           } catch (_) {}
         }
 
-        if (error) {
-          console.error('Supabase updateAnnouncement error:', error);
-          showToast(`Pengumuman diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
+        if (saveError) {
+          console.error('Supabase updateAnnouncement error:', saveError);
+          showToast(`Pengumuman diperbarui lokal. Gagal sinkron Supabase: ${saveError.message}`, 'error');
         } else {
           showToast(
             hasFile
@@ -5120,7 +5136,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           );
         }
       } catch (err: any) {
-        showToast(`Pengumuman diperbarui lokal.`, 'info');
+        console.error('updateAnnouncement exception:', err);
+        showToast(`Pengumuman diperbarui lokal. Terjadi kendala jaringan: ${err.message || err}`, 'info');
       } finally {
         setSyncStatus('connected');
       }
@@ -5224,44 +5241,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateDocument = async (id: string, updatedData: Partial<DocumentDownload>) => {
-    let mergedDoc: DocumentDownload | null = null;
-    setDocuments((prev) =>
-      prev.map((d) => {
-        if (d.id === id) {
-          mergedDoc = { ...d, ...updatedData };
-          return mergedDoc;
-        }
-        return d;
-      })
+    const existingDoc = documents.find((d) => d.id === id) || (_inMemoryDocumentsCache || []).find((d) => d.id === id);
+    const mergedDoc: DocumentDownload = existingDoc
+      ? { ...existingDoc, ...updatedData }
+      : ({ id, ...updatedData } as DocumentDownload);
+
+    setDocuments((prev) => prev.map((d) => (d.id === id ? mergedDoc : d)));
+
+    setSelectedDocumentState((curr) => (curr?.id === id ? mergedDoc : curr));
+    triggerActivityLog(
+      'UBAH DATA',
+      'Layanan Unduhan',
+      `Memperbarui dokumen: "${mergedDoc.title}"`
     );
 
-    if (mergedDoc) {
-      setSelectedDocumentState((curr) => (curr?.id === id ? mergedDoc : curr));
-      triggerActivityLog(
-        'UBAH DATA',
-        'Layanan Unduhan',
-        `Memperbarui dokumen: "${(mergedDoc as DocumentDownload).title}"`
-      );
-    }
-
     const client = getSupabaseClient();
-    if (client && mergedDoc) {
+    if (client) {
       setSyncStatus('syncing');
       try {
-        const target = mergedDoc as DocumentDownload;
-        const { error } = await client.from('documents').upsert({
-          id: target.id,
+        const target = mergedDoc;
+        const docPayload = {
           title: target.title,
           category: target.category,
           file_type: target.fileType,
           file_size: target.fileSize,
-          download_count: target.downloadCount,
+          download_count: target.downloadCount || 0,
           date: target.date,
           description: target.description,
           download_url: target.downloadUrl
-        });
-        if (error) {
-          showToast(`Dokumen diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
+        };
+
+        const { data: updateData, error: updateErr } = await client
+          .from('documents')
+          .update(docPayload)
+          .eq('id', target.id)
+          .select();
+
+        let saveError = updateErr;
+        if (!saveError && (!updateData || updateData.length === 0)) {
+          const { error: upsertErr } = await client
+            .from('documents')
+            .upsert({ id: target.id, ...docPayload });
+          saveError = upsertErr;
+        }
+
+        if (saveError) {
+          showToast(`Dokumen diperbarui lokal. Gagal sinkron Supabase: ${saveError.message}`, 'error');
         } else {
           showToast('Dokumen berhasil diperbarui dan tersinkron ke Supabase Cloud!', 'success');
         }
@@ -5449,32 +5474,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAgenda = async (id: string, updatedData: Partial<AgendaEvent>) => {
-    let mergedAgenda: AgendaEvent | null = null;
-    setAgenda((prev) =>
-      prev.map((ag) => {
-        if (ag.id === id) {
-          mergedAgenda = { ...ag, ...updatedData };
-          return mergedAgenda;
-        }
-        return ag;
-      })
+    const existingAgenda = agenda.find((a) => a.id === id);
+    const mergedAgenda: AgendaEvent = existingAgenda
+      ? { ...existingAgenda, ...updatedData }
+      : ({ id, ...updatedData } as AgendaEvent);
+
+    setAgenda((prev) => prev.map((ag) => (ag.id === id ? mergedAgenda : ag)));
+
+    triggerActivityLog(
+      'UBAH DATA',
+      'Agenda Kegiatan',
+      `Memperbarui agenda: "${mergedAgenda.title}"`
     );
 
-    if (mergedAgenda) {
-      triggerActivityLog(
-        'UBAH DATA',
-        'Agenda Kegiatan',
-        `Memperbarui agenda: "${(mergedAgenda as AgendaEvent).title}"`
-      );
-    }
-
     const client = getSupabaseClient();
-    if (client && mergedAgenda) {
+    if (client) {
       setSyncStatus('syncing');
       try {
-        const ag = mergedAgenda as AgendaEvent;
-        await client.from('agenda').upsert({
-          id: ag.id,
+        const ag = mergedAgenda;
+        const payload = {
           title: ag.title,
           date: ag.date,
           time: ag.time,
@@ -5482,8 +5500,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           organizer: ag.organizer,
           target_audience: ag.targetAudience,
           status: ag.status
-        });
-        showToast('Agenda kegiatan berhasil diperbarui di Supabase Cloud!', 'success');
+        };
+
+        const { data: updateData, error: updateErr } = await client
+          .from('agenda')
+          .update(payload)
+          .eq('id', ag.id)
+          .select();
+
+        let saveError = updateErr;
+        if (!saveError && (!updateData || updateData.length === 0)) {
+          const { error: upsertErr } = await client
+            .from('agenda')
+            .upsert({ id: ag.id, ...payload });
+          saveError = upsertErr;
+        }
+
+        if (saveError) {
+          showToast(`Agenda diperbarui lokal. Gagal sinkron Supabase: ${saveError.message}`, 'error');
+        } else {
+          showToast('Agenda kegiatan berhasil diperbarui di Supabase Cloud!', 'success');
+        }
       } catch (err: any) {
         showToast('Agenda kegiatan berhasil diperbarui.', 'success');
       } finally {
@@ -5613,36 +5650,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateGalleryItem = async (id: string, updatedData: Partial<GalleryItem>) => {
-    let mergedGallery: GalleryItem | null = null;
+    const existingGallery = gallery.find((g) => g.id === id) || (_inMemoryGalleryCache || []).find((g) => g.id === id);
+    let mergedGallery: GalleryItem = existingGallery
+      ? { ...existingGallery, ...updatedData }
+      : ({ id, ...updatedData } as GalleryItem);
+
+    if (updatedData.images && updatedData.images.length > 0 && !updatedData.image) {
+      mergedGallery.image = updatedData.images[0];
+    }
+
     setGallery((prev) => {
-      const updated = sortGalleryDescending(
-        prev.map((g) => {
-          if (g.id === id) {
-            mergedGallery = { ...g, ...updatedData };
-            if (updatedData.images && updatedData.images.length > 0 && !updatedData.image) {
-              mergedGallery.image = updatedData.images[0];
-            }
-            return mergedGallery;
-          }
-          return g;
-        })
-      );
+      const updated = sortGalleryDescending(prev.map((g) => (g.id === id ? mergedGallery : g)));
       _inMemoryGalleryCache = updated;
       try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
       return updated;
     });
 
-    if (mergedGallery) {
-      setSelectedGalleryState((curr) => (curr?.id === id ? mergedGallery : curr));
-      triggerActivityLog(
-        'UBAH DATA',
-        'Galeri Kegiatan',
-        `Memperbarui album galeri: "${(mergedGallery as GalleryItem).title}"`
-      );
-    }
+    setSelectedGalleryState((curr) => (curr?.id === id ? mergedGallery : curr));
+    triggerActivityLog(
+      'UBAH DATA',
+      'Galeri Kegiatan',
+      `Memperbarui album galeri: "${mergedGallery.title}"`
+    );
 
     const client = getSupabaseClient();
-    if (client && mergedGallery) {
+    if (client) {
       setSyncStatus('syncing');
       try {
         const g = mergedGallery as GalleryItem;
@@ -5840,50 +5872,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateStaff = async (id: string, updatedData: Partial<StaffProfile>): Promise<boolean> => {
-    let mergedStaff: StaffProfile | null = null;
-    setStaff((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          const rawPhoto = updatedData.photo !== undefined ? String(updatedData.photo).trim() : String(s.photo || '').trim();
-          const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
-          mergedStaff = {
-            ...s,
-            ...updatedData,
-            name: updatedData.name ? updatedData.name.trim() : s.name,
-            role: updatedData.role ? updatedData.role.trim() : s.role,
-            nip: updatedData.nip !== undefined ? updatedData.nip.trim() : s.nip,
-            photo: cleanPhoto,
-            division: updatedData.division || s.division
-          };
-          return mergedStaff;
+    const existingStaff = staff.find((s) => s.id === id);
+    const rawPhoto = updatedData.photo !== undefined ? String(updatedData.photo).trim() : String(existingStaff?.photo || '').trim();
+    const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
+
+    const mergedStaff: StaffProfile = existingStaff
+      ? {
+          ...existingStaff,
+          ...updatedData,
+          name: updatedData.name ? updatedData.name.trim() : existingStaff.name,
+          role: updatedData.role ? updatedData.role.trim() : existingStaff.role,
+          nip: updatedData.nip !== undefined ? updatedData.nip.trim() : existingStaff.nip,
+          photo: cleanPhoto,
+          division: updatedData.division || existingStaff.division
         }
-        return s;
-      })
+      : ({ id, ...updatedData, photo: cleanPhoto } as StaffProfile);
+
+    setStaff((prev) => prev.map((s) => (s.id === id ? mergedStaff : s)));
+
+    triggerActivityLog(
+      'UBAH DATA',
+      'Profil & Struktur',
+      `Memperbarui staf/pejabat: "${mergedStaff.name}"`
     );
 
-    if (mergedStaff) {
-      triggerActivityLog(
-        'UBAH DATA',
-        'Profil & Struktur',
-        `Memperbarui staf/pejabat: "${(mergedStaff as StaffProfile).name}"`
-      );
-    }
-
     const client = getSupabaseClient();
-    if (client && mergedStaff) {
+    if (client) {
       setSyncStatus('syncing');
       try {
-        const st = mergedStaff as StaffProfile;
-        const { error } = await client.from('staff').upsert({
-          id: st.id,
+        const st = mergedStaff;
+        const payload = {
           name: st.name,
           role: st.role,
           nip: st.nip,
           photo: st.photo,
           division: st.division
-        });
-        if (error) {
-          showToast(`Data staf diperbarui lokal. Supabase: ${error.message}`, 'error');
+        };
+
+        const { data: updateData, error: updateErr } = await client
+          .from('staff')
+          .update(payload)
+          .eq('id', st.id)
+          .select();
+
+        let saveError = updateErr;
+        if (!saveError && (!updateData || updateData.length === 0)) {
+          const { error: upsertErr } = await client
+            .from('staff')
+            .upsert({ id: st.id, ...payload });
+          saveError = upsertErr;
+        }
+
+        if (saveError) {
+          showToast(`Data staf diperbarui lokal. Supabase: ${saveError.message}`, 'error');
           return false;
         } else {
           showToast(`Data "${st.name}" dan foto berhasil diperbarui di database Supabase Cloud!`, 'success');
