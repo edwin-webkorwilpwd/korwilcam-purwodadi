@@ -149,6 +149,15 @@ const MainContent: React.FC = () => {
 
   const isWebView = WEBVIEW_SERVICES.some((s) => s.id === activeTab) || activeTab === 'service-permintaan-data';
 
+  // Indikator aktifitas halaman beranda untuk Keep-Alive di memori DOM
+  const isHomeActive =
+    activeTab === 'home' &&
+    !selectedNews &&
+    !selectedAnnouncement &&
+    !selectedGallery &&
+    !selectedDocument &&
+    !selectedServiceRequirement;
+
   // Public portal routing
   return (
     <div className={`flex flex-col ${isWebView ? 'h-screen overflow-hidden bg-white' : 'min-h-screen bg-slate-50 text-slate-800'}`}>
@@ -158,7 +167,12 @@ const MainContent: React.FC = () => {
       {/* Main Routed Page Content */}
       <main className={`flex-1 ${isWebView ? 'w-full h-[calc(100vh-74px)] overflow-hidden flex flex-col' : ''}`}>
         <Suspense fallback={<PageLoadingFallback />}>
-          {/* Halaman Standar (Beranda, Profil, SOP, Direktori Sekolah, Berita, Unduhan, Galeri, Kontak) */}
+          {/* Halaman Beranda (Keep-Alive: Tetap hidup di DOM tanpa unmount agar foto slideshow tidak proses / reload ulang) */}
+          <div className={isHomeActive ? 'block' : 'hidden'}>
+            <HomePage />
+          </div>
+
+          {/* Halaman Standar (Profil, SOP, Direktori Sekolah, Berita, Unduhan, Galeri, Kontak) & Detail */}
           {selectedNews ? (
             <NewsDetailPage />
           ) : selectedAnnouncement ? (
@@ -173,7 +187,6 @@ const MainContent: React.FC = () => {
             <DataRequestPage />
           ) : !isWebView ? (
             <>
-              {activeTab === 'home' && <HomePage />}
               {activeTab === 'profile' && <ProfilePage />}
               {activeTab === 'sop-pelayanan' && <SOPPage />}
               {activeTab === 'schools' && <SchoolsPage />}

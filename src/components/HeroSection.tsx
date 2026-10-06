@@ -9,6 +9,13 @@ import {
 } from 'lucide-react';
 import { formatGoogleDriveImageUrl, getGoogleDriveCandidates, prefetchGoogleDriveImage } from '../lib/driveHelper';
 
+// Pemetaan gambar default ke aset lokal berkecepatan tinggi (Edge CDN / Public)
+const DEFAULT_LOCAL_SLIDES: Record<string, string> = {
+  '19Kitm3ej7ncxhAELgRW1IBwETCZvmnZM': '/hero/slide-1.jpg',
+  '1-rOi-M-WwZtr9FuydVwIM8OcM4oCyiWl': '/hero/slide-2.jpg',
+  '1mSXTwJk9CEwxywt8GOlOtI910KFgN9SL': '/hero/slide-3.jpg',
+};
+
 export const HeroSection: React.FC = () => {
   const { officeProfile, setActiveTab } = useApp();
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -20,15 +27,40 @@ export const HeroSection: React.FC = () => {
       .filter((url) => typeof url === 'string' && url.trim().length > 0)
       .map((url, idx) => {
         const trimmed = url.trim();
+        let localPath: string | undefined;
+        for (const [driveId, path] of Object.entries(DEFAULT_LOCAL_SLIDES)) {
+          if (trimmed.includes(driveId)) {
+            localPath = path;
+            break;
+          }
+        }
+        if (!localPath && idx < 3 && rawImages.length === 3 && (trimmed.startsWith('/hero/') || trimmed.includes('drive.google.com'))) {
+          localPath = `/hero/slide-${idx + 1}.jpg`;
+        }
+
         const formatted = formatGoogleDriveImageUrl(trimmed);
         const candidates = getGoogleDriveCandidates(trimmed);
+        const allCandidates = localPath 
+          ? [localPath, ...(formatted ? [formatted] : []), ...candidates]
+          : (formatted ? [formatted, ...candidates] : candidates);
+
         return {
           id: `slide-${idx}`,
           raw: trimmed,
-          src: formatted || trimmed,
-          candidates
+          src: localPath || formatted || trimmed,
+          candidates: allCandidates
         };
       });
+
+    // Fallback instan jika belum ada / sedang sinkronisasi
+    if (valid.length === 0) {
+      return [
+        { id: 'slide-0', raw: '/hero/slide-1.jpg', src: '/hero/slide-1.jpg', candidates: ['/hero/slide-1.jpg'] },
+        { id: 'slide-1', raw: '/hero/slide-2.jpg', src: '/hero/slide-2.jpg', candidates: ['/hero/slide-2.jpg'] },
+        { id: 'slide-2', raw: '/hero/slide-3.jpg', src: '/hero/slide-3.jpg', candidates: ['/hero/slide-3.jpg'] },
+      ];
+    }
+
     return valid;
   }, [officeProfile.heroSlideshowImages]);
 
@@ -40,7 +72,9 @@ export const HeroSection: React.FC = () => {
   useEffect(() => {
     if (slides.length === 0) return;
     slides.forEach((slide) => {
-      prefetchGoogleDriveImage(slide.raw);
+      if (slide.raw && !slide.raw.startsWith('/hero/')) {
+        prefetchGoogleDriveImage(slide.raw);
+      }
     });
   }, [slides]);
 
@@ -61,7 +95,7 @@ export const HeroSection: React.FC = () => {
     }, slideDuration);
 
     return () => clearInterval(timer);
-  }, [slides.length, slideDuration, currentSlideIndex]);
+  }, [slides.length, slideDuration]);
 
   // Handle previous slide
   const handlePrevSlide = (e: React.MouseEvent) => {
@@ -97,9 +131,8 @@ export const HeroSection: React.FC = () => {
                   src={slide.src}
                   alt={`Dokumentasi Korwilcam Purwodadi ${idx + 1}`}
                   referrerPolicy="no-referrer"
-                  crossOrigin="anonymous"
-                  loading={idx === 0 ? "eager" : "lazy"}
-                  decoding="async"
+                  loading="eager"
+                  decoding={idx === 0 ? "sync" : "async"}
                   fetchPriority={idx === 0 ? "high" : "low"}
                   className={`w-full h-full object-cover object-center transform transition-transform duration-[7000ms] ease-out filter brightness-[0.85] contrast-[1.05] ${
                     isActive ? 'scale-105' : 'scale-100'
