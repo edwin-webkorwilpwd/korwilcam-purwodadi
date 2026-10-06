@@ -2909,6 +2909,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'achievements': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'prestasi': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'organization': { path: '/profil#organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
+    'service-simpel-gan': { path: '/layanan/pengaduan-simpel-gan', title: 'Pengaduan Simpel-Gan - Korwilcam Purwodadi' },
     'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
@@ -3847,7 +3848,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else if (rawPath.startsWith('/layanan') || rawPath.startsWith('/unduhan') || rawPath.startsWith('/persyaratan')) {
         setSelectedOrganizationSlugState(null);
-        if (rawPath.includes('persyaratan') || rawPath.includes('syarat')) {
+        if (rawPath.includes('simpel-gan') || rawPath.includes('adatamu')) {
+          setActiveTabState('service-simpel-gan');
+          document.title = TAB_ROUTES['service-simpel-gan'].title;
+        } else if (rawPath.includes('persyaratan') || rawPath.includes('syarat')) {
           setActiveTabState('service-requirements');
           document.title = TAB_ROUTES['service-requirements'].title;
         } else if (rawPath.includes('aula')) {
@@ -3887,6 +3891,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabState('social-media');
         setSelectedOrganizationSlugState(null);
         document.title = TAB_ROUTES['social-media'].title;
+      } else if (rawPath.startsWith('/pengaduan-simpel-gan') || rawPath.startsWith('/simpel-gan')) {
+        setActiveTabState('service-simpel-gan');
+        setSelectedOrganizationSlugState(null);
+        document.title = TAB_ROUTES['service-simpel-gan'].title;
       } else if (rawPath.startsWith('/kontak') || rawPath.startsWith('/pengaduan') || rawPath.startsWith('/aduan')) {
         setActiveTabState('contact');
         setSelectedOrganizationSlugState(null);

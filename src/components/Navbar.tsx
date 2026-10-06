@@ -652,7 +652,22 @@ export const Navbar: React.FC = () => {
                       <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
                       <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
-                        {/* 0. Persyaratan Pelayanan */}
+                        {/* 0. Pengaduan Simpel-Gan */}
+                        {isItemActive(menuVisibility, 'services.simpel-gan') && (
+                          <button
+                            type="button"
+                            onClick={() => handleNavClick('service-simpel-gan', '/layanan/pengaduan-simpel-gan')}
+                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
+                              activeTab === 'service-simpel-gan' 
+                                ? 'bg-white/20 text-white font-bold' 
+                                : 'text-white hover:bg-white/15'
+                            }`}
+                          >
+                            <span>Pengaduan Simpel-Gan</span>
+                          </button>
+                        )}
+
+                        {/* 1. Persyaratan Pelayanan */}
                         {isItemActive(menuVisibility, 'services.requirements') && (
                           <button
                             type="button"
@@ -1140,6 +1155,25 @@ export const Navbar: React.FC = () => {
 
               {mobileOpenSection === 'services' && (
                 <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
+                  {/* 0. Pengaduan Simpel-Gan */}
+                  {isItemActive(menuVisibility, 'services.simpel-gan') && (
+                    <button
+                      onClick={() => handleNavClick('service-simpel-gan', '/layanan/pengaduan-simpel-gan')}
+                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                        activeTab === 'service-simpel-gan' 
+                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                        <span>Pengaduan Simpel-Gan</span>
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                    </button>
+                  )}
+
+                  {/* 1. Persyaratan Pelayanan */}
                   {isItemActive(menuVisibility, 'services.requirements') && (
                     <button
                       onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
