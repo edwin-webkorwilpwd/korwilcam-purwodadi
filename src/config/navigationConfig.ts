@@ -166,14 +166,6 @@ export const NAVIGATION_CONFIG: NavigationItem[] = [
     defaultEnabled: true,
     children: [
       {
-        id: 'services.simpel-gan',
-        label: 'Pengaduan Simpel-Gan',
-        path: '/layanan/pengaduan-simpel-gan',
-        tab: 'service-simpel-gan',
-        description: 'Layanan pengaduan masyarakat online Simpel-Gan melalui portal resmi Diskominfo Grobogan.',
-        defaultEnabled: true,
-      },
-      {
         id: 'services.requirements',
         label: 'Persyaratan Pelayanan',
         path: '/layanan/persyaratan-pelayanan',

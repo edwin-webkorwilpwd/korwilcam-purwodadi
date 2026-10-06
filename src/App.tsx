@@ -36,12 +36,6 @@ const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').t
 
 const WEBVIEW_SERVICES = [
   {
-    id: 'service-simpel-gan',
-    title: 'Pengaduan Simpel-Gan - Korwilcam Purwodadi',
-    url: 'https://adatamu.diskominfo.grobogan.go.id/',
-    cropTop: 0
-  },
-  {
     id: 'karyaku',
     title: 'Karyaku - Korwilcam Purwodadi',
     url: 'https://pustakapwd.blogspot.com/',
