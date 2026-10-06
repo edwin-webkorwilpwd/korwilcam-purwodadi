@@ -509,13 +509,6 @@ export const NewsDetailPage: React.FC = () => {
         {/* Main Article Body Container */}
         <div ref={articleBodyRef} className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/90 shadow-sm space-y-8 scroll-mt-28">
           
-          {/* Summary Quote */}
-          {selectedNews.summary && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/50 border-l-4 border-blue-600 text-slate-800 text-base sm:text-lg font-medium italic leading-relaxed shadow-xs">
-              "{stripHtml(selectedNews.summary)}"
-            </div>
-          )}
-
           {/* Top Pagination Mini Bar (jika artikel memiliki lebih dari 1 halaman) */}
           {paginationData.totalPages > 1 && (
             <div className="flex items-center justify-between flex-wrap gap-3 p-3 sm:px-4 sm:py-3 rounded-2xl bg-slate-50 border border-slate-200/90 text-xs">
