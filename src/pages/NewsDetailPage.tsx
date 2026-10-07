@@ -242,10 +242,35 @@ export const NewsDetailPage: React.FC = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(linkToShare)}`, '_blank');
   };
 
-  // 3 Berita Lainnya sebagai rekomendasi pembaca
-  const otherNews = news
-    .filter((item) => item.id !== selectedNews.id)
-    .slice(0, 3);
+  // Berita terpopuler (berdasarkan views terbanyak, kecuali artikel yang sedang dibaca)
+  const popularNews = React.useMemo(() => {
+    return [...news]
+      .filter((item) => item.id !== selectedNews.id)
+      .sort((a, b) => (b.views || 0) - (a.views || 0))
+      .slice(0, 5);
+  }, [news, selectedNews.id]);
+
+  const topPopular = popularNews[0] || null;
+  const remainingPopular = popularNews.slice(1);
+
+  // Berita terbaru (berdasarkan urutan / tanggal, kecuali artikel saat ini dan hero populer)
+  const latestNews = React.useMemo(() => {
+    return [...news]
+      .filter((item) => item.id !== selectedNews.id && item.id !== topPopular?.id)
+      .slice(0, 4);
+  }, [news, selectedNews.id, topPopular?.id]);
+
+  // Berita Lainnya sebagai rekomendasi di bagian bawah halaman
+  const otherNews = React.useMemo(() => {
+    return [...news]
+      .filter((item) => item.id !== selectedNews.id && !popularNews.some((p) => p.id === item.id))
+      .slice(0, 3);
+  }, [news, selectedNews.id, popularNews]);
+
+  const handleSelectArticle = (article: (typeof news)[0]) => {
+    setSelectedNews(article);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
 
   // Perhitungan durasi membaca & rata-rata riil dari seluruh pembaca
   const readStats = getArticleReadingStats(selectedNews);
@@ -397,299 +422,407 @@ export const NewsDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 pt-6 sm:pt-8 space-y-8">
+      {/* 2-Column Responsive Layout Sesuai Gambar 2 Pengguna */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 space-y-10">
         
-        {/* Article Header Card */}
-        <header className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-sm space-y-6">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs">
-              {selectedNews.category}
-            </span>
-            <span className="text-xs font-semibold text-slate-400 tracking-wide uppercase">
-              Warta Resmi Korwilcam Purwodadi
-            </span>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.25]">
-            {selectedNews.title}
-          </h1>
-
-          {/* Metadata Row */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs sm:text-sm text-slate-600">
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-              <div className="flex items-center gap-2 font-medium">
-                <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                  <Calendar className="w-3.5 h-3.5" />
-                </div>
-                <span>{selectedNews.date}</span>
-              </div>
-
-              <div className="flex items-center gap-2 font-medium">
-                <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                  <User className="w-3.5 h-3.5" />
-                </div>
-                <span>
-                  Oleh: <strong className="text-slate-800">{selectedNews.author}</strong>
-                  {selectedNews.authorRole && (
-                    <span className="ml-1 text-slate-500 font-normal">({selectedNews.authorRole})</span>
-                  )}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 font-medium">
-                <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                  <Eye className="w-3.5 h-3.5" />
-                </div>
-                <span>{selectedNews.views || 1} Kali Dilihat</span>
-              </div>
-
-              <div 
-                className="flex items-center gap-2 font-medium text-slate-500 cursor-help"
-                title={readStats.detailed}
-              >
-                <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                  <Clock className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span>{readStats.text}</span>
-                  {readStats.isReal && (
-                    <span className="text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full font-bold">
-                      Rata-rata riil
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Share Buttons */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleCopyLink}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                title="Salin Tautan Berita"
-              >
-                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={handleShareWhatsApp}
-                className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
-                title="Bagikan ke WhatsApp"
-              >
-                <MessageCircle className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Featured Cover Image */}
-        {selectedNews.image && (
-          <div 
-            onClick={() => setIsImageZoomed(true)}
-            className="group relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-slate-200/90 bg-slate-100 cursor-pointer"
-            title="Klik untuk memperbesar gambar sampul"
-          >
-            <img
-              src={formatGoogleDriveImageUrl(selectedNews.image, 1600)}
-              alt={selectedNews.title}
-              decoding="async"
-              fetchPriority="high"
-              className="w-full max-h-[520px] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
-              }}
-            />
-            {/* Subtle Zoom Badge Hint */}
-            <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 px-3 py-1.5 rounded-xl bg-black/60 group-hover:bg-black/80 backdrop-blur-md text-white text-xs font-semibold flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-all shadow-md select-none">
-              <ZoomIn className="w-3.5 h-3.5 text-amber-300" />
-              <span>Klik untuk perbesar</span>
-            </div>
-          </div>
-        )}
-
-        {/* Main Article Body Container */}
-        <div ref={articleBodyRef} className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/90 shadow-sm space-y-8 scroll-mt-28">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           
-          {/* Top Pagination Mini Bar (jika artikel memiliki lebih dari 1 halaman) */}
-          {paginationData.totalPages > 1 && (
-            <div className="flex items-center justify-between flex-wrap gap-3 p-3 sm:px-4 sm:py-3 rounded-2xl bg-slate-50 border border-slate-200/90 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] shadow-xs">
-                  {showAllPages ? 'Semua Halaman' : `Halaman ${currentPage} dari ${paginationData.totalPages}`}
+          {/* Kolom Kiri (8 Kolom): Naskah Berita Lengkap */}
+          <main className="lg:col-span-8 space-y-6">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-9 border border-slate-200/90 shadow-xs space-y-6">
+              
+              {/* Kategori & Label Portal */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-600 text-white shadow-xs">
+                  {selectedNews.category}
                 </span>
-                <span className="text-slate-600 font-medium">
-                  {showAllPages 
-                    ? `Total ${paginationData.totalWords} kata` 
-                    : `~${activePageData?.wordCount || WORDS_PER_PAGE} kata (Halaman ${currentPage})`}
+                <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                  Warta Resmi Korwilcam Purwodadi
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={handleToggleAllPages}
-                className="px-3 py-1 rounded-lg text-xs font-bold text-blue-700 hover:text-blue-900 hover:bg-blue-100/60 transition-colors"
-              >
-                {showAllPages ? 'Mode Per Halaman (600 Kata)' : 'Tampilkan Semua Halaman'}
-              </button>
-            </div>
-          )}
+              {/* Judul Utama Artikel (Headline) */}
+              <h1 className="text-2xl sm:text-3xl md:text-[34px] font-black text-slate-900 tracking-tight leading-snug">
+                {selectedNews.title}
+              </h1>
 
-          {/* Article Text */}
-          <div className="article-body min-h-[140px]">
-            {isPaginated && activePageData ? (
-              activePageData.isHtml ? (
-                <div 
-                  className="prose prose-slate max-w-none"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(activePageData.content) }}
-                />
-              ) : (
-                <div className="prose prose-slate max-w-none">
-                  {activePageData.content.split(/\n+/).filter(Boolean).map((para, idx) => (
-                    <p key={idx}>{para}</p>
-                  ))}
-                </div>
-              )
-            ) : selectedNews.content.includes('<') ? (
-              <div 
-                className="prose prose-slate max-w-none"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
-              />
-            ) : (
-              <div className="prose prose-slate max-w-none">
-                {selectedNews.content.split(/\n+/).filter(Boolean).map((para, idx) => (
-                  <p key={idx}>{para}</p>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Navigasi Pagination Nomor Halaman Lengkap */}
-          {paginationData.totalPages > 1 && (
-            <div className="pt-6 border-t border-slate-200 space-y-3">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                {/* Status Teks */}
-                <div className="text-xs text-slate-500 font-medium text-center sm:text-left">
-                  {showAllPages ? (
-                    <span>Menampilkan <strong>seluruh artikel</strong> ({paginationData.totalWords} kata)</span>
-                  ) : (
-                    <span>
-                      Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari <strong>{paginationData.totalPages}</strong> (Total {paginationData.totalWords} kata)
-                    </span>
-                  )}
+              {/* Baris Informasi Metadata (Tanggal, Penulis, Tayangan, Durasi Baca) */}
+              <div className="flex flex-wrap items-center gap-3.5 sm:gap-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{selectedNews.date}</span>
                 </div>
 
-                {/* Kontrol Tombol Halaman */}
-                {!showAllPages && (
-                  <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                    <button
-                      type="button"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage <= 1}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Sebelumnya</span>
-                    </button>
-
-                    {paginationData.pages.map((p) => (
-                      <button
-                        type="button"
-                        key={p.pageNumber}
-                        onClick={() => handlePageChange(p.pageNumber)}
-                        className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
-                          currentPage === p.pageNumber
-                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-500/20'
-                            : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
-                        }`}
-                        title={`Halaman ${p.pageNumber}`}
-                      >
-                        {p.pageNumber}
-                      </button>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= paginationData.totalPages}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs"
-                    >
-                      <span className="hidden sm:inline">Selanjutnya</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Tombol Lihat Semua */}
-                <button
-                  type="button"
-                  onClick={handleToggleAllPages}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 text-xs font-bold transition-colors shrink-0"
-                >
-                  {showAllPages ? 'Mode Halaman' : 'Lihat Semua'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Tags */}
-          {selectedNews.tags && selectedNews.tags.length > 0 && (
-            <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center gap-2">
-              <Tag className="w-4 h-4 text-slate-400" />
-              <span className="text-xs font-bold text-slate-500 mr-1">Topik Terkait:</span>
-              {selectedNews.tags.map((tag, i) => (
-                <span key={i} className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Social Sharing Footer Box */}
-          <div className="pt-8 border-t border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-10 lg:-mx-12 -mb-6 sm:-mb-10 lg:-mb-12 p-6 sm:p-10 lg:p-12 rounded-b-2xl sm:rounded-b-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm">Bagikan Berita Ini</h4>
-              <p className="text-xs text-slate-500">Bantu sebarkan kabar pendidikan bermanfaat ke rekan pendidik & masyarakat.</p>
-              {shortUrl && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-medium text-slate-400">Tautan Ringkas:</span>
-                  <span className="text-xs font-mono font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100 select-all">
-                    {shortUrl}
+                <div className="flex items-center gap-1.5 font-medium">
+                  <User className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>
+                    Oleh: <strong className="text-slate-800">{selectedNews.author}</strong>
+                    {selectedNews.authorRole && (
+                      <span className="ml-1 text-slate-400 font-normal">({selectedNews.authorRole})</span>
+                    )}
                   </span>
                 </div>
+
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Eye className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{selectedNews.views || 1} Kali Dilihat</span>
+                </div>
+
+                <div 
+                  className="flex items-center gap-1.5 font-medium text-slate-500 cursor-help"
+                  title={readStats.detailed}
+                >
+                  <Clock className="w-3.5 h-3.5 text-purple-600" />
+                  <span>{readStats.text}</span>
+                </div>
+              </div>
+
+              {/* Foto Sampul Berita (Proporsional di dalam kolom naskah sesuai Gambar 2) */}
+              {selectedNews.image && (
+                <div 
+                  onClick={() => setIsImageZoomed(true)}
+                  className="group relative rounded-2xl overflow-hidden shadow-xs border border-slate-200 bg-slate-100 cursor-pointer"
+                  title="Klik untuk memperbesar gambar sampul"
+                >
+                  <img
+                    src={formatGoogleDriveImageUrl(selectedNews.image, 1600)}
+                    alt={selectedNews.title}
+                    decoding="async"
+                    fetchPriority="high"
+                    className="w-full max-h-[440px] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                    }}
+                  />
+                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-black/60 group-hover:bg-black/80 backdrop-blur-md text-white text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-md select-none">
+                    <ZoomIn className="w-3 h-3 text-amber-300" />
+                    <span>Perbesar foto</span>
+                  </div>
+                </div>
               )}
+
+              {/* Isi Teks Naskah Berita */}
+              <div ref={articleBodyRef} className="article-body min-h-[140px] pt-1">
+                {isPaginated && activePageData ? (
+                  activePageData.isHtml ? (
+                    <div 
+                      className="prose prose-slate max-w-none text-slate-800 leading-relaxed sm:text-[16.5px]"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(activePageData.content) }}
+                    />
+                  ) : (
+                    <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed sm:text-[16.5px]">
+                      {activePageData.content.split(/\n+/).filter(Boolean).map((para, idx) => (
+                        <p key={idx}>{para}</p>
+                      ))}
+                    </div>
+                  )
+                ) : selectedNews.content.includes('<') ? (
+                  <div 
+                    className="prose prose-slate max-w-none text-slate-800 leading-relaxed sm:text-[16.5px]"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNews.content) }}
+                  />
+                ) : (
+                  <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed sm:text-[16.5px]">
+                    {selectedNews.content.split(/\n+/).filter(Boolean).map((para, idx) => (
+                      <p key={idx}>{para}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Navigasi Pagination Nomor Halaman Lengkap */}
+              {paginationData.totalPages > 1 && (
+                <div className="pt-6 border-t border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-xs text-slate-500 font-medium text-center sm:text-left">
+                      {showAllPages ? (
+                        <span>Menampilkan <strong>seluruh artikel</strong> ({paginationData.totalWords} kata)</span>
+                      ) : (
+                        <span>
+                          Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari <strong>{paginationData.totalPages}</strong> (Total {paginationData.totalWords} kata)
+                        </span>
+                      )}
+                    </div>
+
+                    {!showAllPages && (
+                      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage <= 1}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Sebelumnya</span>
+                        </button>
+
+                        {paginationData.pages.map((p) => (
+                          <button
+                            type="button"
+                            key={p.pageNumber}
+                            onClick={() => handlePageChange(p.pageNumber)}
+                            className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
+                              currentPage === p.pageNumber
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-500/20'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+                            }`}
+                            title={`Halaman ${p.pageNumber}`}
+                          >
+                            {p.pageNumber}
+                          </button>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage >= paginationData.totalPages}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs"
+                        >
+                          <span className="hidden sm:inline">Selanjutnya</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleToggleAllPages}
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 text-xs font-bold transition-colors shrink-0"
+                    >
+                      {showAllPages ? 'Mode Halaman' : 'Lihat Semua'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {selectedNews.tags && selectedNews.tags.length > 0 && (
+                <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                  <Tag className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs font-bold text-slate-500 mr-1">Topik Terkait:</span>
+                  {selectedNews.tags.map((tag, i) => (
+                    <span key={i} className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Social Sharing Footer Box */}
+              <div className="pt-6 border-t border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-9 -mb-6 sm:-mb-9 p-6 sm:p-9 rounded-b-2xl sm:rounded-b-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Bagikan Berita Ini</h4>
+                  <p className="text-xs text-slate-500">Bantu sebarkan kabar pendidikan bermanfaat ke rekan pendidik & masyarakat.</p>
+                  {shortUrl && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-medium text-slate-400">Tautan Ringkas:</span>
+                      <span className="text-xs font-mono font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100 select-all">
+                        {shortUrl}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleCopyLink}
+                    className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95"
+                    title={copied ? 'Tautan berhasil disalin!' : 'Salin Tautan Berita'}
+                    aria-label="Salin Tautan Berita"
+                  >
+                    {copied ? <Check className="w-4.5 h-4.5 text-emerald-600" /> : <Copy className="w-4.5 h-4.5 text-slate-700" />}
+                  </button>
+
+                  <button
+                    onClick={handleShareWhatsApp}
+                    className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95"
+                    title="Bagikan ke WhatsApp"
+                    aria-label="Bagikan ke WhatsApp"
+                  >
+                    <MessageCircle className="w-4.5 h-4.5" />
+                  </button>
+
+                  <button
+                    onClick={handleShareFacebook}
+                    className="w-10 h-10 rounded-xl bg-blue-700 hover:bg-blue-800 text-white flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95"
+                    title="Bagikan ke Facebook"
+                    aria-label="Bagikan ke Facebook"
+                  >
+                    <FacebookIcon className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </main>
+
+          {/* Kolom Kanan (4 Kolom): Sidebar Berita Populer & Rekomendasi (Sticky Sesuai Gambar 2) */}
+          <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-28">
+            
+            {/* Widget: BERITA POPULER (Sesuai Gambar 2 Pengguna) */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center justify-between pb-3.5 mb-4 border-b-2 border-amber-500">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900 tracking-wider uppercase">
+                    BERITA POPULER
+                  </h3>
+                </div>
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  Trending
+                </span>
+              </div>
+
+              {/* Item #1 Hero Populer (Thumbnail Besar + Overlay Teks) */}
+              {topPopular && (
+                <div
+                  onClick={() => handleSelectArticle(topPopular)}
+                  className="group cursor-pointer mb-4 pb-4 border-b border-slate-100"
+                >
+                  <div className="relative aspect-[16/10] rounded-xl overflow-hidden bg-slate-100 mb-2.5 shadow-xs">
+                    <img
+                      src={formatGoogleDriveImageUrl(topPopular.image, 600) || topPopular.image || '/gallery/cover-7-agustus-2026.jpg'}
+                      alt={topPopular.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+                    <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-amber-500 text-white font-black text-[11px] shadow-md flex items-center gap-1">
+                      <span>#1 POPULER</span>
+                    </span>
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 text-white">
+                      <h4 className="font-bold text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-amber-200 transition-colors">
+                        {topPopular.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-white/80">
+                        <span>{topPopular.date}</span>
+                        <span>•</span>
+                        <span>{topPopular.views || 1} Kali Dilihat</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* List Berita Populer #2 s/d #5 (Thumbnail di Kiri, Judul di Kanan) */}
+              <div className="space-y-3.5">
+                {remainingPopular.map((art, idx) => (
+                  <div
+                    key={art.id}
+                    onClick={() => handleSelectArticle(art)}
+                    className="group flex items-start gap-3 cursor-pointer p-1.5 -mx-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="relative w-20 h-16 sm:w-22 sm:h-17 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-xs">
+                      <img
+                        src={formatGoogleDriveImageUrl(art.image, 300) || art.image || '/gallery/cover-7-agustus-2026.jpg'}
+                        alt={art.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                        }}
+                      />
+                      <span className="absolute top-1 left-1 w-4 h-4 rounded bg-black/60 backdrop-blur-xs text-white text-[9px] font-black flex items-center justify-center">
+                        {idx + 2}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                        {art.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400">
+                        <span>{art.date}</span>
+                        <span>•</span>
+                        <span className="text-blue-600 font-semibold">{art.category}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopyLink}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-xs"
-              >
-                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                <span>{copied ? 'Tersalin!' : 'Salin Tautan'}</span>
-              </button>
+            {/* Widget: BERITA TERBARU */}
+            {latestNews.length > 0 && (
+              <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 mb-4 border-b-2 border-blue-600">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 tracking-wider uppercase">
+                      BERITA TERBARU
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedNews(null);
+                      setActiveTab('news');
+                    }}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-0.5"
+                  >
+                    <span>Semua</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
 
-              <button
-                onClick={handleShareWhatsApp}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp</span>
-              </button>
+                <div className="space-y-3.5">
+                  {latestNews.map((art) => (
+                    <div
+                      key={art.id}
+                      onClick={() => handleSelectArticle(art)}
+                      className="group flex items-start gap-3 cursor-pointer p-1.5 -mx-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="w-18 h-15 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-xs">
+                        <img
+                          src={formatGoogleDriveImageUrl(art.image, 300) || art.image || '/gallery/cover-7-agustus-2026.jpg'}
+                          alt={art.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                          {art.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
+                          <span>{art.date}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              <button
-                onClick={handleShareFacebook}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-all shadow-xs"
+            {/* Widget: Call To Action Informasi Satuan Pendidikan */}
+            <div className="p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xs space-y-3">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider inline-block">
+                Portal Korwilcam Purwodadi
+              </span>
+              <h4 className="font-extrabold text-sm sm:text-base leading-snug">
+                Punya Liputan & Kabar Prestasi Sekolah?
+              </h4>
+              <p className="text-xs text-white/80 leading-relaxed">
+                Kirimkan dokumentasi kegiatan satuan pendidikan untuk dimuat dalam kanal warta resmi Korwilcam Purwodadi.
+              </p>
+              <a
+                href="https://wa.me/6285161717170"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 px-4 rounded-xl bg-white text-blue-700 font-bold text-xs hover:bg-blue-50 transition-colors shadow-xs inline-block text-center"
               >
-                <FacebookIcon className="w-4 h-4" />
-                <span>Facebook</span>
-              </button>
+                Hubungi Redaksi Layanan
+              </a>
             </div>
-          </div>
+
+          </aside>
 
         </div>
 
-        {/* Rekomendasi Berita Lainnya */}
+        {/* Rekomendasi Berita Lainnya Grid di Bagian Bawah */}
         {otherNews.length > 0 && (
-          <section className="space-y-6 pt-6">
+          <section className="space-y-6 pt-6 border-t border-slate-200/80">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">

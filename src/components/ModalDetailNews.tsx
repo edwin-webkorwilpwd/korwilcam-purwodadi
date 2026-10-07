@@ -75,11 +75,6 @@ export const ModalDetailNews: React.FC = () => {
             <div className="flex items-center gap-1.5 cursor-help" title={readStats.detailed}>
               <Clock className="w-4 h-4 text-purple-500" />
               <span>{readStats.text}</span>
-              {readStats.isReal && (
-                <span className="text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
-                  Rata-rata riil
-                </span>
-              )}
             </div>
           </div>
 
