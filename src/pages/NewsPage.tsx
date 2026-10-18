@@ -58,6 +58,16 @@ export const NewsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // News Pagination State
+  const [newsCurrentPage, setNewsCurrentPage] = useState<number>(1);
+  const NEWS_PER_PAGE = 10;
+  const newsContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Reset pagination ke halaman 1 setiap kali filter atau pencarian berita berubah
+  React.useEffect(() => {
+    setNewsCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
   // Agenda Filter, Search & Pagination State
   const [agendaSearch, setAgendaSearch] = useState('');
   const [agendaCategory, setAgendaCategory] = useState<string>('ALL');
@@ -131,6 +141,58 @@ export const NewsPage: React.FC = () => {
       return matchSearch && matchCategory;
     });
   }, [news, searchQuery, selectedCategory]);
+
+  // Kalkulasi Pagination Berita (10 berita per halaman: 2 baris x 5 kolom)
+  const totalNewsPages = Math.ceil(filteredNews.length / NEWS_PER_PAGE) || 1;
+
+  React.useEffect(() => {
+    if (newsCurrentPage > totalNewsPages) {
+      setNewsCurrentPage(1);
+    }
+  }, [totalNewsPages, newsCurrentPage]);
+
+  const paginatedNews = useMemo(() => {
+    const startIndex = (newsCurrentPage - 1) * NEWS_PER_PAGE;
+    return filteredNews.slice(startIndex, startIndex + NEWS_PER_PAGE);
+  }, [filteredNews, newsCurrentPage]);
+
+  const handleNewsPageChange = (page: number) => {
+    if (page < 1 || page > totalNewsPages) return;
+    setNewsCurrentPage(page);
+    newsContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const getNewsPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalNewsPages <= maxVisible + 2) {
+      for (let i = 1; i <= totalNewsPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      const start = Math.max(2, newsCurrentPage - 1);
+      const end = Math.min(totalNewsPages - 1, newsCurrentPage + 1);
+
+      if (start > 2) {
+        pages.push('...');
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalNewsPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalNewsPages);
+    }
+
+    return pages;
+  };
 
   const categories = useMemo(() => {
     const list = [
@@ -247,7 +309,7 @@ export const NewsPage: React.FC = () => {
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 space-y-6 -mt-8 sm:-mt-10 relative z-20">
         
         {/* SUBTAB 1: NEWS */}
-        <div className={activeSubTab === 'news' ? 'space-y-8 block' : 'hidden'}>
+        <div ref={newsContainerRef} className={activeSubTab === 'news' ? 'space-y-6 block scroll-mt-24' : 'hidden'}>
             {/* Filter and Search Bar */}
             <div className="max-w-4xl mx-auto w-full bg-white rounded-2xl p-3 sm:p-4 border border-blue-100/90 shadow-md shadow-blue-500/5 space-y-2.5 sm:space-y-3">
               {/* Top Search Bar */}
@@ -331,10 +393,30 @@ export const NewsPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Results Count Info */}
+            {filteredNews.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-1.5">
+                <span>
+                  Menampilkan{' '}
+                  <strong className="text-slate-800 font-bold">
+                    {(newsCurrentPage - 1) * NEWS_PER_PAGE + 1}
+                    {' - '}
+                    {Math.min(newsCurrentPage * NEWS_PER_PAGE, filteredNews.length)}
+                  </strong>{' '}
+                  dari <strong className="text-slate-800 font-bold">{filteredNews.length}</strong> berita
+                  {selectedCategory !== 'ALL' && ` pada kategori "${selectedCategory}"`}
+                  {searchQuery && ` untuk pencarian "${searchQuery}"`}
+                </span>
+                <span className="text-slate-400 font-medium">
+                  Halaman {newsCurrentPage} dari {totalNewsPages} (Total database: {news.length} berita)
+                </span>
+              </div>
+            )}
+
             {/* News Grid */}
             {filteredNews.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
-                {filteredNews.map((article) => (
+                {paginatedNews.map((article) => (
                   <NewsCard key={article.id} article={article} />
                 ))}
               </div>
@@ -347,6 +429,83 @@ export const NewsPage: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-1">
                   Coba ganti kata kunci pencarian atau pilih kategori lain.
                 </p>
+              </div>
+            )}
+
+            {/* Pagination Controls Berita */}
+            {filteredNews.length > 0 && totalNewsPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200/80">
+                <div className="text-xs text-slate-500 order-2 sm:order-1">
+                  Menampilkan halaman <span className="font-bold text-slate-800">{newsCurrentPage}</span> dari <span className="font-bold text-slate-800">{totalNewsPages}</span> (10 berita per halaman)
+                </div>
+
+                <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                  {/* First Page */}
+                  <button
+                    type="button"
+                    onClick={() => handleNewsPageChange(1)}
+                    disabled={newsCurrentPage === 1}
+                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                    title="Halaman Pertama"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* Prev Page */}
+                  <button
+                    type="button"
+                    onClick={() => handleNewsPageChange(newsCurrentPage - 1)}
+                    disabled={newsCurrentPage === 1}
+                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sebelumnya</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  {getNewsPageNumbers().map((p, idx) => (
+                    typeof p === 'number' ? (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleNewsPageChange(p)}
+                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          newsCurrentPage === p
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-extrabold'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ) : (
+                      <span key={idx} className="w-6 text-center text-slate-400 font-bold text-xs select-none">
+                        {p}
+                      </span>
+                    )
+                  ))}
+
+                  {/* Next Page */}
+                  <button
+                    type="button"
+                    onClick={() => handleNewsPageChange(newsCurrentPage + 1)}
+                    disabled={newsCurrentPage === totalNewsPages}
+                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                  >
+                    <span className="hidden sm:inline">Selanjutnya</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {/* Last Page */}
+                  <button
+                    type="button"
+                    onClick={() => handleNewsPageChange(totalNewsPages)}
+                    disabled={newsCurrentPage === totalNewsPages}
+                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                    title="Halaman Terakhir"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
         </div>
