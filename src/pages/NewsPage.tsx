@@ -68,6 +68,11 @@ export const NewsPage: React.FC = () => {
     setNewsCurrentPage(1);
   }, [searchQuery, selectedCategory]);
 
+  // Announcement Pagination State (10 per halaman, 5 per baris)
+  const [announcementCurrentPage, setAnnouncementCurrentPage] = useState<number>(1);
+  const ANNOUNCEMENT_PER_PAGE = 10;
+  const announcementContainerRef = React.useRef<HTMLDivElement>(null);
+
   // Agenda Filter, Search & Pagination State
   const [agendaSearch, setAgendaSearch] = useState('');
   const [agendaCategory, setAgendaCategory] = useState<string>('ALL');
@@ -189,6 +194,58 @@ export const NewsPage: React.FC = () => {
       }
 
       pages.push(totalNewsPages);
+    }
+
+    return pages;
+  };
+
+  // Kalkulasi Pagination Pengumuman (10 pengumuman per halaman: 2 baris x 5 kolom)
+  const totalAnnouncementPages = Math.ceil(announcements.length / ANNOUNCEMENT_PER_PAGE) || 1;
+
+  React.useEffect(() => {
+    if (announcementCurrentPage > totalAnnouncementPages) {
+      setAnnouncementCurrentPage(1);
+    }
+  }, [totalAnnouncementPages, announcementCurrentPage]);
+
+  const paginatedAnnouncements = useMemo(() => {
+    const startIndex = (announcementCurrentPage - 1) * ANNOUNCEMENT_PER_PAGE;
+    return announcements.slice(startIndex, startIndex + ANNOUNCEMENT_PER_PAGE);
+  }, [announcements, announcementCurrentPage]);
+
+  const handleAnnouncementPageChange = (page: number) => {
+    if (page < 1 || page > totalAnnouncementPages) return;
+    setAnnouncementCurrentPage(page);
+    announcementContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const getAnnouncementPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalAnnouncementPages <= maxVisible + 2) {
+      for (let i = 1; i <= totalAnnouncementPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      const start = Math.max(2, announcementCurrentPage - 1);
+      const end = Math.min(totalAnnouncementPages - 1, announcementCurrentPage + 1);
+
+      if (start > 2) {
+        pages.push('...');
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalAnnouncementPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalAnnouncementPages);
     }
 
     return pages;
@@ -511,7 +568,7 @@ export const NewsPage: React.FC = () => {
         </div>
 
         {/* SUBTAB 2: ANNOUNCEMENTS */}
-        <div className={activeSubTab === 'announcements' ? 'space-y-6 block' : 'hidden'}>
+        <div ref={announcementContainerRef} className={activeSubTab === 'announcements' ? 'space-y-6 block scroll-mt-24' : 'hidden'}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
@@ -543,9 +600,28 @@ export const NewsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Results Count Info Pengumuman */}
+          {announcements.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-1.5">
+              <span>
+                Menampilkan{' '}
+                <strong className="text-slate-800 font-bold">
+                  {(announcementCurrentPage - 1) * ANNOUNCEMENT_PER_PAGE + 1}
+                  {' - '}
+                  {Math.min(announcementCurrentPage * ANNOUNCEMENT_PER_PAGE, announcements.length)}
+                </strong>{' '}
+                dari <strong className="text-slate-800 font-bold">{announcements.length}</strong> surat edaran & pengumuman
+              </span>
+              <span className="text-slate-400 font-medium">
+                Halaman {announcementCurrentPage} dari {totalAnnouncementPages} (Total: {announcements.length} pengumuman)
+              </span>
+            </div>
+          )}
+
+          {/* Grid Pengumuman 5 Kolom per Baris di Layar Besar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
             {announcements.length > 0 ? (
-              announcements.map((ann, idx) => (
+              paginatedAnnouncements.map((ann, idx) => (
                 <AnnouncementCard
                   key={ann.id}
                   announcement={ann}
@@ -565,6 +641,83 @@ export const NewsPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Pagination Controls Pengumuman */}
+          {announcements.length > 0 && totalAnnouncementPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200/80">
+              <div className="text-xs text-slate-500 order-2 sm:order-1">
+                Menampilkan halaman <span className="font-bold text-slate-800">{announcementCurrentPage}</span> dari <span className="font-bold text-slate-800">{totalAnnouncementPages}</span> (10 pengumuman per halaman)
+              </div>
+
+              <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                {/* First Page */}
+                <button
+                  type="button"
+                  onClick={() => handleAnnouncementPageChange(1)}
+                  disabled={announcementCurrentPage === 1}
+                  className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                  title="Halaman Pertama"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Prev Page */}
+                <button
+                  type="button"
+                  onClick={() => handleAnnouncementPageChange(announcementCurrentPage - 1)}
+                  disabled={announcementCurrentPage === 1}
+                  className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sebelumnya</span>
+                </button>
+
+                {/* Page Numbers */}
+                {getAnnouncementPageNumbers().map((p, idx) => (
+                  typeof p === 'number' ? (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleAnnouncementPageChange(p)}
+                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        announcementCurrentPage === p
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-extrabold'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ) : (
+                    <span key={idx} className="w-6 text-center text-slate-400 font-bold text-xs select-none">
+                      {p}
+                    </span>
+                  )
+                ))}
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  onClick={() => handleAnnouncementPageChange(announcementCurrentPage + 1)}
+                  disabled={announcementCurrentPage === totalAnnouncementPages}
+                  className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                >
+                  <span className="hidden sm:inline">Selanjutnya</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  onClick={() => handleAnnouncementPageChange(totalAnnouncementPages)}
+                  disabled={announcementCurrentPage === totalAnnouncementPages}
+                  className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                  title="Halaman Terakhir"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* SUBTAB 3: AGENDA - Rekapitulasi Penggunaan Aula Korwilcam Purwodadi */}
