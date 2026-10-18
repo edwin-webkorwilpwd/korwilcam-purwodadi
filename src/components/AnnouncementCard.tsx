@@ -13,7 +13,7 @@ import {
 const IllustrationDocCheck: React.FC = () => (
   <svg
     viewBox="0 0 80 80"
-    className="w-16 h-16 sm:w-20 sm:h-20 pointer-events-none select-none drop-shadow-sm"
+    className="w-full h-full pointer-events-none select-none drop-shadow-sm"
     fill="none"
   >
     {/* Soft sky-blue glow backdrop */}
@@ -86,7 +86,7 @@ const IllustrationDocCheck: React.FC = () => (
 const IllustrationBospShield: React.FC = () => (
   <svg
     viewBox="0 0 80 80"
-    className="w-16 h-16 sm:w-20 sm:h-20 pointer-events-none select-none drop-shadow-sm"
+    className="w-full h-full pointer-events-none select-none drop-shadow-sm"
     fill="none"
   >
     {/* Soft sky-blue glow backdrop */}
@@ -163,7 +163,7 @@ const IllustrationBospShield: React.FC = () => (
 const IllustrationMailCheck: React.FC = () => (
   <svg
     viewBox="0 0 80 80"
-    className="w-16 h-16 sm:w-20 sm:h-20 pointer-events-none select-none drop-shadow-sm"
+    className="w-full h-full pointer-events-none select-none drop-shadow-sm"
     fill="none"
   >
     {/* Soft sky-blue glow backdrop */}
@@ -269,11 +269,11 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
   return (
     <div 
       onClick={() => onSelect && onSelect()}
-      className="group relative bg-white rounded-3xl sm:rounded-[26px] p-5 sm:p-6 border border-blue-100/90 shadow-md shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer space-y-4"
+      className="group relative bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 border border-blue-100/90 shadow-sm shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/15 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer h-full"
     >
       {/* Top-Right Soft Wave Accent */}
       <svg
-        className="absolute top-0 right-0 w-32 h-24 pointer-events-none select-none z-0 opacity-40"
+        className="absolute top-0 right-0 w-28 h-20 pointer-events-none select-none z-0 opacity-40"
         viewBox="0 0 120 90"
         fill="none"
       >
@@ -291,7 +291,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 
       {/* Bottom-Left Curved Blue Wave */}
       <svg
-        className="absolute bottom-0 left-0 w-24 h-16 pointer-events-none select-none z-0"
+        className="absolute bottom-0 left-0 w-20 h-14 pointer-events-none select-none z-0"
         viewBox="0 0 100 65"
         fill="none"
       >
@@ -308,92 +308,97 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         </defs>
       </svg>
 
-      {/* 1. Top Badges & Date Row */}
-      <div className="flex items-center justify-between gap-2 flex-wrap relative z-10">
-        <div className="flex items-center gap-2">
-          {/* Urgency Pill with Megaphone */}
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50/90 text-blue-700 border border-blue-200/80 shadow-2xs">
-            <Megaphone className="w-3.5 h-3.5 text-blue-600" />
-            <span>{announcement.urgency || 'Penting'}</span>
-          </span>
+      <div className="space-y-3 relative z-10">
+        {/* 1. Top Badges & Date Row */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-1.5 flex-wrap">
+            {/* Urgency Pill with Megaphone */}
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-blue-50/90 text-blue-700 border border-blue-200/80 shadow-2xs whitespace-nowrap shrink-0">
+              <Megaphone className="w-3 h-3 text-blue-600" />
+              <span>{announcement.urgency || 'Penting'}</span>
+            </span>
 
-          {/* Target Pill */}
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50/60 text-blue-600 border border-blue-100">
-            Target: {announcement.target || 'Semua Satuan'}
-          </span>
-        </div>
-
-        {/* Date & Author */}
-        <div className="flex flex-col sm:items-end gap-0.5 text-xs text-slate-500 font-medium">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-blue-500" />
-            <span>{announcement.date}</span>
+            {/* Target Pill - whitespace-nowrap mencegah teks terlipat 3 baris */}
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50/60 text-blue-600 border border-blue-100 whitespace-nowrap shrink-0 max-w-[130px] truncate" title={`Target: ${announcement.target || 'Semua Satuan'}`}>
+              Target: {announcement.target || 'Semua Satuan'}
+            </span>
           </div>
-          {announcement.author && (
-            <div className="flex items-center gap-1 text-[11px] text-slate-600 font-semibold">
-              <User className="w-3 h-3 text-blue-600 shrink-0" />
-              <span className="truncate max-w-[150px]">{announcement.author}</span>
+
+          {/* Date & Author */}
+          <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium pt-0.5">
+            <div className="flex items-center gap-1 shrink-0">
+              <Calendar className="w-3 h-3 text-blue-500" />
+              <span>{announcement.date}</span>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Middle Row: Graphic Illustration + Title & Summary */}
-      <div className="flex items-start gap-4 py-1 relative z-10">
-        {/* Left 3D Vector Illustration */}
-        <div className="shrink-0 transition-transform duration-300 group-hover:scale-105 mt-0.5">
-          <IllustrationComponent />
+            {announcement.author && (
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold truncate max-w-[110px]" title={announcement.author}>
+                <User className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                <span className="truncate">{announcement.author}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right Title & Description */}
-        <div className="min-w-0 flex-1">
-          <h4 className="font-extrabold text-slate-900 text-base sm:text-lg leading-snug group-hover:text-blue-600 transition-colors line-clamp-2">
-            {announcement.title}
-          </h4>
-          <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
-            {announcement.summary}
-          </p>
+        {/* 2. Middle Row: Graphic Illustration + Title & Summary */}
+        <div className="flex items-start gap-2.5 py-0.5">
+          {/* Left 3D Vector Illustration (Proporsional untuk 5 Kolom) */}
+          <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 transition-transform duration-300 group-hover:scale-105 mt-0.5 flex items-center justify-center">
+            <IllustrationComponent />
+          </div>
+
+          {/* Right Title & Description */}
+          <div className="min-w-0 flex-1 space-y-1">
+            <h4 
+              className="font-extrabold text-slate-900 text-xs sm:text-[13px] leading-snug group-hover:text-blue-600 transition-colors line-clamp-2" 
+              title={announcement.title}
+            >
+              {announcement.title}
+            </h4>
+            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+              {announcement.summary}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* 3. Bottom Row: File Attachment Info + Action Button */}
       <div 
-        className="pt-3.5 mt-auto flex items-center justify-between gap-3 border-t border-slate-100 relative z-10"
+        className="pt-2.5 mt-3 border-t border-slate-100 relative z-10 space-y-2"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left Attachment Info */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#ef4444] text-white flex flex-col items-center justify-center font-black text-[9px] shadow-xs shadow-rose-500/20 shrink-0 select-none">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-[#ef4444] text-white flex items-center justify-center font-black text-[9px] shadow-xs shadow-rose-500/20 shrink-0 select-none">
             <span>PDF</span>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-800 truncate max-w-[120px] sm:max-w-[170px]" title={fileName}>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold text-slate-800 truncate" title={fileName}>
               {fileName}
             </p>
-            <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+            <p className="text-[10px] font-medium text-slate-400">
               PDF • {fileSize}
             </p>
           </div>
         </div>
 
-        {/* Right Action Button */}
+        {/* Action Button: Lebar Penuh (w-full) sehingga tombol dan teks tidak pernah bertabrakan */}
         {hasFile ? (
           <button
             onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all shrink-0 cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-xs hover:shadow-md hover:shadow-blue-500/25 transition-all cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Unduh Berkas</span>
-            <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         ) : (
           <button
             onClick={() => onSelect && onSelect()}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all shrink-0 cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold shadow-xs hover:shadow-md hover:shadow-blue-500/25 transition-all cursor-pointer"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             <span>Buka Edaran</span>
-            <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
