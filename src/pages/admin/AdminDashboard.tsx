@@ -74,7 +74,9 @@ import {
   Smartphone,
   Trophy,
   Medal,
-  HelpCircle
+  HelpCircle,
+  EyeOff,
+  UserCog
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -90,6 +92,7 @@ import { VisitorAnalyticsChart } from '../../components/admin/VisitorAnalyticsCh
 import { MenuSettingsCMS } from '../../components/admin/MenuSettingsCMS';
 import { 
   getSupabaseConfig, 
+  getSupabaseClient,
   setCustomSupabaseConfig, 
   clearCustomSupabaseConfig, 
   testSupabaseConnection 
@@ -362,7 +365,8 @@ export const AdminDashboard: React.FC = () => {
     | 'broadcast-cms'
     | 'users-cms'
     | 'activity-log-cms'
-    | 'menu-settings-cms';
+    | 'menu-settings-cms'
+    | 'my-profile-cms';
 
   const isSuperAdmin = currentUser?.role === 'Super Admin';
   const isAdmin = currentUser?.role === 'Admin';
@@ -400,7 +404,7 @@ export const AdminDashboard: React.FC = () => {
   // Guard: Pastikan role Penulis dan Admin hanya berada di menu yang diizinkan
   useEffect(() => {
     if (isWriter) {
-      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'achievements-cms'];
+      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'achievements-cms', 'my-profile-cms'];
       if (canAccessOrganizationCms) {
         allowedSections.push('organization-cms');
       }
@@ -3365,6 +3369,146 @@ export const AdminDashboard: React.FC = () => {
     });
   };
 
+  // ==========================================================
+  // STATE & HANDLER PROFIL AKUN SAYA (Bisa Diakses Semua Akun)
+  // ==========================================================
+  const [profileEmail, setProfileEmail] = useState<string>(() => currentUser?.email || '');
+  const [profilePassword, setProfilePassword] = useState<string>(() => currentUser?.password || '');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isSavingMyProfile, setIsSavingMyProfile] = useState<boolean>(false);
+
+  // Ambil data password & email langsung dari tabel admin_users di Supabase
+  useEffect(() => {
+    let isCancelled = false;
+
+    // 1. Sinkronisasi awal dari currentUser dan adminUsers
+    if (currentUser?.email) {
+      setProfileEmail(currentUser.email);
+    }
+    const matchedUser = adminUsers.find(
+      (u) => (currentUser?.id && u.id === currentUser.id) || (currentUser?.username && u.username === currentUser.username)
+    );
+    if (matchedUser?.password) {
+      setProfilePassword(matchedUser.password);
+    } else if (currentUser?.password) {
+      setProfilePassword(currentUser.password);
+    }
+
+    // 2. Query langsung ke tabel admin_users kolom password & email di Supabase
+    const fetchPasswordFromDatabase = async () => {
+      if (!currentUser?.id && !currentUser?.username) return;
+      const client = getSupabaseClient();
+      if (!client) return;
+
+      try {
+        let query = client.from('admin_users').select('password, email');
+        if (currentUser.id) {
+          query = query.eq('id', currentUser.id);
+        } else if (currentUser.username) {
+          query = query.ilike('username', currentUser.username);
+        }
+
+        const { data, error } = await query.maybeSingle();
+        if (!isCancelled && !error && data) {
+          if (data.password !== undefined && data.password !== null) {
+            setProfilePassword(String(data.password));
+          }
+          if (data.email) {
+            setProfileEmail(String(data.email));
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memuat password dari tabel admin_users:', err);
+      }
+    };
+
+    fetchPasswordFromDatabase();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentUser, currentSection, adminUsers]);
+
+  const handleSaveMyProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser?.id) {
+      showToast('Sesi akun tidak valid. Silakan login kembali.', 'error');
+      return;
+    }
+
+    const trimmedEmail = profileEmail.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      showToast('Format alamat email tidak valid! Contoh: akun@gmail.com', 'error');
+      return;
+    }
+
+    const trimmedPassword = profilePassword.trim();
+    if (!trimmedPassword) {
+      showToast('Kata sandi tidak boleh kosong!', 'error');
+      return;
+    }
+    if (trimmedPassword.length < 6) {
+      showToast('Kata sandi minimal 6 karakter!', 'error');
+      return;
+    }
+
+    const matchedUser = adminUsers.find(
+      (u) => (currentUser?.id && u.id === currentUser.id) || (currentUser?.username && u.username === currentUser.username)
+    );
+    const currentDbPass = matchedUser?.password || currentUser?.password || '';
+    const isPasswordChanged = trimmedPassword !== currentDbPass;
+    const isEmailChanged = trimmedEmail !== (currentUser.email || matchedUser?.email || '');
+
+    if (!isPasswordChanged && !isEmailChanged) {
+      showToast('Tidak ada perubahan data profil yang perlu disimpan.', 'info');
+      return;
+    }
+
+    const confirmed = await showConfirmDialog({
+      title: 'Simpan Perubahan Profil?',
+      message: isPasswordChanged
+        ? 'Apakah Anda yakin ingin memperbarui data profil dan kata sandi akun Anda?'
+        : 'Apakah Anda yakin ingin memperbarui alamat email akun Anda?',
+      type: 'edit',
+      itemName: currentUser.name,
+      confirmText: 'Ya, Simpan Perubahan',
+      cancelText: 'Batal'
+    });
+    if (!confirmed) return;
+
+    setIsSavingMyProfile(true);
+    try {
+      const updatePayload: { email?: string; password?: string } = {
+        email: trimmedEmail,
+        password: trimmedPassword
+      };
+
+      const success = await updateAdminUser(currentUser.id, updatePayload);
+      if (success) {
+        showNoticePopup({
+          title: 'Profil Berhasil Diperbarui!',
+          message: isPasswordChanged
+            ? 'Alamat email dan kata sandi Anda telah berhasil diperbarui ke database Supabase.'
+            : 'Alamat email Anda telah berhasil diperbarui ke database Supabase.',
+          type: 'success'
+        });
+      }
+    } catch (err: any) {
+      console.error('Gagal memperbarui profil akun:', err);
+      showToast('Gagal memperbarui profil: ' + (err?.message || 'Terjadi kesalahan sistem'), 'error');
+    } finally {
+      setIsSavingMyProfile(false);
+    }
+  };
+
+  const handleResetProfileForm = () => {
+    setProfileEmail(currentUser?.email || '');
+    const matchedUser = adminUsers.find(
+      (u) => (currentUser?.id && u.id === currentUser.id) || (currentUser?.username && u.username === currentUser.username)
+    );
+    setProfilePassword(matchedUser?.password || currentUser?.password || '');
+  };
+
   // --- ORGANISASI CMS STATE ---
   const [selectedOrgIdForEdit, setSelectedOrgIdForEdit] = useState<string | null>(null);
   const [activeOrgSubTab, setActiveOrgSubTab] = useState<'sambutan' | 'pengurus' | 'visi-misi' | 'identitas'>('sambutan');
@@ -3856,8 +4000,17 @@ export const AdminDashboard: React.FC = () => {
             <span className="sm:hidden">Web</span>
           </button>
 
-          {/* Active User Profile & Role Indicator */}
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/80">
+          {/* Active User Profile & Role Indicator (Clickable to open My Profile) */}
+          <button
+            type="button"
+            onClick={() => setCurrentSection('my-profile-cms')}
+            className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all border ${
+              currentSection === 'my-profile-cms'
+                ? 'bg-blue-600/30 border-blue-400 text-white shadow-sm ring-2 ring-blue-500/20'
+                : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700/80 text-white'
+            }`}
+            title="Klik untuk membuka Profil Akun Saya"
+          >
             <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
               currentUser?.role === 'Super Admin'
                 ? 'bg-purple-600 text-white'
@@ -3887,7 +4040,7 @@ export const AdminDashboard: React.FC = () => {
                 {currentUser?.role || 'Admin'}
               </span>
             </div>
-          </div>
+          </button>
 
           <button
             onClick={logout}
@@ -4628,6 +4781,48 @@ export const AdminDashboard: React.FC = () => {
             </>
           )}
 
+          {/* Menu Profil Akun Saya (Untuk Semua Role: Super Admin, Admin, Penulis) */}
+          <div className="pt-3 pb-1 px-2.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100 pt-2.5">
+              Akun Pengguna:
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setCurrentSection('my-profile-cms')}
+            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              currentSection === 'my-profile-cms'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+              }`}>
+                <UserCog className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className={`text-xs font-bold truncate leading-tight ${
+                  currentSection === 'my-profile-cms' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  Profil Akun Saya
+                </span>
+                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                  currentSection === 'my-profile-cms' ? 'text-blue-100' : 'text-slate-400'
+                }`}>
+                  Email &amp; Ganti Sandi
+                </span>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+              currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {currentUser?.role || 'User'}
+            </span>
+          </button>
+
           {/* Factory reset button (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
             <div className="pt-3 mt-3 border-t border-slate-100">
@@ -4679,7 +4874,7 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-          ) : currentUser?.role === 'Penulis' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'achievements-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
+          ) : currentUser?.role === 'Penulis' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'achievements-cms' && currentSection !== 'my-profile-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Lock className="w-8 h-8" />
@@ -13912,6 +14107,240 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 10: PENGATURAN TAMPILAN MENU & SUB MENU (KHUSUS SUPER ADMIN) */}
           {currentSection === 'menu-settings-cms' && isSuperAdmin && (
             <MenuSettingsCMS onGoToWebsite={() => setActiveTab('home')} />
+          )}
+
+          {/* TAB: PROFIL AKUN SAYA (BISA DIAKSES OLEH SEMUA ROLE: SUPER ADMIN, ADMIN, PENULIS) */}
+          {currentSection === 'my-profile-cms' && (
+            <div className="space-y-6 w-full">
+              {/* Header Banner */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-3xl shadow-md border border-slate-800">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg shrink-0 ${
+                    currentUser?.role === 'Super Admin'
+                      ? 'bg-purple-600 text-white shadow-purple-900/40'
+                      : currentUser?.role === 'Admin'
+                      ? 'bg-blue-600 text-white shadow-blue-900/40'
+                      : 'bg-emerald-600 text-white shadow-emerald-900/40'
+                  }`}>
+                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg sm:text-xl font-extrabold text-white truncate">
+                        {currentUser?.name || 'Pengguna'}
+                      </h2>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+                        currentUser?.role === 'Super Admin'
+                          ? 'bg-purple-900/70 text-purple-200 border-purple-400/40'
+                          : currentUser?.role === 'Admin'
+                          ? 'bg-blue-900/70 text-blue-200 border-blue-400/40'
+                          : 'bg-emerald-900/70 text-emerald-200 border-emerald-400/40'
+                      }`}>
+                        {currentUser?.role || 'Admin'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 font-mono">
+                      @{currentUser?.username || 'user'} • ID: {currentUser?.id || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:self-center shrink-0">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-emerald-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Akun Aktif (Supabase)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Card */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                      <UserCog className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-slate-900">
+                        Pengaturan Data Profil Akun
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Informasi akun pengguna dan pengaturan data login Anda.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSaveMyProfile} className="p-5 sm:p-6 space-y-6">
+                  {/* Grid 2 Bagian */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* BAGIAN 1: IDENTITAS RESMI */}
+                    <div className="space-y-4 bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80">
+                      <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
+                        <Lock className="w-4 h-4 text-slate-500" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                          Identitas Resmi
+                        </h4>
+                      </div>
+
+                      {/* 1. Nama Lengkap */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Nama Lengkap Pengguna
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={currentUser?.name || ''}
+                            disabled
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100/90 border border-slate-200 text-xs font-bold text-slate-600 cursor-not-allowed select-none"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          Nama resmi akun diverifikasi dan dikelola oleh Super Administrator.
+                        </p>
+                      </div>
+
+                      {/* 2. Username */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Username Login
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs font-bold select-none">
+                            @
+                          </span>
+                          <input
+                            type="text"
+                            value={currentUser?.username || ''}
+                            disabled
+                            className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-100/90 border border-slate-200 text-xs font-mono font-bold text-slate-600 cursor-not-allowed select-none"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          Username digunakan untuk masuk (login) ke portal CMS.
+                        </p>
+                      </div>
+
+                      {/* 3. Tingkat Wewenang (Role) */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Tingkat Wewenang / Hak Akses
+                        </label>
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-100/90 border border-slate-200 text-xs font-bold text-slate-700 select-none">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                            currentUser?.role === 'Super Admin'
+                              ? 'bg-purple-100 text-purple-700'
+                              : currentUser?.role === 'Admin'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {currentUser?.role === 'Super Admin' && <Crown className="w-3.5 h-3.5" />}
+                            {currentUser?.role === 'Admin' && <Shield className="w-3.5 h-3.5" />}
+                            {currentUser?.role === 'Penulis' && <PenTool className="w-3.5 h-3.5" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-slate-900">{currentUser?.role || 'Admin'}</div>
+                            <div className="text-[10px] font-normal text-slate-500">
+                              {currentUser?.role === 'Super Admin'
+                                ? 'Wewenang Penuh: Kelola seluruh modul website & pengguna'
+                                : currentUser?.role === 'Admin'
+                                ? 'Wewenang Pengelolaan: Kelola data sekolah, berita, agenda, dokumen'
+                                : 'Wewenang Redaksi: Menulis Warta & Informasi, Prestasi, Galeri'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BAGIAN 2: KONTAK & KATA SANDI */}
+                    <div className="space-y-4 bg-blue-50/30 p-5 rounded-2xl border border-blue-100">
+                      <div className="flex items-center gap-2 pb-2 border-b border-blue-100">
+                        <Edit3 className="w-4 h-4 text-blue-600" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-blue-900">
+                          Kontak &amp; Kata Sandi
+                        </h4>
+                      </div>
+
+                      {/* 1. Alamat Email */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                          Alamat Email Pengguna
+                        </label>
+                        <input
+                          type="email"
+                          value={profileEmail}
+                          onChange={(e) => setProfileEmail(e.target.value)}
+                          placeholder="Contoh: humas.organisasi@gmail.com"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all shadow-xs"
+                        />
+                        <p className="text-[10px] text-slate-500 leading-tight">
+                          Email aktif untuk korespondensi, konfirmasi akun, dan notifikasi resmi dinas.
+                        </p>
+                      </div>
+
+                      {/* 2. Kata Sandi */}
+                      <div className="space-y-1.5 pt-1">
+                        <label className="text-xs font-bold text-slate-700">
+                          Kata Sandi (Password)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={profilePassword}
+                            onChange={(e) => setProfilePassword(e.target.value)}
+                            placeholder="Masukkan kata sandi akun"
+                            className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-white border border-slate-300 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all shadow-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            title={showPassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-tight">
+                          Gunakan ikon mata untuk melihat kata sandi saat ini. Minimal 6 karakter jika ingin mengganti.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Form Action Buttons */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={handleResetProfileForm}
+                      disabled={isSavingMyProfile}
+                      className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all disabled:opacity-50"
+                    >
+                      Batal / Reset Formulir
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={isSavingMyProfile}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all active:scale-98"
+                    >
+                      {isSavingMyProfile ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Menyimpan ke Database...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Perubahan Profil</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           )}
 
             </>
