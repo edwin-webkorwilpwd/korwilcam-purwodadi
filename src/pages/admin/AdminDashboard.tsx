@@ -3484,10 +3484,9 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
+    <div className="h-screen max-h-screen bg-slate-100 flex flex-col overflow-hidden">
       {/* Header Bar */}
-      {/* Header Bar */}
-      <header className="bg-slate-900 text-white py-3 px-4 sm:px-6 border-b border-slate-800 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      <header className="bg-slate-900 text-white py-3 px-4 sm:px-6 border-b border-slate-800 flex items-center justify-between shrink-0 z-30 shadow-md">
         <div className="flex items-center gap-3 min-w-0">
           <div className="h-10 w-auto flex items-center justify-center shrink-0">
             <img 
@@ -3618,10 +3617,10 @@ export const AdminDashboard: React.FC = () => {
       </header>
 
       {/* Main Workspace Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         
         {/* Sidebar Nav: Matched 1-to-1 with Public Menus */}
-        <aside className="w-full lg:w-72 xl:w-80 bg-white border-r border-slate-200 p-3.5 space-y-1 shrink-0 select-none">
+        <aside className="w-full lg:w-72 xl:w-80 bg-white border-r border-slate-200 p-3.5 space-y-1 shrink-0 select-none overflow-y-auto max-h-[35vh] lg:max-h-full lg:h-full overscroll-contain">
           
           {/* Menu Khusus Super Admin: Ringkasan Dashboard */}
           {isSuperAdmin && (
@@ -4377,7 +4376,7 @@ export const AdminDashboard: React.FC = () => {
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 min-h-0 h-full p-4 sm:p-6 lg:p-8 overflow-y-auto overscroll-contain">
           {(!isSuperAdmin && currentSection === 'overview') ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
