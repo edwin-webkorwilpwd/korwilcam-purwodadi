@@ -3447,29 +3447,11 @@ export const AdminDashboard: React.FC = () => {
       showToast('Kata sandi tidak boleh kosong!', 'error');
       return;
     }
-    if (trimmedPassword.length < 6) {
-      showToast('Kata sandi minimal 6 karakter!', 'error');
-      return;
-    }
-
-    const matchedUser = adminUsers.find(
-      (u) => (currentUser?.id && u.id === currentUser.id) || (currentUser?.username && u.username === currentUser.username)
-    );
-    const currentDbPass = matchedUser?.password || currentUser?.password || '';
-    const isPasswordChanged = trimmedPassword !== currentDbPass;
-    const isEmailChanged = trimmedEmail !== (currentUser.email || matchedUser?.email || '');
-
-    if (!isPasswordChanged && !isEmailChanged) {
-      showToast('Tidak ada perubahan data profil yang perlu disimpan.', 'info');
-      return;
-    }
 
     const confirmed = await showConfirmDialog({
-      title: 'Simpan Perubahan Profil?',
-      message: isPasswordChanged
-        ? 'Apakah Anda yakin ingin memperbarui data profil dan kata sandi akun Anda?'
-        : 'Apakah Anda yakin ingin memperbarui alamat email akun Anda?',
-      type: 'edit',
+      title: 'Simpan Perubahan Profil Akun?',
+      message: 'Apakah Anda yakin ingin menyimpan perubahan data email dan kata sandi akun Anda ke database Supabase?',
+      type: 'save',
       itemName: currentUser.name,
       confirmText: 'Ya, Simpan Perubahan',
       cancelText: 'Batal'
@@ -3486,10 +3468,8 @@ export const AdminDashboard: React.FC = () => {
       const success = await updateAdminUser(currentUser.id, updatePayload);
       if (success) {
         showNoticePopup({
-          title: 'Profil Berhasil Diperbarui!',
-          message: isPasswordChanged
-            ? 'Alamat email dan kata sandi Anda telah berhasil diperbarui ke database Supabase.'
-            : 'Alamat email Anda telah berhasil diperbarui ke database Supabase.',
+          title: 'Profil Berhasil Disimpan!',
+          message: 'Data email dan kata sandi akun Anda telah berhasil disimpan ke database Supabase (admin_users).',
           type: 'success'
         });
       }
@@ -14303,7 +14283,7 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                         </div>
                         <p className="text-[10px] text-slate-500 leading-tight">
-                          Gunakan ikon mata untuk melihat kata sandi saat ini. Minimal 6 karakter jika ingin mengganti.
+                          Gunakan ikon mata untuk melihat atau menyembunyikan kata sandi login Anda.
                         </p>
                       </div>
                     </div>
