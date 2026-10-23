@@ -2183,11 +2183,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const { data: dbUsers, error: usersErr } = await client
             .from('admin_users')
-            .select('id, username, name, role, email, avatar, status, created_at, updated_at');
+            .select('id, username, password, name, role, email, avatar, status, created_at, updated_at');
           if (!usersErr && dbUsers && dbUsers.length > 0) {
             setAdminUsers(dbUsers.map((u: any) => ({
               id: u.id,
               username: u.username,
+              password: u.password || '',
               name: u.name,
               role: u.role as AdminRole,
               email: u.email || '',
@@ -2765,11 +2766,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         async () => {
           const { data: dbUsers } = await client
             .from('admin_users')
-            .select('id, username, name, role, email, avatar, status, created_at, updated_at');
+            .select('id, username, password, name, role, email, avatar, status, created_at, updated_at');
           if (dbUsers) {
             setAdminUsers(dbUsers.map((u: any) => ({
               id: u.id,
               username: u.username,
+              password: u.password || '',
               name: u.name,
               role: u.role as AdminRole,
               email: u.email || '',
@@ -4020,7 +4022,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           const { data, error } = await client
             .from('admin_users')
-            .select('id, username, name, role, email, avatar, status, created_at, updated_at')
+            .select('id, username, password, name, role, email, avatar, status, created_at, updated_at')
             .ilike('username', sanitizedUser)
             .eq('password', trimmedPass)
             .limit(1);
@@ -4059,6 +4061,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const matched: AdminUser = {
             id: u.id,
             username: u.username,
+            password: u.password || trimmedPass,
             name: u.name,
             role: u.role as AdminRole,
             email: u.email || '',
