@@ -147,6 +147,105 @@ import { getGoogleMapsUrl, normalizeToGoogleMapsUrl } from '../../lib/coordinate
 import { sortGalleryDescending } from '../../lib/galleryHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath, getDataRequestShareUrl } from '../../lib/dataRequestHelper';
 
+interface AdminPaginationProps {
+  currentPage: number;
+  totalItems: number;
+  itemsPerPage?: number;
+  itemLabel?: string;
+  onPageChange: (page: number) => void;
+  className?: string;
+}
+
+const AdminPagination: React.FC<AdminPaginationProps> = ({
+  currentPage,
+  totalItems,
+  itemsPerPage = 10,
+  itemLabel = 'data',
+  onPageChange,
+  className = ''
+}) => {
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  if (totalItems <= itemsPerPage) return null;
+
+  return (
+    <div className={`p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-white rounded-b-2xl ${className}`}>
+      <div>
+        Menampilkan{' '}
+        <strong className="text-slate-800">
+          {totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
+        </strong>{' '}
+        -{' '}
+        <strong className="text-slate-800">
+          {Math.min(totalItems, currentPage * itemsPerPage)}
+        </strong>{' '}
+        dari <strong className="text-slate-800">{totalItems}</strong> {itemLabel} (Halaman{' '}
+        <strong className="text-slate-800">{currentPage}</strong> dari{' '}
+        <strong className="text-slate-800">{totalPages}</strong>)
+      </div>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          title="Halaman Pertama"
+        >
+          <ChevronsLeft className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          title="Halaman Sebelumnya"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-1">
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum = i + 1;
+            if (totalPages > 5 && currentPage > 3) {
+              pageNum = Math.min(currentPage - 2 + i, totalPages - (4 - i));
+            }
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all ${
+                  currentPage === pageNum
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          title="Halaman Selanjutnya"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          title="Halaman Terakhir"
+        >
+          <ChevronsRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const AdminDashboard: React.FC = () => {
   const { 
     schools, 
@@ -372,6 +471,33 @@ export const AdminDashboard: React.FC = () => {
   const [broadcastCustomUrl, setBroadcastCustomUrl] = useState<string>('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState<boolean>(false);
   const [broadcastSearchQuery, setBroadcastSearchQuery] = useState<string>('');
+
+  // --- PAGINATION BROADCAST NOTIFIKASI CMS (10 per halaman) ---
+  const [broadcastCurrentPage, setBroadcastCurrentPage] = useState(1);
+  const broadcastItemsPerPage = 10;
+  const filteredBroadcastHistory = useMemo(() => {
+    if (!broadcastSearchQuery.trim()) return broadcastHistory;
+    const q = broadcastSearchQuery.toLowerCase();
+    return broadcastHistory.filter(
+      (item) => item.title.toLowerCase().includes(q) || item.message.toLowerCase().includes(q)
+    );
+  }, [broadcastHistory, broadcastSearchQuery]);
+
+  const totalBroadcastPages = Math.max(1, Math.ceil(filteredBroadcastHistory.length / broadcastItemsPerPage));
+  const paginatedBroadcastHistory = useMemo(() => {
+    const start = (broadcastCurrentPage - 1) * broadcastItemsPerPage;
+    return filteredBroadcastHistory.slice(start, start + broadcastItemsPerPage);
+  }, [filteredBroadcastHistory, broadcastCurrentPage, broadcastItemsPerPage]);
+
+  useEffect(() => {
+    if (broadcastCurrentPage > totalBroadcastPages) {
+      setBroadcastCurrentPage(totalBroadcastPages);
+    }
+  }, [broadcastCurrentPage, totalBroadcastPages]);
+
+  useEffect(() => {
+    setBroadcastCurrentPage(1);
+  }, [broadcastSearchQuery]);
 
   const getComputedBroadcastUrl = (): string => {
     if (broadcastTargetType === 'news' && broadcastSelectedNewsId) {
@@ -683,6 +809,25 @@ export const AdminDashboard: React.FC = () => {
     });
   }, [displayedAchievements, achievementSearch, achievementCategoryFilter, achievementLevelFilter]);
 
+  // --- PAGINATION KELOLA PRESTASI CMS (10 per halaman) ---
+  const [achievementCurrentPage, setAchievementCurrentPage] = useState(1);
+  const achievementItemsPerPage = 10;
+  const totalAchievementPages = Math.max(1, Math.ceil(filteredAchievementsCms.length / achievementItemsPerPage));
+  const paginatedAchievements = useMemo(() => {
+    const start = (achievementCurrentPage - 1) * achievementItemsPerPage;
+    return filteredAchievementsCms.slice(start, start + achievementItemsPerPage);
+  }, [filteredAchievementsCms, achievementCurrentPage, achievementItemsPerPage]);
+
+  useEffect(() => {
+    if (achievementCurrentPage > totalAchievementPages) {
+      setAchievementCurrentPage(totalAchievementPages);
+    }
+  }, [achievementCurrentPage, totalAchievementPages]);
+
+  useEffect(() => {
+    setAchievementCurrentPage(1);
+  }, [achievementSearch, achievementCategoryFilter, achievementLevelFilter, achievementFilterTab]);
+
   // ==========================================================
   // STATE & HANDLER PERMINTAAN DATA (WEBVIEW) CMS
   // ==========================================================
@@ -696,6 +841,21 @@ export const AdminDashboard: React.FC = () => {
   const [dataReqPreviewKey, setDataReqPreviewKey] = useState<number>(0);
   const [isSavingDataReq, setIsSavingDataReq] = useState<boolean>(false);
   const [copiedDataReqId, setCopiedDataReqId] = useState<string | null>(null);
+
+  // --- PAGINATION PERMINTAAN DATA (WEBVIEW) CMS (10 per halaman) ---
+  const [dataReqCurrentPage, setDataReqCurrentPage] = useState(1);
+  const dataReqItemsPerPage = 10;
+  const totalDataReqPages = Math.max(1, Math.ceil(dataRequests.length / dataReqItemsPerPage));
+  const paginatedDataRequests = useMemo(() => {
+    const start = (dataReqCurrentPage - 1) * dataReqItemsPerPage;
+    return dataRequests.slice(start, start + dataReqItemsPerPage);
+  }, [dataRequests, dataReqCurrentPage, dataReqItemsPerPage]);
+
+  useEffect(() => {
+    if (dataReqCurrentPage > totalDataReqPages) {
+      setDataReqCurrentPage(totalDataReqPages);
+    }
+  }, [dataReqCurrentPage, totalDataReqPages]);
 
   const handleEditDataRequest = (req: DataRequestLink) => {
     setEditingDataRequestId(req.id);
@@ -1799,6 +1959,42 @@ export const AdminDashboard: React.FC = () => {
     return Array.from(set);
   }, [serviceRequirements, serviceRequirementCategories, customReqCategories]);
 
+  // --- PAGINATION PERSYARATAN PELAYANAN CMS (10 per halaman) ---
+  const [serviceReqCurrentPage, setServiceReqCurrentPage] = useState(1);
+  const serviceReqItemsPerPage = 10;
+  const filteredServiceRequirements = useMemo(() => {
+    const q = reqSearchQuery.toLowerCase().trim();
+    return serviceRequirements
+      .filter((item) => {
+        const cat = item.category || 'Kepegawaian & GTK';
+        const reqs = Array.isArray(item.requirements) ? item.requirements : [];
+        const matchesQuery =
+          !q ||
+          item.title.toLowerCase().includes(q) ||
+          cat.toLowerCase().includes(q) ||
+          reqs.some((r) => r.toLowerCase().includes(q));
+        const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
+        return matchesQuery && matchesCat;
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [serviceRequirements, reqSearchQuery, reqCategoryFilter]);
+
+  const totalServiceReqPages = Math.max(1, Math.ceil(filteredServiceRequirements.length / serviceReqItemsPerPage));
+  const paginatedServiceRequirements = useMemo(() => {
+    const start = (serviceReqCurrentPage - 1) * serviceReqItemsPerPage;
+    return filteredServiceRequirements.slice(start, start + serviceReqItemsPerPage);
+  }, [filteredServiceRequirements, serviceReqCurrentPage, serviceReqItemsPerPage]);
+
+  useEffect(() => {
+    if (serviceReqCurrentPage > totalServiceReqPages) {
+      setServiceReqCurrentPage(totalServiceReqPages);
+    }
+  }, [serviceReqCurrentPage, totalServiceReqPages]);
+
+  useEffect(() => {
+    setServiceReqCurrentPage(1);
+  }, [reqSearchQuery, reqCategoryFilter]);
+
   const handleSaveNewCategory = async () => {
     const trimmed = newReqCategoryInput.trim();
     if (!trimmed) {
@@ -2049,6 +2245,25 @@ export const AdminDashboard: React.FC = () => {
     return news.filter((item) => isNewsItemOwner(item));
   }, [news, isAdminOrSuperAdmin, newsFilterTab, currentUser, activeAuthorName, activeUserRole]);
 
+  // --- PAGINATION WARTA / BERITA CMS (10 per halaman) ---
+  const [newsCurrentPage, setNewsCurrentPage] = useState(1);
+  const newsItemsPerPage = 10;
+  const totalNewsPages = Math.max(1, Math.ceil(displayedNews.length / newsItemsPerPage));
+  const paginatedNews = useMemo(() => {
+    const start = (newsCurrentPage - 1) * newsItemsPerPage;
+    return displayedNews.slice(start, start + newsItemsPerPage);
+  }, [displayedNews, newsCurrentPage, newsItemsPerPage]);
+
+  useEffect(() => {
+    if (newsCurrentPage > totalNewsPages) {
+      setNewsCurrentPage(totalNewsPages);
+    }
+  }, [newsCurrentPage, totalNewsPages]);
+
+  useEffect(() => {
+    setNewsCurrentPage(1);
+  }, [newsFilterTab]);
+
   // State untuk tambah kategori berita baru
   const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
   const [newCategoryInput, setNewCategoryInput] = useState<string>('');
@@ -2295,6 +2510,25 @@ export const AdminDashboard: React.FC = () => {
     // Penulis: HANYA menampilkan pengumuman yang dibuat akun login
     return announcements.filter((item) => isAnnouncementItemOwner(item));
   }, [announcements, isAdminOrSuperAdmin, annFilterTab, currentUser, activeAuthorName, activeUserRole]);
+
+  // --- PAGINATION PENGUMUMAN CMS (10 per halaman) ---
+  const [annCurrentPage, setAnnCurrentPage] = useState(1);
+  const annItemsPerPage = 10;
+  const totalAnnPages = Math.max(1, Math.ceil(displayedAnnouncements.length / annItemsPerPage));
+  const paginatedAnnouncements = useMemo(() => {
+    const start = (annCurrentPage - 1) * annItemsPerPage;
+    return displayedAnnouncements.slice(start, start + annItemsPerPage);
+  }, [displayedAnnouncements, annCurrentPage, annItemsPerPage]);
+
+  useEffect(() => {
+    if (annCurrentPage > totalAnnPages) {
+      setAnnCurrentPage(totalAnnPages);
+    }
+  }, [annCurrentPage, totalAnnPages]);
+
+  useEffect(() => {
+    setAnnCurrentPage(1);
+  }, [annFilterTab]);
 
   // Daftar berkas master dari Layanan Unduhan yang siap ditautkan ke pengumuman (bebas file ganda)
   const availableUnduhanDocs = useMemo(() => {
@@ -2661,6 +2895,21 @@ export const AdminDashboard: React.FC = () => {
     });
   };
 
+  // --- PAGINATION LAYANAN UNDUHAN / DOKUMEN CMS (10 per halaman) ---
+  const [docCurrentPage, setDocCurrentPage] = useState(1);
+  const docItemsPerPage = 10;
+  const totalDocPages = Math.max(1, Math.ceil(documents.length / docItemsPerPage));
+  const paginatedDocuments = useMemo(() => {
+    const start = (docCurrentPage - 1) * docItemsPerPage;
+    return documents.slice(start, start + docItemsPerPage);
+  }, [documents, docCurrentPage, docItemsPerPage]);
+
+  useEffect(() => {
+    if (docCurrentPage > totalDocPages) {
+      setDocCurrentPage(totalDocPages);
+    }
+  }, [docCurrentPage, totalDocPages]);
+
   // --- 6. GALLERY CMS STATE ---
   const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
   const [galleryFilterTab, setGalleryFilterTab] = useState<'all' | 'mine'>('all');
@@ -2714,6 +2963,25 @@ export const AdminDashboard: React.FC = () => {
     }
     return sortGalleryDescending(gallery.filter((g) => isGalleryItemOwner(g)));
   }, [gallery, currentUser, galleryFilterTab, isAdminOrSuperAdmin]);
+
+  // --- PAGINATION GALERI KEGIATAN CMS (10 per halaman) ---
+  const [galleryCurrentPage, setGalleryCurrentPage] = useState(1);
+  const galleryItemsPerPage = 10;
+  const totalGalleryPages = Math.max(1, Math.ceil(displayedGallery.length / galleryItemsPerPage));
+  const paginatedGallery = useMemo(() => {
+    const start = (galleryCurrentPage - 1) * galleryItemsPerPage;
+    return displayedGallery.slice(start, start + galleryItemsPerPage);
+  }, [displayedGallery, galleryCurrentPage, galleryItemsPerPage]);
+
+  useEffect(() => {
+    if (galleryCurrentPage > totalGalleryPages) {
+      setGalleryCurrentPage(totalGalleryPages);
+    }
+  }, [galleryCurrentPage, totalGalleryPages]);
+
+  useEffect(() => {
+    setGalleryCurrentPage(1);
+  }, [galleryFilterTab]);
 
   // State untuk tambah kategori galeri baru
   const [isAddingGalleryCategory, setIsAddingGalleryCategory] = useState<boolean>(false);
@@ -2976,6 +3244,21 @@ export const AdminDashboard: React.FC = () => {
     email: '',
     status: 'Aktif'
   });
+
+  // --- PAGINATION KELOLA AKUN PENGELOLA CMS (10 per halaman) ---
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const userItemsPerPage = 10;
+  const totalUserPages = Math.max(1, Math.ceil(adminUsers.length / userItemsPerPage));
+  const paginatedAdminUsers = useMemo(() => {
+    const start = (userCurrentPage - 1) * userItemsPerPage;
+    return adminUsers.slice(start, start + userItemsPerPage);
+  }, [adminUsers, userCurrentPage, userItemsPerPage]);
+
+  useEffect(() => {
+    if (userCurrentPage > totalUserPages) {
+      setUserCurrentPage(totalUserPages);
+    }
+  }, [userCurrentPage, totalUserPages]);
 
   const handleOpenAddUser = () => {
     setEditingUserId(null);
@@ -7158,7 +7441,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100">
-                        {displayedNews.map((item) => {
+                        {paginatedNews.map((item) => {
                           const canManageItem = isAdminOrSuperAdmin || isNewsItemOwner(item);
 
                           return (
@@ -7257,6 +7540,13 @@ export const AdminDashboard: React.FC = () => {
                         })}
                       </div>
                     )}
+                    <AdminPagination
+                      currentPage={newsCurrentPage}
+                      totalItems={displayedNews.length}
+                      itemsPerPage={newsItemsPerPage}
+                      itemLabel="artikel berita"
+                      onPageChange={setNewsCurrentPage}
+                    />
                   </div>
                 </div>
               )}
@@ -7830,7 +8120,7 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
                     ) : (
-                      displayedAnnouncements.map((ann) => (
+                      paginatedAnnouncements.map((ann) => (
                         <div key={ann.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 flex items-start justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
                           <div className="space-y-1.5 flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -7988,6 +8278,14 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       ))
                     )}
+                    <AdminPagination
+                      currentPage={annCurrentPage}
+                      totalItems={displayedAnnouncements.length}
+                      itemsPerPage={annItemsPerPage}
+                      itemLabel="pengumuman & surat edaran"
+                      onPageChange={setAnnCurrentPage}
+                      className="border border-slate-200 rounded-2xl"
+                    />
                   </div>
                 </div>
               )}
@@ -8219,7 +8517,7 @@ export const AdminDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {filteredAchievementsCms.map((item) => {
+                        {paginatedAchievements.map((item) => {
                           const photo = item.photoUrl ? formatGoogleDriveImageUrl(item.photoUrl, 200) : '';
 
                           return (
@@ -8343,6 +8641,13 @@ export const AdminDashboard: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                    <AdminPagination
+                      currentPage={achievementCurrentPage}
+                      totalItems={filteredAchievementsCms.length}
+                      itemsPerPage={achievementItemsPerPage}
+                      itemLabel="data prestasi"
+                      onPageChange={setAchievementCurrentPage}
+                    />
                   </div>
                 ) : (
                   <div className="p-12 text-center space-y-3">
@@ -10045,19 +10350,7 @@ export const AdminDashboard: React.FC = () => {
 
                   {/* Quick Counter */}
                   <div className="text-xs text-slate-500 font-medium px-2 shrink-0">
-                    Menampilkan <span className="font-bold text-slate-800">{
-                      serviceRequirements.filter(item => {
-                        const q = reqSearchQuery.toLowerCase();
-                        const cat = item.category || 'Kepegawaian & GTK';
-                        const reqs = Array.isArray(item.requirements) ? item.requirements : [];
-                        const matchesQuery = !q || 
-                          item.title.toLowerCase().includes(q) ||
-                          cat.toLowerCase().includes(q) ||
-                          reqs.some(r => r.toLowerCase().includes(q));
-                        const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
-                        return matchesQuery && matchesCat;
-                      }).length
-                    }</span> dari <span className="font-bold text-slate-800">{serviceRequirements.length}</span> layanan
+                    Menampilkan <span className="font-bold text-slate-800">{filteredServiceRequirements.length}</span> dari <span className="font-bold text-slate-800">{serviceRequirements.length}</span> layanan
                   </div>
                 </div>
 
@@ -10082,20 +10375,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Service Cards / Table */}
-              {serviceRequirements
-                .filter(item => {
-                  const q = reqSearchQuery.toLowerCase();
-                  const cat = item.category || 'Kepegawaian & GTK';
-                  const reqs = Array.isArray(item.requirements) ? item.requirements : [];
-                  const matchesQuery = !q || 
-                    item.title.toLowerCase().includes(q) ||
-                    cat.toLowerCase().includes(q) ||
-                    reqs.some(r => r.toLowerCase().includes(q));
-                  const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
-                  return matchesQuery && matchesCat;
-                })
-                .sort((a, b) => (a.order || 0) - (b.order || 0))
-                .length === 0 ? (
+              {filteredServiceRequirements.length === 0 ? (
                 <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 shadow-sm space-y-4">
                   <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
                     <ClipboardList className="w-8 h-8" />
@@ -10137,21 +10417,9 @@ export const AdminDashboard: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {serviceRequirements
-                    .filter(item => {
-                      const q = reqSearchQuery.toLowerCase();
-                      const cat = item.category || 'Kepegawaian & GTK';
-                      const reqs = Array.isArray(item.requirements) ? item.requirements : [];
-                      const matchesQuery = !q || 
-                        item.title.toLowerCase().includes(q) ||
-                        cat.toLowerCase().includes(q) ||
-                        reqs.some(r => r.toLowerCase().includes(q));
-                      const matchesCat = reqCategoryFilter === 'Semua' || cat === reqCategoryFilter;
-                      return matchesQuery && matchesCat;
-                    })
-                    .sort((a, b) => (a.order || 0) - (b.order || 0))
-                    .map((item) => (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    {paginatedServiceRequirements.map((item) => (
                       <div
                         key={item.id}
                         className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all space-y-4"
@@ -10238,6 +10506,15 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  <AdminPagination
+                    currentPage={serviceReqCurrentPage}
+                    totalItems={filteredServiceRequirements.length}
+                    itemsPerPage={serviceReqItemsPerPage}
+                    itemLabel="layanan persyaratan"
+                    onPageChange={setServiceReqCurrentPage}
+                  />
                 </div>
               )}
 
@@ -10862,7 +11139,7 @@ export const AdminDashboard: React.FC = () => {
                   </h3>
                 </div>
 
-                {documents.map((doc) => (
+                {paginatedDocuments.map((doc) => (
                   <div key={doc.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -10950,6 +11227,14 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+
+                <AdminPagination
+                  currentPage={docCurrentPage}
+                  totalItems={documents.length}
+                  itemsPerPage={docItemsPerPage}
+                  itemLabel="berkas dokumen"
+                  onPageChange={setDocCurrentPage}
+                />
               </div>
             </div>
           )}
@@ -11272,130 +11557,140 @@ export const AdminDashboard: React.FC = () => {
                     Belum ada tautan permintaan data yang tersimpan. Gunakan form di atas untuk menambahkan tautan pertama.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {dataRequests.map((req, idx) => (
-                      <div
-                        key={req.id}
-                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                          editingDataRequestId === req.id
-                            ? 'bg-blue-50/50 border-blue-300 shadow-sm'
-                            : 'bg-white border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="space-y-1.5 min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold text-slate-800">
-                              {idx + 1}. {req.title}
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                req.isActive !== false
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-slate-100 text-slate-500'
-                              }`}
-                            >
-                              {req.isActive !== false ? 'Aktif' : 'Nonaktif'}
-                            </span>
-                            {req.cropTop && req.cropTop > 0 ? (
-                              <span className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
-                                Crop Top: {req.cropTop}px
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      {paginatedDataRequests.map((req, idx) => (
+                        <div
+                          key={req.id}
+                          className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            editingDataRequestId === req.id
+                              ? 'bg-blue-50/50 border-blue-300 shadow-sm'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold text-slate-800">
+                                {(dataReqCurrentPage - 1) * dataReqItemsPerPage + idx + 1}. {req.title}
                               </span>
-                            ) : null}
-                          </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  req.isActive !== false
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-slate-100 text-slate-500'
+                                }`}
+                              >
+                                {req.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                              </span>
+                              {req.cropTop && req.cropTop > 0 ? (
+                                <span className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  Crop Top: {req.cropTop}px
+                                </span>
+                              ) : null}
+                            </div>
 
-                          {/* Link Share Publik & Slug */}
-                          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                            <span className="text-slate-400 font-medium text-[10px]">Slug Link:</span>
-                            <span className="font-mono text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded">
-                              /layanan/permintaan-data/{getDataRequestSlug(req)}
-                            </span>
-                          </div>
+                            {/* Link Share Publik & Slug */}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                              <span className="text-slate-400 font-medium text-[10px]">Slug Link:</span>
+                              <span className="font-mono text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded">
+                                /layanan/permintaan-data/{getDataRequestSlug(req)}
+                              </span>
+                            </div>
 
-                          <a
-                            href={req.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[11px] font-mono text-slate-500 hover:text-blue-600 hover:underline block truncate max-w-xl"
-                            title="Tautan Sumber Webview Asli"
-                          >
-                            Tautan Asli: {req.url}
-                          </a>
-                          {req.description && (
-                            <p className="text-[11px] text-slate-500 line-clamp-1">
-                              {req.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Tombol Salin Link Share */}
-                          <button
-                            type="button"
-                            onClick={() => handleCopyDataRequestShareLink(req)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                              copiedDataReqId === req.id
-                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                            }`}
-                            title="Salin tautan langsung formulir ini untuk dibagikan"
-                          >
-                            {copiedDataReqId === req.id ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-white" />
-                                <span>Tersalin!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 text-slate-600" />
-                                <span>Salin Link</span>
-                              </>
+                            <a
+                              href={req.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] font-mono text-slate-500 hover:text-blue-600 hover:underline block truncate max-w-xl"
+                              title="Tautan Sumber Webview Asli"
+                            >
+                              Tautan Asli: {req.url}
+                            </a>
+                            {req.description && (
+                              <p className="text-[11px] text-slate-500 line-clamp-1">
+                                {req.description}
+                              </p>
                             )}
-                          </button>
+                          </div>
 
-                          {/* Buka Halaman Publik */}
-                          <a
-                            href={getDataRequestPath(req)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                            title="Buka halaman formulir publik di tab baru"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Tombol Salin Link Share */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopyDataRequestShareLink(req)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                copiedDataReqId === req.id
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                              }`}
+                              title="Salin tautan langsung formulir ini untuk dibagikan"
+                            >
+                              {copiedDataReqId === req.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-white" />
+                                  <span>Tersalin!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-slate-600" />
+                                  <span>Salin Link</span>
+                                </>
+                              )}
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => toggleDataRequestActive(req.id)}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                              req.isActive !== false
-                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                            title={req.isActive !== false ? 'Nonaktifkan Tautan' : 'Aktifkan Tautan'}
-                          >
-                            {req.isActive !== false ? 'Nonaktifkan' : 'Aktifkan'}
-                          </button>
+                            {/* Buka Halaman Publik */}
+                            <a
+                              href={getDataRequestPath(req)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                              title="Buka halaman formulir publik di tab baru"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
 
-                          <button
-                            type="button"
-                            onClick={() => handleEditDataRequest(req)}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                            title="Edit & Tampilkan di Form"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleDataRequestActive(req.id)}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                req.isActive !== false
+                                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              }`}
+                              title={req.isActive !== false ? 'Nonaktifkan Tautan' : 'Aktifkan Tautan'}
+                            >
+                              {req.isActive !== false ? 'Nonaktifkan' : 'Aktifkan'}
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDataRequest(req)}
-                            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
-                            title="Hapus Tautan"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditDataRequest(req)}
+                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                              title="Edit & Tampilkan di Form"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDataRequest(req)}
+                              className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                              title="Hapus Tautan"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <AdminPagination
+                      currentPage={dataReqCurrentPage}
+                      totalItems={dataRequests.length}
+                      itemsPerPage={dataReqItemsPerPage}
+                      itemLabel="tautan formulir"
+                      onPageChange={setDataReqCurrentPage}
+                    />
                   </div>
                 )}
               </div>
@@ -11900,8 +12195,9 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Gallery Grid or Empty State */}
               {displayedGallery.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {displayedGallery.map((item) => {
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {paginatedGallery.map((item) => {
                     const isDrive = Boolean(item.driveFolderUrl || isGoogleDriveFolderUrl(item.image));
                     const hasCover = Boolean(item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders'));
                     const coverSrc = hasCover ? formatGoogleDriveImageUrl(item.image, 500) : '';
@@ -12056,7 +12352,16 @@ export const AdminDashboard: React.FC = () => {
                     );
                   })}
                 </div>
-              ) : (
+
+                <AdminPagination
+                  currentPage={galleryCurrentPage}
+                  totalItems={displayedGallery.length}
+                  itemsPerPage={galleryItemsPerPage}
+                  itemLabel="album kegiatan"
+                  onPageChange={setGalleryCurrentPage}
+                />
+              </div>
+            ) : (
                 <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 space-y-3 shadow-xs">
                   <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                     <Folder className="w-7 h-7 text-amber-500" />
@@ -12925,14 +13230,9 @@ export const AdminDashboard: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100">
-                    {broadcastHistory
-                      .filter((item) => {
-                        if (!broadcastSearchQuery.trim()) return true;
-                        const q = broadcastSearchQuery.toLowerCase();
-                        return item.title.toLowerCase().includes(q) || item.message.toLowerCase().includes(q);
-                      })
-                      .map((item) => (
+                  <div className="space-y-4">
+                    <div className="divide-y divide-slate-100">
+                      {paginatedBroadcastHistory.map((item) => (
                         <div key={item.id} className="py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4 group">
                           <div className="space-y-1.5 flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -13000,6 +13300,15 @@ export const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    <AdminPagination
+                      currentPage={broadcastCurrentPage}
+                      totalItems={filteredBroadcastHistory.length}
+                      itemsPerPage={broadcastItemsPerPage}
+                      itemLabel="riwayat siaran"
+                      onPageChange={setBroadcastCurrentPage}
+                    />
                   </div>
                 )}
               </div>
@@ -13121,7 +13430,7 @@ export const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {adminUsers.map((u) => {
+                      {paginatedAdminUsers.map((u) => {
                         const isCurrent = u.id === currentUser?.id;
                         return (
                           <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
@@ -13214,6 +13523,16 @@ export const AdminDashboard: React.FC = () => {
                       })}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="p-4 border-t border-slate-100">
+                  <AdminPagination
+                    currentPage={userCurrentPage}
+                    totalItems={adminUsers.length}
+                    itemsPerPage={userItemsPerPage}
+                    itemLabel="akun pengelola"
+                    onPageChange={setUserCurrentPage}
+                  />
                 </div>
               </div>
             </div>
