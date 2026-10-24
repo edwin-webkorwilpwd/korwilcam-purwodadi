@@ -291,8 +291,6 @@ export const AdminDashboard: React.FC = () => {
     updateSOPImageUrl,
     resetToDefaultData,
     logout,
-    sessionRemainingSeconds,
-    resetInactivityTimer,
     setActiveTab,
     showToast,
     isSupabaseActive,
@@ -3980,31 +3978,6 @@ export const AdminDashboard: React.FC = () => {
             <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
             <span className="hidden sm:inline">Lihat Website</span>
             <span className="sm:hidden">Web</span>
-          </button>
-
-          {/* Indikator Sesi Keamanan Bank (Auto-Logout 20 Menit Idle) */}
-          <button
-            type="button"
-            onClick={resetInactivityTimer}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs select-none ${
-              sessionRemainingSeconds <= 120 
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse ring-1 ring-rose-500/30'
-                : sessionRemainingSeconds <= 300
-                ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
-                : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border-slate-700'
-            }`}
-            title="Sesi aman portal CMS: Otomatis logout jika tidak ada aktivitas selama 20 menit. Klik untuk memperbarui waktu sesi."
-          >
-            <Clock className={`w-3.5 h-3.5 shrink-0 ${
-              sessionRemainingSeconds <= 120 
-                ? 'text-rose-400' 
-                : sessionRemainingSeconds <= 300 
-                ? 'text-amber-400' 
-                : 'text-blue-400'
-            }`} />
-            <span className="font-mono tracking-wider font-extrabold text-[11px] sm:text-xs">
-              {Math.floor(sessionRemainingSeconds / 60)}:{(sessionRemainingSeconds % 60).toString().padStart(2, '0')}
-            </span>
           </button>
 
           {/* Active User Profile & Role Indicator (Clickable to open My Profile) */}
