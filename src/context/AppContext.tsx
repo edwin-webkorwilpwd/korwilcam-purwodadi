@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { 
   School, 
   NewsArticle, 
@@ -238,6 +238,8 @@ interface AppContextType {
   adminUsers: AdminUser[];
   login: (user: string, pass: string) => Promise<boolean>;
   logout: () => void;
+  sessionRemainingSeconds: number;
+  resetInactivityTimer: () => void;
   addAdminUser: (userData: Omit<AdminUser, 'id'>) => Promise<boolean>;
   updateAdminUser: (id: string, userData: Partial<AdminUser>) => Promise<boolean>;
   deleteAdminUser: (id: string) => Promise<boolean>;
@@ -848,11 +850,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  // Konstanta Batas Waktu Inaktivitas Sesi CMS (20 Menit = 1.200.000 ms)
+  const INACTIVITY_TIMEOUT_MS = 20 * 60 * 1000;
+  const INACTIVITY_TIMEOUT_SECONDS = 20 * 60;
+
+  // Cek validitas sesi awal saat aplikasi dimuat (Bank-Grade Session Timeout)
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     try {
-      const saved = localStorage.getItem('korwilcam_current_user');
-      if (saved) return JSON.parse(saved);
-      return null;
+      const hasAuth = localStorage.getItem('korwilcam_admin_auth') === 'true';
+      const userStr = localStorage.getItem('korwilcam_current_user');
+      if (!hasAuth || !userStr) {
+        return null;
+      }
+      const rawActivity = localStorage.getItem('korwilcam_last_activity');
+      if (rawActivity) {
+        const lastActivity = Number(rawActivity);
+        // Jika sudah lebih dari 20 menit tidak ada aktivitas sama sekali sejak sesi sebelumnya
+        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT_MS) {
+          localStorage.removeItem('korwilcam_admin_auth');
+          localStorage.removeItem('korwilcam_current_user');
+          localStorage.removeItem('korwilcam_last_activity');
+          try {
+            sessionStorage.setItem('korwilcam_session_expired', 'true');
+          } catch {}
+          return null;
+        }
+      } else {
+        localStorage.setItem('korwilcam_last_activity', String(Date.now()));
+      }
+      return JSON.parse(userStr);
     } catch {
       return null;
     }
@@ -861,8 +887,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const hasAuth = localStorage.getItem('korwilcam_admin_auth') === 'true';
     const hasUser = Boolean(localStorage.getItem('korwilcam_current_user'));
-    return hasAuth && hasUser;
+    const rawActivity = localStorage.getItem('korwilcam_last_activity');
+    if (!hasAuth || !hasUser) return false;
+    if (rawActivity) {
+      const lastActivity = Number(rawActivity);
+      if (Date.now() - lastActivity > INACTIVITY_TIMEOUT_MS) {
+        return false;
+      }
+    }
+    return true;
   });
+
+  const [sessionRemainingSeconds, setSessionRemainingSeconds] = useState<number>(() => {
+    const rawActivity = localStorage.getItem('korwilcam_last_activity');
+    if (!rawActivity) return INACTIVITY_TIMEOUT_SECONDS;
+    const elapsed = Date.now() - Number(rawActivity);
+    return Math.max(0, Math.ceil((INACTIVITY_TIMEOUT_MS - elapsed) / 1000));
+  });
+
+  const lastActivityRef = useRef<number>(Date.now());
+  const lastRecordedStorageRef = useRef<number>(Date.now());
 
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
     try {
@@ -908,6 +952,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const closeNoticePopup = () => {
     setNoticePopupState(null);
   };
+
+  // Notifikasi otomatis jika sesi berakhir saat baru membuka browser kembali
+  useEffect(() => {
+    try {
+      const expiredFlag = sessionStorage.getItem('korwilcam_session_expired');
+      if (expiredFlag) {
+        sessionStorage.removeItem('korwilcam_session_expired');
+        showNoticePopup({
+          title: 'Sesi Berakhir Otomatis',
+          message: 'Sesi akun Anda telah keluar secara otomatis karena tidak ada aktivitas selama 20 menit (Sistem Keamanan Portal CMS). Silakan login kembali.',
+          type: 'warning',
+          duration: 8000
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Supabase state
   const [isSupabaseActive, setIsSupabaseActive] = useState<boolean>(() => {
@@ -4033,6 +4095,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setCurrentUser(null);
             localStorage.removeItem('korwilcam_admin_auth');
             localStorage.removeItem('korwilcam_current_user');
+            localStorage.removeItem('korwilcam_last_activity');
             showToast('Terjadi gangguan saat memverifikasi akun ke Supabase: ' + error.message, 'error');
             return false;
           }
@@ -4055,6 +4118,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setCurrentUser(null);
             localStorage.removeItem('korwilcam_admin_auth');
             localStorage.removeItem('korwilcam_current_user');
+            localStorage.removeItem('korwilcam_last_activity');
             showToast('Akun ini dinonaktifkan. Silakan hubungi Super Admin.', 'error');
             return false;
           }
@@ -4074,6 +4138,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setIsAuthenticated(true);
           localStorage.setItem('korwilcam_admin_auth', 'true');
           localStorage.setItem('korwilcam_current_user', JSON.stringify(matched));
+          localStorage.setItem('korwilcam_last_activity', String(Date.now()));
+          lastActivityRef.current = Date.now();
+          lastRecordedStorageRef.current = Date.now();
+          setSessionRemainingSeconds(INACTIVITY_TIMEOUT_SECONDS);
 
           // Reset rate limiter saat login berhasil
           resetRateLimit('admin_login');
@@ -4094,6 +4162,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setCurrentUser(null);
           localStorage.removeItem('korwilcam_admin_auth');
           localStorage.removeItem('korwilcam_current_user');
+          localStorage.removeItem('korwilcam_last_activity');
 
           triggerActivityLog(
             'LOGIN',
@@ -4123,6 +4192,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser(null);
         localStorage.removeItem('korwilcam_admin_auth');
         localStorage.removeItem('korwilcam_current_user');
+        localStorage.removeItem('korwilcam_last_activity');
         showToast('Gagal menghubungi database Supabase: ' + (err?.message || 'Koneksi terputus'), 'error');
         return false;
       }
@@ -4133,6 +4203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(null);
     localStorage.removeItem('korwilcam_admin_auth');
     localStorage.removeItem('korwilcam_current_user');
+    localStorage.removeItem('korwilcam_last_activity');
     showToast('Database Supabase belum terkonfigurasi!', 'error');
     return false;
   };
@@ -4150,9 +4221,132 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(null);
     localStorage.removeItem('korwilcam_admin_auth');
     localStorage.removeItem('korwilcam_current_user');
+    localStorage.removeItem('korwilcam_last_activity');
     setActiveTab('home');
     showToast('Anda telah keluar dari sesi pengelola.', 'info');
   };
+
+  // Auto-logout otomatis jika tidak ada aktivitas selama 20 menit (Sistem Keamanan Bank-Grade)
+  const triggerAutoLogout = useCallback(() => {
+    if (currentUser) {
+      triggerActivityLog(
+        'LOGOUT',
+        'Autentikasi',
+        `Sesi pengelola (${currentUser.name} / @${currentUser.username}) otomatis di-logout oleh sistem karena tidak ada aktivitas selama 20 menit (Idle Timeout)`,
+        'BERHASIL'
+      );
+    }
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    localStorage.removeItem('korwilcam_admin_auth');
+    localStorage.removeItem('korwilcam_current_user');
+    localStorage.removeItem('korwilcam_last_activity');
+    setActiveTab('admin-login');
+    showNoticePopup({
+      title: 'Sesi Berakhir Otomatis',
+      message: 'Sesi akun Anda telah keluar secara otomatis karena tidak ada aktivitas sama sekali selama 20 menit (Sistem Keamanan Portal CMS). Silakan login kembali untuk melanjutkan.',
+      type: 'warning',
+      duration: 8000
+    });
+  }, [currentUser, setActiveTab, showNoticePopup, triggerActivityLog]);
+
+  // Reset timer inaktivitas saat ada aktivitas pengguna
+  const resetInactivityTimer = useCallback(() => {
+    const now = Date.now();
+    lastActivityRef.current = now;
+    setSessionRemainingSeconds(INACTIVITY_TIMEOUT_SECONDS);
+    // Batasi update ke localStorage maksimal sekali setiap 5 detik agar efisien
+    if (now - lastRecordedStorageRef.current > 5000) {
+      lastRecordedStorageRef.current = now;
+      try {
+        localStorage.setItem('korwilcam_last_activity', String(now));
+      } catch {
+        // ignore
+      }
+    }
+  }, [INACTIVITY_TIMEOUT_SECONDS]);
+
+  // Listener interaksi pengguna & penghitung waktu mundur 20 menit (Idle Timeout 20 Menit)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const now = Date.now();
+    lastActivityRef.current = now;
+    lastRecordedStorageRef.current = now;
+    try {
+      localStorage.setItem('korwilcam_last_activity', String(now));
+    } catch {}
+    setSessionRemainingSeconds(INACTIVITY_TIMEOUT_SECONDS);
+
+    const handleUserInteraction = () => {
+      resetInactivityTimer();
+    };
+
+    // Deteksi berbagai aktivitas interaksi pengguna di portal
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click', 'wheel'];
+    events.forEach((evt) => {
+      window.addEventListener(evt, handleUserInteraction, { passive: true });
+    });
+
+    // Sinkronisasi status & timestamp lintas tab browser
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'korwilcam_last_activity' && e.newValue) {
+        const remoteTime = Number(e.newValue);
+        if (remoteTime > lastActivityRef.current) {
+          lastActivityRef.current = remoteTime;
+          const elapsed = Date.now() - remoteTime;
+          const remaining = Math.max(0, Math.ceil((INACTIVITY_TIMEOUT_MS - elapsed) / 1000));
+          setSessionRemainingSeconds(remaining);
+        }
+      } else if (e.key === 'korwilcam_admin_auth' && e.newValue === null) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // Cek segera saat tab kembali aktif atau laptop bangun dari mode tidur
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const stored = Number(localStorage.getItem('korwilcam_last_activity') || lastActivityRef.current);
+        const elapsed = Date.now() - stored;
+        if (elapsed >= INACTIVITY_TIMEOUT_MS) {
+          triggerAutoLogout();
+        } else {
+          const remaining = Math.max(0, Math.ceil((INACTIVITY_TIMEOUT_MS - elapsed) / 1000));
+          setSessionRemainingSeconds(remaining);
+          lastActivityRef.current = stored;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    // Interval setiap 1 detik untuk update countdown dan eksekusi auto-logout jika 20 menit terlewati
+    const timerInterval = setInterval(() => {
+      const storedTime = Number(localStorage.getItem('korwilcam_last_activity') || lastActivityRef.current);
+      const effectiveLastTime = Math.max(lastActivityRef.current, storedTime);
+      const elapsed = Date.now() - effectiveLastTime;
+      const remaining = Math.max(0, Math.ceil((INACTIVITY_TIMEOUT_MS - elapsed) / 1000));
+
+      setSessionRemainingSeconds(remaining);
+
+      if (remaining <= 0 || elapsed >= INACTIVITY_TIMEOUT_MS) {
+        clearInterval(timerInterval);
+        triggerAutoLogout();
+      }
+    }, 1000);
+
+    return () => {
+      events.forEach((evt) => {
+        window.removeEventListener(evt, handleUserInteraction);
+      });
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+      clearInterval(timerInterval);
+    };
+  }, [isAuthenticated, INACTIVITY_TIMEOUT_MS, INACTIVITY_TIMEOUT_SECONDS, resetInactivityTimer, triggerAutoLogout]);
 
   // ADMIN USERS CRUD (Super Admin Only)
   const addAdminUser = async (userData: Omit<AdminUser, 'id'>): Promise<boolean> => {
@@ -7306,6 +7500,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         adminUsers,
         login,
         logout,
+        sessionRemainingSeconds,
+        resetInactivityTimer,
         addAdminUser,
         updateAdminUser,
         deleteAdminUser,
