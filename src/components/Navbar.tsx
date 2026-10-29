@@ -414,7 +414,7 @@ export const Navbar: React.FC = () => {
                     type="button"
                     onClick={() => setProfileDropdownOpen((prev) => !prev)}
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
-                      activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization'
+                      activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization' || activeTab === 'purna-tugas'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
@@ -485,6 +485,19 @@ export const Navbar: React.FC = () => {
                             }`}
                           >
                             <span>Organisasi</span>
+                          </button>
+                        )}
+
+                        {isItemActive(menuVisibility, 'profile.purna-tugas') && (
+                          <button
+                            onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
+                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
+                              activeTab === 'purna-tugas'
+                                ? 'bg-white/20 text-white font-bold'
+                                : 'text-white hover:bg-white/15'
+                            }`}
+                          >
+                            <span>Purna Tugas</span>
                           </button>
                         )}
                       </div>
@@ -867,7 +880,7 @@ export const Navbar: React.FC = () => {
               <button
                 onClick={() => toggleMobileSection('profile')}
                 className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
-                  ['profile', 'nominatif', 'organization'].includes(activeTab)
+                  ['profile', 'nominatif', 'organization', 'purna-tugas'].includes(activeTab)
                     ? 'text-white font-bold'
                     : 'text-white/90 hover:bg-white/10 active:bg-white/15'
                 }`}
@@ -875,7 +888,7 @@ export const Navbar: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-4 h-4 text-sky-300" />
                   <span>Profil Instansi</span>
-                  {['profile', 'nominatif', 'organization'].includes(activeTab) && (
+                  {['profile', 'nominatif', 'organization', 'purna-tugas'].includes(activeTab) && (
                     <span className="w-2 h-2 rounded-full bg-amber-400"></span>
                   )}
                 </div>
@@ -954,6 +967,23 @@ export const Navbar: React.FC = () => {
                       <span className="flex items-center gap-2.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
                         <span>Organisasi Mitra & Profesi</span>
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
+                    </button>
+                  )}
+
+                  {isItemActive(menuVisibility, 'profile.purna-tugas') && (
+                    <button
+                      onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
+                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
+                        activeTab === 'purna-tugas' 
+                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
+                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
+                        <span>Purna Tugas</span>
                       </span>
                       <ArrowRight className="w-3.5 h-3.5 opacity-60" />
                     </button>

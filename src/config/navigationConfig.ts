@@ -84,6 +84,14 @@ export const NAVIGATION_CONFIG: NavigationItem[] = [
         description: 'Halaman organisasi mitra dan profesi guru (PGRI, K3S, IGTKI, Himpaudi, dll.).',
         defaultEnabled: true,
       },
+      {
+        id: 'profile.purna-tugas',
+        label: 'Purna Tugas',
+        path: '/profil#purna-tugas',
+        tab: 'purna-tugas',
+        description: 'Halaman informasi dan data pegawai serta pendidik purna tugas Korwilcam Purwodadi.',
+        defaultEnabled: true,
+      },
     ],
   },
   {

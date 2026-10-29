@@ -177,6 +177,8 @@ interface AppContextType {
   organizations: EducationalOrganization[];
   selectedOrganizationSlug: string | null;
   setSelectedOrganizationSlug: (slug: string | null, customPath?: string) => void;
+  selectedPurnaTugasNip: string | null;
+  setSelectedPurnaTugasNip: (nip: string | null, customPath?: string) => void;
   addOrganization: (org: Omit<EducationalOrganization, 'id'>) => Promise<boolean>;
   updateOrganization: (id: string, orgData: Partial<EducationalOrganization>) => Promise<boolean>;
   deleteOrganization: (id: string) => Promise<boolean>;
@@ -717,6 +719,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return initialOrganizations;
   });
   const [selectedOrganizationSlug, setSelectedOrganizationSlugState] = useState<string | null>(null);
+  const [selectedPurnaTugasNip, setSelectedPurnaTugasNipState] = useState<string | null>(null);
 
   const [teachers, setTeachers] = useState<TeacherNominative[]>(() => {
     if (_inMemoryTeachersCache && _inMemoryTeachersCache.length > 0) {
@@ -2973,6 +2976,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'achievements': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'prestasi': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'organization': { path: '/profil#organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
+    'purna-tugas': { path: '/profil#purna-tugas', title: 'Purna Tugas - Korwilcam Purwodadi' },
     'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
     'downloads': { path: '/layanan/unduh-berkas', title: 'Layanan Unduh Berkas - Korwilcam Purwodadi' },
     'service-aula': { path: '/layanan/peminjaman-aula', title: 'Peminjaman Aula Korwilcam Purwodadi' },
@@ -3008,6 +3012,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (tab !== 'organization' || customPath === '/organisasi' || customPath === '/profil#organisasi' || !customPath?.startsWith('/organisasi/')) {
       setSelectedOrganizationSlugState(null);
+    }
+    if (tab !== 'purna-tugas' || customPath === '/purna-tugas' || customPath === '/profil#purna-tugas' || !customPath?.startsWith('/purna-tugas/')) {
+      setSelectedPurnaTugasNipState(null);
     }
 
     const route = TAB_ROUTES[tab];
@@ -3334,6 +3341,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
+  };
+
+  const setSelectedPurnaTugasNip = (nip: string | null, customPath?: string) => {
+    setSelectedPurnaTugasNipState(nip);
+    setActiveTabState('purna-tugas');
+    setSelectedNewsState(null);
+    setSelectedAnnouncementState(null);
+    setSelectedGalleryState(null);
+    setSelectedDocumentState(null);
+    setSelectedSchoolState(null);
+    setSelectedServiceRequirementState(null);
+    setSelectedOrganizationSlugState(null);
+
+    const targetPath = customPath || (nip ? `/purna-tugas/${encodeURIComponent(nip)}` : '/purna-tugas');
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ tab: 'purna-tugas', nip }, '', targetPath);
+    }
+    if (nip) {
+      document.title = `Purna Tugas (${nip}) - Korwilcam Purwodadi`;
+    } else {
+      document.title = TAB_ROUTES['purna-tugas']?.title || 'Purna Tugas - Korwilcam Purwodadi';
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // URL listener to detect when any menu, sub-menu, news slug, or announcement slug is loaded directly or on browser Back/Forward
@@ -3819,10 +3849,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else if (hash === '#organisasi' || hash.includes('organisasi') || hash === '#organization') {
           setActiveTabState('organization');
           document.title = TAB_ROUTES['organization']?.title || 'Organisasi Pendidikan - Korwilcam Purwodadi';
+        } else if (hash === '#purna-tugas' || hash.includes('purna-tugas') || hash.includes('purnatugas')) {
+          setActiveTabState('purna-tugas');
+          setSelectedPurnaTugasNipState(null);
+          document.title = TAB_ROUTES['purna-tugas']?.title || 'Purna Tugas - Korwilcam Purwodadi';
         } else {
           setActiveTabState('profile');
           document.title = TAB_ROUTES['profile'].title;
         }
+      } else if (rawPath.startsWith('/purna-tugas/') && rawPath !== '/purna-tugas') {
+        const nip = decodeURIComponent(rawPath.replace(/^\/purna-tugas\//, '')).trim();
+        setActiveTabState('purna-tugas');
+        setSelectedPurnaTugasNipState(nip);
+        setSelectedOrganizationSlugState(null);
+        document.title = `Purna Tugas (${nip}) - Korwilcam Purwodadi`;
+      } else if (rawPath.startsWith('/purna-tugas') || rawPath.startsWith('/purnatugas')) {
+        setActiveTabState('purna-tugas');
+        setSelectedPurnaTugasNipState(null);
+        setSelectedOrganizationSlugState(null);
+        document.title = TAB_ROUTES['purna-tugas']?.title || 'Purna Tugas - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/sop') || rawPath.startsWith('/sop-pelayanan')) {
         setActiveTabState('sop-pelayanan');
         setSelectedOrganizationSlugState(null);
@@ -7440,6 +7485,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         organizations,
         selectedOrganizationSlug,
         setSelectedOrganizationSlug,
+        selectedPurnaTugasNip,
+        setSelectedPurnaTugasNip,
         addOrganization,
         updateOrganization,
         deleteOrganization,

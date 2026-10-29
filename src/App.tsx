@@ -21,6 +21,7 @@ const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m 
 const AchievementsPage = React.lazy(() => import('./pages/AchievementsPage').then(m => ({ default: m.AchievementsPage })));
 const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
 const OrganizationPage = React.lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
+const PurnaTugasPage = React.lazy(() => import('./pages/PurnaTugasPage').then(m => ({ default: m.PurnaTugasPage })));
 const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
 const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage').then(m => ({ default: m.DocumentDetailPage })));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
@@ -188,6 +189,7 @@ const MainContent: React.FC = () => {
               {activeTab === 'news' && <NewsPage />}
               {(activeTab === 'achievements' || activeTab === 'prestasi') && <AchievementsPage />}
               {activeTab === 'organization' && <OrganizationPage />}
+              {activeTab === 'purna-tugas' && <PurnaTugasPage />}
               {activeTab === 'service-requirements' && <ServiceRequirementsPage />}
               {activeTab === 'downloads' && <DownloadsPage />}
               {activeTab === 'gallery' && <GalleryPage />}

@@ -353,5 +353,35 @@ export interface Achievement {
   authorRole?: string;        // Role pembuat (misal: "Penulis", "Super Admin")
 }
 
+export interface PurnaTugasPegawai {
+  no: string;                   // Kolom A
+  nama: string;                 // Kolom B
+  nip: string;                  // Kolom C
+  mkGol: string;                // Kolom D
+  mkPns: string;                // Kolom E
+  mkPens: string;               // Kolom F
+  mkGol2?: string;              // Kolom G
+  mkPns2?: string;              // Kolom H
+  mkPens2?: string;             // Kolom I
+  usiaPensiun: string;          // Kolom J
+  tempatLahir: string;          // Kolom K
+  tanggalLahir: string;         // Kolom L
+  agama: string;                // Kolom M
+  jenisKelamin: string;         // Kolom N
+  tmtCpns: string;              // Kolom O
+  golongan: string;             // Kolom P
+  pangkat: string;              // Kolom Q
+  jenjangPendidikan: string;    // Kolom R
+  jurusanPendidikan: string;    // Kolom S
+  namaSekolah: string;          // Kolom T
+  instansiSubUnit: string;      // Kolom U
+  jenisJabatan: string;         // Kolom V
+  jabatan: string;              // Kolom W
+  rumpunJabatan: string;        // Kolom X
+  batasUsiaPensiun: string;     // Kolom Y
+  linkFoto: string;             // Kolom Z
+}
+
+
 
 
