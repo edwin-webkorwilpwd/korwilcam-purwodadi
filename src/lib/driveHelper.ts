@@ -12,19 +12,19 @@ export function extractGoogleDriveId(url: string): string | null {
   const trimmed = url.trim();
 
   // 1. Format /file/d/{id} atau /d/{id}
-  const matchFileD = trimmed.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/);
+  const matchFileD = trimmed.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/);
   if (matchFileD && matchFileD[1]) return matchFileD[1];
 
   // 2. Format googleusercontent.com/d/{id}
-  const matchLh3 = trimmed.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{20,})/);
+  const matchLh3 = trimmed.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{15,})/);
   if (matchLh3 && matchLh3[1]) return matchLh3[1];
 
   // 3. Format id={id} pada query parameter
-  const matchIdParam = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  const matchIdParam = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
   if (matchIdParam && matchIdParam[1]) return matchIdParam[1];
 
-  // 4. Fallback matching string panjang 25+ karakter
-  const matchGeneral = trimmed.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]{25,})/);
+  // 4. Fallback matching string panjang 15+ karakter setelah /d/ atau id=
+  const matchGeneral = trimmed.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]{15,})/);
   if (matchGeneral && matchGeneral[1]) return matchGeneral[1];
 
   return null;
@@ -209,6 +209,80 @@ export function parseGoogleDriveImageLinks(text: string): string[] {
   }
 
   return result;
+}
+
+/**
+ * Normalisasi daftar URL foto slideshow hero dari Supabase / LocalStorage.
+ * Menangani berbagai kemungkinan format penyimpanan database:
+ * - Array string: ['https://drive.google.com/...', '...']
+ * - JSON string: '["https://drive.google.com/..."]'
+ * - Postgres Array: '{"https://drive.google.com/...","..."}'
+ * - Multi-line string (dipisahkan baris baru)
+ * - Comma-separated string (dipisahkan koma)
+ * - Single URL string: 'https://drive.google.com/file/d/...'
+ */
+export function normalizeHeroSlideshowImages(raw: any): string[] {
+  if (!raw) return [];
+
+  // 1. Jika sudah berupa array
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+      .filter((item) => item.length > 0);
+  }
+
+  // 2. Jika berupa string
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === '[]' || trimmed === '{}') return [];
+
+    // Format JSON array
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+            .filter((item) => item.length > 0);
+        }
+      } catch {
+        // Abaikan jika bukan JSON valid
+      }
+    }
+
+    // Format Postgres array: {"url1","url2"} atau {url1,url2}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const inner = trimmed.slice(1, -1);
+      const parts = inner
+        .split(',')
+        .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+        .filter((s) => s.length > 0);
+      if (parts.length > 0) return parts;
+    }
+
+    // Format baris baru (newline)
+    if (trimmed.includes('\n')) {
+      const lines = trimmed
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      if (lines.length > 0) return lines;
+    }
+
+    // Format dipisahkan koma
+    if (trimmed.includes(',')) {
+      const items = trimmed
+        .split(',')
+        .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+        .filter((s) => s.length > 0);
+      if (items.length > 0) return items;
+    }
+
+    // Single link string
+    return [trimmed];
+  }
+
+  return [];
 }
 
 /**

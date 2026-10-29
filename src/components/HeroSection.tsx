@@ -7,7 +7,12 @@ import {
   ChevronLeft, 
   ChevronRight 
 } from 'lucide-react';
-import { formatGoogleDriveImageUrl, getGoogleDriveCandidates, prefetchGoogleDriveImage } from '../lib/driveHelper';
+import { 
+  formatGoogleDriveImageUrl, 
+  getGoogleDriveCandidates, 
+  prefetchGoogleDriveImage,
+  normalizeHeroSlideshowImages
+} from '../lib/driveHelper';
 
 // Pemetaan gambar default ke aset lokal berkecepatan tinggi (Edge CDN / Public)
 const DEFAULT_LOCAL_SLIDES: Record<string, string> = {
@@ -22,32 +27,38 @@ export const HeroSection: React.FC = () => {
 
   // Normalisasi daftar foto slideshow
   const slides = useMemo(() => {
-    const rawImages = officeProfile.heroSlideshowImages || [];
+    const rawImages = normalizeHeroSlideshowImages(officeProfile.heroSlideshowImages);
     const valid = rawImages
       .filter((url) => typeof url === 'string' && url.trim().length > 0)
       .map((url, idx) => {
         const trimmed = url.trim();
-        let localPath: string | undefined;
+        let localDemoPath: string | undefined;
         for (const [driveId, path] of Object.entries(DEFAULT_LOCAL_SLIDES)) {
           if (trimmed.includes(driveId)) {
-            localPath = path;
+            localDemoPath = path;
             break;
           }
         }
-        if (!localPath && idx < 3 && rawImages.length === 3 && (trimmed.startsWith('/hero/') || trimmed.includes('drive.google.com'))) {
-          localPath = `/hero/slide-${idx + 1}.jpg`;
-        }
 
-        const formatted = formatGoogleDriveImageUrl(trimmed);
-        const candidates = getGoogleDriveCandidates(trimmed);
-        const allCandidates = localPath 
-          ? [localPath, ...(formatted ? [formatted] : []), ...candidates]
-          : (formatted ? [formatted, ...candidates] : candidates);
+        const formatted = formatGoogleDriveImageUrl(trimmed, 1920) || formatGoogleDriveImageUrl(trimmed);
+        const candidates = getGoogleDriveCandidates(trimmed, 1920);
+
+        // Jika ini adalah link demo default bawaan, boleh sertakan localDemoPath di awal.
+        // TAPI jika ini adalah link baru/kustom yang disimpan di database Supabase,
+        // gambar pengguna WAJIB menjadi prioritas utama (allCandidates[0])!
+        const allCandidates: string[] = localDemoPath 
+          ? [localDemoPath, ...(formatted ? [formatted] : []), ...candidates]
+          : Array.from(new Set([
+              formatted,
+              ...candidates,
+              trimmed,
+              `/hero/slide-${(idx % 3) + 1}.jpg`
+            ].filter(Boolean)));
 
         return {
           id: `slide-${idx}`,
           raw: trimmed,
-          src: localPath || formatted || trimmed,
+          src: allCandidates[0] || trimmed,
           candidates: allCandidates
         };
       });
@@ -139,10 +150,16 @@ export const HeroSection: React.FC = () => {
                   }`}
                   onError={(e) => {
                     const target = e.currentTarget;
-                    const cands = slide.candidates;
-                    const nextCand = cands.find((c) => c !== target.src);
-                    if (nextCand) {
-                      target.src = nextCand;
+                    const cands = slide.candidates || [];
+                    const currentAttempt = Number(target.dataset.attempt || '0');
+                    const nextAttempt = currentAttempt + 1;
+                    if (nextAttempt < cands.length) {
+                      target.dataset.attempt = String(nextAttempt);
+                      target.src = cands[nextAttempt];
+                    } else {
+                      // Fallback aman ke slide lokal jika semua kandidat Google CDN gagal (misal file private/403)
+                      target.dataset.attempt = '999';
+                      target.src = `/hero/slide-${(idx % 3) + 1}.jpg`;
                     }
                   }}
                 />

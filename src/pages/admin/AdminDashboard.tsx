@@ -5235,7 +5235,6 @@ export const AdminDashboard: React.FC = () => {
                                   src={displaySrc}
                                   alt={`Slide ${idx + 1}`}
                                   referrerPolicy="no-referrer"
-                                  crossOrigin="anonymous"
                                   className="w-full h-full object-cover group-hover/slide:scale-105 transition-transform duration-300"
                                   onError={(e) => {
                                     e.currentTarget.style.opacity = '0.3';

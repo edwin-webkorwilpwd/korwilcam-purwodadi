@@ -50,7 +50,8 @@ import {
   isGoogleDriveFolderUrl, 
   embedGalleryMetadata, 
   extractGalleryMetadata, 
-  parseGoogleDriveImageLinks 
+  parseGoogleDriveImageLinks,
+  normalizeHeroSlideshowImages
 } from '../lib/driveHelper';
 import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
@@ -647,6 +648,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           parsed.korwilPhoto &&
           !parsed.korwilPhoto.includes('unsplash.com')
         ) {
+          if (parsed.heroSlideshowImages) {
+            parsed.heroSlideshowImages = normalizeHeroSlideshowImages(parsed.heroSlideshowImages);
+          }
           return parsed;
         }
       }
@@ -2031,9 +2035,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             heroBadge: (p.hero_badge || initialOfficeProfile.heroBadge || '').replace(/\bPAUD\b/gi, 'KB'),
             korwilQuote: (p.korwil_quote || initialOfficeProfile.korwilQuote || '').replace(/\bPAUD\b/gi, 'KB'),
             heroDriveFolderUrl: p.hero_drive_folder_url !== undefined ? p.hero_drive_folder_url : (initialOfficeProfile.heroDriveFolderUrl || ''),
-            heroSlideshowImages: Array.isArray(p.hero_slideshow_images) && p.hero_slideshow_images.length > 0 
-              ? p.hero_slideshow_images 
-              : (initialOfficeProfile.heroSlideshowImages || []),
+            heroSlideshowImages: (() => {
+              const parsedSlideshow = normalizeHeroSlideshowImages(p.hero_slideshow_images);
+              return parsedSlideshow.length > 0 ? parsedSlideshow : (initialOfficeProfile.heroSlideshowImages || []);
+            })(),
             heroSlideshowInterval: Number(p.hero_slideshow_interval) || initialOfficeProfile.heroSlideshowInterval || 5
           };
           setOfficeProfile(updatedProfile);
@@ -2793,7 +2798,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'office_profile' },
-        triggerDebouncedRefresh
+        (payload: any) => {
+          if (payload?.new && typeof payload.new === 'object') {
+            const p = payload.new;
+            const parsedSlideshow = normalizeHeroSlideshowImages(p.hero_slideshow_images);
+            setOfficeProfile((prev) => {
+              const updated: OfficeProfile = {
+                ...prev,
+                name: p.name || prev.name,
+                tagline: p.tagline || prev.tagline,
+                heroTitle: p.hero_title || prev.heroTitle,
+                heroSubtitle: p.hero_subtitle || prev.heroSubtitle,
+                heroBadge: p.hero_badge || prev.heroBadge,
+                heroDriveFolderUrl: p.hero_drive_folder_url !== undefined ? p.hero_drive_folder_url : prev.heroDriveFolderUrl,
+                heroSlideshowImages: parsedSlideshow.length > 0 ? parsedSlideshow : prev.heroSlideshowImages,
+                heroSlideshowInterval: Number(p.hero_slideshow_interval) || prev.heroSlideshowInterval || 5
+              };
+              try {
+                localStorage.setItem('korwilcam_office_profile', JSON.stringify(updated));
+              } catch {}
+              return updated;
+            });
+          }
+          triggerDebouncedRefresh();
+        }
       )
       .on(
         'postgres_changes',
