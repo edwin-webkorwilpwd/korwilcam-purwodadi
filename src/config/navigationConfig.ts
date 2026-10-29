@@ -329,3 +329,272 @@ export function getNavigationStats(visibility: MenuVisibilityMap) {
     disabledCount: totalAll - activeAll,
   };
 }
+
+export interface RouteAvailabilityResult {
+  isAvailable: boolean;
+  itemTitle?: string;
+  itemId?: string;
+}
+
+/**
+ * Memvalidasi apakah halaman, rute, atau sub-menu yang sedang dibuka oleh pengguna
+ * berstatus AKTIF atau NONAKTIF pada CMS "Pengaturan Menu".
+ * 
+ * Jika menu atau parent-nya dinonaktifkan:
+ * URL browser tetap pada halaman tersebut, namun konten halaman diganti dengan pemberitahuan
+ * "Halaman Ini Sudah Tidak Tersedia" demi menjaga privasi dan keamanan data website.
+ */
+export function checkRouteActive(
+  visibility: MenuVisibilityMap,
+  activeTab: string,
+  pathname: string = '',
+  hash: string = '',
+  details?: {
+    selectedNews?: any;
+    selectedAnnouncement?: any;
+    selectedGallery?: any;
+    selectedDocument?: any;
+    selectedServiceRequirement?: any;
+  }
+): RouteAvailabilityResult {
+  if (!visibility) return { isAvailable: true };
+
+  const cleanPath = (pathname || '').toLowerCase();
+  const cleanHash = (hash || '').toLowerCase();
+
+  // 1. Cek Detail Halaman (News, Announcement, Gallery, Document, ServiceRequirement)
+  if (details?.selectedNews) {
+    if (!isItemActive(visibility, 'news') || !isItemActive(visibility, 'news.latest')) {
+      return { isAvailable: false, itemTitle: 'Berita Terkini', itemId: 'news.latest' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (details?.selectedAnnouncement) {
+    if (!isItemActive(visibility, 'news') || !isItemActive(visibility, 'news.announcements')) {
+      return { isAvailable: false, itemTitle: 'Pengumuman & Edaran', itemId: 'news.announcements' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (details?.selectedGallery) {
+    if (!isItemActive(visibility, 'gallery')) {
+      return { isAvailable: false, itemTitle: 'Galeri Kegiatan', itemId: 'gallery' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (details?.selectedDocument) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.downloads')) {
+      return { isAvailable: false, itemTitle: 'Layanan Unduh Berkas', itemId: 'services.downloads' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (details?.selectedServiceRequirement) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.requirements')) {
+      return { isAvailable: false, itemTitle: 'Persyaratan Pelayanan', itemId: 'services.requirements' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 2. Purna Tugas (Sub-menu Profil)
+  if (
+    activeTab === 'purna-tugas' ||
+    cleanPath.startsWith('/purna-tugas') ||
+    cleanPath.startsWith('/purnatugas') ||
+    cleanHash === '#purna-tugas' ||
+    cleanHash.includes('purna-tugas') ||
+    cleanHash.includes('purnatugas')
+  ) {
+    if (!isItemActive(visibility, 'profile') || !isItemActive(visibility, 'profile.purna-tugas')) {
+      return { isAvailable: false, itemTitle: 'Purna Tugas', itemId: 'profile.purna-tugas' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 3. Nominatif Guru (Sub-menu Profil)
+  if (
+    activeTab === 'nominatif' ||
+    activeTab === 'nominative' ||
+    cleanPath.startsWith('/nominatif') ||
+    cleanPath.startsWith('/nominative') ||
+    cleanPath.startsWith('/daftar-guru') ||
+    cleanHash === '#nominatif' ||
+    cleanHash.includes('nominatif')
+  ) {
+    if (!isItemActive(visibility, 'profile') || !isItemActive(visibility, 'profile.nominative')) {
+      return { isAvailable: false, itemTitle: 'Nominatif Guru', itemId: 'profile.nominative' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 4. Organisasi Pendidikan (Sub-menu Profil)
+  if (
+    activeTab === 'organization' ||
+    cleanPath.startsWith('/organisasi') ||
+    cleanPath.startsWith('/organization') ||
+    cleanHash === '#organisasi' ||
+    cleanHash.includes('organisasi') ||
+    cleanHash.includes('organization')
+  ) {
+    if (!isItemActive(visibility, 'profile') || !isItemActive(visibility, 'profile.organization')) {
+      return { isAvailable: false, itemTitle: 'Organisasi Pendidikan', itemId: 'profile.organization' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 5. Profil (Sambutan & Visi Misi, Struktur Organisasi)
+  if (activeTab === 'profile' || cleanPath.startsWith('/profil')) {
+    if (!isItemActive(visibility, 'profile')) {
+      return { isAvailable: false, itemTitle: 'Profil Instansi', itemId: 'profile' };
+    }
+    if (cleanHash === '#struktur' || cleanHash.includes('struktur') || cleanPath.includes('struktur')) {
+      if (!isItemActive(visibility, 'profile.structure')) {
+        return { isAvailable: false, itemTitle: 'Struktur Organisasi', itemId: 'profile.structure' };
+      }
+    } else if (cleanHash === '#sambutan' || cleanHash.includes('sambutan') || cleanHash.includes('visi') || !cleanHash || cleanHash === '') {
+      if (!isItemActive(visibility, 'profile.welcome')) {
+        return { isAvailable: false, itemTitle: 'Sambutan & Visi Misi', itemId: 'profile.welcome' };
+      }
+    }
+    return { isAvailable: true };
+  }
+
+  // 6. SOP Pelayanan
+  if (activeTab === 'sop-pelayanan' || cleanPath.startsWith('/sop')) {
+    if (!isItemActive(visibility, 'sop-pelayanan')) {
+      return { isAvailable: false, itemTitle: 'SOP Pelayanan', itemId: 'sop-pelayanan' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 7. Direktori Sekolah
+  if (activeTab === 'schools' || cleanPath.startsWith('/sekolah') || cleanPath.startsWith('/direktori-sekolah')) {
+    if (!isItemActive(visibility, 'schools')) {
+      return { isAvailable: false, itemTitle: 'Direktori Sekolah', itemId: 'schools' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 8. Karyaku
+  if (activeTab === 'karyaku' || cleanPath.startsWith('/karyaku')) {
+    if (!isItemActive(visibility, 'karyaku')) {
+      return { isAvailable: false, itemTitle: 'Karyaku', itemId: 'karyaku' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 9. Prestasi Siswa & Guru (Sub-menu Berita)
+  if (
+    activeTab === 'achievements' ||
+    activeTab === 'prestasi' ||
+    cleanPath === '/berita/prestasi' ||
+    cleanPath.startsWith('/berita/prestasi') ||
+    cleanPath === '/prestasi' ||
+    cleanPath.startsWith('/prestasi')
+  ) {
+    if (!isItemActive(visibility, 'news') || !isItemActive(visibility, 'news.achievements')) {
+      return { isAvailable: false, itemTitle: 'Prestasi Siswa & Guru', itemId: 'news.achievements' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 10. Berita, Pengumuman, Agenda
+  if (activeTab === 'news' || cleanPath.startsWith('/berita')) {
+    if (!isItemActive(visibility, 'news')) {
+      return { isAvailable: false, itemTitle: 'Warta & Berita', itemId: 'news' };
+    }
+    if (cleanPath.includes('/pengumuman') || cleanPath.includes('/edaran')) {
+      if (!isItemActive(visibility, 'news.announcements')) {
+        return { isAvailable: false, itemTitle: 'Pengumuman & Edaran', itemId: 'news.announcements' };
+      }
+    } else if (cleanPath.includes('/agenda')) {
+      if (!isItemActive(visibility, 'news.agenda')) {
+        return { isAvailable: false, itemTitle: 'Agenda Kegiatan', itemId: 'news.agenda' };
+      }
+    } else {
+      if (!isItemActive(visibility, 'news.latest')) {
+        return { isAvailable: false, itemTitle: 'Berita Terkini', itemId: 'news.latest' };
+      }
+    }
+    return { isAvailable: true };
+  }
+
+  // 11. Layanan (Persyaratan, Unduh Berkas, Aula, Cuti, Survey, Permintaan Data)
+  if (activeTab === 'service-requirements' || cleanPath.includes('/persyaratan-pelayanan')) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.requirements')) {
+      return { isAvailable: false, itemTitle: 'Persyaratan Pelayanan', itemId: 'services.requirements' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (activeTab === 'downloads' || cleanPath.includes('/unduh-berkas') || cleanPath.startsWith('/dokumen') || cleanPath.startsWith('/unduhan')) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.downloads')) {
+      return { isAvailable: false, itemTitle: 'Layanan Unduh Berkas', itemId: 'services.downloads' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (activeTab === 'service-aula' || cleanPath.includes('/peminjaman-aula')) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.aula')) {
+      return { isAvailable: false, itemTitle: 'Peminjaman Aula', itemId: 'services.aula' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (activeTab === 'service-cuti' || cleanPath.includes('/surat-cuti')) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.cuti')) {
+      return { isAvailable: false, itemTitle: 'Surat Cuti GTK', itemId: 'services.cuti' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (activeTab === 'service-survey' || cleanPath.includes('/survey-pelayanan')) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.survey')) {
+      return { isAvailable: false, itemTitle: 'Survey Pelayanan', itemId: 'services.survey' };
+    }
+    return { isAvailable: true };
+  }
+
+  if (activeTab === 'service-permintaan-data' || cleanPath.includes('/permintaan-data')) {
+    if (!isItemActive(visibility, 'services') || !isItemActive(visibility, 'services.data-request')) {
+      return { isAvailable: false, itemTitle: 'Permintaan Data', itemId: 'services.data-request' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 12. Galeri
+  if (activeTab === 'gallery' || cleanPath.startsWith('/galeri')) {
+    if (!isItemActive(visibility, 'gallery')) {
+      return { isAvailable: false, itemTitle: 'Galeri Kegiatan', itemId: 'gallery' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 13. Kontak & Pengaduan
+  if (activeTab === 'contact' || cleanPath.startsWith('/kontak')) {
+    if (!isItemActive(visibility, 'contact') || !isItemActive(visibility, 'contact.office')) {
+      return { isAvailable: false, itemTitle: 'Kontak & Pengaduan', itemId: 'contact.office' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 14. Media Sosial
+  if (activeTab === 'social-media' || cleanPath.startsWith('/media-sosial')) {
+    if (!isItemActive(visibility, 'contact') || !isItemActive(visibility, 'contact.social')) {
+      return { isAvailable: false, itemTitle: 'Media Sosial Resmi', itemId: 'contact.social' };
+    }
+    return { isAvailable: true };
+  }
+
+  // 15. Beranda
+  if (activeTab === 'home' || cleanPath === '/' || cleanPath === '/beranda') {
+    if (!isItemActive(visibility, 'home')) {
+      return { isAvailable: false, itemTitle: 'Beranda', itemId: 'home' };
+    }
+    return { isAvailable: true };
+  }
+
+  return { isAvailable: true };
+}

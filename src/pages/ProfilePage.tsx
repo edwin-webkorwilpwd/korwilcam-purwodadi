@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl } from '../lib/driveHelper';
+import { isItemActive } from '../config/navigationConfig';
 
 // 1. Bottom-Left Corner Ribbon Accent (Dark Blue Geometric Cut matching Gambar 2)
 const CardCornerRibbon: React.FC = () => (
@@ -75,7 +76,7 @@ const CardEducationWatermark: React.FC = () => (
 );
 
 export const ProfilePage: React.FC = () => {
-  const { officeProfile, staff } = useApp();
+  const { officeProfile, staff, menuVisibility } = useApp();
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
   const [previewStaff, setPreviewStaff] = useState<{
     id?: string;
@@ -233,8 +234,10 @@ export const ProfilePage: React.FC = () => {
         <CurvedHeaderArch />
       </section>
 
-      {/* Sambutan Resmi Pimpinan (Desain Modern Sesuai Gambar 2) */}
-      <section id="sambutan" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 scroll-mt-24 -mt-8 sm:-mt-10 relative z-20">
+      {/* Sambutan Resmi Pimpinan & Visi Misi */}
+      {isItemActive(menuVisibility, 'profile.welcome') && (
+        <>
+          <section id="sambutan" className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 scroll-mt-24 -mt-8 sm:-mt-10 relative z-20">
         <div className="bg-white rounded-3xl sm:rounded-[32px] border border-blue-100/90 shadow-xl shadow-blue-500/5 relative overflow-hidden flex flex-col lg:flex-row items-stretch p-4 sm:p-6 lg:p-7 gap-6 lg:gap-8">
           
           {/* Bottom-left dark blue ribbon & Right education watermark */}
@@ -476,9 +479,13 @@ export const ProfilePage: React.FC = () => {
 
         </div>
       </section>
+        </>
+      )}
 
       {/* Struktur Organisasi & Pengawas/Penilik */}
-      <section id="struktur" className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 scroll-mt-24">
+      {isItemActive(menuVisibility, 'profile.structure') && (
+        <>
+          <section id="struktur" className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 scroll-mt-24">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
           <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">
             Struktur Organisasi
@@ -806,6 +813,8 @@ export const ProfilePage: React.FC = () => {
 
         </div>
       </section>
+        </>
+      )}
 
       {/* Popup Modal Foto Profil Staf Lebih Besar */}
       {previewStaff && (

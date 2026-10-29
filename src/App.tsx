@@ -8,6 +8,9 @@ import { ModernNoticeModal } from './components/ModernNoticeModal';
 import { NotificationPrompt } from './components/NotificationPrompt';
 import { initVisitorTracker, recordPageView } from './lib/visitorTracker';
 
+import { PageUnavailable } from './components/PageUnavailable';
+import { checkRouteActive } from './config/navigationConfig';
+
 // Eagerly loaded primary landing page
 import { HomePage } from './pages/HomePage';
 
@@ -78,8 +81,41 @@ const MainContent: React.FC = () => {
     selectedAnnouncement, 
     selectedGallery, 
     selectedDocument,
-    selectedServiceRequirement 
+    selectedServiceRequirement,
+    menuVisibility
   } = useApp();
+
+  const [currentHash, setCurrentHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
+  const [currentPath, setCurrentPath] = useState(() => (typeof window !== 'undefined' ? window.location.pathname : ''));
+
+  useEffect(() => {
+    const onLocationChange = () => {
+      setCurrentHash(window.location.hash || '');
+      setCurrentPath(window.location.pathname || '');
+    };
+    onLocationChange();
+    window.addEventListener('popstate', onLocationChange);
+    window.addEventListener('hashchange', onLocationChange);
+    return () => {
+      window.removeEventListener('popstate', onLocationChange);
+      window.removeEventListener('hashchange', onLocationChange);
+    };
+  }, [activeTab]);
+
+  // Validasi apakah menu / submenu yang diakses sedang aktif atau dinonaktifkan di CMS
+  const routeAvailability = checkRouteActive(
+    menuVisibility,
+    activeTab,
+    currentPath,
+    currentHash,
+    {
+      selectedNews,
+      selectedAnnouncement,
+      selectedGallery,
+      selectedDocument,
+      selectedServiceRequirement
+    }
+  );
 
   // Shortcut Keyboard Rahasia (Ctrl + Shift + A atau Alt + A)
   useEffect(() => {
@@ -155,85 +191,91 @@ const MainContent: React.FC = () => {
 
   // Public portal routing
   return (
-    <div className={`flex flex-col ${isWebView ? 'h-screen overflow-hidden bg-white' : 'min-h-screen bg-slate-50 text-slate-800'}`}>
+    <div className={`flex flex-col ${isWebView && routeAvailability.isAvailable ? 'h-screen overflow-hidden bg-white' : 'min-h-screen bg-slate-50 text-slate-800'}`}>
       {/* Sticky Navbar */}
       <Navbar />
 
       {/* Main Routed Page Content */}
-      <main className={`flex-1 ${isWebView ? 'w-full h-[calc(100vh-74px)] overflow-hidden flex flex-col' : ''}`}>
+      <main className={`flex-1 ${isWebView && routeAvailability.isAvailable ? 'w-full h-[calc(100vh-74px)] overflow-hidden flex flex-col' : ''}`}>
         <Suspense fallback={<PageLoadingFallback />}>
-          {/* Halaman Beranda (Keep-Alive: Tetap hidup di DOM tanpa unmount agar foto slideshow tidak proses / reload ulang) */}
-          <div className={isHomeActive ? 'block' : 'hidden'}>
-            <HomePage />
-          </div>
-
-          {/* Halaman Standar (Profil, SOP, Direktori Sekolah, Berita, Unduhan, Galeri, Kontak) & Detail */}
-          {selectedNews ? (
-            <NewsDetailPage />
-          ) : selectedAnnouncement ? (
-            <AnnouncementDetailPage />
-          ) : selectedGallery ? (
-            <GalleryDetailPage />
-          ) : selectedDocument ? (
-            <DocumentDetailPage />
-          ) : selectedServiceRequirement ? (
-            <ServiceRequirementDetailPage />
-          ) : activeTab === 'service-permintaan-data' ? (
-            <DataRequestPage />
-          ) : !isWebView ? (
+          {!routeAvailability.isAvailable ? (
+            <PageUnavailable title={routeAvailability.itemTitle} itemId={routeAvailability.itemId} />
+          ) : (
             <>
-              {activeTab === 'profile' && <ProfilePage />}
-              {activeTab === 'sop-pelayanan' && <SOPPage />}
-              {activeTab === 'schools' && <SchoolsPage />}
-              {(activeTab === 'nominatif' || activeTab === 'nominative') && <NominativePage />}
-              {activeTab === 'news' && <NewsPage />}
-              {(activeTab === 'achievements' || activeTab === 'prestasi') && <AchievementsPage />}
-              {activeTab === 'organization' && <OrganizationPage />}
-              {activeTab === 'purna-tugas' && <PurnaTugasPage />}
-              {activeTab === 'service-requirements' && <ServiceRequirementsPage />}
-              {activeTab === 'downloads' && <DownloadsPage />}
-              {activeTab === 'gallery' && <GalleryPage />}
-              {activeTab === 'contact' && <ContactPage />}
-              {activeTab === 'social-media' && <SocialMediaPage />}
-            </>
-          ) : null}
-
-          {/* Layanan Terpadu WebViews (Keep-Alive: Tetap hidup di memori DOM tanpa unmount atau reload ulang) */}
-          {WEBVIEW_SERVICES.map((service) => {
-            const isMounted = visitedWebViews[service.id];
-            if (!isMounted) return null;
-
-            const isCurrentActive =
-              activeTab === service.id &&
-              !selectedNews &&
-              !selectedAnnouncement &&
-              !selectedGallery &&
-              !selectedDocument &&
-              !selectedServiceRequirement;
-
-            return (
-              <div
-                key={service.id}
-                className={
-                  isCurrentActive
-                    ? 'w-full h-full flex-1 flex flex-col relative z-10'
-                    : 'invisible absolute inset-0 -z-10 pointer-events-none'
-                }
-                aria-hidden={!isCurrentActive}
-              >
-                <WebViewPage 
-                  title={service.title}
-                  url={service.url}
-                  cropTop={service.cropTop}
-                />
+              {/* Halaman Beranda (Keep-Alive: Tetap hidup di DOM tanpa unmount agar foto slideshow tidak proses / reload ulang) */}
+              <div className={isHomeActive ? 'block' : 'hidden'}>
+                <HomePage />
               </div>
-            );
-          })}
+
+              {/* Halaman Standar (Profil, SOP, Direktori Sekolah, Berita, Unduhan, Galeri, Kontak) & Detail */}
+              {selectedNews ? (
+                <NewsDetailPage />
+              ) : selectedAnnouncement ? (
+                <AnnouncementDetailPage />
+              ) : selectedGallery ? (
+                <GalleryDetailPage />
+              ) : selectedDocument ? (
+                <DocumentDetailPage />
+              ) : selectedServiceRequirement ? (
+                <ServiceRequirementDetailPage />
+              ) : activeTab === 'service-permintaan-data' ? (
+                <DataRequestPage />
+              ) : !isWebView ? (
+                <>
+                  {activeTab === 'profile' && <ProfilePage />}
+                  {activeTab === 'sop-pelayanan' && <SOPPage />}
+                  {activeTab === 'schools' && <SchoolsPage />}
+                  {(activeTab === 'nominatif' || activeTab === 'nominative') && <NominativePage />}
+                  {activeTab === 'news' && <NewsPage />}
+                  {(activeTab === 'achievements' || activeTab === 'prestasi') && <AchievementsPage />}
+                  {activeTab === 'organization' && <OrganizationPage />}
+                  {activeTab === 'purna-tugas' && <PurnaTugasPage />}
+                  {activeTab === 'service-requirements' && <ServiceRequirementsPage />}
+                  {activeTab === 'downloads' && <DownloadsPage />}
+                  {activeTab === 'gallery' && <GalleryPage />}
+                  {activeTab === 'contact' && <ContactPage />}
+                  {activeTab === 'social-media' && <SocialMediaPage />}
+                </>
+              ) : null}
+
+              {/* Layanan Terpadu WebViews (Keep-Alive: Tetap hidup di memori DOM tanpa unmount atau reload ulang) */}
+              {WEBVIEW_SERVICES.map((service) => {
+                const isMounted = visitedWebViews[service.id];
+                if (!isMounted) return null;
+
+                const isCurrentActive =
+                  activeTab === service.id &&
+                  !selectedNews &&
+                  !selectedAnnouncement &&
+                  !selectedGallery &&
+                  !selectedDocument &&
+                  !selectedServiceRequirement;
+
+                return (
+                  <div
+                    key={service.id}
+                    className={
+                      isCurrentActive
+                        ? 'w-full h-full flex-1 flex flex-col relative z-10'
+                        : 'invisible absolute inset-0 -z-10 pointer-events-none'
+                    }
+                    aria-hidden={!isCurrentActive}
+                  >
+                    <WebViewPage 
+                      title={service.title}
+                      url={service.url}
+                      cropTop={service.cropTop}
+                    />
+                  </div>
+                );
+              })}
+            </>
+          )}
         </Suspense>
       </main>
 
-      {/* Institutional Footer (disembunyikan pada mode webview untuk mencegah double scroll) */}
-      {!isWebView && <Footer />}
+      {/* Institutional Footer (disembunyikan pada mode webview aktif untuk mencegah double scroll) */}
+      {(!isWebView || !routeAvailability.isAvailable) && <Footer />}
 
       {/* Interactive Global Modals */}
       <ModalDetailSchool />
