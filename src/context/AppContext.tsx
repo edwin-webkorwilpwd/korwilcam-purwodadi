@@ -87,6 +87,13 @@ import {
   fetchNavigationVisibilityFromSupabase, 
   saveNavigationVisibilityToSupabase 
 } from '../lib/navigationHelper';
+import {
+  MaintenanceConfig,
+  getLocalMaintenanceConfig,
+  fetchMaintenanceFromSupabase,
+  saveMaintenanceToSupabase,
+  DEFAULT_MAINTENANCE_CONFIG
+} from '../lib/maintenanceHelper';
 
 
 export const initialAdminUsers: AdminUser[] = [
@@ -324,6 +331,10 @@ interface AppContextType {
   menuVisibility: MenuVisibilityMap;
   updateMenuVisibility: (updates: Partial<MenuVisibilityMap>) => Promise<boolean>;
   resetMenuVisibility: () => Promise<boolean>;
+
+  // Mode Maintenance Website
+  maintenanceConfig: MaintenanceConfig;
+  updateMaintenanceConfig: (updates: Partial<MaintenanceConfig>) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -819,6 +830,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [socialMedia, setSocialMedia] = useState<SocialMediaItem[]>(() => getLocalSocialMedia());
   const [menuVisibility, setMenuVisibility] = useState<MenuVisibilityMap>(() => getLocalNavigationVisibility());
+  const [maintenanceConfig, setMaintenanceConfig] = useState<MaintenanceConfig>(() => getLocalMaintenanceConfig());
 
   const [broadcastHistory, setBroadcastHistory] = useState<BroadcastNotification[]>(() => {
     try {
@@ -1472,15 +1484,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.175 Fetch navigation_settings IMMEDIATELY IN PARALLEL
+      // 0.175 Fetch navigation_settings & maintenance_settings IMMEDIATELY IN PARALLEL
       const navSettingsFetchPromise = (async () => {
         try {
           const vis = await fetchNavigationVisibilityFromSupabase();
           if (vis && typeof vis === 'object') {
             setMenuVisibility(vis);
           }
+          const mConfig = await fetchMaintenanceFromSupabase();
+          if (mConfig) {
+            setMaintenanceConfig(mConfig);
+          }
         } catch (errNav) {
-          console.warn('Tabel navigation_settings belum terbaca:', errNav);
+          console.warn('Tabel navigation_settings / maintenance belum terbaca:', errNav);
         }
       })();
 
@@ -2919,8 +2935,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (vis && typeof vis === 'object') {
               setMenuVisibility(vis);
             }
+            const mConfig = await fetchMaintenanceFromSupabase();
+            if (mConfig) {
+              setMaintenanceConfig(mConfig);
+            }
           } catch (e) {
-            console.warn('Realtime navigation_settings error:', e);
+            console.warn('Realtime navigation_settings / maintenance error:', e);
           }
         }
       )
@@ -6426,6 +6446,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return success;
   };
 
+  const updateMaintenanceConfig = async (updates: Partial<MaintenanceConfig>): Promise<boolean> => {
+    const merged: MaintenanceConfig = {
+      ...maintenanceConfig,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    setMaintenanceConfig(merged);
+    const success = await saveMaintenanceToSupabase(merged);
+    triggerActivityLog(
+      'UBAH DATA',
+      'Mode Maintenance',
+      `Mengubah mode maintenance website menjadi: ${merged.isEnabled ? 'AKTIF (Website Ditutup)' : 'NONAKTIF (Website Normal)'}`
+    );
+    return success;
+  };
+
   // SOP PELAYANAN (Auto-save to Supabase sop_pelayanan table & local state)
   const updateSOPImageUrl = async (url: string): Promise<boolean> => {
     const formatted = formatGoogleDriveImageUrl(url);
@@ -7636,7 +7672,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logAdminActivity: triggerActivityLog,
         menuVisibility,
         updateMenuVisibility,
-        resetMenuVisibility
+        resetMenuVisibility,
+        maintenanceConfig,
+        updateMaintenanceConfig
       }}
     >
       {children}

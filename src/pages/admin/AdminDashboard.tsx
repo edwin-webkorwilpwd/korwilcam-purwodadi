@@ -76,7 +76,8 @@ import {
   Medal,
   HelpCircle,
   EyeOff,
-  UserCog
+  UserCog,
+  Wrench
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -90,6 +91,7 @@ import {
 } from '../../lib/driveHelper';
 import { VisitorAnalyticsChart } from '../../components/admin/VisitorAnalyticsChart';
 import { MenuSettingsCMS } from '../../components/admin/MenuSettingsCMS';
+import { MaintenanceCMS } from '../../components/admin/MaintenanceCMS';
 import { 
   getSupabaseConfig, 
   getSupabaseClient,
@@ -366,6 +368,7 @@ export const AdminDashboard: React.FC = () => {
     | 'users-cms'
     | 'activity-log-cms'
     | 'menu-settings-cms'
+    | 'maintenance-cms'
     | 'my-profile-cms';
 
   const isSuperAdmin = currentUser?.role === 'Super Admin';
@@ -418,7 +421,7 @@ export const AdminDashboard: React.FC = () => {
       setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
     } else if ((currentSection === 'social-media-cms' || currentSection === 'broadcast-cms') && !isAdminOrSuperAdmin) {
       setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
-    } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms' || currentSection === 'menu-settings-cms') && !isSuperAdmin) {
+    } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms' || currentSection === 'menu-settings-cms' || currentSection === 'maintenance-cms') && !isSuperAdmin) {
       setCurrentSection('news-cms');
     }
   }, [isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
@@ -4754,6 +4757,42 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
                   currentSection === 'menu-settings-cms' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  Super
+                </span>
+              </button>
+
+              {/* Menu Mode Maintenance (Khusus Super Admin) */}
+              <button
+                type="button"
+                onClick={() => setCurrentSection('maintenance-cms')}
+                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all mt-1 ${
+                  currentSection === 'maintenance-cms'
+                    ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    currentSection === 'maintenance-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
+                  }`}>
+                    <Wrench className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'maintenance-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Mode Maintenance
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'maintenance-cms' ? 'text-amber-100' : 'text-slate-400'
+                    }`}>
+                      Saklar Darurat Sistem
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'maintenance-cms' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
                 }`}>
                   Super
                 </span>
@@ -14086,6 +14125,11 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 10: PENGATURAN TAMPILAN MENU & SUB MENU (KHUSUS SUPER ADMIN) */}
           {currentSection === 'menu-settings-cms' && isSuperAdmin && (
             <MenuSettingsCMS onGoToWebsite={() => setActiveTab('home')} />
+          )}
+
+          {/* TAB 11: MODE MAINTENANCE SISTEM (KHUSUS SUPER ADMIN) */}
+          {currentSection === 'maintenance-cms' && isSuperAdmin && (
+            <MaintenanceCMS />
           )}
 
           {/* TAB: PROFIL AKUN SAYA (BISA DIAKSES OLEH SEMUA ROLE: SUPER ADMIN, ADMIN, PENULIS) */}

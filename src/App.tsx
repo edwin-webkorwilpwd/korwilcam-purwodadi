@@ -37,6 +37,7 @@ const ServiceRequirementsPage = React.lazy(() => import('./pages/ServiceRequirem
 const ServiceRequirementDetailPage = React.lazy(() => import('./pages/ServiceRequirementDetailPage').then(m => ({ default: m.ServiceRequirementDetailPage })));
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const MaintenancePage = React.lazy(() => import('./pages/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
 
 const WEBVIEW_SERVICES = [
   {
@@ -82,7 +83,8 @@ const MainContent: React.FC = () => {
     selectedGallery, 
     selectedDocument,
     selectedServiceRequirement,
-    menuVisibility
+    menuVisibility,
+    maintenanceConfig
   } = useApp();
 
   const [currentHash, setCurrentHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
@@ -174,6 +176,16 @@ const MainContent: React.FC = () => {
     return (
       <Suspense fallback={<PageLoadingFallback />}>
         <AdminDashboard />
+      </Suspense>
+    );
+  }
+
+  // 3. Mode Maintenance: Jika aktif dan pengunjung bukan admin yang sedang login
+  if (maintenanceConfig?.isEnabled && !isAuthenticated) {
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <MaintenancePage config={maintenanceConfig} />
+        <ToastContainer />
       </Suspense>
     );
   }
