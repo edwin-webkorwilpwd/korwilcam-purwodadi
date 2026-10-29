@@ -356,7 +356,7 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & attribution */}
         <div className="pt-3 text-center text-xs sm:text-sm text-blue-100">
           <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-            <span>© 2026 Kantor Korwilcam Bidang Pendidikan Purwodadi. Seluruh hak cipta dilindungi.</span>
+            <span>© 2026 Korwilcam Bidang Pendidikan Kecamatan Purwodadi. Seluruh hak cipta dilindungi.</span>
             <span>
               Website ini dikembangkan oleh tim{' '}
               <a
