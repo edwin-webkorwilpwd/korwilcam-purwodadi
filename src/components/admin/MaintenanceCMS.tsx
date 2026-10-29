@@ -300,31 +300,31 @@ export const MaintenanceCMS: React.FC = () => {
           </div>
 
           {/* Mini Preview Container */}
-          <div className="flex-1 bg-[#182f6e] rounded-2xl p-4 flex flex-col items-center justify-center text-center text-white relative overflow-hidden select-none border border-blue-900/40">
-            <div className="w-full bg-[#253f86]/90 border border-white/15 rounded-2xl p-4 flex flex-col items-center shadow-lg">
+          <div className="flex-1 bg-gradient-to-br from-[#0c1a3b] via-[#142a5c] to-[#091530] rounded-2xl p-4 flex flex-col items-center justify-center text-center text-slate-800 relative overflow-hidden select-none border border-slate-700 shadow-inner">
+            <div className="w-full bg-white/95 backdrop-blur-xs border border-white/20 rounded-2xl p-4 flex flex-col items-center shadow-2xl">
               <img 
-                src="/maintenance-illustration.png" 
+                src="/maintenance-illustration-crop.png" 
                 alt="Ilustrasi Maintenance" 
-                className="w-36 h-auto object-contain mx-auto mb-2"
+                className="w-40 h-auto object-contain mx-auto mb-2"
               />
               <img 
                 src="/logo.png" 
                 alt="Logo Grobogan" 
                 className="w-10 h-12 object-contain mx-auto mb-2"
               />
-              <div className="text-base font-extrabold text-white mb-1">
+              <div className="text-sm font-extrabold text-slate-900 mb-1">
                 {formConfig.title || 'Mohon Maaf 🙏'}
               </div>
-              <div className="text-[11px] text-blue-100/90 leading-tight mb-2">
+              <div className="text-[11px] text-slate-600 font-semibold leading-tight mb-2 max-w-xs">
                 {formConfig.message || 'Sistem kami sedang dalam proses pemeliharaan berkala. SABAR 🥺'}
               </div>
-              <div className="my-2">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <div className="my-1.5">
+                <div className="w-6 h-6 border-[2.5px] border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
               </div>
-              <div className="text-[10px] text-blue-200/80 mb-2">
+              <div className="text-[10px] text-slate-500 mb-2.5">
                 {formConfig.subMessage || 'Kami akan segera perbaiki kembali secepatnya.'}
               </div>
-              <div className="text-[9px] font-bold text-blue-200/90 tracking-wider uppercase pt-1 border-t border-white/10 w-full">
+              <div className="text-[9px] font-bold text-white bg-[#1c3f7e] px-4 py-1 rounded-full tracking-wider uppercase shadow-xs">
                 ADMIN KORWILCAM PURWODADI
               </div>
             </div>
@@ -393,12 +393,12 @@ export const MaintenanceCMS: React.FC = () => {
 
       {/* 5. Fullscreen Preview Modal */}
       {showFullPreview && (
-        <div className="fixed inset-0 z-50 bg-[#182f6e] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-[#0c1a3b] overflow-y-auto">
           <div className="fixed top-4 right-4 z-50">
             <button
               type="button"
               onClick={() => setShowFullPreview(false)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-bold backdrop-blur-md border border-white/20 cursor-pointer shadow-lg"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/70 hover:bg-slate-900/90 text-white text-xs font-bold backdrop-blur-md border border-white/20 cursor-pointer shadow-lg"
             >
               <X className="w-4 h-4" />
               <span>Tutup Pratinjau</span>
