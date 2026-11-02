@@ -78,6 +78,7 @@ const MainContent: React.FC = () => {
     activeTab, 
     setActiveTab, 
     isAuthenticated, 
+    currentUser,
     selectedNews, 
     selectedAnnouncement, 
     selectedGallery, 
@@ -86,6 +87,11 @@ const MainContent: React.FC = () => {
     menuVisibility,
     maintenanceConfig
   } = useApp();
+
+  const isSuperAdmin = Boolean(
+    isAuthenticated && 
+    currentUser?.role?.trim().toLowerCase() === 'super admin'
+  );
 
   const [currentHash, setCurrentHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
   const [currentPath, setCurrentPath] = useState(() => (typeof window !== 'undefined' ? window.location.pathname : ''));
@@ -180,16 +186,18 @@ const MainContent: React.FC = () => {
     );
   }
 
-  // 3. Mode Maintenance: Jika aktif, tampilkan halaman maintenance pada seluruh rute website publik
-  if (maintenanceConfig?.isEnabled) {
+  // 3. Mode Maintenance: Jika aktif:
+  // - HANYA Super Admin yang berhak melihat & menjelajahi seluruh isi halaman website secara privat
+  // - Admin biasa, Penulis, dan seluruh pengunjung publik lainnya TETAP melihat halaman maintenance
+  if (maintenanceConfig?.isEnabled && !isSuperAdmin) {
     return (
       <Suspense fallback={<PageLoadingFallback />}>
-        {/* Banner Khusus Pengelola/Admin saat Membuka Halaman Publik dalam Mode Maintenance */}
+        {/* Banner Khusus Pengelola Non-SuperAdmin (Admin/Penulis) saat Membuka Halaman Publik dalam Mode Maintenance */}
         {isAuthenticated && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white px-4 py-2.5 flex items-center justify-between text-xs font-bold shadow-xl border-b border-amber-600/40 backdrop-blur-md">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
-              <span>Mode Maintenance SEDANG AKTIF — Seluruh pengunjung publik dialihkan ke halaman pemeliharaan ini.</span>
+              <span>Mode Maintenance SEDANG AKTIF — Seluruh pengunjung publik, Admin, dan Penulis dialihkan ke halaman pemeliharaan ini.</span>
             </div>
             <button 
               type="button"
@@ -220,6 +228,23 @@ const MainContent: React.FC = () => {
   // Public portal routing
   return (
     <div className={`flex flex-col ${isWebView && routeAvailability.isAvailable ? 'h-screen overflow-hidden bg-white' : 'min-h-screen bg-slate-50 text-slate-800'}`}>
+      {/* Banner Khusus Super Admin: Mode Maintenance Aktif (Akses Privat Pengembang) */}
+      {maintenanceConfig?.isEnabled && isSuperAdmin && (
+        <div className="sticky top-0 z-50 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white px-4 py-2.5 flex flex-wrap items-center justify-between text-xs font-bold shadow-xl border-b border-amber-500/40 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
+            <span>Mode Maintenance SEDANG AKTIF (Website Ditutup untuk Publik, Admin, & Penulis). Anda dapat menjelajahi dan menguji seluruh halaman web ini secara privat dengan Hak Akses Super Admin.</span>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setActiveTab('admin-dashboard')}
+            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0 ml-auto"
+          >
+            ← Kembali ke Panel CMS
+          </button>
+        </div>
+      )}
+
       {/* Sticky Navbar */}
       <Navbar />
 
