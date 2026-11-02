@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Wrench, 
@@ -10,9 +10,40 @@ import {
   CheckCircle2, 
   Lock, 
   ShieldCheck,
-  X
+  X,
+  Database,
+  Copy,
+  Check
 } from 'lucide-react';
 import { MaintenancePage } from '../../pages/MaintenancePage';
+
+const SQL_NAVIGATION_SETTINGS_SCRIPT = `-- ==============================================================================
+-- SKEMA PEMBUATAN TABEL: "navigation_settings" (SUPABASE POSTGRESQL)
+-- ==============================================================================
+-- Tabel ini menyimpan pengaturan Mode Maintenance & visibilitas Menu Publik.
+-- Jalankan kode ini di menu "SQL Editor" pada dashboard Supabase Anda.
+
+CREATE TABLE IF NOT EXISTS public.navigation_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  items JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.navigation_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read navigation_settings" ON public.navigation_settings;
+CREATE POLICY "Public read navigation_settings" ON public.navigation_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all on navigation_settings" ON public.navigation_settings FOR ALL USING (true);
+
+INSERT INTO public.navigation_settings (id, items)
+VALUES ('default', '{}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+-- Tambahkan baris maintenance awal jika belum ada
+INSERT INTO public.navigation_settings (id, items)
+VALUES ('maintenance', '{"isEnabled": false, "title": "Mohon Maaf 🙏", "message": "Sistem kami sedang dalam proses pemeliharaan berkala. SABAR 🥺", "subMessage": "Kami akan segera perbaiki kembali secepatnya."}'::jsonb)
+ON CONFLICT (id) DO NOTHING;`;
 
 export const MaintenanceCMS: React.FC = () => {
   const { 
@@ -32,6 +63,25 @@ export const MaintenanceCMS: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [pendingToggleState, setPendingToggleState] = useState<boolean>(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  useEffect(() => {
+    if (maintenanceConfig) {
+      setFormConfig({
+        title: maintenanceConfig.title || 'Mohon Maaf 🙏',
+        message: maintenanceConfig.message || 'Sistem kami sedang dalam proses pemeliharaan berkala. SABAR 🥺',
+        subMessage: maintenanceConfig.subMessage || 'Kami akan segera perbaiki kembali secepatnya.'
+      });
+    }
+  }, [maintenanceConfig?.title, maintenanceConfig?.message, maintenanceConfig?.subMessage]);
+
+  const copySqlToClipboard = () => {
+    navigator.clipboard.writeText(SQL_NAVIGATION_SETTINGS_SCRIPT);
+    setCopiedSql(true);
+    showToast('Kode SQL berhasil disalin ke clipboard!', 'success');
+    setTimeout(() => setCopiedSql(false), 2500);
+  };
 
   const isCurrentActive = Boolean(maintenanceConfig?.isEnabled);
 
@@ -120,14 +170,25 @@ export const MaintenanceCMS: React.FC = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowFullPreview(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer shrink-0"
-        >
-          <Eye className="w-4 h-4 text-blue-600" />
-          <span>Pratinjau Layar Penuh</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowSqlModal(true)}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors cursor-pointer shrink-0 border border-blue-200"
+          >
+            <Database className="w-4 h-4 text-blue-600" />
+            <span>Petunjuk SQL Supabase</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowFullPreview(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer shrink-0"
+          >
+            <Eye className="w-4 h-4 text-blue-600" />
+            <span>Pratinjau Layar Penuh</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Main Master Switch Card */}
@@ -391,7 +452,80 @@ export const MaintenanceCMS: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Fullscreen Preview Modal */}
+      {/* 5. SQL Instructions Modal */}
+      {showSqlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-slate-900">
+                    Skema Database Supabase
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Tabel <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-semibold">navigation_settings</code> untuk sinkronisasi cloud real-time
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSqlModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 text-xs text-blue-900 leading-relaxed space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-blue-800">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span>Kapan skrip ini perlu dijalankan?</span>
+              </p>
+              <p>
+                Jalankan skrip ini satu kali di <strong>Supabase Dashboard &gt; SQL Editor &gt; New Query &gt; Run</strong> bila status maintenance atau visibilitas menu belum tersimpan ke server database Supabase. Jika tabel ini sudah ada, tidak perlu dijalankan ulang.
+              </p>
+            </div>
+
+            <div className="relative">
+              <pre className="bg-slate-900 text-slate-100 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-56 leading-relaxed border border-slate-800">
+                <code>{SQL_NAVIGATION_SETTINGS_SCRIPT}</code>
+              </pre>
+              <button
+                type="button"
+                onClick={copySqlToClipboard}
+                className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-md transition-colors cursor-pointer"
+              >
+                {copiedSql ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Tersalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin Kode SQL</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowSqlModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Fullscreen Preview Modal */}
       {showFullPreview && (
         <div className="fixed inset-0 z-50 bg-[#0c1a3b] overflow-y-auto">
           <div className="fixed top-4 right-4 z-50">

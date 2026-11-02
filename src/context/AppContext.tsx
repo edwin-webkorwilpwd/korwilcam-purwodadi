@@ -4394,9 +4394,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (e.key === 'korwilcam_admin_auth' && e.newValue === null) {
         setIsAuthenticated(false);
         setCurrentUser(null);
+      } else if (e.key === 'korwilcam_maintenance_config' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setMaintenanceConfig(parsed);
+        } catch {}
       }
     };
     window.addEventListener('storage', handleStorageChange);
+
+    const handleMaintenanceCustomEvent = (e: any) => {
+      if (e.detail) {
+        setMaintenanceConfig(e.detail);
+      }
+    };
+    window.addEventListener('korwilcam_maintenance_changed', handleMaintenanceCustomEvent);
 
     // Cek segera saat tab kembali aktif atau laptop bangun dari mode tidur
     const handleVisibilityChange = () => {
@@ -4435,6 +4447,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.removeEventListener(evt, handleUserInteraction);
       });
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('korwilcam_maintenance_changed', handleMaintenanceCustomEvent);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisibilityChange);
       clearInterval(timerInterval);

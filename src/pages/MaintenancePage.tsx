@@ -1,11 +1,13 @@
 import React from 'react';
 import { MaintenanceConfig } from '../lib/maintenanceHelper';
+import { useApp } from '../context/AppContext';
 
 interface MaintenancePageProps {
   config?: MaintenanceConfig;
 }
 
 export const MaintenancePage: React.FC<MaintenancePageProps> = ({ config }) => {
+  const { setActiveTab } = useApp();
   const title = config?.title || 'Mohon Maaf 🙏';
   const message = config?.message || 'Sistem kami sedang dalam proses pemeliharaan berkala. SABAR 🥺';
   const subMessage = config?.subMessage || 'Kami akan segera perbaiki kembali secepatnya.';
@@ -81,11 +83,16 @@ export const MaintenancePage: React.FC<MaintenancePageProps> = ({ config }) => {
             {subMessage}
           </p>
 
-          {/* Tombol Badge Institusi (Sesuai Gambar 2) */}
+          {/* Tombol Badge Institusi / Pintasan Login Pengelola */}
           <div className="mt-1">
-            <span className="inline-block px-6 py-2 rounded-full bg-[#1c3f7e] text-white text-[10px] xl:text-xs font-bold tracking-wider uppercase shadow-md shadow-blue-900/20 pointer-events-none">
+            <button
+              type="button"
+              onClick={() => setActiveTab('admin-login')}
+              title="Akses Login Pengelola (Admin)"
+              className="inline-block px-6 py-2 rounded-full bg-[#1c3f7e] hover:bg-[#254f9c] text-white text-[10px] xl:text-xs font-bold tracking-wider uppercase shadow-md shadow-blue-900/20 transition-all cursor-pointer active:scale-95"
+            >
               ADMIN KORWILCAM PURWODADI
-            </span>
+            </button>
           </div>
         </div>
       </div>
@@ -132,10 +139,15 @@ export const MaintenancePage: React.FC<MaintenancePageProps> = ({ config }) => {
             {subMessage}
           </p>
 
-          {/* Badge Footer */}
-          <span className="inline-block px-6 py-2 rounded-full bg-[#1c3f7e] text-white text-[11px] sm:text-xs font-bold tracking-wider uppercase shadow-md shadow-blue-900/20">
+          {/* Badge Footer / Pintasan Login Pengelola */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('admin-login')}
+            title="Akses Login Pengelola (Admin)"
+            className="inline-block px-6 py-2 rounded-full bg-[#1c3f7e] hover:bg-[#254f9c] text-white text-[11px] sm:text-xs font-bold tracking-wider uppercase shadow-md shadow-blue-900/20 transition-all cursor-pointer active:scale-95"
+          >
             ADMIN KORWILCAM PURWODADI
-          </span>
+          </button>
         </div>
       </div>
     </div>

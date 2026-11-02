@@ -49,6 +49,10 @@ export const getLocalMaintenanceConfig = (): MaintenanceConfig => {
 export const setLocalMaintenanceConfig = (config: MaintenanceConfig): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('korwilcam_maintenance_changed', { detail: config }));
+    }
   } catch (err) {
     console.warn('Gagal menyimpan maintenance config ke LocalStorage:', err);
   }

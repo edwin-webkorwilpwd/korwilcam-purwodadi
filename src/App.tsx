@@ -180,10 +180,26 @@ const MainContent: React.FC = () => {
     );
   }
 
-  // 3. Mode Maintenance: Jika aktif dan pengunjung bukan admin yang sedang login
-  if (maintenanceConfig?.isEnabled && !isAuthenticated) {
+  // 3. Mode Maintenance: Jika aktif, tampilkan halaman maintenance pada seluruh rute website publik
+  if (maintenanceConfig?.isEnabled) {
     return (
       <Suspense fallback={<PageLoadingFallback />}>
+        {/* Banner Khusus Pengelola/Admin saat Membuka Halaman Publik dalam Mode Maintenance */}
+        {isAuthenticated && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white px-4 py-2.5 flex items-center justify-between text-xs font-bold shadow-xl border-b border-amber-600/40 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+              <span>Mode Maintenance SEDANG AKTIF — Seluruh pengunjung publik dialihkan ke halaman pemeliharaan ini.</span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setActiveTab('admin-dashboard')}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+            >
+              ← Kembali ke Panel CMS
+            </button>
+          </div>
+        )}
         <MaintenancePage config={maintenanceConfig} />
         <ToastContainer />
       </Suspense>
