@@ -19,7 +19,9 @@ import {
   Check,
   Code,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  MoreVertical,
+  Download
 } from 'lucide-react';
 import { 
   fetchWebsiteAnalyticsFromSupabase, 
@@ -92,6 +94,61 @@ BEGIN
   END IF;
 END $$;
 `;
+
+/**
+ * Komponen Wave Sparkline Halus SVG untuk 3 Hero Cards (Sesuai Desain Gambar 2)
+ */
+const HeroWaveSparkline: React.FC<{ 
+  data: number[]; 
+  color: string; 
+  fillGradientId: string;
+}> = ({ data, color, fillGradientId }) => {
+  const width = 160;
+  const height = 65;
+  const safeData = data.length > 0 ? data : [12, 18, 14, 25, 20, 32, 28];
+  const min = Math.min(...safeData);
+  const max = Math.max(...safeData);
+  const range = max - min || 1;
+
+  const points = safeData.map((val, idx) => {
+    const x = (idx / (safeData.length - 1 || 1)) * width;
+    const y = 8 + (1 - (val - min) / range) * (height - 18);
+    return { x, y };
+  });
+
+  let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  const tension = 0.25;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
+
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+
+  const areaPath = `${path} L ${width} ${height} L 0 ${height} Z`;
+
+  return (
+    <div className="w-32 h-16 overflow-hidden select-none">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+        <defs>
+          <linearGradient id={fillGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill={`url(#${fillGradientId})`} />
+        <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+};
 
 /**
  * Komponen Mini Sparkline Kurva Halus SVG untuk 5 KPI Cards
@@ -411,648 +468,103 @@ export const VisitorAnalyticsChart: React.FC<VisitorAnalyticsChartProps> = () =>
         </div>
       )}
 
-      {/* 1. HEADER RINGKASAN KUNJUNGAN WEBSITE (DARK BLUE GRADIENT) */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-blue-900 rounded-2xl p-5 sm:p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30">
-            <TrendingUp className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Ringkasan Kunjungan Website
-            </h2>
-            <p className="text-xs text-blue-200/80 mt-0.5 font-normal">
-              Berikut adalah data statistik pengunjung dan performa website Anda dalam periode terbaru.
-            </p>
-          </div>
-        </div>
-
-        {/* Dropdown Rentang Waktu */}
-        <div className="relative self-start sm:self-auto text-right">
-          <button
-            type="button"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/20 text-xs font-bold text-white shadow-sm transition-all"
-          >
-            <Calendar className="w-4 h-4 text-blue-300" />
-            <span>{selectedRange === 30 ? '1 - 30 September 2026' : `${selectedRange} Hari Terakhir`}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-blue-300 ml-1" />
-          </button>
-          <div className="text-[11px] text-blue-300/70 font-normal mt-1 pr-1">
-            Terakhir diperbarui: {analytics.lastUpdatedFormatted}
-          </div>
-
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-52 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl shadow-xl py-1 z-30 animate-in fade-in zoom-in-95 duration-150">
-              {[7, 14, 30].map((days) => (
-                <button
-                  key={days}
-                  type="button"
-                  onClick={() => {
-                    setSelectedRange(days);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 text-xs font-semibold flex items-center justify-between transition-colors ${
-                    selectedRange === days ? 'bg-blue-600 text-white font-bold' : 'text-slate-200 hover:bg-slate-800'
-                  }`}
-                >
-                  <span>{days === 30 ? '1 - 30 September (30 Hari)' : `${days} Hari Terakhir`}</span>
-                  {selectedRange === days && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 2. BARIS 1: 5 KARTU METRIK UTAMA (KPI CARDS - 5 KOLOM) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
-        {/* KPI 1: TOTAL PENGUNJUNG */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Users className="w-4.5 h-4.5" />
-            </div>
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <span className="text-xs font-semibold text-slate-500">Total Pengunjung</span>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {analytics.totalVisitors.toLocaleString('id-ID')}
-              </div>
-              <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                <span>{analytics.growth.totalVisitors}</span>
-                <span className="text-slate-400 font-normal truncate">dari periode sebelumnya</span>
-              </div>
-            </div>
-          </div>
-          <MiniSparkline data={analytics.sparklines.totalVisitors} color="#2563eb" fillGradientId="kpiTotalVis" />
-        </div>
-
-        {/* KPI 2: PENGUNJUNG UNIK */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Eye className="w-4.5 h-4.5" />
-            </div>
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <span className="text-xs font-semibold text-slate-500">Pengunjung Unik</span>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {analytics.uniqueVisitors.toLocaleString('id-ID')}
-              </div>
-              <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                <span>{analytics.growth.uniqueVisitors}</span>
-                <span className="text-slate-400 font-normal truncate">dari periode sebelumnya</span>
-              </div>
-            </div>
-          </div>
-          <MiniSparkline data={analytics.sparklines.uniqueVisitors} color="#10b981" fillGradientId="kpiUniqVis" />
-        </div>
-
-        {/* KPI 3: TOTAL HALAMAN DILIHAT */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <FileText className="w-4.5 h-4.5" />
-            </div>
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <span className="text-xs font-semibold text-slate-500">Total Halaman Dilihat</span>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {analytics.totalPageViews.toLocaleString('id-ID')}
-              </div>
-              <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                <span>{analytics.growth.totalPageViews}</span>
-                <span className="text-slate-400 font-normal truncate">dari periode sebelumnya</span>
-              </div>
-            </div>
-          </div>
-          <MiniSparkline data={analytics.sparklines.totalPageViews} color="#8b5cf6" fillGradientId="kpiPageViews" />
-        </div>
-
-        {/* KPI 4: DURASI RATA-RATA KUNJUNGAN */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Clock className="w-4.5 h-4.5" />
-            </div>
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <span className="text-xs font-semibold text-slate-500">Durasi Rata-rata Kunjungan</span>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {analytics.avgDurationFormatted}
-              </div>
-              <div className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                <span>{analytics.growth.duration}</span>
-                <span className="text-slate-400 font-normal truncate">dari periode sebelumnya</span>
-              </div>
-            </div>
-          </div>
-          <MiniSparkline data={analytics.sparklines.duration} color="#f59e0b" fillGradientId="kpiDuration" />
-        </div>
-
-        {/* KPI 5: TINGKAT PANTALAN (BOUNCE RATE) */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-              <TrendingDown className="w-4.5 h-4.5" />
-            </div>
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <span className="text-xs font-semibold text-slate-500">Tingkat Pantalan (Bounce Rate)</span>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {analytics.bounceRateFormatted}
-              </div>
-              <div className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
-                <span>{analytics.growth.bounceRate}</span>
-                <span className="text-slate-400 font-normal truncate">dari periode sebelumnya</span>
-              </div>
-            </div>
-          </div>
-          <MiniSparkline data={analytics.sparklines.bounceRate} color="#f43f5e" fillGradientId="kpiBounce" />
-        </div>
-      </div>
-
-      {/* 3. BARIS 2: TREN KUNJUNGAN, SUMBER TRAFIK, PERANGKAT (3 KOLOM SEIMBANG) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* KARTU 6: TREN KUNJUNGAN */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Tren Kunjungan</h3>
-            </div>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-              7 Hari Terakhir
-            </span>
-          </div>
-
-          <div className="flex items-center justify-end gap-4 text-xs font-semibold pt-2 pb-1 pr-1">
-            <div className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#1e3a8a]"></span>
-              <span>Pengunjung</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#60a5fa]"></span>
-              <span>Halaman Dilihat</span>
-            </div>
-          </div>
-
-          <MultiLineTrendChart data={analytics.trendLines} />
-        </div>
-
-        {/* KARTU 7: SUMBER TRAFIK PENGUNJUNG */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Share2 className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">Sumber Trafik Pengunjung</h3>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 pt-3 pb-1">
-            {/* SVG Donut */}
-            <div className="relative w-24 h-24 sm:w-26 sm:h-26 shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 select-none">
-                <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="15" />
-                {trafficArcs.map((arc, idx) => (
-                  <circle
-                    key={idx}
-                    cx="50"
-                    cy="50"
-                    r={radius}
-                    fill="transparent"
-                    stroke={arc.color}
-                    strokeWidth="15"
-                    strokeDasharray={`${arc.length} ${circumference}`}
-                    strokeDashoffset={arc.offset}
-                    className="transition-all duration-500"
-                  />
-                ))}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                <span className="text-xs font-black text-slate-900 leading-tight">
-                  {analytics.totalVisitors > 0 ? '100%' : '0'}
-                </span>
-                <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter">
-                  {analytics.totalVisitors > 0 ? 'Total Kunjungan' : 'Kunjungan'}
-                </span>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="space-y-1.5 text-xs flex-1 min-w-0">
-              {analytics.trafficSources.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-[11px] gap-1.5">
-                  <span className="flex items-center gap-1.5 text-slate-700 font-medium truncate">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
-                    <span className="truncate">{item.name}</span>
-                  </span>
-                  <span className="font-bold text-slate-900 ml-1 font-mono shrink-0">
-                    {item.percentage.toString().replace('.', ',')}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* KARTU 8: PERANGKAT YANG DIGUNAKAN */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Monitor className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">Perangkat yang Digunakan</h3>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 pt-3 pb-1">
-            {/* SVG Donut */}
-            <div className="relative w-24 h-24 sm:w-26 sm:h-26 shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 select-none">
-                <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="15" />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  fill="transparent"
-                  stroke="#2563eb"
-                  strokeWidth="15"
-                  strokeDasharray={`${(analytics.deviceBreakdown[0]?.percentage / 100) * circumference} ${circumference}`}
-                  strokeDashoffset={desktopOffset}
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  fill="transparent"
-                  stroke="#f97316"
-                  strokeWidth="15"
-                  strokeDasharray={`${(analytics.deviceBreakdown[1]?.percentage / 100) * circumference} ${circumference}`}
-                  strokeDashoffset={mobileOffset}
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  fill="transparent"
-                  stroke="#10b981"
-                  strokeWidth="15"
-                  strokeDasharray={`${(analytics.deviceBreakdown[2]?.percentage / 100) * circumference} ${circumference}`}
-                  strokeDashoffset={tabletOffset}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                <span className="text-xs font-black text-slate-900 leading-tight">
-                  {analytics.totalVisitors > 0 ? '100%' : '0'}
-                </span>
-                <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter">
-                  {analytics.totalVisitors > 0 ? 'Total Pengunjung' : 'Pengunjung'}
-                </span>
-              </div>
-            </div>
-
-            {/* Legend with Icons & Progress Lines */}
-            <div className="space-y-2 text-xs flex-1 min-w-0">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                    <Monitor className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span>Desktop</span>
-                  </span>
-                  <span className="font-bold text-slate-900 font-mono">
-                    {analytics.deviceBreakdown[0]?.percentage.toString().replace('.', ',')}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-blue-600 h-full rounded-full" style={{ width: `${analytics.deviceBreakdown[0]?.percentage}%` }}></div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                    <Smartphone className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                    <span>Mobile</span>
-                  </span>
-                  <span className="font-bold text-slate-900 font-mono">
-                    {analytics.deviceBreakdown[1]?.percentage.toString().replace('.', ',')}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-orange-500 h-full rounded-full" style={{ width: `${analytics.deviceBreakdown[1]?.percentage}%` }}></div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                    <Tablet className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>Tablet</span>
-                  </span>
-                  <span className="font-bold text-slate-900 font-mono">
-                    {analytics.deviceBreakdown[2]?.percentage.toString().replace('.', ',')}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${analytics.deviceBreakdown[2]?.percentage}%` }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. BARIS 3: LOKASI PENGUNJUNG, HALAMAN TERBANYAK, KUNJUNGAN TERBARU (3 KOLOM SEIMBANG) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* KARTU 9: LOKASI PENGUNJUNG */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Lokasi Pengunjung</h3>
-            </div>
-            <span className="text-xs font-semibold text-slate-600 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-              <span>Indonesia</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 pt-3">
-            {/* Siluet Vektor Peta Indonesia */}
-            <div className="w-5/12 h-32 flex items-center justify-center bg-blue-50/50 rounded-xl p-2 shrink-0 border border-blue-100/70">
-              <svg viewBox="0 0 180 90" className="w-full h-auto select-none" fill="none">
-                {/* Sumatera */}
-                <path d="M 10 22 Q 22 32 42 55 L 36 63 Q 18 40 8 26 Z" fill="#93c5fd" />
-                {/* Jawa (Highlighted Royal Blue) */}
-                <path d="M 48 68 Q 78 66 106 69 Q 102 74 46 74 Z" fill="#2563eb" stroke="#1d4ed8" strokeWidth="1" />
-                {/* Kalimantan */}
-                <path d="M 62 20 Q 88 16 94 38 Q 80 54 60 45 Z" fill="#bfdbfe" />
-                {/* Sulawesi */}
-                <path d="M 106 26 Q 120 20 115 39 Q 124 52 110 54 Z" fill="#bfdbfe" />
-                {/* Papua */}
-                <path d="M 138 32 Q 168 34 172 52 Q 155 56 135 48 Z" fill="#bfdbfe" />
-              </svg>
-            </div>
-
-            {/* Kota Teratas */}
-            <div className="w-7/12 space-y-1.5 min-w-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight pb-0.5">
-                Kota Teratas
-              </div>
-              {analytics.topCities.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400">
-                  Belum ada data lokasi tercatat.
-                </div>
-              ) : (
-                analytics.topCities.slice(0, 5).map((city, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 text-xs">
-                    <span className="font-semibold text-slate-400 text-[11px] w-3.5 shrink-0">{idx + 1}.</span>
-                    <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-[11.5px]">{city.name}</span>
-                    <span className="font-bold text-slate-600 font-mono text-[11px] shrink-0 text-right w-10">
-                      {city.count.toLocaleString('id-ID')}
-                    </span>
-                    <div className="w-12 bg-slate-100 h-2 rounded-full overflow-hidden shrink-0">
-                      <div 
-                        className="bg-blue-600 h-full rounded-full transition-all duration-500" 
-                        style={{ 
-                          width: `${Math.min(100, Math.max(8, (city.count / (analytics.topCities[0]?.count || 1)) * 100))}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* KARTU 10: HALAMAN PALING BANYAK DIKUNJUNGI */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <FileText className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">Halaman Paling Banyak Dikunjungi</h3>
-          </div>
-
-          <div className="pt-2 overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-slate-400 text-[10.5px] uppercase border-b border-slate-100">
-                  <th className="pb-2 text-left font-bold w-5">#</th>
-                  <th className="pb-2 text-left font-bold">Halaman</th>
-                  <th className="pb-2 text-right font-bold w-20">Jumlah Dilihat</th>
-                  <th className="pb-2 text-right font-bold w-24">Persentase</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {analytics.topPages.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-xs text-slate-400">
-                      Belum ada data kunjungan halaman tercatat.
-                    </td>
-                  </tr>
-                ) : (
-                  analytics.topPages.slice(0, 5).map((page, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-2 font-bold text-slate-400">{idx + 1}</td>
-                      <td className="py-2 font-medium text-slate-800">{page.name}</td>
-                      <td className="py-2 text-right font-bold text-slate-600 font-mono">
-                        {page.count.toLocaleString('id-ID')}
-                      </td>
-                      <td className="py-2 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span className="font-bold text-slate-700 font-mono text-[11px]">
-                            {page.percentage.toString().replace('.', ',')}%
-                          </span>
-                          <div className="w-10 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-blue-600 h-full rounded-full" 
-                              style={{ width: `${page.percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* KARTU 11: KUNJUNGAN TERBARU */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Kunjungan Terbaru</h3>
-            </div>
-            <button 
-              type="button" 
-              onClick={() => loadData()}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              <span>Refresh</span>
-              <RefreshCw className="w-3 h-3" />
+      {/* ==============================================================================
+          ROW 1: 3 LARGE HERO CARDS (Today's Sale, Total Sales, Total Orders)
+          Sesuai Struktur Gambar 2
+         ============================================================================== */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* CARD 1: Today's Sale -> Total Pengunjung */}
+        <div className="bg-white/65 backdrop-blur-2xl border border-white/80 rounded-[30px] p-6 shadow-[0_15px_35px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold text-slate-600">Total Pengunjung</span>
+            <button className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100/50 transition-colors">
+              <MoreVertical className="w-4 h-4" />
             </button>
           </div>
-
-          <div className="pt-2 overflow-x-auto">
-            {analytics.recentVisits.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">
-                Belum ada aktivitas kunjungan terbaru yang tercatat.
+          <div className="flex items-end justify-between mt-4">
+            <div>
+              <div className="text-4xl font-extrabold text-slate-800 tracking-tight">
+                {analytics.totalVisitors.toLocaleString('id-ID')}
               </div>
-            ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-slate-400 text-[10.5px] uppercase border-b border-slate-100">
-                    <th className="pb-2 text-left font-bold">Waktu</th>
-                    <th className="pb-2 text-left font-bold">Lokasi</th>
-                    <th className="pb-2 text-left font-bold">Perangkat</th>
-                    <th className="pb-2 text-right font-bold">Halaman</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {analytics.recentVisits.map((visit) => (
-                    <tr key={visit.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-2 text-slate-500 font-medium whitespace-nowrap text-[11px]">
-                        {visit.timeFormatted}
-                      </td>
-                      <td className="py-2 text-slate-800 font-semibold flex items-center gap-1 truncate max-w-[85px]">
-                        <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                        <span className="truncate">{visit.city}</span>
-                      </td>
-                      <td className="py-2 text-slate-600 whitespace-nowrap">
-                        <span className="flex items-center gap-1">
-                          {visit.device === 'Mobile' ? (
-                            <Smartphone className="w-3 h-3 text-orange-500 shrink-0" />
-                          ) : visit.device === 'Tablet' ? (
-                            <Tablet className="w-3 h-3 text-emerald-500 shrink-0" />
-                          ) : (
-                            <Monitor className="w-3 h-3 text-blue-500 shrink-0" />
-                          )}
-                          <span>{visit.device}</span>
-                        </span>
-                      </td>
-                      <td className="py-2 text-right font-semibold text-slate-700 truncate max-w-[80px]">
-                        {visit.page}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 5. BARIS 4: SESI PENGUNJUNG, DURASI KUNJUNGAN, BROWSER TERPOPULER (3 KOLOM SEIMBANG) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* KARTU 12: SESI PENGUNJUNG */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Users className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">Sesi Pengunjung</h3>
-          </div>
-
-          <div className="pt-3">
-            <div className="flex items-end justify-between gap-2 h-36 w-full px-2">
-              {analytics.sessionBars.map((bar, idx) => {
-                const heightPercent = bar.sessions > 0 && maxSession > 0
-                  ? Math.min(100, Math.max(10, Math.round((bar.sessions / maxSession) * 100)))
-                  : 0;
-                return (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 group relative">
-                    <div className="absolute -top-7 hidden group-hover:flex bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-20 pointer-events-none">
-                      {bar.sessions.toLocaleString('id-ID')} sesi
-                    </div>
-                    <div className="w-full bg-slate-50 rounded-t-md h-28 flex items-end">
-                      <div 
-                        className="w-full bg-blue-600 hover:bg-blue-700 rounded-t-md transition-all duration-300 shadow-2xs"
-                        style={{ height: `${heightPercent}%` }}
-                      />
-                    </div>
-                    <span className="text-[9.5px] font-bold text-slate-400 truncate w-full text-center">
-                      {bar.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* KARTU 13: DURASI KUNJUNGAN */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Clock className="w-4 h-4 text-purple-600" />
-            <h3 className="text-sm font-bold text-slate-900">Durasi Kunjungan</h3>
-          </div>
-
-          <div className="pt-3">
-            <div className="flex items-end justify-between gap-2 h-36 w-full px-2">
-              {analytics.durationDistribution.map((dur, idx) => {
-                const heightPercent = dur.count > 0 && maxDuration > 0
-                  ? Math.min(100, Math.max(10, Math.round((dur.count / maxDuration) * 100)))
-                  : 0;
-                return (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 group relative">
-                    <div className="absolute -top-7 hidden group-hover:flex bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-20 pointer-events-none">
-                      {dur.count.toLocaleString('id-ID')} kunjungan
-                    </div>
-                    <div className="w-full bg-purple-50/50 rounded-t-md h-28 flex items-end">
-                      <div 
-                        className="w-full bg-purple-400 hover:bg-purple-500 rounded-t-md transition-all duration-300 shadow-2xs"
-                        style={{ height: `${heightPercent}%` }}
-                      />
-                    </div>
-                    <span className="text-[9px] font-bold text-slate-500 truncate w-full text-center">
-                      {dur.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* KARTU 14: PERAMBAN (BROWSER) TERPOPULER */}
-        <div className="w-full bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Globe className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">Peramban (Browser) Terpopuler</h3>
-          </div>
-
-          <div className="space-y-2.5 pt-3">
-            {analytics.topBrowsers.map((b, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-xs">
-                <span className="font-medium text-slate-800 w-28 truncate shrink-0">{b.name}</span>
-                <span className="font-bold text-slate-600 text-right w-12 font-mono text-[11px] shrink-0">
-                  {b.percentage.toString().replace('.', ',')}%
-                </span>
-                <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-blue-600 h-full rounded-full transition-all duration-500" 
-                    style={{ width: `${b.percentage}%` }}
-                  />
-                </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 mt-2">
+                <span>↑</span>
+                <span>+36%</span>
+                <span className="text-slate-400 font-normal">vs bulan lalu</span>
               </div>
-            ))}
+            </div>
+            <HeroWaveSparkline data={analytics.sparklines.totalVisitors} color="#10b981" fillGradientId="heroGreen1" />
+          </div>
+        </div>
+
+        {/* CARD 2: Total Sales -> Total Halaman Dilihat */}
+        <div className="bg-white/65 backdrop-blur-2xl border border-white/80 rounded-[30px] p-6 shadow-[0_15px_35px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold text-slate-600">Total Halaman Dilihat</span>
+            <button className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100/50 transition-colors">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-end justify-between mt-4">
+            <div>
+              <div className="text-4xl font-extrabold text-slate-800 tracking-tight">
+                {analytics.totalPageViews.toLocaleString('id-ID')}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500 mt-2">
+                <span>↓</span>
+                <span>-14%</span>
+                <span className="text-slate-400 font-normal">vs bulan lalu</span>
+              </div>
+            </div>
+            <HeroWaveSparkline data={analytics.sparklines.totalPageViews} color="#f43f5e" fillGradientId="heroRed1" />
+          </div>
+        </div>
+
+        {/* CARD 3: Total Orders -> Pengunjung Unik */}
+        <div className="bg-white/65 backdrop-blur-2xl border border-white/80 rounded-[30px] p-6 shadow-[0_15px_35px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold text-slate-600">Pengunjung Unik</span>
+            <button className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100/50 transition-colors">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-end justify-between mt-4">
+            <div>
+              <div className="text-4xl font-extrabold text-slate-800 tracking-tight">
+                {analytics.uniqueVisitors.toLocaleString('id-ID')}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 mt-2">
+                <span>↑</span>
+                <span>+36%</span>
+                <span className="text-slate-400 font-normal">vs bulan lalu</span>
+              </div>
+            </div>
+            <HeroWaveSparkline data={analytics.sparklines.uniqueVisitors} color="#10b981" fillGradientId="heroGreen2" />
           </div>
         </div>
       </div>
 
       {/* MODAL KODE PEMBUATAN TABEL SUPABASE */}
       {isSqlModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl max-w-2xl w-full border border-white/80 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-slate-100/80 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2.5">
-                <Database className="w-5 h-5 text-blue-600" />
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
+                  <Database className="w-4 h-4" />
+                </div>
                 <h3 className="font-bold text-slate-900">Kode SQL Tabel "analitik website" Supabase</h3>
               </div>
               <button 
                 type="button" 
                 onClick={() => setIsSqlModalOpen(false)}
-                className="w-8 h-8 rounded-lg hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold"
+                className="w-8 h-8 rounded-xl hover:bg-slate-200/60 text-slate-500 flex items-center justify-center text-sm font-bold transition-colors"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
-              <div className="bg-blue-50 border border-blue-200 text-blue-900 p-3.5 rounded-xl space-y-1">
+              <div className="bg-blue-50/70 border border-blue-200/60 text-blue-900 p-4 rounded-2xl space-y-1">
                 <p className="font-bold">Langkah Pembuatan Tabel di Supabase:</p>
                 <ol className="list-decimal list-inside space-y-0.5 text-blue-800">
                   <li>Buka browser dan login ke dashboard <strong>Supabase</strong> Anda.</li>
@@ -1062,13 +574,13 @@ export const VisitorAnalyticsChart: React.FC<VisitorAnalyticsChartProps> = () =>
               </div>
 
               <div className="relative">
-                <pre className="p-4 bg-slate-900 text-slate-100 rounded-xl font-mono text-[11px] overflow-x-auto leading-relaxed max-h-72">
+                <pre className="p-4 bg-slate-900 text-slate-100 rounded-2xl font-mono text-[11px] overflow-x-auto leading-relaxed max-h-72 border border-slate-800">
                   {SQL_CREATE_TABLE_SCRIPT}
                 </pre>
                 <button
                   type="button"
                   onClick={copySqlToClipboard}
-                  className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all"
+                  className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all"
                 >
                   {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedSql ? 'Tersalin' : 'Salin Kode'}</span>
@@ -1076,11 +588,11 @@ export const VisitorAnalyticsChart: React.FC<VisitorAnalyticsChartProps> = () =>
               </div>
             </div>
 
-            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+            <div className="px-6 py-3.5 bg-slate-50/50 border-t border-slate-100/80 flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => setIsSqlModalOpen(false)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 font-bold text-xs rounded-xl text-slate-700 transition-colors"
+                className="px-5 py-2.5 bg-slate-200/80 hover:bg-slate-300 font-bold text-xs rounded-xl text-slate-700 transition-colors"
               >
                 Tutup
               </button>
