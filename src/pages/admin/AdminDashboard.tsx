@@ -77,7 +77,10 @@ import {
   HelpCircle,
   EyeOff,
   UserCog,
-  Wrench
+  Wrench,
+  MoreVertical,
+  Bell,
+  Moon
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -3894,157 +3897,46 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="h-screen max-h-screen bg-slate-100 flex flex-col overflow-hidden">
-      {/* Header Bar */}
-      <header className="bg-slate-900 text-white py-3 px-4 sm:px-6 border-b border-slate-800 flex items-center justify-between shrink-0 z-30 shadow-md">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-10 w-auto flex items-center justify-center shrink-0">
-            <img 
-              src="/logo.png" 
-              alt="Logo Kabupaten Grobogan" 
-              className="h-10 w-auto object-contain drop-shadow"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xs sm:text-sm font-extrabold tracking-tight text-white truncate">
-                PANEL CMS KORWILCAM PURWODADI
-              </h1>
-              <span className="hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                Online
-              </span>
-            </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
-              Pengelolaan Menyeluruh Seluruh Menu & Konten Tampilan Website
-            </p>
-          </div>
-        </div>
+    <div className="h-screen max-h-screen bg-[#ECEEF5] flex flex-col lg:flex-row overflow-hidden relative font-sans text-slate-800 p-3 sm:p-5 gap-4 sm:gap-6">
+      {/* Ambient Decorative 3D Glow Elements (Persis Gambar 2) */}
+      <div className="absolute -bottom-16 -left-16 w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-fuchsia-600 via-pink-500 to-rose-400 blur-sm opacity-85 shadow-[0_25px_60px_rgba(236,72,153,0.35)] pointer-events-none z-0" />
+      <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[450px] h-[450px] rounded-full bg-gradient-to-br from-indigo-200/50 via-purple-200/40 to-pink-200/50 blur-3xl pointer-events-none z-0" />
+      <div className="absolute -bottom-20 -right-20 w-[450px] h-[450px] rounded-full bg-emerald-200/40 blur-3xl pointer-events-none z-0" />
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isSuperAdmin ? (
-            <button
-              type="button"
-              onClick={() => setShowSupabaseModal(true)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm cursor-pointer ${
-                isSupabaseActive
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/25'
-                  : 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
-              }`}
-              title="Pengaturan & Sinkronisasi Database Cloud (Akses Khusus Super Admin)"
-            >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                isSupabaseActive 
-                  ? (syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : 'bg-emerald-400 animate-pulse') 
-                  : 'bg-amber-400'
-              }`} />
-              <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="hidden sm:inline">
-                {isSupabaseActive
-                  ? (syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 'Auto-Save Cloud: AKTIF')
-                  : 'Supabase Offline (Klik Hubungkan)'}
-              </span>
-              <span className="sm:hidden">
-                {isSupabaseActive ? 'Cloud Aktif' : 'Offline'}
-              </span>
-            </button>
-          ) : (
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm cursor-not-allowed select-none ${
-                isSupabaseActive
-                  ? 'bg-emerald-500/10 text-emerald-400/90 border-emerald-500/30'
-                  : 'bg-slate-800/80 text-slate-400 border-slate-700'
-              }`}
-              title="Status Auto-Save Cloud: AKTIF (Terkunci: Pengaturan database hanya dapat diakses oleh Super Admin)"
-            >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                isSupabaseActive 
-                  ? (syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : 'bg-emerald-400') 
-                  : 'bg-slate-500'
-              }`} />
-              <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="hidden sm:inline">
-                {isSupabaseActive
-                  ? (syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 'Auto-Save Cloud: AKTIF')
-                  : 'Auto-Save Cloud: Nonaktif'}
-              </span>
-              <span className="sm:hidden">
-                {isSupabaseActive ? 'Cloud Aktif' : 'Offline'}
-              </span>
-              <Lock className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
-            </div>
-          )}
-
-          <button
-            onClick={() => setActiveTab('home')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors border border-slate-700"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline">Lihat Website</span>
-            <span className="sm:hidden">Web</span>
-          </button>
-
-          {/* Active User Profile & Role Indicator (Clickable to open My Profile) */}
-          <button
-            type="button"
-            onClick={() => setCurrentSection('my-profile-cms')}
-            className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all border ${
-              currentSection === 'my-profile-cms'
-                ? 'bg-blue-600/30 border-blue-400 text-white shadow-sm ring-2 ring-blue-500/20'
-                : 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700/80 text-white'
-            }`}
-            title="Klik untuk membuka Profil Akun Saya"
-          >
-            <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-              currentUser?.role === 'Super Admin'
-                ? 'bg-purple-600 text-white'
-                : currentUser?.role === 'Admin'
-                ? 'bg-blue-600 text-white'
-                : 'bg-emerald-600 text-white'
-            }`}>
-              {currentUser?.role === 'Super Admin' ? (
-                <Crown className="w-3.5 h-3.5" />
-              ) : currentUser?.role === 'Admin' ? (
-                <Shield className="w-3.5 h-3.5" />
-              ) : (
-                <PenTool className="w-3.5 h-3.5" />
-              )}
-            </div>
-            <div className="hidden md:flex flex-col text-left leading-tight">
-              <span className="text-xs font-bold text-white truncate max-w-[120px]">
-                {currentUser?.name || 'Administrator'}
-              </span>
-              <span className={`text-[9px] font-extrabold uppercase mt-0.5 ${
-                currentUser?.role === 'Super Admin'
-                  ? 'text-purple-300'
-                  : currentUser?.role === 'Admin'
-                  ? 'text-blue-300'
-                  : 'text-emerald-300'
-              }`}>
-                {currentUser?.role || 'Admin'}
-              </span>
-            </div>
-          </button>
-
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-sm"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Keluar</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Workspace Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+      {/* Floating Frosted Glass Sidebar (Persis Gambar 2) */}
+      <aside className="w-full lg:w-72 xl:w-80 bg-white/60 backdrop-blur-3xl border border-white/75 rounded-[32px] p-5 shrink-0 select-none shadow-[0_20px_50px_rgba(0,0,0,0.04)] relative z-10 flex flex-col justify-between max-h-[35vh] lg:max-h-full lg:h-full overflow-hidden">
         
-        {/* Sidebar Nav: Matched 1-to-1 with Public Menus */}
-        <aside className="w-full lg:w-72 xl:w-80 bg-white border-r border-slate-200 p-3.5 space-y-1 shrink-0 select-none overflow-y-auto max-h-[35vh] lg:max-h-full lg:h-full overscroll-contain">
-          
+        {/* Brand & Logo Header */}
+        <div className="flex items-center justify-between pb-3.5 mb-1.5 border-b border-slate-200/50 px-1 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 p-2 shrink-0">
+              <img 
+                src="/logo.png" 
+                alt="Logo Kabupaten Grobogan" 
+                className="h-full w-auto object-contain drop-shadow-xs"
+              />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-extrabold text-slate-900 text-sm leading-tight tracking-tight truncate">CMS Korwilcam</h2>
+              <p className="text-[11px] text-slate-400 font-medium truncate">Purwodadi Web</p>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setActiveTab('home')}
+            title="Buka Website Publik"
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-white/60 transition-colors shrink-0 cursor-pointer"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Scrollable Navigation List */}
+        <div className="flex-1 overflow-y-auto overscroll-contain pr-1 space-y-1">
           {/* Menu Khusus Super Admin: Ringkasan Dashboard */}
           {isSuperAdmin && (
             <>
-              <div className="px-2.5 pt-1 pb-2">
+              <div className="px-3 pt-1.5 pb-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
                   Menu Pengelolaan Web
                 </span>
@@ -4054,14 +3946,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('overview')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'overview'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'overview' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <LayoutDashboard className="w-4 h-4" />
@@ -4083,8 +3975,8 @@ export const AdminDashboard: React.FC = () => {
             </>
           )}
 
-          <div className="pt-2 pb-1 px-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100 pt-2">
+          <div className="pt-2.5 pb-1 px-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
               {isWriter ? 'Menu Akses Penulis:' : 'Kelola Halaman Publik:'}
             </span>
           </div>
@@ -4096,14 +3988,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('home-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'home-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'home-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <Home className="w-4 h-4" />
@@ -4127,14 +4019,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('profile-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'profile-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <Building2 className="w-4 h-4" />
@@ -4153,7 +4045,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  currentSection === 'profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
                   {staff.length} Staf
                 </span>
@@ -4163,14 +4055,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('sop-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'sop-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <FileCheck2 className="w-4 h-4" />
@@ -4196,7 +4088,7 @@ export const AdminDashboard: React.FC = () => {
                   </span>
                 ) : (
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                    currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                    currentSection === 'sop-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-400'
                   }`}>
                     Kosong
                   </span>
@@ -4207,14 +4099,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('schools-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'schools-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <GraduationCap className="w-4 h-4" />
@@ -4233,7 +4125,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  currentSection === 'schools-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
                   {schools.length}
                 </span>
@@ -4243,14 +4135,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('nominatif-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'nominatif-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
                   }`}>
                     <Users className="w-4 h-4" />
@@ -4269,7 +4161,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  currentSection === 'nominatif-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
                   {teachers.length}
                 </span>
@@ -4281,14 +4173,14 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setCurrentSection('news-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'news-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                 currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
               }`}>
                 <FileText className="w-4 h-4" />
@@ -4307,7 +4199,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
             }`}>
               {isWriter ? (displayedNews.length + displayedAnnouncements.length) : (news.length + announcements.length)}
             </span>
@@ -4317,14 +4209,14 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setCurrentSection('achievements-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'achievements-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                 currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
               }`}>
                 <Trophy className="w-4 h-4" />
@@ -4343,7 +4235,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
             }`}>
               {isAdminOrSuperAdmin ? achievements.length : displayedAchievements.length}
             </span>
@@ -4354,14 +4246,14 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setCurrentSection('organization-cms')}
-              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'organization-cms'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'text-slate-700 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                   currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                 }`}>
                   <Users className="w-4 h-4" />
@@ -4380,7 +4272,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                currentSection === 'organization-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
               }`}>
                 {displayedOrganizations.length}
               </span>
@@ -4398,14 +4290,14 @@ export const AdminDashboard: React.FC = () => {
                   setReqCategoryFilter('Semua');
                   setReqSearchQuery('');
                 }}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'service-requirements-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <ClipboardList className="w-4 h-4" />
@@ -4424,7 +4316,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  currentSection === 'service-requirements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
                   {serviceRequirements.length}
                 </span>
@@ -4434,14 +4326,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('downloads-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'downloads-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <Download className="w-4 h-4" />
@@ -4460,7 +4352,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  currentSection === 'downloads-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
                   {documents.length}
                 </span>
@@ -4470,14 +4362,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('data-request-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'data-request-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'data-request-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <Database className="w-4 h-4" />
@@ -4496,7 +4388,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'data-request-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  currentSection === 'data-request-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
                   {dataRequests.length}
                 </span>
@@ -4508,14 +4400,14 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setCurrentSection('gallery-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'gallery-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                 currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
               }`}>
                 <ImageIcon className="w-4 h-4" />
@@ -4534,7 +4426,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
             }`}>
               {isAdminOrSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
             </span>
@@ -4545,14 +4437,14 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setCurrentSection('contact-cms')}
-              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'contact-cms'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'text-slate-700 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                   currentSection === 'contact-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                 }`}>
                   <Phone className="w-4 h-4" />
@@ -4585,14 +4477,14 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setCurrentSection('social-media-cms')}
-              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'social-media-cms'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'text-slate-700 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                   currentSection === 'social-media-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                 }`}>
                   <Share2 className="w-4 h-4" />
@@ -4618,14 +4510,14 @@ export const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setCurrentSection('broadcast-cms')}
-              className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'broadcast-cms'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'text-slate-700 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                   currentSection === 'broadcast-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
                 }`}>
                   <Radio className="w-4 h-4" />
@@ -4649,8 +4541,8 @@ export const AdminDashboard: React.FC = () => {
           {/* 8. Pengaturan Akun & Hak Akses (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
             <>
-              <div className="pt-3 pb-1 px-2.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block border-t border-slate-100 pt-2.5">
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block border-t border-slate-100/80 pt-2.5">
                   Hak Akses Khusus:
                 </span>
               </div>
@@ -4658,14 +4550,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('users-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'users-cms'
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'users-cms' ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'
                   }`}>
                     <Crown className="w-4 h-4" />
@@ -4684,7 +4576,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'users-cms' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+                  currentSection === 'users-cms' ? 'bg-white/20 text-white' : 'bg-purple-100/80 text-purple-700'
                 }`}>
                   {adminUsers.length} Akun
                 </span>
@@ -4694,14 +4586,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('activity-log-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all mt-1 ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all mt-1 cursor-pointer ${
                   currentSection === 'activity-log-cms'
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'activity-log-cms' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
                   }`}>
                     <FileSpreadsheet className="w-4 h-4" />
@@ -4720,7 +4612,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'activity-log-cms' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
+                  currentSection === 'activity-log-cms' ? 'bg-white/20 text-white' : 'bg-emerald-100/80 text-emerald-700'
                 }`}>
                   Live
                 </span>
@@ -4730,14 +4622,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('menu-settings-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all mt-1 ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all mt-1 cursor-pointer ${
                   currentSection === 'menu-settings-cms'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'menu-settings-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
                   }`}>
                     <Sliders className="w-4 h-4" />
@@ -4756,7 +4648,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'menu-settings-cms' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+                  currentSection === 'menu-settings-cms' ? 'bg-white/20 text-white' : 'bg-blue-100/80 text-blue-700'
                 }`}>
                   Super
                 </span>
@@ -4766,14 +4658,14 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentSection('maintenance-cms')}
-                className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all mt-1 ${
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all mt-1 cursor-pointer ${
                   currentSection === 'maintenance-cms'
-                    ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     currentSection === 'maintenance-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
                   }`}>
                     <Wrench className="w-4 h-4" />
@@ -4792,7 +4684,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-                  currentSection === 'maintenance-cms' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+                  currentSection === 'maintenance-cms' ? 'bg-white/20 text-white' : 'bg-amber-100/80 text-amber-700'
                 }`}>
                   Super
                 </span>
@@ -4801,8 +4693,8 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* Menu Profil Akun Saya (Untuk Semua Role: Super Admin, Admin, Penulis) */}
-          <div className="pt-3 pb-1 px-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100 pt-2.5">
+          <div className="pt-3 pb-1 px-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
               Akun Pengguna:
             </span>
           </div>
@@ -4810,14 +4702,14 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setCurrentSection('my-profile-cms')}
-            className={`w-full text-left flex items-center justify-between p-2 rounded-xl transition-all ${
+            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'my-profile-cms'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                 currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
               }`}>
                 <UserCog className="w-4 h-4" />
@@ -4836,7 +4728,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
             }`}>
               {currentUser?.role || 'User'}
             </span>
@@ -4844,7 +4736,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Factory reset button (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
-            <div className="pt-3 mt-3 border-t border-slate-100">
+            <div className="pt-2 mt-2 border-t border-slate-100/80">
               <button
                 type="button"
                 onClick={async () => {
@@ -4863,17 +4755,137 @@ export const AdminDashboard: React.FC = () => {
                     type: 'warning'
                   });
                 }}
-                className="w-full flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-semibold text-rose-600 bg-rose-50/70 hover:bg-rose-100/80 transition-colors border border-rose-100"
+                className="w-full flex items-center justify-center gap-2 p-2 rounded-xl text-[11px] font-semibold text-rose-600 bg-rose-50/70 hover:bg-rose-100/80 transition-colors border border-rose-100 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset Seluruh Data ke Awal</span>
               </button>
             </div>
           )}
-        </aside>
+        </div>
+
+        {/* User Profile Card at Bottom of Sidebar */}
+        <div className="pt-3 border-t border-slate-200/50 flex items-center justify-between px-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setCurrentSection('my-profile-cms')}
+            className="flex items-center gap-2.5 text-left min-w-0 flex-1 hover:opacity-80 transition-opacity cursor-pointer"
+            title="Buka Profil Akun Saya"
+          >
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ${
+              currentUser?.role === 'Super Admin'
+                ? 'bg-purple-600'
+                : currentUser?.role === 'Admin'
+                ? 'bg-blue-600'
+                : 'bg-emerald-600'
+            }`}>
+              {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-800 truncate">
+                {currentUser?.name || 'Administrator'}
+              </p>
+              <p className="text-[10px] text-slate-400 truncate">
+                {currentUser?.role || 'Super Admin'}
+              </p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            title="Keluar dari Panel"
+            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Workspace Layout (Persis Bagian Kanan Gambar 2) */}
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative z-10">
+        
+        {/* Top Header Bar with greeting & action buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 px-1 shrink-0">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              Hi, {currentUser?.name || 'Admin'}
+            </h1>
+            <p className="text-xs text-slate-400 font-medium">
+              Welcome back to Korwilcam CMS 👋
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Cloud Auto-Save Status */}
+            <button
+              type="button"
+              onClick={() => isSuperAdmin && setShowSupabaseModal(true)}
+              className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all border shadow-xs backdrop-blur-md ${
+                isSupabaseActive
+                  ? 'bg-white/80 text-emerald-700 border-white/90 hover:bg-white'
+                  : 'bg-amber-50/80 text-amber-700 border-amber-200/80 hover:bg-amber-100'
+              } ${isSuperAdmin ? 'cursor-pointer' : 'cursor-default'}`}
+              title="Status Database Cloud Supabase"
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${
+                isSupabaseActive 
+                  ? (syncStatus === 'syncing' ? 'bg-blue-500 animate-spin' : 'bg-emerald-500 animate-pulse') 
+                  : 'bg-amber-500'
+              }`} />
+              <Database className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span>
+                {isSupabaseActive
+                  ? (syncStatus === 'syncing' ? 'Menyimpan...' : 'Auto-Save Cloud: AKTIF')
+                  : 'Supabase Offline'}
+              </span>
+            </button>
+
+            {/* Lihat Website */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('home')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/80 hover:bg-white text-slate-700 hover:text-blue-600 text-xs font-bold transition-all border border-white/90 shadow-xs cursor-pointer backdrop-blur-md"
+              title="Lihat Website Publik"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+              <span className="hidden md:inline">Lihat Website</span>
+            </button>
+
+            {/* + Sinkron Supabase / + Add New Blue Button */}
+            {isSuperAdmin && isSupabaseActive ? (
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={async () => {
+                  setIsExporting(true);
+                  const success = await refreshFromSupabase(true);
+                  setIsExporting(false);
+                  if (success) {
+                    showToast('Data terbaru dari database Supabase Cloud berhasil dimuat!', 'success');
+                  } else {
+                    showToast('Gagal menarik data dari Supabase.', 'error');
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
+                <span>+ Sinkron Supabase</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => isSuperAdmin && setShowSupabaseModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>+ Hubungkan Cloud</span>
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Content Area */}
-        <main className="flex-1 min-h-0 h-full p-4 sm:p-6 lg:p-8 overflow-y-auto overscroll-contain">
+        <main className="flex-1 min-h-0 h-full p-1 sm:p-2 overflow-y-auto overscroll-contain">
           {(!isSuperAdmin && currentSection === 'overview') ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
@@ -4936,151 +4948,100 @@ export const AdminDashboard: React.FC = () => {
               {/* TAB 0: OVERVIEW (HANYA UNTUK SUPER ADMIN) */}
               {currentSection === 'overview' && isSuperAdmin && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                  Ringkasan Pengelolaan Website
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Seluruh menu di panel ini sinkron dengan halaman depan website Korwilcam Purwodadi.
-                </p>
-              </div>
-
-              {/* KPI Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div 
-                  onClick={() => setCurrentSection('news-cms')}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                >
-                  <span className="text-xs font-bold text-slate-500 uppercase">Warta Berita</span>
-                  <div className="text-3xl font-extrabold text-blue-600">{news.length}</div>
-                  <span className="text-[11px] text-slate-400">Artikel aktif</span>
-                </div>
-
-                <div 
-                  onClick={() => setCurrentSection('achievements-cms')}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                >
-                  <span className="text-xs font-bold text-slate-500 uppercase">Prestasi</span>
-                  <div className="text-3xl font-extrabold text-amber-500">{achievements.length}</div>
-                  <span className="text-[11px] text-slate-400">Siswa & Guru</span>
-                </div>
-
-                <div 
-                  onClick={() => setCurrentSection('schools-cms')}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                >
-                  <span className="text-xs font-bold text-slate-500 uppercase">Satuan Sekolah</span>
-                  <div className="text-3xl font-extrabold text-indigo-600">{schools.length}</div>
-                  <span className="text-[11px] text-slate-400">SD, TK, & KB</span>
-                </div>
-
-                {canAccessOrganizationCms && (
-                  <div 
-                    onClick={() => setCurrentSection('organization-cms')}
-                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                  >
-                    <span className="text-xs font-bold text-slate-500 uppercase">Organisasi</span>
-                    <div className="text-3xl font-extrabold text-amber-600">{displayedOrganizations.length}</div>
-                    <span className="text-[11px] text-slate-400">Mitra & Profesi</span>
-                  </div>
-                )}
-
-                <div 
-                  onClick={() => setCurrentSection('downloads-cms')}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                >
-                  <span className="text-xs font-bold text-slate-500 uppercase">Berkas Unduhan</span>
-                  <div className="text-3xl font-extrabold text-emerald-600">{documents.length}</div>
-                  <span className="text-[11px] text-slate-400">Modul & blanko</span>
-                </div>
-
-                <div 
-                  onClick={() => setCurrentSection('contact-cms')}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                >
-                  <span className="text-xs font-bold text-slate-500 uppercase">Aspirasi & Aduan</span>
-                  <div className="text-3xl font-extrabold text-rose-600">{complaints.length}</div>
-                  <span className="text-[11px] text-slate-400">{newComplaintsCount} pesan baru</span>
-                </div>
-              </div>
-
-              {/* Supabase Status Banner Card */}
-              <div className={`p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
-                isSupabaseActive 
-                  ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-emerald-200' 
-                  : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-white border-blue-200'
-              }`}>
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                    isSupabaseActive ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
-                  }`}>
-                    <Database className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900">
-                        {isSupabaseActive ? 'Database Supabase Cloud Aktif' : 'Sinkronisasi Database Cloud (Supabase)'}
-                      </h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isSupabaseActive 
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'
-                      }`}>
-                        {isSupabaseActive ? 'Terkoneksi' : 'Mode Offline (LocalStorage)'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {isSupabaseActive 
-                        ? 'Data sekolah, warta, dokumen, dan pesan aspirasi tersimpan aman di cloud PostgreSQL Supabase.'
-                        : 'Web saat ini berjalan dengan penyimpanan browser. Hubungkan ke Supabase agar data tersimpan permanen di cloud.'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {isSuperAdmin ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowSupabaseModal(true)}
-                        className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
-                      >
-                        <span>Pengaturan Database</span>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
-                      </button>
-                      {isSupabaseActive && (
-                        <button
-                          type="button"
-                          disabled={isExporting}
-                          onClick={async () => {
-                            setIsExporting(true);
-                            const success = await refreshFromSupabase(true);
-                            setIsExporting(false);
-                            if (success) {
-                              showToast('Data terbaru dari database Supabase Cloud berhasil dimuat!', 'success');
-                            } else {
-                              showToast('Gagal menarik data dari Supabase.', 'error');
-                            }
-                          }}
-                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
-                          title="Tarik dan perbarui data tampilan web langsung dari database Supabase Cloud"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
-                          <span>{isExporting ? 'Memuat...' : 'Muat dari Supabase'}</span>
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div className="px-3 py-2 rounded-xl bg-white/70 text-slate-500 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 select-none cursor-not-allowed" title="Pengaturan database hanya dapat diakses oleh Super Admin">
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Pengaturan Database Terkunci</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Grafik Garis Jumlah Pengunjung & Durasi Website */}
+              {/* Visitor Analytics Chart (Image 2 Three-Row Architecture) */}
               <VisitorAnalyticsChart onNavigateToSection={(sec) => setCurrentSection(sec as AdminSection)} />
+
+              {/* Compact Quick Access strip to CMS Modules */}
+              <div className="bg-white/65 backdrop-blur-2xl border border-white/80 rounded-[30px] p-6 sm:p-7 shadow-[0_15px_35px_rgba(0,0,0,0.03)] mt-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h4 className="text-base font-bold text-slate-800">Modul Pengelolaan Konten Website</h4>
+                    <p className="text-xs text-slate-400 font-medium">Klik pada salah satu modul untuk langsung membuka dan mengelola data</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSupabaseModal(true)}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 bg-blue-50/70 hover:bg-blue-100/80 px-3.5 py-2 rounded-xl border border-blue-200/50 transition-colors cursor-pointer"
+                  >
+                    <Database className="w-3.5 h-3.5" />
+                    <span>Pengaturan Database</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSection('news-cms')}
+                    className="p-4 rounded-2xl bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Warta Berita</span>
+                      <FileText className="w-3.5 h-3.5 text-blue-500" />
+                    </div>
+                    <div className="text-2xl font-black text-slate-800 my-1">{news.length}</div>
+                    <span className="text-[11px] font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">Artikel aktif →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSection('schools-cms')}
+                    className="p-4 rounded-2xl bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sekolah</span>
+                      <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                    </div>
+                    <div className="text-2xl font-black text-slate-800 my-1">{schools.length}</div>
+                    <span className="text-[11px] font-semibold text-indigo-600 group-hover:translate-x-0.5 transition-transform">SD, TK &amp; KB →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSection('nominatif-cms')}
+                    className="p-4 rounded-2xl bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nominatif Guru</span>
+                      <Users className="w-3.5 h-3.5 text-emerald-500" />
+                    </div>
+                    <div className="text-2xl font-black text-slate-800 my-1">{teachers.length}</div>
+                    <span className="text-[11px] font-semibold text-emerald-600 group-hover:translate-x-0.5 transition-transform">Pendidik Supabase →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSection('achievements-cms')}
+                    className="p-4 rounded-2xl bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Prestasi</span>
+                      <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                    </div>
+                    <div className="text-2xl font-black text-slate-800 my-1">{achievements.length}</div>
+                    <span className="text-[11px] font-semibold text-amber-600 group-hover:translate-x-0.5 transition-transform">Siswa &amp; Guru →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSection('downloads-cms')}
+                    className="p-4 rounded-2xl bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unduhan</span>
+                      <Download className="w-3.5 h-3.5 text-teal-500" />
+                    </div>
+                    <div className="text-2xl font-black text-slate-800 my-1">{documents.length}</div>
+                    <span className="text-[11px] font-semibold text-teal-600 group-hover:translate-x-0.5 transition-transform">Modul &amp; Blanko →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSection('contact-cms')}
+                    className="p-4 rounded-2xl bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aspirasi</span>
+                      <Inbox className="w-3.5 h-3.5 text-rose-500" />
+                    </div>
+                    <div className="text-2xl font-black text-slate-800 my-1">{complaints.length}</div>
+                    <span className="text-[11px] font-semibold text-rose-600 group-hover:translate-x-0.5 transition-transform">{newComplaintsCount} pesan baru →</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
