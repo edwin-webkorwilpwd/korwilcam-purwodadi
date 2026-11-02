@@ -1278,43 +1278,125 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     })();
 
-    // Jika force=false dan pengguna bukan admin yang sedang mengelola CMS,
-    // periksa apakah cache lokal di browser masih segar/valid dan lengkap (100+ sekolah, ada TK & KB).
-    const shouldBypassCache = force || isAuthenticated;
-    if (!shouldBypassCache) {
-      try {
-        const lastSync = localStorage.getItem('korwilcam_last_supabase_sync');
-        const cachedSchoolsRaw = localStorage.getItem('korwilcam_schools');
-        const hasCachedNews = localStorage.getItem('korwilcam_news');
-
-        let isSchoolsCacheComplete = false;
-        if (cachedSchoolsRaw) {
-          try {
-            const parsed = JSON.parse(cachedSchoolsRaw);
-            const hasTk = Array.isArray(parsed) && parsed.some((s: any) => s.level === 'TK');
-            const hasKb = Array.isArray(parsed) && parsed.some((s: any) => s.level === 'KB' || s.level === 'PAUD');
-            isSchoolsCacheComplete = Array.isArray(parsed) && parsed.length >= 100 && hasTk && hasKb;
-          } catch {}
-        }
-
-        if (lastSync && isSchoolsCacheComplete && hasCachedNews) {
-          const age = Date.now() - Number(lastSync);
-          if (age < CACHE_TTL_MS) {
-            // Cache masih segar & lengkap! Gunakan data cache tanpa membebani egress Supabase
-            setSyncStatus('connected');
-            setIsSupabaseActive(true);
-            return true;
-          }
-        }
-      } catch (_) {}
-    }
-
     try {
       setSyncStatus('syncing');
 
-      // 0. Fetch schools & daftar_guru IMMEDIATELY IN PARALLEL (Sekolah & Nominatif Guru)
+      // 0. Fetch schools, daftar_guru, & news SECARA INSTAN DAN PARALEL
       const schoolsFetchPromise = refreshSchools(true);
       const teachersFetchPromise = refreshTeachers(true);
+
+      // 0.05 Fetch news IMMEDIATELY IN PARALLEL (Berita & Informasi Terkini)
+      const newsFetchPromise = (async () => {
+        try {
+          const { data: dbNews, error: newsErr } = await client
+            .from('news')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!newsErr && dbNews) {
+            // Cari master kategori tersimpan di Supabase
+            const sysCatItem = dbNews.find((n: any) => n.id === 'system-news-categories' || n.slug === 'system-news-categories');
+            let loadedCategories: string[] = ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'];
+            if (sysCatItem) {
+              try {
+                if (Array.isArray(sysCatItem.tags) && sysCatItem.tags.length > 0) {
+                  loadedCategories = sysCatItem.tags.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
+                } else if (sysCatItem.content) {
+                  const parsed = JSON.parse(sysCatItem.content);
+                  if (Array.isArray(parsed)) loadedCategories = parsed.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
+                }
+              } catch {}
+            }
+
+            // Filter keluar record master sistem agar tidak muncul sebagai berita artikel di website
+            const actualArticles = dbNews.filter((n: any) => n.id !== 'system-news-categories' && n.slug !== 'system-news-categories');
+
+            // Kumpulkan kategori dari artikel berita yang ada
+            actualArticles.forEach((n: any) => {
+              if (n.category && typeof n.category === 'string') {
+                const rawC = n.category.trim();
+                const c = rawC === 'TK/PAUD' ? 'TK/KB' : rawC;
+                if (c && !loadedCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
+                  loadedCategories.push(c);
+                }
+              }
+            });
+
+            // Pastikan kategori default selalu tersedia
+            ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'].forEach(def => {
+              if (!loadedCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
+                loadedCategories.push(def);
+              }
+            });
+
+            setNewsCategories(loadedCategories);
+            try {
+              localStorage.setItem('korwilcam_news_categories', JSON.stringify(loadedCategories));
+            } catch {}
+
+            const mappedArticles: NewsArticle[] = actualArticles.map((n: any) => {
+              const id = String(n.id || `news-${Date.now()}`);
+              const title = String(n.title || n.judul || '').trim();
+              const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
+              let parsedTags: string[] = [];
+              if (Array.isArray(n.tags)) {
+                parsedTags = n.tags;
+              } else if (typeof n.tags === 'string') {
+                try {
+                  const p = JSON.parse(n.tags);
+                  if (Array.isArray(p)) parsedTags = p;
+                  else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+                } catch {
+                  parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+                }
+              }
+              const existingLocal = _inMemoryNewsCache?.find((p) => p.id === id || p.slug === slug);
+              const serverViews = Number(n.views || 0);
+              const localViews = existingLocal ? Number(existingLocal.views || 0) : 0;
+              const finalViews = Math.max(serverViews, localViews);
+
+              const rawSummary = String(n.summary || n.ringkasan || '').trim();
+              const strippedSummary = stripHtml(rawSummary);
+              const plainContent = stripHtml(String(n.content || n.isi || n.konten || ''));
+              const fallbackSummary = plainContent.length > 180 ? plainContent.slice(0, 180).trim() + '...' : plainContent;
+              const safeSummary = strippedSummary || fallbackSummary;
+
+              return {
+                id,
+                title,
+                slug,
+                category: n.category || n.kategori || 'Kedinasan',
+                summary: safeSummary,
+                content: n.content || n.isi || n.konten || '',
+                author: n.author || n.penulis || 'Humas Korwilcam',
+                authorId: n.author_id || n.authorId || undefined,
+                authorRole: n.author_role || n.authorRole || undefined,
+                date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
+                image: n.image || n.gambar || '',
+                views: finalViews,
+                totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
+                readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),
+                tags: parsedTags
+              };
+            });
+
+            _inMemoryNewsCache = mappedArticles;
+            setNews(mappedArticles);
+            try {
+              sessionStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
+              localStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
+            } catch {}
+
+            setSelectedNewsState((current) => {
+              if (!current) return null;
+              const updated = mappedArticles.find((a) => a.id === current.id || a.slug === current.slug);
+              return updated || current;
+            });
+          }
+        } catch (errNews) {
+          console.warn('Gagal memuat berita dari Supabase:', errNews);
+        }
+      })();
 
       // 0.1 Fetch service_requirements and categories IMMEDIATELY IN PARALLEL
       const serviceReqsFetchPromise = (async () => {
@@ -2117,111 +2199,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Supabase fetch staff priority warning:', stErr);
       }
 
-      // Tunggu selesainya sinkronisasi schools paralel
-      await schoolsFetchPromise;
-
-      // Fetch news
-      const { data: dbNews, error: newsErr } = await client.from('news').select('*').order('created_at', { ascending: false });
-      if (!newsErr && dbNews) {
-        // Cari master kategori tersimpan di Supabase
-        const sysCatItem = dbNews.find((n: any) => n.id === 'system-news-categories' || n.slug === 'system-news-categories');
-        let loadedCategories: string[] = ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'];
-        if (sysCatItem) {
-          try {
-            if (Array.isArray(sysCatItem.tags) && sysCatItem.tags.length > 0) {
-              loadedCategories = sysCatItem.tags.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
-            } else if (sysCatItem.content) {
-              const parsed = JSON.parse(sysCatItem.content);
-              if (Array.isArray(parsed)) loadedCategories = parsed.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
-            }
-          } catch {}
-        }
-
-        // Filter keluar record master sistem agar tidak muncul sebagai berita artikel di website
-        const actualArticles = dbNews.filter((n: any) => n.id !== 'system-news-categories' && n.slug !== 'system-news-categories');
-
-        // Kumpulkan kategori dari artikel berita yang ada
-        actualArticles.forEach((n: any) => {
-          if (n.category && typeof n.category === 'string') {
-            const rawC = n.category.trim();
-            const c = rawC === 'TK/PAUD' ? 'TK/KB' : rawC;
-            if (c && !loadedCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
-              loadedCategories.push(c);
-            }
-          }
-        });
-
-        // Pastikan kategori default selalu tersedia
-        ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'].forEach(def => {
-          if (!loadedCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
-            loadedCategories.push(def);
-          }
-        });
-
-        setNewsCategories(loadedCategories);
-        try {
-          localStorage.setItem('korwilcam_news_categories', JSON.stringify(loadedCategories));
-        } catch {}
-
-        const mappedArticles: NewsArticle[] = actualArticles.map((n: any) => {
-          const id = String(n.id || `news-${Date.now()}`);
-          const title = String(n.title || n.judul || '').trim();
-          const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
-          let parsedTags: string[] = [];
-          if (Array.isArray(n.tags)) {
-            parsedTags = n.tags;
-          } else if (typeof n.tags === 'string') {
-            try {
-              const p = JSON.parse(n.tags);
-              if (Array.isArray(p)) parsedTags = p;
-              else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-            } catch {
-              parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-            }
-          }
-          const existingLocal = _inMemoryNewsCache?.find((p) => p.id === id || p.slug === slug);
-          const serverViews = Number(n.views || 0);
-          const localViews = existingLocal ? Number(existingLocal.views || 0) : 0;
-          const finalViews = Math.max(serverViews, localViews);
-
-          const rawSummary = String(n.summary || n.ringkasan || '').trim();
-          const strippedSummary = stripHtml(rawSummary);
-          const plainContent = stripHtml(String(n.content || n.isi || n.konten || ''));
-          const fallbackSummary = plainContent.length > 180 ? plainContent.slice(0, 180).trim() + '...' : plainContent;
-          const safeSummary = strippedSummary || fallbackSummary;
-
-          return {
-            id,
-            title,
-            slug,
-            category: n.category || n.kategori || 'Kedinasan',
-            summary: safeSummary,
-            content: n.content || n.isi || n.konten || '',
-            author: n.author || n.penulis || 'Humas Korwilcam',
-            authorId: n.author_id || n.authorId || undefined,
-            authorRole: n.author_role || n.authorRole || undefined,
-            date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
-            image: n.image || n.gambar || '',
-            views: finalViews,
-            totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
-            readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),
-            tags: parsedTags
-          };
-        });
-
-        _inMemoryNewsCache = mappedArticles;
-        setNews(mappedArticles);
-        try {
-          sessionStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
-          localStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
-        } catch {}
-
-        setSelectedNewsState((current) => {
-          if (!current) return null;
-          const updated = mappedArticles.find((a) => a.id === current.id || a.slug === current.slug);
-          return updated || current;
-        });
-      }
+      // Tunggu selesainya sinkronisasi schools dan news paralel
+      await Promise.all([schoolsFetchPromise, newsFetchPromise]);
 
       // Announcements sudah di-fetch secara instan dan paralel di awal
       await announcementsFetchPromise;
@@ -2798,22 +2777,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .subscribe();
 
-    // 4. Realtime Postgres Changes Subscription untuk Konten Berat (Sekolah, Berita, dll):
-    // HANYA aktif jika Admin sedang login (isAuthenticated).
-    // Pengunjung publik cukup menggunakan Smart Cache tanpa membuka websocket yang menguras kuota Egress.
-    if (!isAuthenticated) {
-      return () => {
-        client.removeChannel(navChannel);
-      };
-    }
-
+    // 4. Realtime Postgres Changes Subscription untuk Seluruh Menu & Konten (Aktif untuk Semua Pengunjung Publik & Admin):
+    // Memastikan setiap ada artikel berita, foto, pengumuman, atau perubahan data baru di CMS,
+    // seluruh layar pengunjung di HP, laptop, dan browser lain langsung otomatis ter-update secara real-time!
     let refreshDebounceTimer: any = null;
     const triggerDebouncedRefresh = () => {
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
       refreshDebounceTimer = setTimeout(() => {
         refreshFromSupabase(true);
-      }, 1200);
+      }, 600);
     };
+
+    // Sinkronisasi otomatis saat pengunjung kembali ke tab / menyalakan layar smartphone
+    const handleGlobalVisibilityOrFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        triggerDebouncedRefresh();
+      }
+    };
+    window.addEventListener('focus', handleGlobalVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleGlobalVisibilityOrFocus);
 
     // Realtime Postgres Changes Subscription for Portal Data
     const channel = client
@@ -3045,6 +3027,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => {
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+      window.removeEventListener('focus', handleGlobalVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleGlobalVisibilityOrFocus);
       client.removeChannel(navChannel);
       client.removeChannel(channel);
     };
