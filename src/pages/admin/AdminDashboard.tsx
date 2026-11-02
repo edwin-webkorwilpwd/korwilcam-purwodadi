@@ -80,7 +80,8 @@ import {
   Wrench,
   MoreVertical,
   Bell,
-  Moon
+  Moon,
+  Menu
 } from 'lucide-react';
 import { 
   isGoogleDriveUrl, 
@@ -384,6 +385,12 @@ export const AdminDashboard: React.FC = () => {
   const [currentSection, setCurrentSection] = useState<AdminSection>(() => 
     currentUser?.role === 'Super Admin' ? 'overview' : 'news-cms'
   );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navigateToSection = (section: AdminSection) => {
+    setCurrentSection(section);
+    setIsMobileMenuOpen(false);
+  };
 
   // Hak akses khusus Organisasi:
   // Super Admin & Admin dapat mengakses semua organisasi.
@@ -3903,8 +3910,21 @@ export const AdminDashboard: React.FC = () => {
       <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[450px] h-[450px] rounded-full bg-gradient-to-br from-indigo-200/50 via-purple-200/40 to-pink-200/50 blur-3xl pointer-events-none z-0" />
       <div className="absolute -bottom-20 -right-20 w-[450px] h-[450px] rounded-full bg-emerald-200/40 blur-3xl pointer-events-none z-0" />
 
-      {/* Floating Frosted Glass Sidebar (Persis Gambar 2) */}
-      <aside className="w-full lg:w-72 xl:w-80 bg-white/60 backdrop-blur-3xl border border-white/75 rounded-[32px] p-5 shrink-0 select-none shadow-[0_20px_50px_rgba(0,0,0,0.04)] relative z-10 flex flex-col justify-between max-h-[35vh] lg:max-h-full lg:h-full overflow-hidden">
+      {/* Backdrop Drawer saat dibuka di HP (Persis Gambar 2) */}
+      {isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Floating Frosted Glass Sidebar (Desktop) & Slide-over Drawer (Mobile - Persis Gambar 2) */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-[84%] max-w-[340px] bg-white/95 backdrop-blur-3xl p-5 flex flex-col justify-between border-r border-slate-200/80 shadow-2xl transition-transform duration-300 ease-in-out
+        lg:static lg:w-72 xl:w-80 lg:bg-white/60 lg:backdrop-blur-3xl lg:border lg:border-white/75 lg:rounded-[32px] lg:p-5 lg:shadow-[0_20px_50px_rgba(0,0,0,0.04)] lg:shrink-0 lg:max-h-full lg:h-full lg:translate-x-0 lg:z-10
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         
         {/* Brand & Logo Header */}
         <div className="flex items-center justify-between pb-3.5 mb-1.5 border-b border-slate-200/50 px-1 shrink-0">
@@ -3921,11 +3941,23 @@ export const AdminDashboard: React.FC = () => {
               <p className="text-[11px] text-slate-400 font-medium truncate">Purwodadi Web</p>
             </div>
           </div>
+
+          {/* Tombol X Tutup Menu di HP (Persis Gambar 2) */}
+          <button 
+            type="button" 
+            onClick={() => setIsMobileMenuOpen(false)}
+            title="Tutup Menu"
+            className="lg:hidden text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/60 transition-colors shrink-0 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Tombol Opsi Website di Desktop */}
           <button 
             type="button" 
             onClick={() => setActiveTab('home')}
             title="Buka Website Publik"
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-white/60 transition-colors shrink-0 cursor-pointer"
+            className="hidden lg:flex text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-white/60 transition-colors shrink-0 cursor-pointer"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
@@ -3938,14 +3970,14 @@ export const AdminDashboard: React.FC = () => {
             <>
               <div className="px-3 pt-1.5 pb-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                  Menu Pengelolaan Web
+                  UTAMA
                 </span>
               </div>
 
               {/* Overview */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('overview')}
+                onClick={() => navigateToSection('overview')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'overview'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -3977,7 +4009,7 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="pt-2.5 pb-1 px-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
-              {isWriter ? 'Menu Akses Penulis:' : 'Kelola Halaman Publik:'}
+              {isWriter ? 'AKSES PENULIS' : 'KELOLA HALAMAN PUBLIK'}
             </span>
           </div>
 
@@ -3987,7 +4019,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 1. Beranda */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('home-cms')}
+                onClick={() => navigateToSection('home-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'home-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4018,7 +4050,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 2. Profil */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('profile-cms')}
+                onClick={() => navigateToSection('profile-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'profile-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4054,7 +4086,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 2.5 SOP Pelayanan */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('sop-cms')}
+                onClick={() => navigateToSection('sop-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'sop-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4098,7 +4130,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 3. Direktori Sekolah */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('schools-cms')}
+                onClick={() => navigateToSection('schools-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'schools-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4134,7 +4166,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 3.5. Nominatif Guru (Supabase) */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('nominatif-cms')}
+                onClick={() => navigateToSection('nominatif-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'nominatif-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4172,7 +4204,7 @@ export const AdminDashboard: React.FC = () => {
           {/* 4. Warta & Informasi */}
           <button
             type="button"
-            onClick={() => setCurrentSection('news-cms')}
+            onClick={() => navigateToSection('news-cms')}
             className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'news-cms'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4208,7 +4240,7 @@ export const AdminDashboard: React.FC = () => {
           {/* 4.2. Kelola Prestasi Siswa & Guru */}
           <button
             type="button"
-            onClick={() => setCurrentSection('achievements-cms')}
+            onClick={() => navigateToSection('achievements-cms')}
             className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'achievements-cms'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4245,7 +4277,7 @@ export const AdminDashboard: React.FC = () => {
           {canAccessOrganizationCms && (
             <button
               type="button"
-              onClick={() => setCurrentSection('organization-cms')}
+              onClick={() => navigateToSection('organization-cms')}
               className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'organization-cms'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4286,7 +4318,7 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setCurrentSection('service-requirements-cms');
+                  navigateToSection('service-requirements-cms');
                   setReqCategoryFilter('Semua');
                   setReqSearchQuery('');
                 }}
@@ -4325,7 +4357,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 5. Layanan Unduhan */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('downloads-cms')}
+                onClick={() => navigateToSection('downloads-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'downloads-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4361,7 +4393,7 @@ export const AdminDashboard: React.FC = () => {
               {/* 5.5. Permintaan Data (Webview) */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('data-request-cms')}
+                onClick={() => navigateToSection('data-request-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'data-request-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4399,7 +4431,7 @@ export const AdminDashboard: React.FC = () => {
           {/* 6. Galeri */}
           <button
             type="button"
-            onClick={() => setCurrentSection('gallery-cms')}
+            onClick={() => navigateToSection('gallery-cms')}
             className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'gallery-cms'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4436,7 +4468,7 @@ export const AdminDashboard: React.FC = () => {
           {isAdminOrSuperAdmin && (
             <button
               type="button"
-              onClick={() => setCurrentSection('contact-cms')}
+              onClick={() => navigateToSection('contact-cms')}
               className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'contact-cms'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4476,7 +4508,7 @@ export const AdminDashboard: React.FC = () => {
           {isAdminOrSuperAdmin && (
             <button
               type="button"
-              onClick={() => setCurrentSection('social-media-cms')}
+              onClick={() => navigateToSection('social-media-cms')}
               className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'social-media-cms'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4509,7 +4541,7 @@ export const AdminDashboard: React.FC = () => {
           {isAdminOrSuperAdmin && (
             <button
               type="button"
-              onClick={() => setCurrentSection('broadcast-cms')}
+              onClick={() => navigateToSection('broadcast-cms')}
               className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                 currentSection === 'broadcast-cms'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4543,13 +4575,13 @@ export const AdminDashboard: React.FC = () => {
             <>
               <div className="pt-3 pb-1 px-3">
                 <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block border-t border-slate-100/80 pt-2.5">
-                  Hak Akses Khusus:
+                  HAK AKSES KHUSUS
                 </span>
               </div>
 
               <button
                 type="button"
-                onClick={() => setCurrentSection('users-cms')}
+                onClick={() => navigateToSection('users-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
                   currentSection === 'users-cms'
                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
@@ -4585,7 +4617,7 @@ export const AdminDashboard: React.FC = () => {
               {/* Menu Log Aktivitas (Google Spreadsheet) - Khusus Super Admin */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('activity-log-cms')}
+                onClick={() => navigateToSection('activity-log-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all mt-1 cursor-pointer ${
                   currentSection === 'activity-log-cms'
                     ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25'
@@ -4621,7 +4653,7 @@ export const AdminDashboard: React.FC = () => {
               {/* Menu Pengaturan Tampilan Menu & Sub Menu (Khusus Super Admin) */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('menu-settings-cms')}
+                onClick={() => navigateToSection('menu-settings-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all mt-1 cursor-pointer ${
                   currentSection === 'menu-settings-cms'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4657,7 +4689,7 @@ export const AdminDashboard: React.FC = () => {
               {/* Menu Mode Maintenance (Khusus Super Admin) */}
               <button
                 type="button"
-                onClick={() => setCurrentSection('maintenance-cms')}
+                onClick={() => navigateToSection('maintenance-cms')}
                 className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all mt-1 cursor-pointer ${
                   currentSection === 'maintenance-cms'
                     ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/25'
@@ -4695,13 +4727,13 @@ export const AdminDashboard: React.FC = () => {
           {/* Menu Profil Akun Saya (Untuk Semua Role: Super Admin, Admin, Penulis) */}
           <div className="pt-3 pb-1 px-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
-              Akun Pengguna:
+              AKUN PENGGUNA
             </span>
           </div>
 
           <button
             type="button"
-            onClick={() => setCurrentSection('my-profile-cms')}
+            onClick={() => navigateToSection('my-profile-cms')}
             className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
               currentSection === 'my-profile-cms'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
@@ -4764,29 +4796,31 @@ export const AdminDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* User Profile Card at Bottom of Sidebar */}
-        <div className="pt-3 border-t border-slate-200/50 flex items-center justify-between px-1 shrink-0">
+        {/* User Profile Card at Bottom of Sidebar (Persis Gambar 2) */}
+        <div className="pt-3 border-t border-slate-200/50 flex items-center justify-between px-1 shrink-0 bg-slate-50/80 lg:bg-transparent rounded-2xl p-2 lg:p-0">
           <button
             type="button"
-            onClick={() => setCurrentSection('my-profile-cms')}
+            onClick={() => navigateToSection('my-profile-cms')}
             className="flex items-center gap-2.5 text-left min-w-0 flex-1 hover:opacity-80 transition-opacity cursor-pointer"
             title="Buka Profil Akun Saya"
           >
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ${
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs text-white shrink-0 shadow-sm ${
               currentUser?.role === 'Super Admin'
-                ? 'bg-purple-600'
+                ? 'bg-blue-600'
                 : currentUser?.role === 'Admin'
                 ? 'bg-blue-600'
                 : 'bg-emerald-600'
             }`}>
-              {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+              {currentUser?.name 
+                ? currentUser.name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+                : 'AD'}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">
+              <p className="text-xs font-extrabold text-slate-800 truncate">
                 {currentUser?.name || 'Administrator'}
               </p>
-              <p className="text-[10px] text-slate-400 truncate">
-                {currentUser?.role || 'Super Admin'}
+              <p className="text-[10px] font-black uppercase tracking-wider text-blue-600 truncate mt-0.5">
+                {currentUser?.role || 'SUPER ADMIN'}
               </p>
             </div>
           </button>
@@ -4805,14 +4839,25 @@ export const AdminDashboard: React.FC = () => {
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative z-10">
         
         {/* Top Header Bar with greeting & action buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 px-1 shrink-0">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-              Hi, {currentUser?.name || 'Admin'}
-            </h1>
-            <p className="text-xs text-slate-400 font-medium">
-              Welcome back to Korwilcam CMS 👋
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 sm:pb-4 px-1 shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Tombol Hamburger Menu di HP (Persis Gambar 2) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden flex items-center justify-center w-10 h-10 rounded-2xl bg-white/80 hover:bg-white text-slate-700 border border-white/90 shadow-sm backdrop-blur-md active:scale-95 transition-all cursor-pointer shrink-0"
+              title="Buka Menu CMS"
+            >
+              <Menu className="w-5 h-5 text-blue-600" />
+            </button>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">
+                Hi, {currentUser?.name || 'Admin'}
+              </h1>
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium">
+                Welcome back to Korwilcam CMS 👋
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -4885,7 +4930,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <main className="flex-1 min-h-0 h-full p-1 sm:p-2 overflow-y-auto overscroll-contain">
+        <main className="flex-1 min-h-0 h-full p-1 sm:p-2 pb-24 lg:pb-2 overflow-y-auto overscroll-contain">
           {(!isSuperAdmin && currentSection === 'overview') ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
@@ -14997,6 +15042,62 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Mobile Bottom Navigation Bar (Persis Gambar 2) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-white/95 backdrop-blur-2xl border-t border-slate-200/80 px-3 py-2 flex items-center justify-around shadow-[0_-5px_25px_rgba(0,0,0,0.06)]">
+        <button
+          type="button"
+          onClick={() => navigateToSection('overview')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            currentSection === 'overview' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] font-semibold leading-none">Dashboard</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigateToSection('schools-cms')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            currentSection === 'schools-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <GraduationCap className="w-5 h-5" />
+          <span className="text-[10px] font-semibold leading-none">Sekolah</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigateToSection('news-cms')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            currentSection === 'news-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <FileText className="w-5 h-5" />
+          <span className="text-[10px] font-semibold leading-none">Warta</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigateToSection('gallery-cms')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            currentSection === 'gallery-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <ImageIcon className="w-5 h-5" />
+          <span className="text-[10px] font-semibold leading-none">Galeri</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-slate-700 hover:text-blue-600 font-semibold cursor-pointer active:scale-95 transition-all"
+        >
+          <Menu className="w-5 h-5 text-blue-600" />
+          <span className="text-[10px] font-bold leading-none">Menu</span>
+        </button>
+      </div>
 
     </div>
   );
