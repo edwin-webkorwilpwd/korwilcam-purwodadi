@@ -1,5 +1,5 @@
-import React from 'react';
-import { MaintenanceConfig } from '../lib/maintenanceHelper';
+import React, { useEffect } from 'react';
+import { MaintenanceConfig, fetchMaintenanceFromSupabase } from '../lib/maintenanceHelper';
 import { useApp } from '../context/AppContext';
 
 interface MaintenancePageProps {
@@ -7,10 +7,31 @@ interface MaintenancePageProps {
 }
 
 export const MaintenancePage: React.FC<MaintenancePageProps> = ({ config }) => {
-  const { setActiveTab } = useApp();
+  const { setActiveTab, updateMaintenanceConfig } = useApp();
   const title = config?.title || 'Mohon Maaf 🙏';
   const message = config?.message || 'Sistem kami sedang dalam proses pemeliharaan berkala. SABAR 🥺';
   const subMessage = config?.subMessage || 'Kami akan segera perbaiki kembali secepatnya.';
+
+  // Periksa langsung ke Supabase Cloud setiap kali halaman maintenance aktif
+  // Jika admin telah mematikan mode maintenance, pengunjung akan langsung dialihkan ke website utama
+  useEffect(() => {
+    let isMounted = true;
+    const checkMaintenance = async () => {
+      try {
+        const remote = await fetchMaintenanceFromSupabase();
+        if (isMounted && remote && !remote.isEnabled) {
+          await updateMaintenanceConfig({ isEnabled: false });
+        }
+      } catch {}
+    };
+
+    checkMaintenance();
+    const interval = setInterval(checkMaintenance, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [updateMaintenanceConfig]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#0c1a3b] via-[#142a5c] to-[#091530] flex flex-col items-center justify-center p-3 sm:p-6 lg:p-8 select-none relative overflow-x-hidden font-sans">
