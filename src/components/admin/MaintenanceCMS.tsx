@@ -34,7 +34,8 @@ ALTER TABLE public.navigation_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read navigation_settings" ON public.navigation_settings;
 CREATE POLICY "Public read navigation_settings" ON public.navigation_settings FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Allow all on navigation_settings" ON public.navigation_settings FOR ALL USING (true);
+DROP POLICY IF EXISTS "Allow all on navigation_settings" ON public.navigation_settings;
+CREATE POLICY "Allow all on navigation_settings" ON public.navigation_settings FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO public.navigation_settings (id, items)
 VALUES ('default', '{}'::jsonb)
