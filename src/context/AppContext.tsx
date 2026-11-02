@@ -1154,15 +1154,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // TIDAK AKAN menembak kueri ke Supabase sama sekali (0 Byte Egress).
   const CACHE_TTL_MS = 20 * 60 * 1000;
 
-  // Fungsi khusus untuk sinkronisasi daftar guru dari database Supabase secara real-time
+  // Fungsi khusus untuk sinkronisasi daftar guru dari database Supabase secara hemat kuota & efisien
   const refreshTeachers = async (force: boolean = false): Promise<boolean> => {
     const client = getSupabaseClient();
     if (!client) return false;
 
+    // Jika data guru sudah tersimpan di cache lokal (900+ data guru) dan bukan force sync,
+    // gunakan data cache lokal tanpa membuang kuota bandwidth (hemat ratusan MB)
+    if (!force && _inMemoryTeachersCache && _inMemoryTeachersCache.length >= 900) {
+      return true;
+    }
+
     try {
       const { data: dbTeachers, error: teachErr } = await client
         .from('daftar_guru')
-        .select('*')
+        .select('id, no, nama, nip, status_pegawai, instansi, created_at, updated_at')
         .order('no', { ascending: true })
         .limit(10000);
 
@@ -2746,12 +2752,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (client) {
       setIsSupabaseActive(true);
-      refreshSchools();
-      refreshTeachers();
       refreshFromSupabase();
     } else if (isSupabaseActive) {
-      refreshSchools();
-      refreshTeachers();
       refreshFromSupabase();
     }
 
