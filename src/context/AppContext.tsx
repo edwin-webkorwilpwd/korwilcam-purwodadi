@@ -1265,6 +1265,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    // PENTING: Status mode maintenance & visibilitas menu TIDAK BOLEH tertahan cache data sekolah (20 menit).
+    // Keduanya harus selalu diperiksa secara live ke Supabase setiap kali portal dimuat!
+    (async () => {
+      try {
+        const mConfig = await fetchMaintenanceFromSupabase();
+        if (mConfig) setMaintenanceConfig(mConfig);
+        const vis = await fetchNavigationVisibilityFromSupabase();
+        if (vis && typeof vis === 'object') setMenuVisibility(vis);
+      } catch (errNavQuick) {
+        console.warn('Gagal quick-check maintenance Supabase:', errNavQuick);
+      }
+    })();
+
     // Jika force=false dan pengguna bukan admin yang sedang mengelola CMS,
     // periksa apakah cache lokal di browser masih segar/valid dan lengkap (100+ sekolah, ada TK & KB).
     const shouldBypassCache = force || isAuthenticated;
@@ -2765,10 +2778,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!client) return;
 
-    // 3. Realtime Postgres Changes Subscription:
+    // 3. Realtime Listener Khusus untuk Status Maintenance & Visibilitas Menu (Aktif untuk SEMUA pengguna / publik & admin)
+    // Berbobot sangat ringan (hanya 2 baris data), namun krusial agar HP/perangkat lain langsung membuka/menutup portal saat mode maintenance diubah
+    const navChannel = client
+      .channel('korwilcam-navigation-sync-global')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'navigation_settings' },
+        async () => {
+          try {
+            const mConfig = await fetchMaintenanceFromSupabase();
+            if (mConfig) setMaintenanceConfig(mConfig);
+            const vis = await fetchNavigationVisibilityFromSupabase();
+            if (vis && typeof vis === 'object') setMenuVisibility(vis);
+          } catch (e) {
+            console.warn('Realtime global navigation_settings error:', e);
+          }
+        }
+      )
+      .subscribe();
+
+    // 4. Realtime Postgres Changes Subscription untuk Konten Berat (Sekolah, Berita, dll):
     // HANYA aktif jika Admin sedang login (isAuthenticated).
     // Pengunjung publik cukup menggunakan Smart Cache tanpa membuka websocket yang menguras kuota Egress.
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return () => {
+        client.removeChannel(navChannel);
+      };
+    }
 
     let refreshDebounceTimer: any = null;
     const triggerDebouncedRefresh = () => {
@@ -3008,6 +3045,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => {
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+      client.removeChannel(navChannel);
       client.removeChannel(channel);
     };
   }, [isSupabaseActive, isAuthenticated]);
