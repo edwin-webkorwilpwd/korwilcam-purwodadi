@@ -44,8 +44,16 @@ export const NewsPage: React.FC = () => {
     refreshAulaBookings, 
     setSelectedNews,
     setSelectedAnnouncement,
-    setActiveTab 
+    setActiveTab,
+    refreshFromSupabase 
   } = useApp();
+
+  // Pastikan data berita selalu ter-revalidasi secara live dari Supabase saat halaman dibuka
+  React.useEffect(() => {
+    if (typeof refreshFromSupabase === 'function') {
+      refreshFromSupabase(true);
+    }
+  }, []);
 
   const getInitialSubTab = (): 'news' | 'announcements' | 'agenda' => {
     const path = window.location.pathname.toLowerCase();
