@@ -221,24 +221,33 @@ export const NewsDetailPage: React.FC = () => {
   }
 
   const shortUrl = selectedNews ? getNewsShortUrl(selectedNews) : '';
+  const siteOrigin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://korwilcampurwodadi.web.id';
+
+  // URL Kanonikal resmi artikel berita (langsung terbaca oleh crawler WhatsApp & memunculkan foto sampul besar)
+  const canonicalArticleUrl = selectedNews?.slug
+    ? `${siteOrigin}/berita/${selectedNews.slug}`
+    : (typeof window !== 'undefined' ? window.location.href.split('?')[0] : '');
 
   const handleCopyLink = () => {
-    const linkToCopy = shortUrl || window.location.href;
+    const linkToCopy = canonicalArticleUrl || shortUrl || window.location.href;
     navigator.clipboard.writeText(linkToCopy);
     setCopied(true);
-    showToast('Tautan ringkas berita berhasil disalin ke clipboard!', 'success');
+    showToast('Tautan berita berhasil disalin ke clipboard!', 'success');
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleShareWhatsApp = () => {
-    const linkToShare = shortUrl || window.location.href;
+    // Gunakan URL kanonikal resmi artikel agar WhatsApp crawler langsung memunculkan kartu thumbnail foto sampul (og:image)
+    const linkToShare = canonicalArticleUrl || window.location.href.split('?')[0];
     const pageLabel = isPaginated && currentPage > 1 ? ` (Hal. ${currentPage})` : '';
     const text = encodeURIComponent(`*${selectedNews.title}*${pageLabel}\n\nBaca selengkapnya di Portal Resmi Korwilcam Purwodadi:\n${linkToShare}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
   const handleShareFacebook = () => {
-    const linkToShare = shortUrl || window.location.href;
+    const linkToShare = canonicalArticleUrl || window.location.href.split('?')[0];
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(linkToShare)}`, '_blank');
   };
 
