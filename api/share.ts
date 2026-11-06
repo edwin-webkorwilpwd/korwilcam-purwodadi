@@ -73,9 +73,10 @@ export default async function handler(req: any, res: any) {
       return res.end('Too Many Requests');
     }
 
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'korwilcampurwodadi-grobogan.vercel.app';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'korwilcampurwodadi.web.id';
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const origin = `${proto}://${host}`;
+    const currentUrl = `${origin}${req.url || ''}`;
 
     // Read ID or Slug from query params
     const query = req.query || {};
@@ -262,12 +263,19 @@ export default async function handler(req: any, res: any) {
       ogWidth = 1200;
       ogHeight = 1420;
     } else if (article.image) {
-      if (article.image.startsWith('data:')) {
+      const cleanImg = String(article.image).trim();
+      if (cleanImg.startsWith('data:')) {
         ogImageUrl = `${origin}/api/image?id=${encodeURIComponent(article.id)}`;
-      } else if (article.image.startsWith('http')) {
-        ogImageUrl = article.image;
-      } else if (article.image.startsWith('/')) {
-        ogImageUrl = `${origin}${article.image}`;
+      } else if (cleanImg.startsWith('http')) {
+        // Konversi link Google Drive agar langsung menyajikan gambar murni CDN tanpa halangan login
+        const driveMatch = cleanImg.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || cleanImg.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+        if (driveMatch && driveMatch[1]) {
+          ogImageUrl = `https://lh3.googleusercontent.com/d/${driveMatch[1]}=s1200`;
+        } else {
+          ogImageUrl = cleanImg;
+        }
+      } else if (cleanImg.startsWith('/')) {
+        ogImageUrl = `${origin}${cleanImg}`;
       }
     }
 
@@ -275,7 +283,7 @@ export default async function handler(req: any, res: any) {
 
     // Return HTML with Open Graph tags + instant browser redirect
     const html = `<!DOCTYPE html>
-<html lang="id">
+<html lang="id" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -289,11 +297,11 @@ export default async function handler(req: any, res: any) {
   <meta property="og:description" content="${escapeHtml(summaryText)}">
   <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
   <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
-  <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="${ogWidth}">
   <meta property="og:image:height" content="${ogHeight}">
   <meta property="og:image:alt" content="${escapeHtml(article.title)}">
-  <meta property="og:url" content="${redirectUrl}">
+  <meta property="og:url" content="${escapeHtml(currentUrl)}">
+  <link rel="canonical" href="${escapeHtml(redirectUrl)}">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
