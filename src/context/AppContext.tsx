@@ -1284,12 +1284,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     })();
 
+    // Safety timer: Pastikan status sinkronisasi tidak pernah tersangkut pada mode 'syncing' lebih dari 5 detik
+    const syncSafetyTimeout = setTimeout(() => {
+      setSyncStatus((prev) => (prev === 'syncing' ? 'connected' : prev));
+    }, 5000);
+
     try {
       setSyncStatus('syncing');
 
       // 0. Fetch schools, daftar_guru, & news SECARA INSTAN DAN PARALEL
-      const schoolsFetchPromise = refreshSchools(true);
-      const teachersFetchPromise = refreshTeachers(true);
+      // Jika force = false, data statis/besar seperti daftar_guru (977 baris) tidak perlu ditarik ulang dari Supabase
+      const schoolsFetchPromise = refreshSchools(force);
+      const teachersFetchPromise = refreshTeachers(force);
 
       // 0.05 Fetch news IMMEDIATELY IN PARALLEL (Berita & Informasi Terkini)
       const newsFetchPromise = (async () => {
@@ -1992,10 +1998,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               return true;
             });
 
-            if (duplicateDocIdsToDelete.length > 0 && client) {
-              try {
-                client.from('documents').delete().in('id', duplicateDocIdsToDelete).then(() => {});
-              } catch (_) {}
+            // Pembersihan duplikasi dilakukan secara instan di level memori browser tanpa menembak DELETE ke Supabase saat fetch
+            // Hal ini mutlak diperlukan untuk mencegah trigger berulang (infinite loop) dengan Supabase Realtime listener
+            if (duplicateDocIdsToDelete.length > 0) {
+              // Di level memori cleanActualDocs sudah disaring dengan bersih
             }
 
             // 3. SINKRONISASI OTOMATIS: HANYA pengumuman dengan BERKAS BARU yang disinkronkan
@@ -2038,20 +2044,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     downloadUrl: ann.fileUrl
                   };
                   missingAnnDocs.push(newSyncedDoc);
-
-                  try {
-                    client.from('documents').upsert({
-                      id: newSyncedDoc.id,
-                      title: newSyncedDoc.title,
-                      category: newSyncedDoc.category,
-                      file_type: newSyncedDoc.fileType,
-                      file_size: newSyncedDoc.fileSize,
-                      download_count: 0,
-                      date: newSyncedDoc.date,
-                      description: newSyncedDoc.description,
-                      download_url: newSyncedDoc.downloadUrl
-                    }).then(() => {});
-                  } catch (_) {}
+                  // Catatan arsitektur: Dokumen lampiran pengumuman disintesis langsung ke state browser
+                  // dan disimpan permanen ke Supabase saat admin menerbitkan pengumuman (addAnnouncement).
+                  // Dilarang melakukan client.from('documents').upsert() di dalam fetch agar tidak terjadi infinite loop realtime!
                 }
               }
             });
@@ -2331,6 +2326,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Supabase fetch failed, continuing with local data:', err);
       setSyncStatus('offline');
       return false;
+    } finally {
+      clearTimeout(syncSafetyTimeout);
+      setSyncStatus((prev) => (prev === 'syncing' ? 'connected' : prev));
     }
   };
 
@@ -2786,14 +2784,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const triggerDebouncedRefresh = () => {
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
       refreshDebounceTimer = setTimeout(() => {
-        refreshFromSupabase(true);
-      }, 600);
+        refreshFromSupabase(false);
+      }, 800);
     };
 
     // Sinkronisasi otomatis saat pengunjung kembali ke tab / menyalakan layar smartphone
+    let lastVisibilitySync = 0;
     const handleGlobalVisibilityOrFocus = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        triggerDebouncedRefresh();
+        const now = Date.now();
+        if (now - lastVisibilitySync > 15000) {
+          lastVisibilitySync = now;
+          triggerDebouncedRefresh();
+        }
       }
     };
     window.addEventListener('focus', handleGlobalVisibilityOrFocus);
