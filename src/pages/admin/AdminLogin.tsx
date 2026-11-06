@@ -54,10 +54,15 @@ export const AdminLogin: React.FC = () => {
     }
 
     setLoading(true);
-    const success = await login(username, password);
-    setLoading(false);
-    if (success) {
-      setActiveTab('admin-dashboard');
+    try {
+      const success = await login(username, password);
+      if (success) {
+        setActiveTab('admin-dashboard');
+      }
+    } catch (err: any) {
+      showToast('Gagal memproses login: ' + (err?.message || err), 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
