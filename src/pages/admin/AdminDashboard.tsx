@@ -3341,7 +3341,7 @@ export const AdminDashboard: React.FC = () => {
       });
       if (!confirmed) return;
 
-      await updateAdminUser(editingUserId, {
+      const success = await updateAdminUser(editingUserId, {
         name: userForm.name.trim(),
         username: userForm.username.trim().toLowerCase(),
         ...(userForm.password.trim() ? { password: userForm.password.trim() } : {}),
@@ -3350,13 +3350,15 @@ export const AdminDashboard: React.FC = () => {
         status: userForm.status
       });
 
+      if (!success) return;
+
       showNoticePopup({
         title: 'Akun Diperbarui!',
         message: `Data akun pengelola "${userForm.username}" berhasil diperbarui.`,
         type: 'success'
       });
     } else {
-      await addAdminUser({
+      const success = await addAdminUser({
         name: userForm.name.trim(),
         username: userForm.username.trim().toLowerCase(),
         password: userForm.password.trim(),
@@ -3364,6 +3366,8 @@ export const AdminDashboard: React.FC = () => {
         email: userForm.email.trim(),
         status: userForm.status
       });
+
+      if (!success) return;
 
       showNoticePopup({
         title: 'Akun Ditambahkan!',
