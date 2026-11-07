@@ -4861,31 +4861,33 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Cloud Auto-Save Status */}
-            <button
-              type="button"
-              onClick={() => isSuperAdmin && setShowSupabaseModal(true)}
-              className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all border shadow-xs backdrop-blur-md ${
-                isSupabaseActive
-                  ? (syncStatus === 'syncing'
-                      ? 'bg-blue-50/90 text-blue-700 border-blue-200/90 hover:bg-blue-100'
-                      : 'bg-white/80 text-emerald-700 border-white/90 hover:bg-white')
-                  : 'bg-amber-50/80 text-amber-700 border-amber-200/80 hover:bg-amber-100'
-              } ${isSuperAdmin ? 'cursor-pointer' : 'cursor-default'}`}
-              title="Status Database Cloud Supabase"
-            >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                isSupabaseActive 
-                  ? (syncStatus === 'syncing' ? 'bg-blue-500 animate-spin' : 'bg-emerald-500 animate-pulse') 
-                  : 'bg-amber-500'
-              }`} />
-              <Database className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span>
-                {isSupabaseActive
-                  ? (syncStatus === 'syncing' ? 'Menyinkronkan...' : 'Auto-Save Cloud: AKTIF')
-                  : 'Supabase Offline'}
-              </span>
-            </button>
+            {/* Cloud Auto-Save Status (Khusus Super Admin) */}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowSupabaseModal(true)}
+                className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all border shadow-xs backdrop-blur-md ${
+                  isSupabaseActive
+                    ? (syncStatus === 'syncing'
+                        ? 'bg-blue-50/90 text-blue-700 border-blue-200/90 hover:bg-blue-100'
+                        : 'bg-white/80 text-emerald-700 border-white/90 hover:bg-white')
+                    : 'bg-amber-50/80 text-amber-700 border-amber-200/80 hover:bg-amber-100'
+                } cursor-pointer`}
+                title="Status Database Cloud Supabase"
+              >
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  isSupabaseActive 
+                    ? (syncStatus === 'syncing' ? 'bg-blue-500 animate-spin' : 'bg-emerald-500 animate-pulse') 
+                    : 'bg-amber-500'
+                }`} />
+                <Database className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>
+                  {isSupabaseActive
+                    ? (syncStatus === 'syncing' ? 'Menyinkronkan...' : 'Auto-Save Cloud: AKTIF')
+                    : 'Supabase Offline'}
+                </span>
+              </button>
+            )}
 
             {/* Lihat Website */}
             <button
@@ -4898,35 +4900,37 @@ export const AdminDashboard: React.FC = () => {
               <span className="hidden md:inline">Lihat Website</span>
             </button>
 
-            {/* + Sinkron Supabase / + Add New Blue Button */}
-            {isSuperAdmin && isSupabaseActive ? (
-              <button
-                type="button"
-                disabled={isExporting}
-                onClick={async () => {
-                  setIsExporting(true);
-                  const success = await refreshFromSupabase(true);
-                  setIsExporting(false);
-                  if (success) {
-                    showToast('Data terbaru dari database Supabase Cloud berhasil dimuat!', 'success');
-                  } else {
-                    showToast('Gagal menarik data dari Supabase.', 'error');
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
-                <span>+ Sinkron Supabase</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => isSuperAdmin && setShowSupabaseModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
-              >
-                <Database className="w-3.5 h-3.5" />
-                <span>+ Hubungkan Cloud</span>
-              </button>
+            {/* + Sinkron Supabase / + Hubungkan Cloud - Khusus Super Admin */}
+            {isSuperAdmin && (
+              isSupabaseActive ? (
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  onClick={async () => {
+                    setIsExporting(true);
+                    const success = await refreshFromSupabase(true);
+                    setIsExporting(false);
+                    if (success) {
+                      showToast('Data terbaru dari database Supabase Cloud berhasil dimuat!', 'success');
+                    } else {
+                      showToast('Gagal menarik data dari Supabase.', 'error');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isExporting ? 'animate-spin' : ''}`} />
+                  <span>+ Sinkron Supabase</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowSupabaseModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>+ Hubungkan Cloud</span>
+                </button>
+              )
             )}
           </div>
         </div>
