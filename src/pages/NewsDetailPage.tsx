@@ -604,38 +604,30 @@ export const NewsDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Tags */}
-              {selectedNews.tags && selectedNews.tags.length > 0 && (
-                <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center gap-2">
-                  <Tag className="w-4 h-4 text-slate-400" />
-                  <span className="text-xs font-bold text-slate-500 mr-1">Topik Terkait:</span>
-                  {selectedNews.tags.map((tag, i) => (
-                    <span key={i} className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Social Sharing Footer Box */}
-              <div className="pt-6 border-t border-slate-100 bg-slate-50/70 -mx-6 sm:-mx-9 -mb-6 sm:-mb-9 p-6 sm:p-9 rounded-b-2xl sm:rounded-b-3xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">Bagikan Berita Ini</h4>
-                  <p className="text-xs text-slate-500">Bantu sebarkan kabar pendidikan bermanfaat ke rekan pendidik & masyarakat.</p>
-                  {shortUrl && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-medium text-slate-400">Tautan Ringkas:</span>
-                      <span className="text-xs font-mono font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100 select-all">
-                        {shortUrl}
+              {/* Baris Topik Terkait & Tombol Berbagi (Salin, WhatsApp, Facebook) dalam 1 Baris */}
+              <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                {/* Sisi Kiri: Topik Terkait */}
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <Tag className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="text-xs font-bold text-slate-600 mr-1 shrink-0">Topik Terkait:</span>
+                  {selectedNews.tags && selectedNews.tags.length > 0 ? (
+                    selectedNews.tags.map((tag, i) => (
+                      <span key={i} className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
+                        #{tag}
                       </span>
-                    </div>
+                    ))
+                  ) : (
+                    <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">
+                      #{selectedNews.category || 'Pendidikan'}
+                    </span>
                   )}
                 </div>
 
+                {/* Sisi Kanan: Tombol Salin, WhatsApp, Facebook */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={handleCopyLink}
-                    className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95"
+                    className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
                     title={copied ? 'Tautan berhasil disalin!' : 'Salin Tautan Berita'}
                     aria-label="Salin Tautan Berita"
                   >
@@ -644,7 +636,7 @@ export const NewsDetailPage: React.FC = () => {
 
                   <button
                     onClick={handleShareWhatsApp}
-                    className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95"
+                    className="w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
                     title="Bagikan ke WhatsApp"
                     aria-label="Bagikan ke WhatsApp"
                   >
@@ -653,7 +645,7 @@ export const NewsDetailPage: React.FC = () => {
 
                   <button
                     onClick={handleShareFacebook}
-                    className="w-10 h-10 rounded-xl bg-blue-700 hover:bg-blue-800 text-white flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95"
+                    className="w-10 h-10 rounded-xl bg-blue-700 hover:bg-blue-800 text-white flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
                     title="Bagikan ke Facebook"
                     aria-label="Bagikan ke Facebook"
                   >
