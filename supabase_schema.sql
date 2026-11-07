@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
   username TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
   name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('Super Admin', 'Admin', 'Penulis')),
+  role TEXT NOT NULL CHECK (role IN ('Super Admin', 'Admin', 'Penulis', 'Editor')),
   email TEXT,
   avatar TEXT,
   status TEXT DEFAULT 'Aktif' CHECK (status IN ('Aktif', 'Nonaktif')),
@@ -735,7 +735,8 @@ ALTER TABLE public.navigation_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read navigation_settings" ON public.navigation_settings;
 CREATE POLICY "Public read navigation_settings" ON public.navigation_settings FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Allow all on navigation_settings" ON public.navigation_settings FOR ALL USING (true);
+DROP POLICY IF EXISTS "Allow all on navigation_settings" ON public.navigation_settings;
+CREATE POLICY "Allow all on navigation_settings" ON public.navigation_settings FOR ALL USING (true) WITH CHECK (true);
 
 -- Tambahkan baris default jika belum ada
 INSERT INTO public.navigation_settings (id, items)
@@ -749,5 +750,19 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
+
+-- ==========================================================
+-- 24. GRANT AKSES DATA API (Standar Keamanan Supabase 30 Oktober)
+-- ==========================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Menjamin tabel-tabel baru di masa mendatang otomatis mendapatkan hak akses API
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
 
 
