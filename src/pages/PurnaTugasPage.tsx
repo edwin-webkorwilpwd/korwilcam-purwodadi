@@ -216,7 +216,7 @@ export const PurnaTugasPage: React.FC = () => {
                 {currentPegawai.nama}
               </h1>
               <p className="text-blue-100 text-xs sm:text-sm max-w-2xl leading-relaxed">
-                {currentPegawai.jabatan} • {currentPegawai.instansiSubUnit}
+                {currentPegawai.pangkat} ({currentPegawai.golongan}) • {currentPegawai.instansiSubUnit}
               </p>
             </div>
           </div>
@@ -296,169 +296,124 @@ export const PurnaTugasPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Box Info BUP / Purna */}
+              {/* Box Info TMT Pensiun */}
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-5 shadow-sm space-y-3">
                 <div className="flex items-center gap-2.5 text-amber-900 font-bold text-sm">
                   <Award className="w-4 h-4 text-amber-600" />
-                  <span>Batas Usia Pensiun (BUP)</span>
+                  <span>TMT Pensiun (BUP)</span>
                 </div>
                 <div className="space-y-1.5 text-xs text-amber-900/90">
-                  <div className="flex justify-between items-center py-1 border-b border-amber-200/50">
-                    <span className="text-amber-800/80">TMT Pensiun:</span>
-                    <span className="font-bold text-amber-950">{currentPegawai.batasUsiaPensiun || '-'}</span>
-                  </div>
                   <div className="flex justify-between items-center py-1">
-                    <span className="text-amber-800/80">Usia Pensiun:</span>
-                    <span className="font-bold text-amber-950">{currentPegawai.usiaPensiun || '-'}</span>
+                    <span className="text-amber-800/80">TMT Pensiun:</span>
+                    <span className="font-extrabold text-amber-950 text-sm">{currentPegawai.batasUsiaPensiun || '-'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Kolom Kanan: Seluruh Data Kolom B sampai Z */}
+            {/* Kolom Kanan: Data Terpilih Sesuai Kebijakan Privasi (Kolom B, C, K, L, M, O, P, Q, R, U, Y) */}
             <div className="lg:col-span-8 xl:col-span-9 space-y-6">
 
-              {/* 1. Informasi Identitas Pribadi */}
+              {/* 1. Informasi Identitas Pribadi (Kolom B, C, K, L, M) */}
               <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                   <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                     <User className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-base">Identitas & Informasi Pribadi</h3>
+                  <div>
+                    <h3 className="font-bold text-base">Identitas & Informasi Pribadi</h3>
+                    <p className="text-xs text-slate-400">Data identitas resmi pegawai yang terverifikasi</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Nama Lengkap</span>
                     <span className="font-bold text-slate-800">{currentPegawai.nama}</span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">NIP</span>
                     <span className="font-bold text-slate-800 font-mono">{currentPegawai.nip}</span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Tempat Lahir</span>
                     <span className="font-semibold text-slate-800">{currentPegawai.tempatLahir || '-'}</span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Tanggal Lahir</span>
                     <span className="font-semibold text-slate-800">{currentPegawai.tanggalLahir || '-'}</span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Jenis Kelamin</span>
-                    <span className="font-semibold text-slate-800">{currentPegawai.jenisKelamin || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 sm:col-span-2">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Agama</span>
                     <span className="font-semibold text-slate-800">{currentPegawai.agama || '-'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* 2. Pangkat, Jabatan & Unit Kerja */}
+              {/* 2. Pangkat, Golongan & Unit Kerja (Kolom Q, P, O, U) */}
               <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                   <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <Briefcase className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-base">Pangkat, Jabatan & Instansi Terakhir</h3>
+                  <div>
+                    <h3 className="font-bold text-base">Pangkat, Golongan & Unit Kerja</h3>
+                    <p className="text-xs text-slate-400">Riwayat kepangkatan dan unit kerja penugasan terakhir</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Pangkat Terakhir</span>
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Pangkat</span>
                     <span className="font-bold text-slate-800">{currentPegawai.pangkat || '-'}</span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Golongan Ruang</span>
-                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs inline-block">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Golongan</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md text-xs inline-block">
                       {currentPegawai.golongan || '-'}
                     </span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 sm:col-span-2">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Jabatan Terakhir</span>
-                    <span className="font-bold text-slate-800">{currentPegawai.jabatan || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 sm:col-span-2">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Instansi Sub Unit / Unit Kerja</span>
-                    <span className="font-semibold text-slate-800">{currentPegawai.instansiSubUnit || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Jenis Jabatan</span>
-                    <span className="font-semibold text-slate-800">{currentPegawai.jenisJabatan || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Rumpun Jabatan</span>
-                    <span className="font-semibold text-slate-800">{currentPegawai.rumpunJabatan || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 sm:col-span-2">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">TMT CPNS</span>
                     <span className="font-semibold text-slate-800">{currentPegawai.tmtCpns || '-'}</span>
                   </div>
-                </div>
-              </div>
 
-              {/* 3. Masa Kerja */}
-              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
-                <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-base">Riwayat Masa Kerja (MK)</h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs sm:text-sm">
-                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 text-center">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-1">Masa Kerja Golongan</span>
-                    <span className="font-extrabold text-slate-800 text-sm">{currentPegawai.mkGol || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 text-center">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-1">Masa Kerja PNS</span>
-                    <span className="font-extrabold text-slate-800 text-sm">{currentPegawai.mkPns || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 text-center">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-1">Masa Kerja Pensiun</span>
-                    <span className="font-extrabold text-slate-800 text-sm">{currentPegawai.mkPens || '-'}</span>
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Unit Kerja</span>
+                    <span className="font-semibold text-slate-800">{currentPegawai.instansiSubUnit || '-'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* 4. Riwayat Pendidikan */}
+              {/* 3. Pendidikan & TMT Pensiun (Kolom R, Y) */}
               <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 text-slate-900">
                   <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
                     <GraduationCap className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-base">Riwayat Pendidikan</h3>
+                  <div>
+                    <h3 className="font-bold text-base">Pendidikan & TMT Pensiun</h3>
+                    <p className="text-xs text-slate-400">Jenjang pendidikan dan tanggal mulai tugas pensiun</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Jenjang Pendidikan</span>
                     <span className="font-bold text-slate-800">{currentPegawai.jenjangPendidikan || '-'}</span>
                   </div>
 
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Jurusan / Program Studi</span>
-                    <span className="font-semibold text-slate-800">{currentPegawai.jurusanPendidikan || '-'}</span>
-                  </div>
-
-                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 sm:col-span-2">
-                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">Nama Sekolah / Universitas / Almamater</span>
-                    <span className="font-semibold text-slate-800">{currentPegawai.namaSekolah || '-'}</span>
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                    <span className="text-[11px] text-slate-400 font-semibold block mb-0.5">TMT Pensiun</span>
+                    <span className="font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md text-xs inline-block">
+                      {currentPegawai.batasUsiaPensiun || '-'}
+                    </span>
                   </div>
                 </div>
               </div>
