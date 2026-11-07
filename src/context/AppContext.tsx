@@ -4539,7 +4539,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (client) {
       try {
-        await client.from('admin_users').insert({
+        const { error } = await client.from('admin_users').insert({
           id: newId,
           username: newUser.username,
           password: newUser.password,
@@ -4549,8 +4549,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           avatar: newUser.avatar || '',
           status: newUser.status
         });
+        if (error) {
+          console.error('Failed to insert admin_user in Supabase:', error);
+          if (error.message && error.message.toLowerCase().includes('check constraint')) {
+            showToast('Gagal: Database Supabase belum mengizinkan role ini. Jalankan script SQL update constraint role di Supabase!', 'error');
+          } else {
+            showToast(`Gagal menambah akun ke Supabase: ${error.message}`, 'error');
+          }
+          return false;
+        }
       } catch (err: any) {
         console.error('Failed to insert admin_user in Supabase:', err);
+        showToast(`Gagal menambah akun ke Supabase: ${err?.message || 'Error'}`, 'error');
+        return false;
       }
     }
     triggerActivityLog(
@@ -4563,6 +4574,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAdminUser = async (id: string, userData: Partial<AdminUser>): Promise<boolean> => {
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        const payload: any = { ...userData };
+        if (!userData.password) {
+          delete payload.password;
+        }
+        payload.updated_at = new Date().toISOString();
+
+        // 1. Coba update berdasarkan ID
+        const { data, error } = await client
+          .from('admin_users')
+          .update(payload)
+          .eq('id', id)
+          .select('id, username, role');
+
+        if (error) {
+          console.error('Failed to update admin_user in Supabase:', error);
+          if (error.message && error.message.toLowerCase().includes('check constraint')) {
+            showToast('Gagal: Database Supabase belum mengizinkan role ini. Jalankan script SQL update constraint role di Supabase!', 'error');
+          } else {
+            showToast(`Gagal menyimpan perubahan ke Supabase: ${error.message}`, 'error');
+          }
+          return false;
+        }
+
+        // 2. Jika ID tidak cocok dengan row mana pun di Supabase, coba update berdasarkan username
+        if (!data || data.length === 0) {
+          const targetUser = adminUsers.find((u) => u.id === id);
+          const targetUsername = userData.username || targetUser?.username;
+          if (targetUsername) {
+            const { error: userErr } = await client
+              .from('admin_users')
+              .update(payload)
+              .ilike('username', targetUsername.trim());
+            if (userErr) {
+              console.error('Failed to update admin_user by username:', userErr);
+              showToast(`Gagal menyimpan ke Supabase: ${userErr.message}`, 'error');
+              return false;
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to update admin_user in Supabase:', err);
+        showToast(`Gagal menyimpan ke Supabase: ${err?.message || 'Error koneksi'}`, 'error');
+        return false;
+      }
+    }
+
     setAdminUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, ...userData, updatedAt: new Date().toISOString() } : u))
     );
@@ -4571,18 +4631,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentUser((prev) => (prev ? { ...prev, ...userData } : null));
     }
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const payload: any = { ...userData };
-        if (!userData.password) {
-          delete payload.password;
-        }
-        await client.from('admin_users').update(payload).eq('id', id);
-      } catch (err: any) {
-        console.error('Failed to update admin_user in Supabase:', err);
-      }
-    }
     triggerActivityLog(
       'UBAH DATA',
       'Pengguna Admin',
@@ -4601,16 +4649,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    setAdminUsers((prev) => prev.filter((u) => u.id !== id));
-
     const client = getSupabaseClient();
     if (client) {
       try {
-        await client.from('admin_users').delete().eq('id', id);
+        const { error } = await client.from('admin_users').delete().eq('id', id);
+        if (error) {
+          console.error('Failed to delete admin_user in Supabase:', error);
+          showToast(`Gagal menghapus akun dari Supabase: ${error.message}`, 'error');
+          return false;
+        }
       } catch (err: any) {
         console.error('Failed to delete admin_user in Supabase:', err);
+        showToast(`Gagal menghapus akun dari Supabase: ${err?.message || 'Error'}`, 'error');
+        return false;
       }
     }
+
+    setAdminUsers((prev) => prev.filter((u) => u.id !== id));
+
     triggerActivityLog(
       'HAPUS DATA',
       'Pengguna Admin',
