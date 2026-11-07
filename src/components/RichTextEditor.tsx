@@ -36,11 +36,6 @@ import {
   Newspaper
 } from 'lucide-react';
 import { isSafeUrl } from '../lib/sanitizeHtml';
-import { 
-  formatGoogleDriveImageUrl, 
-  isGoogleDriveUrl, 
-  extractGoogleDriveId 
-} from '../lib/driveHelper';
 import { useApp } from '../context/AppContext';
 import { NewsArticle } from '../types';
 
@@ -64,10 +59,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [driveImageUrl, setDriveImageUrl] = useState('');
-  const [imageCaption, setImageCaption] = useState('');
   const savedRangeRef = useRef<Range | null>(null);
+
+  // State Dialog Sisipkan Tautan (Ala Blogger)
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkText, setLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [openInNewTab, setOpenInNewTab] = useState(true);
+  const [relNofollow, setRelNofollow] = useState(false);
+  const activeAnchorRef = useRef<HTMLAnchorElement | null>(null);
 
   // State Fitur "Baca Juga"
   const { news: contextNews, refreshFromSupabase } = useApp();
@@ -331,93 +331,193 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   };
 
-  const handleInsertLink = () => {
-    const url = prompt('Masukkan tautan link (URL):', 'https://');
-    if (url && url.trim() !== '' && url.trim() !== 'https://') {
-      const cleanUrl = url.trim();
-      if (!isSafeUrl(cleanUrl)) {
-        alert('Tautan tidak valid atau menggunakan protokol yang tidak aman!');
-        return;
-      }
-      executeCommand('createLink', cleanUrl);
-    }
-  };
+  const handleOpenLinkModal = () => {
+    let selectedText = '';
+    let existingAnchor: HTMLAnchorElement | null = null;
 
-  const handleOpenImageModal = () => {
-    // Simpan posisi kursor saat ini di dalam editor jika ada
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
       savedRangeRef.current = sel.getRangeAt(0).cloneRange();
-    } else {
-      savedRangeRef.current = null;
+      selectedText = sel.toString();
+
+      // Cek apakah kursor atau seleksi berada di dalam elemen <a>
+      let node: Node | null = sel.anchorNode;
+      while (node && node !== editorRef.current) {
+        if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName.toLowerCase() === 'a') {
+          existingAnchor = node as HTMLAnchorElement;
+          break;
+        }
+        node = node.parentNode;
+      }
+    } else if (editorRef.current) {
+      // Jika kursor belum aktif, arahkan ke akhir konten editor
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      savedRangeRef.current = range;
     }
-    setDriveImageUrl('');
-    setImageCaption('');
-    setIsImageModalOpen(true);
+
+    if (existingAnchor) {
+      activeAnchorRef.current = existingAnchor;
+      setLinkText(existingAnchor.textContent || '');
+      setLinkUrl(existingAnchor.getAttribute('href') || '');
+      setOpenInNewTab(existingAnchor.getAttribute('target') === '_blank');
+      setRelNofollow((existingAnchor.getAttribute('rel') || '').includes('nofollow'));
+    } else {
+      activeAnchorRef.current = null;
+      setLinkText(selectedText);
+      setLinkUrl('');
+      setOpenInNewTab(true);
+      setRelNofollow(false);
+    }
+
+    setIsLinkModalOpen(true);
   };
 
-  const handleInsertDriveImage = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!driveImageUrl.trim()) return;
+  const handleApplyLink = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!linkUrl.trim()) return;
 
-    const trimmed = driveImageUrl.trim();
-    const cdnUrl = formatGoogleDriveImageUrl(trimmed, 1600);
-    if (!cdnUrl || !isSafeUrl(cdnUrl, true)) {
-      alert('Link foto tidak valid. Pastikan menggunakan tautan database atau URL foto yang valid.');
+    let cleanUrl = linkUrl.trim();
+    // Jika tidak diawali skema protokol (http/https/mailto/tel) atau slash lokal, tambahkan https://
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(cleanUrl) && !cleanUrl.startsWith('/')) {
+      cleanUrl = `https://${cleanUrl}`;
+    }
+
+    if (!isSafeUrl(cleanUrl)) {
+      alert('Tautan tidak valid atau menggunakan protokol yang tidak aman!');
       return;
     }
 
-    const altText = imageCaption.trim() || 'Dokumentasi Berita';
-    const captionHtml = imageCaption.trim()
-      ? `<figcaption style="text-align: center; font-size: 13px; color: #64748b; margin-top: 8px; font-style: italic;">${imageCaption.trim()}</figcaption>`
-      : '';
-    const imgHtml = `<p style="text-align: center; margin: 24px 0;" class="article-img-wrapper"><img src="${cdnUrl}" alt="${altText}" data-align="center" data-size="large" style="display: block; margin-left: auto; margin-right: auto; width: 85%; max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);" />${captionHtml}</p><p><br></p>`;
+    const displayText = linkText.trim() || cleanUrl;
 
-    if (editorRef.current) {
+    const relParts: string[] = [];
+    if (openInNewTab) {
+      relParts.push('noopener', 'noreferrer');
+    }
+    if (relNofollow) {
+      relParts.push('nofollow');
+    }
+    const relAttr = relParts.length > 0 ? relParts.join(' ') : '';
+
+    if (activeAnchorRef.current && editorRef.current && editorRef.current.contains(activeAnchorRef.current)) {
+      // Perbarui tautan yang sudah ada
+      activeAnchorRef.current.setAttribute('href', cleanUrl);
+      activeAnchorRef.current.textContent = displayText;
+      if (openInNewTab) {
+        activeAnchorRef.current.setAttribute('target', '_blank');
+      } else {
+        activeAnchorRef.current.removeAttribute('target');
+      }
+      if (relAttr) {
+        activeAnchorRef.current.setAttribute('rel', relAttr);
+      } else {
+        activeAnchorRef.current.removeAttribute('rel');
+      }
+      activeAnchorRef.current.className = 'text-blue-600 hover:text-blue-800 underline font-medium transition-colors';
+    } else if (editorRef.current) {
       editorRef.current.focus();
 
       let inserted = false;
       if (savedRangeRef.current) {
         try {
+          // Buat elemen anchor resmi
+          const a = document.createElement('a');
+          a.setAttribute('href', cleanUrl);
+          a.textContent = displayText;
+          a.className = 'text-blue-600 hover:text-blue-800 underline font-medium transition-colors';
+          if (openInNewTab) {
+            a.setAttribute('target', '_blank');
+          }
+          if (relAttr) {
+            a.setAttribute('rel', relAttr);
+          }
+
+          // Hapus seleksi teks sebelumnya (jika ada) dan ganti dengan anchor
+          savedRangeRef.current.deleteContents();
+          savedRangeRef.current.insertNode(a);
+
+          // Sisipkan spasi setelah link agar pengetikan berikutnya tidak masuk ke dalam tag <a>
+          const spaceNode = document.createTextNode('\u00A0');
+          if (a.nextSibling) {
+            a.parentNode?.insertBefore(spaceNode, a.nextSibling);
+          } else {
+            a.parentNode?.appendChild(spaceNode);
+          }
+
+          // Pindahkan kursor aktif ke setelah spasi
+          const newRange = document.createRange();
+          newRange.setStartAfter(spaceNode);
+          newRange.setEndAfter(spaceNode);
           const sel = window.getSelection();
           sel?.removeAllRanges();
-          sel?.addRange(savedRangeRef.current);
-          inserted = document.execCommand('insertHTML', false, imgHtml);
-        } catch {}
+          sel?.addRange(newRange);
+
+          inserted = true;
+        } catch (err) {
+          console.warn('DOM insertion error:', err);
+        }
       }
 
       if (!inserted) {
         try {
-          inserted = document.execCommand('insertHTML', false, imgHtml);
-        } catch {}
+          const safeText = displayText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+          const safeHref = cleanUrl.replace(/"/g, '&quot;');
+          const targetString = openInNewTab ? ' target="_blank"' : '';
+          const relString = relAttr ? ` rel="${relAttr}"` : '';
+          const linkHtml = `<a href="${safeHref}"${targetString}${relString} class="text-blue-600 hover:text-blue-800 underline font-medium transition-colors">${safeText}</a>&nbsp;`;
+          inserted = document.execCommand('insertHTML', false, linkHtml);
+        } catch (err) {
+          console.warn('execCommand insertion error:', err);
+        }
       }
 
       if (!inserted && editorRef.current) {
-        const div = document.createElement('div');
-        div.innerHTML = imgHtml;
-        while (div.firstChild) {
-          editorRef.current.appendChild(div.firstChild);
-        }
+        const a = document.createElement('a');
+        a.setAttribute('href', cleanUrl);
+        a.textContent = displayText;
+        a.className = 'text-blue-600 hover:text-blue-800 underline font-medium transition-colors';
+        if (openInNewTab) a.setAttribute('target', '_blank');
+        if (relAttr) a.setAttribute('rel', relAttr);
+        editorRef.current.appendChild(a);
       }
-
-      handleInput();
-
-      setTimeout(() => {
-        if (!editorRef.current) return;
-        const imgs = editorRef.current.querySelectorAll('img');
-        const lastImg = imgs[imgs.length - 1];
-        if (lastImg) {
-          editorRef.current.querySelectorAll('img').forEach((el) => el.classList.remove('selected-img-active'));
-          lastImg.classList.add('selected-img-active');
-          setSelectedImage(lastImg);
-          lastImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 120);
     }
 
-    setIsImageModalOpen(false);
-    setDriveImageUrl('');
-    setImageCaption('');
+    handleInput();
+    setIsLinkModalOpen(false);
+    setLinkText('');
+    setLinkUrl('');
+    activeAnchorRef.current = null;
+    savedRangeRef.current = null;
+  };
+
+  const handleRemoveLink = () => {
+    if (activeAnchorRef.current && editorRef.current && editorRef.current.contains(activeAnchorRef.current)) {
+      const parent = activeAnchorRef.current.parentNode;
+      while (activeAnchorRef.current.firstChild) {
+        parent?.insertBefore(activeAnchorRef.current.firstChild, activeAnchorRef.current);
+      }
+      parent?.removeChild(activeAnchorRef.current);
+      handleInput();
+    } else if (editorRef.current) {
+      editorRef.current.focus();
+      if (savedRangeRef.current) {
+        try {
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(savedRangeRef.current);
+          document.execCommand('unlink');
+        } catch {}
+      }
+      handleInput();
+    }
+    setIsLinkModalOpen(false);
+    setLinkText('');
+    setLinkUrl('');
+    activeAnchorRef.current = null;
     savedRangeRef.current = null;
   };
 
@@ -876,28 +976,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={handleInsertLink}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
-            title="Sisipkan Tautan (Link)"
-          >
-            <Link2 className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
             onMouseDown={() => {
               const sel = window.getSelection();
               if (sel && sel.rangeCount > 0 && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
                 savedRangeRef.current = sel.getRangeAt(0).cloneRange();
               }
             }}
-            onClick={handleOpenImageModal}
-            className="p-1.5 rounded hover:bg-slate-200 text-slate-700 flex items-center gap-1 transition-colors"
-            title="Sisipkan Foto dari Database"
+            onClick={handleOpenLinkModal}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-700"
+            title="Sisipkan atau Edit Tautan (Link)"
           >
-            <ImageIcon className="w-4 h-4 text-blue-600" />
-            <span className="text-[11px] font-semibold hidden md:inline">Sisipkan Foto</span>
+            <Link2 className="w-4 h-4 text-blue-600" />
           </button>
 
           {/* Tombol Sisipkan Baca Juga */}
@@ -1141,34 +1230,34 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       </div>
 
-      {/* Modal / Dialog Sisipkan Foto dari Database */}
-      {isImageModalOpen && (
+      {/* Modal Dialog Sisipkan / Edit Tautan (Blogger Style Sesuai Gambar 2 Pengguna) */}
+      {isLinkModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setIsImageModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setIsLinkModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 space-y-4"
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header Modal */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
-                  <ImageIcon className="w-5 h-5" />
+                  <Link2 className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                    Sisipkan Foto dari Database
+                    {activeAnchorRef.current ? 'Edit Tautan' : 'Sisipkan Tautan'}
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Bebas kuota Supabase • Foto langsung tampil di detail berita
+                    Bungkus tautan dengan teks yang Anda inginkan
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsImageModalOpen(false)}
+                onClick={() => setIsLinkModalOpen(false)}
                 className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                 title="Tutup dialog"
               >
@@ -1176,120 +1265,122 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               </button>
             </div>
 
-            {/* Input Link Database */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Tautan / Link Foto Database *</span>
-                <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                  Akses: Anyone with link
-                </span>
-              </label>
-              <div className="relative">
+            {/* Form Fields Sesuai Gambar 2 (Gunakan div agar tidak memicu submit pada form induk CMS) */}
+            <div className="space-y-4">
+              {/* Field 1: Text to display */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Teks untuk ditampilkan <span className="text-slate-400 font-normal">(Text to display)</span>
+                </label>
                 <input
                   type="text"
-                  value={driveImageUrl}
-                  onChange={(e) => setDriveImageUrl(e.target.value)}
-                  placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
-                  className="w-full px-3.5 py-2.5 pl-9 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs text-slate-800 transition-all font-mono"
-                  autoFocus
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleInsertDriveImage();
+                      handleApplyLink(e);
                     }
                   }}
+                  placeholder="Contoh: Baca Selengkapnya / Klik di Sini"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs sm:text-sm text-slate-800 transition-all"
+                  autoFocus={!linkText}
                 />
-                <Link2 className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                {driveImageUrl.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => setDriveImageUrl('')}
-                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-                    title="Hapus tautan"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
               </div>
-            </div>
 
-            {/* Input Keterangan Foto (Alt / Caption) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">
-                Keterangan Foto / Teks Gambar (Opsional)
-              </label>
-              <input
-                type="text"
-                value={imageCaption}
-                onChange={(e) => setImageCaption(e.target.value)}
-                placeholder="Contoh: Suasana Pelatihan Guru di Aula Korwilcam"
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs text-slate-800 transition-all"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleInsertDriveImage();
-                  }
-                }}
-              />
-            </div>
-
-            {/* Live Preview Box */}
-            {driveImageUrl.trim() && (
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-700">Pratinjau Foto:</span>
-                  {isGoogleDriveUrl(driveImageUrl) || driveImageUrl.includes('lh3.googleusercontent.com') ? (
-                    <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Link Database Valid
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-blue-600 font-medium">
-                      URL Gambar Web
-                    </span>
+              {/* Field 2: Paste or search for a link */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Tempelkan atau cari tautan <span className="text-slate-400 font-normal">(Paste or search for a link)</span> *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyLink(e);
+                      }
+                    }}
+                    placeholder="https://... atau /berita/..."
+                    className="w-full px-3.5 py-2.5 pl-9 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs sm:text-sm text-slate-800 transition-all font-mono"
+                    autoFocus={!!linkText}
+                  />
+                  <ExternalLink className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  {linkUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setLinkUrl('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                      title="Bersihkan URL"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
-                <div className="max-h-40 overflow-hidden rounded-xl border border-slate-200 bg-white flex items-center justify-center p-1.5">
-                  <img
-                    src={formatGoogleDriveImageUrl(driveImageUrl.trim(), 800)}
-                    alt="Pratinjau Foto"
-                    className="max-h-36 w-auto max-w-full rounded-lg object-contain shadow-xs"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
+              </div>
+
+              {/* Checkboxes Sesuai Gambar 2 Blogger */}
+              <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs">
+                <label className="flex items-center gap-2.5 text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={openInNewTab}
+                    onChange={(e) => setOpenInNewTab(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
                   />
+                  <span className="font-medium">Buka tautan ini di tab / jendela baru <span className="text-slate-400 text-[11px]">(Open this link in a new window)</span></span>
+                </label>
+
+                <label className="flex items-center gap-2.5 text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={relNofollow}
+                    onChange={(e) => setRelNofollow(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                  />
+                  <span className="font-medium">Tambahkan atribut &apos;rel=nofollow&apos; <span className="text-slate-400 text-[11px]">(Add &apos;rel=nofollow&apos; attribute)</span></span>
+                </label>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+                <div>
+                  {activeAnchorRef.current && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveLink}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-bold transition-colors cursor-pointer"
+                      title="Hapus Tautan dari Teks"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hapus Tautan</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsLinkModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleApplyLink(e)}
+                    disabled={!linkUrl.trim()}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>APPLY</span>
+                  </button>
                 </div>
               </div>
-            )}
-
-            {/* Petunjuk Penggunaan */}
-            <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200/80 text-[11px] text-blue-900 leading-relaxed space-y-1">
-              <div className="font-bold flex items-center gap-1.5 text-blue-800">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>Cara menyalin link foto database:</span>
-              </div>
-              <p className="text-blue-900/90 text-[10.5px]">
-                Buka penyimpanan database &gt; Klik kanan file foto &gt; <b>Bagikan (Share)</b> &gt; Ubah Akses Umum menjadi <b>"Siapa saja yang memiliki link"</b> &gt; Klik <b>Salin link</b> &gt; Tempelkan pada kotak di atas.
-              </p>
-            </div>
-
-            {/* Footer Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsImageModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInsertDriveImage()}
-                disabled={!driveImageUrl.trim()}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 active:scale-95"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Sisipkan ke Naskah</span>
-              </button>
             </div>
           </div>
         </div>
