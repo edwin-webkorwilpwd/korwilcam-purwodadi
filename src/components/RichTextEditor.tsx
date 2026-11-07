@@ -33,11 +33,14 @@ import {
   AlertCircle,
   Search,
   FileEdit,
-  Newspaper
+  Newspaper,
+  Split,
+  Layers
 } from 'lucide-react';
 import { isSafeUrl } from '../lib/sanitizeHtml';
 import { useApp } from '../context/AppContext';
 import { NewsArticle } from '../types';
+import { countWords } from '../lib/articlePaginator';
 
 interface RichTextEditorProps {
   value: string;
@@ -54,8 +57,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastSentHtmlRef = useRef<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
@@ -95,44 +100,138 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   };
 
+  // Helper membersihkan atribut visual batas halaman dan seleksi foto sebelum disimpan ke database
+  const cleanEditorHtml = (rawHtml: string): string => {
+    if (!rawHtml) return '';
+    try {
+      const temp = document.createElement('div');
+      temp.innerHTML = rawHtml;
+      temp.querySelectorAll('img').forEach((img) => {
+        img.classList.remove('selected-img-active');
+        img.style.outline = '';
+        img.style.outlineOffset = '';
+      });
+      temp.querySelectorAll('[data-page-break-after]').forEach((el) => {
+        el.removeAttribute('data-page-break-after');
+        el.removeAttribute('data-next-page');
+        el.removeAttribute('data-break-words');
+      });
+      return temp.innerHTML;
+    } catch {
+      return rawHtml;
+    }
+  };
+
+  // Deteksi otomatis batas halaman (Tiap ~600 kata, selaras dengan pembagian halaman pembaca)
+  const updatePageBreaks = () => {
+    if (!editorRef.current) return;
+    const container = editorRef.current;
+
+    // Bersihkan semua atribut penanda batas halaman yang lama
+    const existingBreaks = container.querySelectorAll('[data-page-break-after]');
+    existingBreaks.forEach((el) => {
+      el.removeAttribute('data-page-break-after');
+      el.removeAttribute('data-next-page');
+      el.removeAttribute('data-break-words');
+    });
+
+    const totalWords = countWords(container.innerText || '');
+    const calculatedPages = Math.max(1, Math.ceil(totalWords / 600));
+    setPageCount(calculatedPages);
+
+    // Jika total kata <= 600, seluruh naskah masih muat dalam 1 halaman publik
+    if (totalWords <= 600) {
+      return;
+    }
+
+    // Ambil elemen-elemen blok anak tingkat pertama di dalam canvas
+    const children = Array.from(container.children) as HTMLElement[];
+    if (children.length === 0) return;
+
+    // Jika hanya ada 1 paragraf panjang yang melebihi 600 kata
+    if (children.length === 1) {
+      children[0].setAttribute('data-page-break-after', '1');
+      children[0].setAttribute('data-next-page', '2');
+      children[0].setAttribute('data-break-words', '600');
+      return;
+    }
+
+    let currentWords = 0;
+    let pageNumber = 1;
+    let lastBlockOfCurrentPage: HTMLElement | null = null;
+    const targetWords = 600;
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const blockText = child.innerText || '';
+      const blockWords = countWords(blockText);
+      const effectiveWords = blockWords > 0 ? blockWords : (child.querySelector('img, .baca-juga-card') ? 10 : 0);
+
+      // Jika akumulasi kata sudah melampaui batas 600 kata untuk halaman ini
+      if (currentWords >= targetWords && lastBlockOfCurrentPage) {
+        lastBlockOfCurrentPage.setAttribute('data-page-break-after', String(pageNumber));
+        lastBlockOfCurrentPage.setAttribute('data-next-page', String(pageNumber + 1));
+        lastBlockOfCurrentPage.setAttribute('data-break-words', '600');
+        pageNumber++;
+        currentWords = 0;
+      }
+
+      currentWords += effectiveWords;
+      lastBlockOfCurrentPage = child;
+    }
+  };
+
+  // Gulir halus langsung menuju garis batas halaman 1
+  const scrollToPageBreak = () => {
+    if (!editorRef.current || !canvasContainerRef.current) return;
+    const breakEl = editorRef.current.querySelector('[data-page-break-after]') as HTMLElement | null;
+    if (breakEl) {
+      breakEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   // Synchronize initial or external content changes
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      if (!value) {
-        editorRef.current.innerHTML = '';
-      } else if (!value.includes('<') && !value.includes('>')) {
-        // Wrap plain text lines into paragraphs
-        editorRef.current.innerHTML = value
-          .split('\n\n')
-          .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-          .join('');
-      } else {
-        editorRef.current.innerHTML = value;
-      }
-      updateCounts();
+    if (!editorRef.current) return;
+    // Hindari menimpa innerHTML jika perubahan berasal dari ketikan user sendiri
+    if (value === lastSentHtmlRef.current) {
+      return;
     }
+    const currentClean = cleanEditorHtml(editorRef.current.innerHTML);
+    if (currentClean === value) {
+      return;
+    }
+
+    if (!value) {
+      editorRef.current.innerHTML = '';
+    } else if (!value.includes('<') && !value.includes('>')) {
+      // Bungkus plain text menjadi paragraf
+      editorRef.current.innerHTML = value
+        .split('\n\n')
+        .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    } else {
+      editorRef.current.innerHTML = value;
+    }
+    updateCounts();
+    updatePageBreaks();
   }, [value]);
 
   const updateCounts = () => {
     if (!editorRef.current) return;
     const text = editorRef.current.innerText || '';
-    const words = text.trim().split(/\s+/).filter(Boolean);
-    setWordCount(words.length);
+    const words = countWords(text);
+    setWordCount(words);
     setCharCount(text.length);
   };
 
   const handleInput = () => {
     if (!editorRef.current) return;
-    // Bersihkan penanda visual seleksi aktif sebelum menyimpan ke HTML
-    const clone = editorRef.current.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('img').forEach((img) => {
-      img.classList.remove('selected-img-active');
-      img.style.outline = '';
-      img.style.outlineOffset = '';
-    });
-    const html = clone.innerHTML;
-    onChange(html);
+    const cleanedHtml = cleanEditorHtml(editorRef.current.innerHTML);
+    lastSentHtmlRef.current = cleanedHtml;
+    onChange(cleanedHtml);
     updateCounts();
+    updatePageBreaks();
   };
 
   const handleEditorClick = (e: React.MouseEvent) => {
@@ -1006,6 +1105,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <span className="text-[11px] font-semibold hidden md:inline">Baca Juga</span>
           </button>
 
+          {/* Indikator & Shortcut Lompat ke Garis Batas Halaman jika naskah > 600 kata */}
+          {wordCount > 600 && (
+            <button
+              type="button"
+              onClick={scrollToPageBreak}
+              className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1.5 text-[11px] font-bold transition-colors ml-1 shadow-2xs"
+              title="Klik untuk melompat ke posisi Garis Batas Halaman 1 (Titik Pisah Halaman)"
+            >
+              <Split className="w-3.5 h-3.5 text-blue-600" />
+              <span>Batas Hal. ({pageCount} Hal)</span>
+            </button>
+          )}
+
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -1180,6 +1292,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           >
             <ChevronUp className="w-4 h-4 transition-transform group-hover:-translate-y-0.5" />
           </button>
+          
+          {wordCount > 600 && (
+            <>
+              <div className="w-4 h-[1px] bg-slate-200" />
+              <button
+                type="button"
+                onClick={scrollToPageBreak}
+                className="p-2 rounded-xl bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 transition-all shadow-sm border border-blue-200 hover:border-blue-600 active:scale-95 group flex items-center justify-center"
+                title="Scroll langsung ke Garis Batas Halaman 1 (600 Kata)"
+              >
+                <Split className="w-4 h-4 transition-transform group-hover:scale-110" />
+              </button>
+            </>
+          )}
+
           <div className="w-4 h-[1px] bg-slate-200" />
           <button
             type="button"
@@ -1194,10 +1321,27 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* Document Editor Bottom Status Bar */}
       <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-        <div className="flex items-center gap-3 font-medium">
+        <div className="flex items-center gap-2.5 font-medium flex-wrap">
           <span>{wordCount} Kata</span>
           <span>•</span>
           <span>{charCount} Karakter</span>
+          <span>•</span>
+          {wordCount > 600 ? (
+            <button
+              type="button"
+              onClick={scrollToPageBreak}
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold text-[11px] border border-blue-200 transition-colors shadow-2xs cursor-pointer"
+              title="Klik untuk melompat ke posisi garis batas halaman 1"
+            >
+              <Layers className="w-3 h-3 text-blue-600" />
+              <span>{pageCount} Halaman Publik (Tiap 600 Kata)</span>
+              <span className="text-[10px] text-blue-600 underline font-normal hidden md:inline ml-0.5">Lihat Batas</span>
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium text-[11px] border border-emerald-200">
+              <span>1 Halaman ({wordCount}/600 kata)</span>
+            </span>
+          )}
         </div>
 
         {/* Quick Scroll Actions in Status Bar */}

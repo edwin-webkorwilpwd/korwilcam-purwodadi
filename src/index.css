@@ -446,5 +446,66 @@
   margin: 1.25rem 0;
 }
 
+/* ==========================================================
+   GARIS BATAS HALAMAN OTOMATIS (WYSIWYG CANVAS EDITOR)
+   Mendeteksi batas halaman tiap 600 kata secara otomatis.
+   Membantu penulis/humas memperkirakan pembagian halaman publik
+   dan memposisikan fitur 'Baca Juga' di tempat yang tepat.
+   ========================================================== */
+.editor-canvas [data-page-break-after] {
+  position: relative !important;
+  margin-bottom: 4.25rem !important;
+}
+
+/* Garis horizontal putus-putus membentang melintasi kanvas kertas */
+.editor-canvas [data-page-break-after]::before {
+  content: '';
+  position: absolute;
+  left: -2rem;
+  right: -2rem;
+  bottom: -2.25rem;
+  height: 0;
+  border-bottom: 2px dashed #3b82f6;
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Badge penanda batas halaman di tengah garis */
+.editor-canvas [data-page-break-after]::after {
+  content: '📄 BATAS HALAMAN ' attr(data-page-break-after) ' (600 KATA) • PEMBACA PINDAH KE HALAMAN ' attr(data-next-page) ' DI SINI';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -2.9rem;
+  background-color: #ffffff;
+  color: #1d4ed8;
+  border: 1.5px solid #60a5fa;
+  border-radius: 9999px;
+  padding: 5px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+}
+
+@media (max-width: 640px) {
+  .editor-canvas [data-page-break-after]::before {
+    left: -1rem;
+    right: -1rem;
+  }
+  .editor-canvas [data-page-break-after]::after {
+    content: '📄 Batas Halaman ' attr(data-page-break-after) ' (600 Kata)';
+    font-size: 10px;
+    padding: 3px 12px;
+    bottom: -2.7rem;
+  }
+}
+
+
 
 
