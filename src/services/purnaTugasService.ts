@@ -5,7 +5,7 @@ export const PURNA_TUGAS_SPREADSHEET_ID = '11Cjmu-R6gbh1Z-hgKTWCagBdAFZh_bPcQQQH
 export const PURNA_TUGAS_SHEET_GID = '0';
 export const PURNA_TUGAS_CSV_URL = `https://docs.google.com/spreadsheets/d/${PURNA_TUGAS_SPREADSHEET_ID}/export?format=csv&gid=${PURNA_TUGAS_SHEET_GID}`;
 export const PURNA_TUGAS_SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${PURNA_TUGAS_SPREADSHEET_ID}/edit?gid=${PURNA_TUGAS_SHEET_GID}#gid=${PURNA_TUGAS_SHEET_GID}`;
-export const PURNA_TUGAS_CACHE_KEY = 'korwilcam_purna_tugas_cache';
+export const PURNA_TUGAS_CACHE_KEY = 'korwilcam_purna_tugas_cache_v2';
 
 export const FALLBACK_PURNA_TUGAS: PurnaTugasPegawai[] = [
   {
@@ -604,31 +604,34 @@ export async function fetchPurnaTugasFromSheet(): Promise<PurnaTugasPegawai[]> {
         continue;
       }
 
+      // Hanya memetakan kolom data resmi yang diizinkan untuk keamanan & privasi data:
+      // Nama (B), NIP (C), Tempat Lahir (K), Tanggal Lahir (L), Agama (M),
+      // TMT CPNS (O), Golongan (P), Pangkat (Q), Jenjang Pendidikan (R), Unit Kerja (U), TMT Pensiun (Y), Link Foto (Z)
       items.push({
         no: (row[0] || `${i}`).trim(),
         nama,
         nip,
-        mkGol: (row[3] || '-').trim(),
-        mkPns: (row[4] || '-').trim(),
-        mkPens: (row[5] || '-').trim(),
-        mkGol2: (row[6] || '-').trim(),
-        mkPns2: (row[7] || '-').trim(),
-        mkPens2: (row[8] || '-').trim(),
-        usiaPensiun: (row[9] || '-').trim(),
+        mkGol: '-',
+        mkPns: '-',
+        mkPens: '-',
+        mkGol2: '-',
+        mkPns2: '-',
+        mkPens2: '-',
+        usiaPensiun: '-',
         tempatLahir: (row[10] || '-').trim(),
         tanggalLahir: (row[11] || '-').trim(),
         agama: (row[12] || '-').trim(),
-        jenisKelamin: (row[13] || '-').trim(),
+        jenisKelamin: '-',
         tmtCpns: (row[14] || '-').trim(),
         golongan: (row[15] || '-').trim(),
         pangkat: (row[16] || '-').trim(),
         jenjangPendidikan: (row[17] || '-').trim(),
-        jurusanPendidikan: (row[18] || '-').trim(),
-        namaSekolah: (row[19] || '-').trim(),
+        jurusanPendidikan: '-',
+        namaSekolah: '-',
         instansiSubUnit: (row[20] || '-').trim(),
-        jenisJabatan: (row[21] || '-').trim(),
-        jabatan: (row[22] || '-').trim(),
-        rumpunJabatan: (row[23] || '-').trim(),
+        jenisJabatan: '-',
+        jabatan: (row[16] || '-').trim(),
+        rumpunJabatan: '-',
         batasUsiaPensiun: (row[24] || '-').trim(),
         linkFoto: (row[25] || '').trim()
       });
