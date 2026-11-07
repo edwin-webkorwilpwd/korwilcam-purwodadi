@@ -126,6 +126,8 @@ export const AdminLogin: React.FC = () => {
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                   : currentUser.role === 'Admin'
                   ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  : currentUser.role === 'Editor'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                   : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
               }`}>
                 {currentUser.role}

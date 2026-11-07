@@ -237,7 +237,7 @@ export const MaintenanceCMS: React.FC = () => {
 
             <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium pt-1">
               <ShieldCheck className="w-4 h-4 text-blue-600" />
-              <span>Hak Istimewa: Hanya akun Super Admin yang dapat melihat & menjelajahi seluruh website saat maintenance aktif. Akun Admin, Penulis, dan publik tetap dialihkan ke halaman pemeliharaan.</span>
+              <span>Hak Istimewa: Hanya akun Super Admin yang dapat melihat & menjelajahi seluruh website saat maintenance aktif. Akun Admin, Editor, Penulis, dan publik tetap dialihkan ke halaman pemeliharaan.</span>
             </div>
           </div>
 

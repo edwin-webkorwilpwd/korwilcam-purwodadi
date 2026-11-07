@@ -123,6 +123,15 @@ export const initialAdminUsers: AdminUser[] = [
     email: 'penulis@korwilcampurwodadi.sch.id',
     status: 'Aktif',
     createdAt: new Date().toISOString()
+  },
+  {
+    id: 'usr-editor',
+    username: 'editor',
+    name: 'Editor Berita & Artikel',
+    role: 'Editor',
+    email: 'editor@korwilcampurwodadi.sch.id',
+    status: 'Aktif',
+    createdAt: new Date().toISOString()
   }
 ];
 

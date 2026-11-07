@@ -49,6 +49,7 @@ import {
   Crown,
   Shield,
   PenTool,
+  FileEdit,
   Key,
   Users,
   Lock,
@@ -379,6 +380,7 @@ export const AdminDashboard: React.FC = () => {
   const isAdmin = currentUser?.role === 'Admin';
   const isAdminOrSuperAdmin = isSuperAdmin || isAdmin;
   const isWriter = currentUser?.role === 'Penulis';
+  const isEditor = currentUser?.role === 'Editor';
   const activeAuthorName = currentUser?.name || 'Humas Korwilcam Purwodadi';
   const activeUserRole = (currentUser?.role || 'Admin') as string;
 
@@ -414,9 +416,14 @@ export const AdminDashboard: React.FC = () => {
     );
   }, [isAdminOrSuperAdmin, currentUser?.username, organizations]);
 
-  // Guard: Pastikan role Penulis dan Admin hanya berada di menu yang diizinkan
+  // Guard: Pastikan role Editor, Penulis, dan Admin hanya berada di menu yang diizinkan
   useEffect(() => {
-    if (isWriter) {
+    if (isEditor) {
+      // Role Editor HANYA boleh mengakses menu Warta & Informasi
+      if (currentSection !== 'news-cms') {
+        setCurrentSection('news-cms');
+      }
+    } else if (isWriter) {
       const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'achievements-cms', 'my-profile-cms'];
       if (canAccessOrganizationCms) {
         allowedSections.push('organization-cms');
@@ -434,7 +441,7 @@ export const AdminDashboard: React.FC = () => {
     } else if ((currentSection === 'users-cms' || currentSection === 'activity-log-cms' || currentSection === 'menu-settings-cms' || currentSection === 'maintenance-cms') && !isSuperAdmin) {
       setCurrentSection('news-cms');
     }
-  }, [isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
+  }, [isEditor, isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
 
   // ==========================================================
   // STATE & HANDLER MEDIA SOSIAL RESMI CMS
@@ -2249,10 +2256,10 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Daftar berita yang ditampilkan:
-  // Super Admin & Admin dapat melihat seluruh berita (atau filter ke berita miliknya)
+  // Super Admin, Admin, & Editor dapat melihat seluruh berita (atau filter ke berita miliknya)
   // Penulis HANYA dapat melihat berita yang ditulis oleh dirinya sendiri
   const displayedNews = useMemo(() => {
-    if (isAdminOrSuperAdmin) {
+    if (isAdminOrSuperAdmin || isEditor) {
       if (newsFilterTab === 'mine') {
         return news.filter((item) => isNewsItemOwner(item));
       }
@@ -2260,7 +2267,7 @@ export const AdminDashboard: React.FC = () => {
     }
     // Penulis: HANYA menampilkan berita yang dibuat akun login
     return news.filter((item) => isNewsItemOwner(item));
-  }, [news, isAdminOrSuperAdmin, newsFilterTab, currentUser, activeAuthorName, activeUserRole]);
+  }, [news, isAdminOrSuperAdmin, isEditor, newsFilterTab, currentUser, activeAuthorName, activeUserRole]);
 
   // --- PAGINATION WARTA / BERITA CMS (10 per halaman) ---
   const [newsCurrentPage, setNewsCurrentPage] = useState(1);
@@ -2331,7 +2338,7 @@ export const AdminDashboard: React.FC = () => {
 
     if (editingNewsId) {
       const existingNews = news.find((n) => n.id === editingNewsId);
-      if (existingNews && !isAdminOrSuperAdmin && !isNewsItemOwner(existingNews)) {
+      if (existingNews && !isAdminOrSuperAdmin && !isEditor && !isNewsItemOwner(existingNews)) {
         showNoticePopup({
           title: 'Akses Ditolak!',
           message: 'Anda tidak memiliki izin untuk mengubah artikel berita milik pengguna/role lain.',
@@ -2369,9 +2376,9 @@ export const AdminDashboard: React.FC = () => {
         category: newsForm.category,
         summary: cleanSummary,
         content: newsForm.content,
-        author: newsForm.author,
-        authorId: newsForm.authorId || currentUser?.id || '',
-        authorRole: newsForm.authorRole || activeUserRole,
+        author: existingNews?.author || newsForm.author,
+        authorId: existingNews?.authorId || newsForm.authorId || currentUser?.id || '',
+        authorRole: existingNews?.authorRole || newsForm.authorRole || activeUserRole,
         image: finalImage,
         tags: tagsArray,
         views: parsedViews
@@ -2383,6 +2390,14 @@ export const AdminDashboard: React.FC = () => {
         type: 'success'
       });
     } else {
+      if (isEditor) {
+        showNoticePopup({
+          title: 'Akses Dibatasi',
+          message: 'Role Editor hanya memiliki wewenang untuk mengedit artikel yang sudah ada.',
+          type: 'warning'
+        });
+        return;
+      }
       const cleanSummary = newsForm.summary && newsForm.summary.trim()
         ? stripHtml(newsForm.summary)
         : generateSummary(newsForm.content, 180);
@@ -4009,7 +4024,7 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="pt-2.5 pb-1 px-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
-              {isWriter ? 'AKSES PENULIS' : 'KELOLA HALAMAN PUBLIK'}
+              {isEditor ? 'AKSES EDITOR' : isWriter ? 'AKSES PENULIS' : 'KELOLA HALAMAN PUBLIK'}
             </span>
           </div>
 
@@ -4226,55 +4241,57 @@ export const AdminDashboard: React.FC = () => {
                 <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                   currentSection === 'news-cms' ? 'text-blue-100' : 'text-slate-400'
                 }`}>
-                  {isWriter ? 'Berita & Pengumuman Saya' : 'Berita & Surat Edaran'}
+                  {isEditor ? 'Edit Artikel Seluruh Akun' : isWriter ? 'Berita & Pengumuman Saya' : 'Berita & Surat Edaran'}
                 </span>
               </div>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
               currentSection === 'news-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
             }`}>
-              {isWriter ? (displayedNews.length + displayedAnnouncements.length) : (news.length + announcements.length)}
+              {isEditor ? news.length : isWriter ? (displayedNews.length + displayedAnnouncements.length) : (news.length + announcements.length)}
             </span>
           </button>
 
           {/* 4.2. Kelola Prestasi Siswa & Guru */}
-          <button
-            type="button"
-            onClick={() => navigateToSection('achievements-cms')}
-            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
-              currentSection === 'achievements-cms'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
+          {!isEditor && (
+            <button
+              type="button"
+              onClick={() => navigateToSection('achievements-cms')}
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
+                currentSection === 'achievements-cms'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                  currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  <Trophy className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'achievements-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Kelola Prestasi
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'achievements-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    {isAdminOrSuperAdmin ? 'Prestasi Siswa & Guru' : 'Prestasi Saya'}
+                  </span>
+                </div>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
               }`}>
-                <Trophy className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'achievements-cms' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Kelola Prestasi
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'achievements-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  {isAdminOrSuperAdmin ? 'Prestasi Siswa & Guru' : 'Prestasi Saya'}
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
-            }`}>
-              {isAdminOrSuperAdmin ? achievements.length : displayedAchievements.length}
-            </span>
-          </button>
+                {isAdminOrSuperAdmin ? achievements.length : displayedAchievements.length}
+              </span>
+            </button>
+          )}
 
           {/* 4.5. Organisasi (Khusus Admin/Super Admin atau Akun yang Ditunjuk) */}
-          {canAccessOrganizationCms && (
+          {!isEditor && canAccessOrganizationCms && (
             <button
               type="button"
               onClick={() => navigateToSection('organization-cms')}
@@ -4429,40 +4446,42 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* 6. Galeri */}
-          <button
-            type="button"
-            onClick={() => navigateToSection('gallery-cms')}
-            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
-              currentSection === 'gallery-cms'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+          {!isEditor && (
+            <button
+              type="button"
+              onClick={() => navigateToSection('gallery-cms')}
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
+                currentSection === 'gallery-cms'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                  currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                }`}>
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'gallery-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Galeri Kegiatan
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'gallery-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    Folder Album & Dokumentasi
+                  </span>
+                </div>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
               }`}>
-                <ImageIcon className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'gallery-cms' ? 'text-white' : 'text-slate-800'
-                }`}>
-                  Galeri Kegiatan
-                </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'gallery-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Folder Album & Dokumentasi
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
-            }`}>
-              {isAdminOrSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
-            </span>
-          </button>
+                {isAdminOrSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
+              </span>
+            </button>
+          )}
 
           {/* 7. Kontak & Aduan (Khusus Super Admin & Admin) */}
           {isAdminOrSuperAdmin && (
@@ -4724,47 +4743,51 @@ export const AdminDashboard: React.FC = () => {
             </>
           )}
 
-          {/* Menu Profil Akun Saya (Untuk Semua Role: Super Admin, Admin, Penulis) */}
-          <div className="pt-3 pb-1 px-3">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
-              AKUN PENGGUNA
-            </span>
-          </div>
+          {/* Menu Profil Akun Saya (Untuk Semua Role: Super Admin, Admin, Penulis - Tersembunyi untuk Editor) */}
+          {!isEditor && (
+            <>
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-t border-slate-100/80 pt-2.5">
+                  AKUN PENGGUNA
+                </span>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => navigateToSection('my-profile-cms')}
-            className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
-              currentSection === 'my-profile-cms'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
-              }`}>
-                <UserCog className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0 text-left">
-                <span className={`text-xs font-bold truncate leading-tight ${
-                  currentSection === 'my-profile-cms' ? 'text-white' : 'text-slate-800'
+              <button
+                type="button"
+                onClick={() => navigateToSection('my-profile-cms')}
+                className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
+                  currentSection === 'my-profile-cms'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600'
+                  }`}>
+                    <UserCog className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className={`text-xs font-bold truncate leading-tight ${
+                      currentSection === 'my-profile-cms' ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      Profil Akun Saya
+                    </span>
+                    <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                      currentSection === 'my-profile-cms' ? 'text-blue-100' : 'text-slate-400'
+                    }`}>
+                      Email &amp; Ganti Sandi
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
                 }`}>
-                  Profil Akun Saya
+                  {currentUser?.role || 'User'}
                 </span>
-                <span className={`text-[10px] truncate leading-tight mt-0.5 ${
-                  currentSection === 'my-profile-cms' ? 'text-blue-100' : 'text-slate-400'
-                }`}>
-                  Email &amp; Ganti Sandi
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
-              currentSection === 'my-profile-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
-            }`}>
-              {currentUser?.role || 'User'}
-            </span>
-          </button>
+              </button>
+            </>
+          )}
 
           {/* Factory reset button (Khusus Super Admin) */}
           {currentUser?.role === 'Super Admin' && (
@@ -4800,26 +4823,30 @@ export const AdminDashboard: React.FC = () => {
         <div className="pt-3 border-t border-slate-200/50 flex items-center justify-between px-1 shrink-0 bg-slate-50/80 lg:bg-transparent rounded-2xl p-2 lg:p-0">
           <button
             type="button"
-            onClick={() => navigateToSection('my-profile-cms')}
-            className="flex items-center gap-2.5 text-left min-w-0 flex-1 hover:opacity-80 transition-opacity cursor-pointer"
-            title="Buka Profil Akun Saya"
+            onClick={() => !isEditor && navigateToSection('my-profile-cms')}
+            className={`flex items-center gap-2.5 text-left min-w-0 flex-1 transition-opacity ${isEditor ? 'cursor-default' : 'hover:opacity-80 cursor-pointer'}`}
+            title={isEditor ? `Akun ${currentUser?.role || 'Editor'}` : 'Buka Profil Akun Saya'}
           >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs text-white shrink-0 shadow-sm ${
               currentUser?.role === 'Super Admin'
                 ? 'bg-blue-600'
                 : currentUser?.role === 'Admin'
                 ? 'bg-blue-600'
+                : currentUser?.role === 'Editor'
+                ? 'bg-cyan-600'
                 : 'bg-emerald-600'
             }`}>
               {currentUser?.name 
                 ? currentUser.name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
-                : 'AD'}
+                : 'ED'}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-extrabold text-slate-800 truncate">
                 {currentUser?.name || 'Administrator'}
               </p>
-              <p className="text-[10px] font-black uppercase tracking-wider text-blue-600 truncate mt-0.5">
+              <p className={`text-[10px] font-black uppercase tracking-wider truncate mt-0.5 ${
+                currentUser?.role === 'Editor' ? 'text-cyan-600' : 'text-blue-600'
+              }`}>
                 {currentUser?.role || 'SUPER ADMIN'}
               </p>
             </div>
@@ -4945,6 +4972,25 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Menu <strong>Ringkasan Dashboard & Analitik Website</strong> hanya dapat diakses oleh akun dengan tingkat wewenang <strong className="text-purple-700">Super Admin</strong>.
+              </p>
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentSection('news-cms')}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-all"
+                >
+                  Buka Menu Warta & Informasi
+                </button>
+              </div>
+            </div>
+          ) : isEditor && currentSection !== 'news-cms' ? (
+            <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Akun Anda memiliki wewenang <strong className="text-cyan-700">Editor</strong>. Wewenang Editor difokuskan khusus untuk meninjau dan menyunting artikel pada menu <strong>Warta & Informasi</strong>.
               </p>
               <div className="flex justify-center pt-2">
                 <button
@@ -7241,33 +7287,55 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
 
-              {/* Sub tabs */}
-              <div className="flex gap-2 border-b border-slate-200 pb-3">
-                <button
-                  onClick={() => setNewsSubTab('news')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    newsSubTab === 'news' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Berita & Liputan ({isWriter ? displayedNews.length : news.length})</span>
-                </button>
+              {/* Sub tabs (Khusus non-Editor) */}
+              {!isEditor && (
+                <div className="flex gap-2 border-b border-slate-200 pb-3">
+                  <button
+                    onClick={() => setNewsSubTab('news')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      newsSubTab === 'news' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
+                    }`}
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Berita & Liputan ({isWriter ? displayedNews.length : news.length})</span>
+                  </button>
 
-                <button
-                  onClick={() => setNewsSubTab('announcements')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    newsSubTab === 'announcements' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
-                  }`}
-                >
-                  <BellRing className="w-4 h-4" />
-                  <span>Pengumuman & Surat Edaran ({isWriter ? displayedAnnouncements.length : announcements.length})</span>
-                </button>
-              </div>
+                  <button
+                    onClick={() => setNewsSubTab('announcements')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      newsSubTab === 'announcements' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
+                    }`}
+                  >
+                    <BellRing className="w-4 h-4" />
+                    <span>Pengumuman & Surat Edaran ({isWriter ? displayedAnnouncements.length : announcements.length})</span>
+                  </button>
+                </div>
+              )}
 
               {/* Subtab 1: News */}
-              {newsSubTab === 'news' && (
+              {(isEditor || newsSubTab === 'news') && (
                 <div className="space-y-6">
-                  <form onSubmit={handleSaveNews} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                  {isEditor && !editingNewsId ? (
+                    <div className="bg-gradient-to-r from-blue-50/90 via-cyan-50/80 to-blue-50/90 border border-blue-200/90 rounded-3xl p-6 sm:p-7 shadow-xs">
+                      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+                        <div className="w-12 h-12 rounded-2xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-cyan-600/20">
+                          <FileEdit className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-100 text-cyan-800 border border-cyan-200">
+                            Role Wewenang: Editor
+                          </div>
+                          <h3 className="text-base font-extrabold text-slate-900">
+                            Pusat Penyuntingan Artikel Berita Seluruh Akun
+                          </h3>
+                          <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                            Sebagai akun <strong>Editor</strong>, Anda memiliki izin khusus untuk meninjau dan mengedit artikel berita yang telah dipublish oleh seluruh akun pengelola dan organisasi. Silakan telusuri daftar di bawah ini, lalu klik tombol <strong>Edit</strong> (ikon pensil biru) pada artikel yang ingin disunting.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveNews} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="sm:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-700">Judul Berita *</label>
@@ -7606,18 +7674,23 @@ export const AdminDashboard: React.FC = () => {
                       )}
                     </div>
                   </form>
+                  )}
 
                   {/* List news */}
                   <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                     <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <div className="font-bold text-sm text-slate-800">
-                          {isAdminOrSuperAdmin
+                          {isEditor
+                            ? `Daftar Semua Artikel Berita (${displayedNews.length} Artikel)`
+                            : isAdminOrSuperAdmin
                             ? (newsFilterTab === 'mine' ? `Daftar Berita Saya (${displayedNews.length} Artikel)` : `Semua Artikel Berita (${displayedNews.length} Artikel)`)
                             : `Daftar Berita Saya (${displayedNews.length} Artikel)`}
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          {isAdminOrSuperAdmin
+                          {isEditor
+                            ? 'Sebagai Editor, Anda dapat meninjau dan mengedit artikel berita yang diterbitkan oleh seluruh akun.'
+                            : isAdminOrSuperAdmin
                             ? 'Sebagai Admin / Super Admin, Anda dapat mengelola seluruh artikel berita atau artikel yang Anda terbitkan sendiri.'
                             : `Menampilkan artikel berita resmi yang dibuat dan dikelola oleh ${currentUser?.name || 'akun Anda'}.`}
                         </p>
@@ -7667,7 +7740,8 @@ export const AdminDashboard: React.FC = () => {
                     ) : (
                       <div className="divide-y divide-slate-100">
                         {paginatedNews.map((item) => {
-                          const canManageItem = isAdminOrSuperAdmin || isNewsItemOwner(item);
+                          const canEditItem = isAdminOrSuperAdmin || isEditor || isNewsItemOwner(item);
+                          const canDeleteItem = isAdminOrSuperAdmin || (!isEditor && isNewsItemOwner(item));
 
                           return (
                             <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
@@ -7705,55 +7779,56 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                {canManageItem ? (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setEditingNewsId(item.id);
-                                        setNewsForm({
-                                          title: item.title,
-                                          category: item.category,
-                                          summary: stripHtml(item.summary) || generateSummary(item.content, 180),
-                                          content: item.content,
-                                          author: item.author,
-                                          authorId: item.authorId || '',
-                                          authorRole: item.authorRole || activeUserRole,
-                                          image: item.image,
-                                          tags: (item.tags || []).join(', '),
-                                          views: item.views || 0
-                                        });
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                      }}
-                                      className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                                      title="Edit Berita Saya"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={async () => {
-                                        const confirmed = await showConfirmDialog({
-                                          title: 'Hapus Berita Ini?',
-                                          message: `Apakah Anda yakin ingin menghapus artikel berita "${item.title}"?`,
-                                          type: 'delete',
-                                          itemName: item.title,
-                                          confirmText: 'Ya, Hapus Berita',
-                                          cancelText: 'Tidak, Batalkan'
-                                        });
-                                        if (!confirmed) return;
-                                        deleteNews(item.id);
-                                        showNoticePopup({
-                                          title: 'Berita Dihapus!',
-                                          message: `Artikel "${item.title}" telah berhasil dihapus.`,
-                                          type: 'success'
-                                        });
-                                      }}
-                                      className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
-                                      title="Hapus Berita"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                ) : (
+                                {canEditItem && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingNewsId(item.id);
+                                      setNewsForm({
+                                        title: item.title,
+                                        category: item.category,
+                                        summary: stripHtml(item.summary) || generateSummary(item.content, 180),
+                                        content: item.content,
+                                        author: item.author,
+                                        authorId: item.authorId || '',
+                                        authorRole: item.authorRole || activeUserRole,
+                                        image: item.image,
+                                        tags: (item.tags || []).join(', '),
+                                        views: item.views || 0
+                                      });
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                    title={isEditor ? "Edit Artikel Ini" : "Edit Berita Saya"}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {canDeleteItem && (
+                                  <button
+                                    onClick={async () => {
+                                      const confirmed = await showConfirmDialog({
+                                        title: 'Hapus Berita Ini?',
+                                        message: `Apakah Anda yakin ingin menghapus artikel berita "${item.title}"?`,
+                                        type: 'delete',
+                                        itemName: item.title,
+                                        confirmText: 'Ya, Hapus Berita',
+                                        cancelText: 'Tidak, Batalkan'
+                                      });
+                                      if (!confirmed) return;
+                                      deleteNews(item.id);
+                                      showNoticePopup({
+                                        title: 'Berita Dihapus!',
+                                        message: `Artikel "${item.title}" telah berhasil dihapus.`,
+                                        type: 'success'
+                                      });
+                                    }}
+                                    className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                    title="Hapus Berita"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {!canEditItem && !canDeleteItem && (
                                   <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-md border border-slate-200 flex items-center gap-1 font-medium select-none" title="Dibuat oleh akun/role lain">
                                     <Lock className="w-3 h-3 text-slate-400" />
                                     <span>Terkunci</span>
@@ -13554,7 +13629,7 @@ export const AdminDashboard: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    Atur hak akses akun pengelola portal Korwilcam Purwodadi dengan 3 tingkatan wewenang: Super Admin, Admin, dan Penulis.
+                    Atur hak akses akun pengelola portal Korwilcam Purwodadi dengan tingkatan wewenang: Super Admin, Admin, Editor, dan Penulis.
                   </p>
                 </div>
 
@@ -13568,8 +13643,8 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
 
-              {/* 3 Role Level Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 4 Role Level Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-purple-50 to-white p-4 rounded-2xl border border-purple-200/80 shadow-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -13610,6 +13685,26 @@ export const AdminDashboard: React.FC = () => {
                   </p>
                 </div>
 
+                <div className="bg-gradient-to-br from-cyan-50 to-white p-4 rounded-2xl border border-cyan-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-cyan-600 text-white flex items-center justify-center shadow-sm">
+                        <FileEdit className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">Editor</h4>
+                        <span className="text-[10px] text-cyan-700 font-medium">Edit Berita Semua Akun</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800">
+                      {adminUsers.filter((u) => u.role === 'Editor').length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Wewenang penyuntingan: hanya mengakses menu Warta &amp; Informasi untuk mengedit dan menyempurnakan naskah berita dari seluruh akun.
+                  </p>
+                </div>
+
                 <div className="bg-gradient-to-br from-emerald-50 to-white p-4 rounded-2xl border border-emerald-200/80 shadow-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -13618,7 +13713,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-900">Penulis</h4>
-                        <span className="text-[10px] text-emerald-700 font-medium">Warta Berita & Galeri Foto</span>
+                        <span className="text-[10px] text-emerald-700 font-medium">Warta Berita &amp; Galeri</span>
                       </div>
                     </div>
                     <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
@@ -13647,7 +13742,7 @@ export const AdminDashboard: React.FC = () => {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 select-none">
                       <tr>
-                        <th className="py-3 px-4">Nama Lengkap & Email</th>
+                        <th className="py-3 px-4">Nama Lengkap &amp; Email</th>
                         <th className="py-3 px-4">Username Akun</th>
                         <th className="py-3 px-4">Role Akses</th>
                         <th className="py-3 px-4">Status</th>
@@ -13666,6 +13761,8 @@ export const AdminDashboard: React.FC = () => {
                                     ? 'bg-purple-100 text-purple-700'
                                     : u.role === 'Admin'
                                     ? 'bg-blue-100 text-blue-700'
+                                    : u.role === 'Editor'
+                                    ? 'bg-cyan-100 text-cyan-700'
                                     : 'bg-emerald-100 text-emerald-700'
                                 }`}>
                                   {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
@@ -13698,10 +13795,13 @@ export const AdminDashboard: React.FC = () => {
                                   ? 'bg-purple-50 text-purple-700 border-purple-200'
                                   : u.role === 'Admin'
                                   ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : u.role === 'Editor'
+                                  ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
                                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               }`}>
                                 {u.role === 'Super Admin' && <Crown className="w-3 h-3 text-purple-600" />}
                                 {u.role === 'Admin' && <Shield className="w-3 h-3 text-blue-600" />}
+                                {u.role === 'Editor' && <FileEdit className="w-3 h-3 text-cyan-600" />}
                                 {u.role === 'Penulis' && <PenTool className="w-3 h-3 text-emerald-600" />}
                                 <span>{u.role}</span>
                               </span>
@@ -14717,6 +14817,7 @@ export const AdminDashboard: React.FC = () => {
                   >
                     <option value="Super Admin">Super Admin (Akses Penuh)</option>
                     <option value="Admin">Admin (Kelola Konten & Data)</option>
+                    <option value="Editor">Editor (Khusus Edit Artikel Berita Semua Akun)</option>
                     <option value="Penulis">Penulis (Warta, Berita & Galeri Foto)</option>
                   </select>
                 </div>
@@ -15051,27 +15152,31 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Mobile Bottom Navigation Bar (Persis Gambar 2) */}
       <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-white/95 backdrop-blur-2xl border-t border-slate-200/80 px-3 py-2 flex items-center justify-around shadow-[0_-5px_25px_rgba(0,0,0,0.06)]">
-        <button
-          type="button"
-          onClick={() => navigateToSection('overview')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            currentSection === 'overview' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <LayoutDashboard className="w-5 h-5" />
-          <span className="text-[10px] font-semibold leading-none">Dashboard</span>
-        </button>
+        {!isEditor && (
+          <>
+            <button
+              type="button"
+              onClick={() => navigateToSection('overview')}
+              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                currentSection === 'overview' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              <span className="text-[10px] font-semibold leading-none">Dashboard</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => navigateToSection('schools-cms')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            currentSection === 'schools-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <GraduationCap className="w-5 h-5" />
-          <span className="text-[10px] font-semibold leading-none">Sekolah</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => navigateToSection('schools-cms')}
+              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                currentSection === 'schools-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <GraduationCap className="w-5 h-5" />
+              <span className="text-[10px] font-semibold leading-none">Sekolah</span>
+            </button>
+          </>
+        )}
 
         <button
           type="button"
@@ -15084,16 +15189,18 @@ export const AdminDashboard: React.FC = () => {
           <span className="text-[10px] font-semibold leading-none">Warta</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => navigateToSection('gallery-cms')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            currentSection === 'gallery-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <ImageIcon className="w-5 h-5" />
-          <span className="text-[10px] font-semibold leading-none">Galeri</span>
-        </button>
+        {!isEditor && (
+          <button
+            type="button"
+            onClick={() => navigateToSection('gallery-cms')}
+            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+              currentSection === 'gallery-cms' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <ImageIcon className="w-5 h-5" />
+            <span className="text-[10px] font-semibold leading-none">Galeri</span>
+          </button>
+        )}
 
         <button
           type="button"

@@ -172,7 +172,7 @@ export interface ComplaintMessage {
   status: 'Baru' | 'Dibaca' | 'Selesai';
 }
 
-export type AdminRole = 'Super Admin' | 'Admin' | 'Penulis';
+export type AdminRole = 'Super Admin' | 'Admin' | 'Penulis' | 'Editor';
 
 export interface AdminUser {
   id: string;
