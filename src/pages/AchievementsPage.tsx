@@ -471,7 +471,7 @@ export const AchievementsPage: React.FC = () => {
             </div>
 
             {/* Counter Results Notice */}
-            <div ref={cardsContainerRef} className="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm text-slate-500 px-1 gap-2">
+            <div ref={cardsContainerRef} className="text-xs sm:text-sm text-slate-500 px-1">
               <p>
                 Menampilkan{' '}
                 <span className="font-bold text-slate-800">
@@ -484,12 +484,6 @@ export const AchievementsPage: React.FC = () => {
                 {selectedLevel !== 'ALL' && ` • Tingkat ${selectedLevel}`}
                 {selectedYear !== 'ALL' && ` • Tahun ${selectedYear}`}
               </p>
-              {totalPages > 1 && (
-                <span className="text-xs text-slate-500 font-medium">
-                  Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari{' '}
-                  <strong className="text-slate-800 font-bold">{totalPages}</strong> (15 kartu / halaman)
-                </span>
-              )}
             </div>
 
             {/* Cards Grid */}
@@ -619,13 +613,8 @@ export const AchievementsPage: React.FC = () => {
 
                 {/* Pagination Controls (15 kartu per halaman) */}
                 {totalPages > 1 && (
-                  <div className="pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200/80">
-                    <div className="text-xs text-slate-500 order-2 sm:order-1 text-center sm:text-left">
-                      Menampilkan halaman <span className="font-bold text-slate-800">{currentPage}</span> dari{' '}
-                      <span className="font-bold text-slate-800">{totalPages}</span> (15 kartu per halaman)
-                    </div>
-
-                    <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                  <div className="pt-6 pb-2 flex items-center justify-center border-t border-slate-200/80">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-center">
                       {/* First Page */}
                       <button
                         onClick={() => handlePageChange(1)}
