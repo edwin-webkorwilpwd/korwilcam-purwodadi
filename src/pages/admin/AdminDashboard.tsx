@@ -348,6 +348,7 @@ export const AdminDashboard: React.FC = () => {
     sendBroadcastNotification,
     deleteBroadcastNotification,
     achievements,
+    refreshAchievements,
     addAchievement,
     updateAchievement,
     deleteAchievement
@@ -424,7 +425,7 @@ export const AdminDashboard: React.FC = () => {
         setCurrentSection('news-cms');
       }
     } else if (isWriter) {
-      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'achievements-cms', 'my-profile-cms'];
+      const allowedSections: AdminSection[] = ['news-cms', 'gallery-cms', 'my-profile-cms'];
       if (canAccessOrganizationCms) {
         allowedSections.push('organization-cms');
       }
@@ -433,6 +434,9 @@ export const AdminDashboard: React.FC = () => {
       }
     } else if (!isSuperAdmin && currentSection === 'overview') {
       // Menu Ringkasan Dashboard hanya dapat diakses oleh Super Admin
+      setCurrentSection('news-cms');
+    } else if (!isSuperAdmin && currentSection === 'achievements-cms') {
+      // Menu Kelola Prestasi disembunyikan dari Admin dan Penulis (kini otomatis membaca Google Spreadsheet)
       setCurrentSection('news-cms');
     } else if (currentSection === 'organization-cms' && !canAccessOrganizationCms) {
       setCurrentSection(isSuperAdmin ? 'overview' : 'news-cms');
@@ -4296,8 +4300,8 @@ export const AdminDashboard: React.FC = () => {
             </span>
           </button>
 
-          {/* 4.2. Kelola Prestasi Siswa & Guru */}
-          {!isEditor && (
+          {/* 4.2. Kelola Prestasi Siswa & Guru (Khusus Super Admin, disembunyikan dari Admin & Penulis) */}
+          {isSuperAdmin && (
             <button
               type="button"
               onClick={() => navigateToSection('achievements-cms')}
@@ -4322,14 +4326,14 @@ export const AdminDashboard: React.FC = () => {
                   <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                     currentSection === 'achievements-cms' ? 'text-blue-100' : 'text-slate-400'
                   }`}>
-                    {isAdminOrSuperAdmin ? 'Prestasi Siswa & Guru' : 'Prestasi Saya'}
+                    Data Google Sheet
                   </span>
                 </div>
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
                 currentSection === 'achievements-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
               }`}>
-                {isAdminOrSuperAdmin ? achievements.length : displayedAchievements.length}
+                {achievements.length}
               </span>
             </button>
           )}
@@ -5046,14 +5050,14 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-          ) : currentUser?.role === 'Penulis' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'achievements-cms' && currentSection !== 'my-profile-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
+          ) : currentUser?.role === 'Penulis' && currentSection !== 'news-cms' && currentSection !== 'gallery-cms' && currentSection !== 'my-profile-cms' && !(currentSection === 'organization-cms' && canAccessOrganizationCms) ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 max-w-lg mx-auto my-12 space-y-4 shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Lock className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong>, <strong>Kelola Prestasi</strong>, <strong>Galeri Kegiatan</strong>{canAccessOrganizationCms ? ', serta Organisasi yang ditugaskan kepada Anda' : ''}.
+                Akun Anda memiliki role <strong className="text-emerald-700">Penulis</strong>. Wewenang akun Penulis difokuskan untuk menulis dan mengelola pada menu <strong>Warta & Informasi</strong>, <strong>Galeri Kegiatan</strong>{canAccessOrganizationCms ? ', serta Organisasi yang ditugaskan kepada Anda' : ''}.
               </p>
               <div className="flex flex-wrap justify-center gap-2.5">
                 <button
@@ -5061,12 +5065,6 @@ export const AdminDashboard: React.FC = () => {
                   className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition-all"
                 >
                   Buka Menu Warta & Informasi
-                </button>
-                <button
-                  onClick={() => setCurrentSection('achievements-cms')}
-                  className="px-4 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md hover:bg-amber-700 transition-all"
-                >
-                  Buka Menu Prestasi
                 </button>
                 <button
                   onClick={() => setCurrentSection('gallery-cms')}
@@ -8652,38 +8650,49 @@ export const AdminDashboard: React.FC = () => {
                     </h2>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    {isAdminOrSuperAdmin 
-                      ? 'Manajemen data kejuaraan, medali, dan penghargaan putra-putri serta pendidik Korwilcam Purwodadi.'
-                      : `Manajemen data prestasi yang dibuat dan dikelola oleh akun ${currentUser?.name || 'Anda'} (${currentUser?.role || activeUserRole}).`}
+                    Data prestasi tersinkronisasi otomatis dengan Google Spreadsheet (respon Google Form guru). Menu ini khusus diakses oleh Super Admin.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1-p4oGqZW4G1QEU0F3DDVcn7mO9mx03iltdNp_KumA9Q/edit?gid=723592882#gid=723592882"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Buka Google Spreadsheet</span>
+                  </a>
+
                   <button
                     type="button"
-                    onClick={openNewAchievementModal}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    onClick={async () => {
+                      await refreshAchievements?.();
+                      showToast('Data prestasi berhasil disegarkan dari Google Spreadsheet!', 'success');
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs sm:text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Tambah Prestasi Baru</span>
+                    <RefreshCw className="w-4 h-4 text-blue-600" />
+                    <span>Segarkan Data</span>
                   </button>
                 </div>
               </div>
 
-              {/* Informational Callout regarding Database Storage */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 flex items-start gap-3.5 shadow-2xs">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+              {/* Informational Callout regarding Google Form & Spreadsheet Sync */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 flex items-start gap-3.5 shadow-2xs">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                   <Sparkles className="w-5 h-5 text-yellow-300" />
                 </div>
                 <div className="space-y-1 text-xs sm:text-sm text-slate-700">
                   <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                    <span>Penyimpanan Foto Database (Aman & Berkecepatan Tinggi)</span>
+                    <span>Terhubung Langsung ke Google Form &amp; Spreadsheet</span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                      Zero Storage Cost
+                      Otomatis &amp; Real-time
                     </span>
                   </h4>
                   <p className="text-slate-600 leading-relaxed text-xs">
-                    Foto siswa, guru, dan piagam disimpan langsung di <strong>Database</strong> Anda tanpa memakan kapasitas penyimpanan server. Cukup salin tautan file sharing database (pastikan akses disetel <em>Siapa saja yang memiliki link dapat melihat</em>), sistem otomatis mengonversinya menjadi foto berkecepatan tinggi di website publik.
+                    Penginputan data prestasi siswa dilakukan terpusat melalui <strong>Google Form</strong> yang diisi oleh guru/sekolah dan otomatis masuk ke <strong>Google Spreadsheet</strong>. Menu ini telah disembunyikan dari akun <strong>Admin</strong> dan <strong>Penulis</strong> agar alur pendataan tetap rapi satu pintu.
                   </p>
                 </div>
               </div>
