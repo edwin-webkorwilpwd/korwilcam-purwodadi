@@ -461,7 +461,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     } catch (_) {}
-    const initial = isDbConfigured ? [] : initialNews;
+    const initial = (initialNews && initialNews.length > 0) ? initialNews : [];
     _inMemoryNewsCache = initial;
     return initial;
   });
@@ -501,14 +501,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     } catch (_) {}
-    const initial = isDbConfigured ? [] : initialAnnouncements;
+    const initial = (initialAnnouncements && initialAnnouncements.length > 0) ? initialAnnouncements : [];
     _inMemoryAnnouncementsCache = initial;
     return initial;
   });
 
   const [agenda, setAgenda] = useState<AgendaEvent[]>(() => {
     const saved = localStorage.getItem('korwilcam_agenda');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialAgenda);
+    return saved ? JSON.parse(saved) : (initialAgenda || []);
   });
 
   const [aulaBookings, setAulaBookings] = useState<AulaAgendaBooking[]>(() => {
@@ -582,7 +582,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } catch (_) {}
     }
-    return isDbConfigured ? [] : initialDocuments;
+    return initialDocuments || [];
   });
 
   const [documentCategories, setDocumentCategories] = useState<string[]>(() => {
@@ -715,7 +715,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [complaints, setComplaints] = useState<ComplaintMessage[]>(() => {
     const saved = localStorage.getItem('korwilcam_complaints');
-    return saved ? JSON.parse(saved) : (isDbConfigured ? [] : initialComplaints);
+    return saved ? JSON.parse(saved) : (initialComplaints || []);
   });
 
   const [sopImageUrl, setSopImageUrl] = useState<string>(() => {
@@ -7377,22 +7377,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const client = getSupabaseClient();
     if (client) {
-      try {
-        await client.from('data_requests').upsert({
-          id: newItem.id,
-          title: newItem.title,
-          slug: newItem.slug,
-          url: newItem.url,
-          description: newItem.description || '',
-          crop_top: newItem.cropTop || 0,
-          is_active: newItem.isActive !== false,
-          sort_order: newItem.order,
-          created_at: newItem.createdAt,
-          updated_at: newItem.updatedAt
-        });
-      } catch (err) {
-        console.warn('Supabase addDataRequest warning:', err);
-      }
+      (async () => {
+        try {
+          await client.from('data_requests').upsert({
+            id: newItem.id,
+            title: newItem.title,
+            slug: newItem.slug,
+            url: newItem.url,
+            description: newItem.description || '',
+            crop_top: newItem.cropTop || 0,
+            is_active: newItem.isActive !== false,
+            sort_order: newItem.order,
+            created_at: newItem.createdAt,
+            updated_at: newItem.updatedAt
+          });
+        } catch (err) {
+          console.warn('Supabase addDataRequest warning:', err);
+        }
+      })();
     }
     showToast(`Tautan "${newItem.title}" berhasil ditambahkan!`, 'success');
     return true;
@@ -7432,22 +7434,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const client = getSupabaseClient();
     if (client && target) {
-      try {
-        await client.from('data_requests').upsert({
-          id: target.id,
-          title: target.title,
-          slug: target.slug || generateDataRequestSlug(target.title),
-          url: target.url,
-          description: target.description || '',
-          crop_top: target.cropTop || 0,
-          is_active: target.isActive !== false,
-          sort_order: target.order || 1,
-          created_at: target.createdAt || new Date().toISOString(),
-          updated_at: target.updatedAt
-        });
-      } catch (err) {
-        console.warn('Supabase updateDataRequest warning:', err);
-      }
+      (async () => {
+        try {
+          await client.from('data_requests').upsert({
+            id: target.id,
+            title: target.title,
+            slug: target.slug || generateDataRequestSlug(target.title),
+            url: target.url,
+            description: target.description || '',
+            crop_top: target.cropTop || 0,
+            is_active: target.isActive !== false,
+            sort_order: target.order || 1,
+            created_at: target.createdAt || new Date().toISOString(),
+            updated_at: target.updatedAt
+          });
+        } catch (err) {
+          console.warn('Supabase updateDataRequest warning:', err);
+        }
+      })();
     }
     showToast('Tautan permintaan data berhasil diperbarui!', 'success');
     return true;
@@ -7469,11 +7473,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const client = getSupabaseClient();
     if (client) {
-      try {
-        await client.from('data_requests').delete().match({ id });
-      } catch (err) {
-        console.warn('Supabase deleteDataRequest warning:', err);
-      }
+      (async () => {
+        try {
+          await client.from('data_requests').delete().match({ id });
+        } catch (err) {
+          console.warn('Supabase deleteDataRequest warning:', err);
+        }
+      })();
     }
     showToast(`Tautan "${target?.title || ''}" berhasil dihapus!`, 'info');
     return true;
@@ -7633,15 +7639,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       };
 
-      // Proteksi timeout 3.5 detik agar modal tidak pernah tersangkut pada status "Menyimpan..."
-      try {
-        await Promise.race([
-          syncTask(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_MUTATION')), 3500))
-        ]);
-      } catch {
-        console.warn('[Cloud Sync] Sinkronisasi prestasi dilanjutkan di latar belakang');
-      }
+      // Eksekusi sinkronisasi ke cloud di latar belakang tanpa menahan modal pengguna
+      syncTask().catch((e) => console.warn('[Cloud Sync] Latar belakang sync warning:', e));
     }
     return true;
   };
@@ -7704,15 +7703,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       };
 
-      // Proteksi timeout 3.5 detik agar modal tidak pernah tersangkut pada status "Menyimpan..."
-      try {
-        await Promise.race([
-          syncTask(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_MUTATION')), 3500))
-        ]);
-      } catch {
-        console.warn('[Cloud Sync] Sinkronisasi prestasi dilanjutkan di latar belakang');
-      }
+      // Eksekusi sinkronisasi ke cloud di latar belakang tanpa menahan modal pengguna
+      syncTask().catch((e) => console.warn('[Cloud Sync] Latar belakang update warning:', e));
     }
     return true;
   };
@@ -7743,14 +7735,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       };
 
-      try {
-        await Promise.race([
-          syncTask(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_MUTATION')), 3500))
-        ]);
-      } catch {
-        console.warn('[Cloud Sync] Hapus prestasi dilanjutkan di latar belakang');
-      }
+      syncTask().catch((e) => console.warn('[Cloud Sync] Latar belakang delete warning:', e));
     }
     return true;
   };
