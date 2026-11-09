@@ -306,7 +306,7 @@ export async function detectVisitorLocation(): Promise<string> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     const res = await fetch('https://ipwho.is/', {
       headers: { Accept: 'application/json' },
@@ -323,29 +323,7 @@ export async function detectVisitorLocation(): Promise<string> {
       }
     }
   } catch {
-    // Fallback
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-    const res2 = await fetch('https://freeipapi.com/api/json', {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-
-    if (res2.ok) {
-      const data2 = await res2.json();
-      if (data2 && data2.cityName) {
-        const cleaned = cleanAndNormalizeCity(data2.cityName, data2.regionName);
-        sessionStorage.setItem(DETECTED_CITY_KEY, cleaned);
-        return cleaned;
-      }
-    }
-  } catch {
-    // Abaikan
+    // Fallback cepat ke Purwodadi jika timeout / offline
   }
 
   const defaultCity = 'Purwodadi';
@@ -354,9 +332,9 @@ export async function detectVisitorLocation(): Promise<string> {
 }
 
 /**
- * Inisialisasi pelacak pengunjung real-time.
- * Aturan khusus: Jika membuka 1 tab dan login akun terdaftar, HANYA dihitung 1x kunjungan per sesi tab.
- * Mencatat langsung ke tabel Supabase "analitik website".
+ * Inisialisasi pelacak pengunjung real-time hemat sumber daya (High Concurrency Optimized).
+ * Aturan khusus: Tidak memborbardir database setiap 15 detik!
+ * Hanya mencatat saat pertama kali berkunjung, milestone durasi (30s & 120s), dan saat keluar.
  */
 export function initVisitorTracker(currentTab: string = 'home'): void {
   if (typeof window === 'undefined') return;
@@ -407,59 +385,58 @@ export function initVisitorTracker(currentTab: string = 'home'): void {
           sessionStorage.setItem(SYNCED_TO_SUPABASE_KEY, 'true');
           sessionStorage.setItem(TAB_COUNTED_KEY, 'true');
           sessionStorage.setItem(SESSION_PAGEVIEWS_KEY, '1');
-          window.dispatchEvent(new CustomEvent('korwil_analytics_updated'));
-        } else {
-          console.warn('[Analytics Tracker] Gagal mencatat kunjungan ke Supabase:', error.message);
         }
       } catch (err) {
-        console.warn('[Analytics Tracker] Gagal mencatat kunjungan ke Supabase:', err);
+        console.warn('[Analytics Tracker] Gagal mencatat kunjungan:', err);
       }
     });
   }
 
-  // 2. Timer durasi aktif (menghitung detik saat tab sedang dilihat secara aktif)
+  // 2. Timer durasi aktif (High Efficiency - Update Supabase hanya pada milestone 30s & 120s)
   let activeElapsedSeconds = 0;
-  const timer = window.setInterval(async () => {
+  let lastFlushedSeconds = 0;
+
+  const sendDurationUpdate = async (seconds: number) => {
+    if (seconds <= lastFlushedSeconds) return;
+    lastFlushedSeconds = seconds;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      await supabase
+        .from(SUPABASE_TABLE_NAME)
+        .update({
+          duration_seconds: seconds,
+          is_bounce: seconds < 15,
+          is_logged_in: isUserLoggedIn(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('session_id', sessionId);
+    } catch {
+      // Abaikan agar tidak mengganggu performa browser pengguna
+    }
+  };
+
+  const timer = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
       activeElapsedSeconds += 1;
 
-      // Sinkronkan ke Supabase setiap 15 detik
-      if (activeElapsedSeconds % 15 === 0) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          try {
-            await supabase
-              .from(SUPABASE_TABLE_NAME)
-              .update({
-                duration_seconds: activeElapsedSeconds,
-                is_bounce: activeElapsedSeconds < 15,
-                is_logged_in: isUserLoggedIn(),
-                updated_at: new Date().toISOString()
-              })
-              .eq('session_id', sessionId);
-          } catch {
-            // Abaikan
-          }
-        }
+      // Update milestone durasi yang bermakna saja (30 detik & 120 detik)
+      // JANGAN update setiap 15 detik untuk menghindari lonjakan ribuan query saat link dibagikan masal
+      if (activeElapsedSeconds === 30 || activeElapsedSeconds === 120) {
+        sendDurationUpdate(activeElapsedSeconds);
       }
     }
   }, 1000);
 
-  // Simpan durasi saat tab ditutup / sebelum unload
+  // Simpan durasi saat tab ditutup / dipindahkan ke latar belakang
+  let isUnloaded = false;
   const handleUnload = () => {
+    if (isUnloaded) return;
     clearInterval(timer);
-    const supabase = getSupabaseClient();
-    if (supabase && activeElapsedSeconds > 0) {
-      supabase
-        .from(SUPABASE_TABLE_NAME)
-        .update({
-          duration_seconds: activeElapsedSeconds,
-          is_bounce: activeElapsedSeconds < 15,
-          is_logged_in: isUserLoggedIn(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('session_id', sessionId)
-        .then(() => {});
+    if (activeElapsedSeconds > lastFlushedSeconds) {
+      isUnloaded = true;
+      sendDurationUpdate(activeElapsedSeconds);
     }
   };
 
@@ -473,7 +450,9 @@ export function initVisitorTracker(currentTab: string = 'home'): void {
 
 /**
  * Mencatat penambahan tayangan halaman (Pageview) saat berpindah menu / halaman
+ * Didukung debounce agar tidak membebani database jika pengunjung berpindah menu dengan cepat
  */
+let pageViewDebounceTimer: any = null;
 export async function recordPageView(newTabId: string = 'home'): Promise<void> {
   if (typeof window === 'undefined') return;
 
@@ -486,25 +465,26 @@ export async function recordPageView(newTabId: string = 'home'): Promise<void> {
 
   const friendlyName = getFriendlyPageName(newTabId);
 
-  const supabase = getSupabaseClient();
-  if (!supabase) return;
+  if (pageViewDebounceTimer) clearTimeout(pageViewDebounceTimer);
+  pageViewDebounceTimer = setTimeout(async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
-  try {
-    await supabase
-      .from(SUPABASE_TABLE_NAME)
-      .update({
-        page_views: currentPvs,
-        current_page: friendlyName,
-        is_bounce: false,
-        is_logged_in: isUserLoggedIn(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('session_id', sessionId);
-
-    window.dispatchEvent(new CustomEvent('korwil_analytics_updated'));
-  } catch {
-    // Abaikan
-  }
+    try {
+      await supabase
+        .from(SUPABASE_TABLE_NAME)
+        .update({
+          page_views: currentPvs,
+          current_page: friendlyName,
+          is_bounce: false,
+          is_logged_in: isUserLoggedIn(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('session_id', sessionId);
+    } catch {
+      // Abaikan
+    }
+  }, 1500);
 }
 
 /**

@@ -939,6 +939,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const lastActivityRef = useRef<number>(Date.now());
   const lastRecordedStorageRef = useRef<number>(Date.now());
+  const lastPublicRefreshRef = useRef<number>(0);
 
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
     try {
@@ -1283,6 +1284,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsSupabaseActive(false);
       return false;
     }
+
+    // Cooldown untuk pengunjung publik: jangan refresh ulang seluruh database jika baru saja di-refresh (< 5 menit)
+    // Menghindari ribuan query simultan saat tautan portal dibagikan ke banyak orang secara bersamaan
+    const now = Date.now();
+    if (!isAuthenticated && !force && (now - lastPublicRefreshRef.current < 5 * 60 * 1000)) {
+      return true;
+    }
+    lastPublicRefreshRef.current = now;
 
     // PENTING: Status mode maintenance & visibilitas menu TIDAK BOLEH tertahan cache data sekolah (20 menit).
     // Keduanya harus selalu diperiksa secara live ke Supabase setiap kali portal dimuat!
@@ -2770,7 +2779,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!client) return;
 
-    // 3. Realtime Listener Khusus untuk Status Maintenance & Visibilitas Menu (Aktif untuk SEMUA pengguna / publik & admin)
+    // OPTIMASI SKALABILITAS TINGGI (High Concurrency Protection):
+    // Pengunjung publik TIDAK PERLU membuka koneksi WebSocket Realtime yang terus-menerus!
+    // Supabase Free Tier memiliki batas kuota 200 koneksi Realtime simultan.
+    // Jika puluhan/ratusan orang membuka link webview/Google Form secara bersamaan,
+    // kuota Realtime langsung habis dan mengunci seluruh database (mengakibatkan infinite loading & macet simpan data).
+    // Realtime channel HANYA dibuka untuk akun Admin yang sedang login mengelola CMS.
+    if (!isAuthenticated) return;
+
+    // 3. Realtime Listener Khusus untuk Status Maintenance & Visibilitas Menu (Aktif untuk Admin terautentikasi)
     // Berbobot sangat ringan (hanya 2 baris data), namun krusial agar HP/perangkat lain langsung membuka/menutup portal saat mode maintenance diubah
     const navChannel = client
       .channel('korwilcam-navigation-sync-global')
@@ -7574,36 +7591,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const client = getSupabaseClient();
     if (client) {
-      try {
-        const payload: any = {
-          id: formattedItem.id,
-          title: formattedItem.title,
-          category: formattedItem.category,
-          field: formattedItem.field,
-          rank: formattedItem.rank,
-          level: formattedItem.level,
-          recipient_name: formattedItem.recipientName,
-          school_name: formattedItem.schoolName,
-          year: formattedItem.year,
-          event_date: formattedItem.eventDate || null,
-          mentor_name: formattedItem.mentorName || null,
-          photo_url: formattedItem.photoUrl || null,
-          certificate_url: formattedItem.certificateUrl || null,
-          description: formattedItem.description || null,
-          created_at: formattedItem.createdAt,
-          updated_at: formattedItem.updatedAt,
-          author_id: formattedItem.authorId || null,
-          author_name: formattedItem.authorName || null,
-          author_role: formattedItem.authorRole || null
-        };
-        const { error: insErr } = await client.from('achievements').insert(payload);
-        if (insErr) {
-          // Fallback tanpa kolom author jika belum ditambahkan di Supabase
-          const { author_id, author_name, author_role, ...safePayload } = payload;
-          await client.from('achievements').insert(safePayload);
+      const syncTask = async () => {
+        try {
+          const payload: any = {
+            id: formattedItem.id,
+            title: formattedItem.title,
+            category: formattedItem.category,
+            field: formattedItem.field,
+            rank: formattedItem.rank,
+            level: formattedItem.level,
+            recipient_name: formattedItem.recipientName,
+            school_name: formattedItem.schoolName,
+            year: formattedItem.year,
+            event_date: formattedItem.eventDate || null,
+            mentor_name: formattedItem.mentorName || null,
+            photo_url: formattedItem.photoUrl || null,
+            certificate_url: formattedItem.certificateUrl || null,
+            description: formattedItem.description || null,
+            created_at: formattedItem.createdAt,
+            updated_at: formattedItem.updatedAt,
+            author_id: formattedItem.authorId || null,
+            author_name: formattedItem.authorName || null,
+            author_role: formattedItem.authorRole || null
+          };
+          const { error: insErr } = await client.from('achievements').insert(payload);
+          if (insErr) {
+            // Fallback tanpa kolom author jika belum ditambahkan di Supabase
+            const { author_id, author_name, author_role, ...safePayload } = payload;
+            await client.from('achievements').insert(safePayload);
+          }
+        } catch (err) {
+          console.warn('Gagal insert prestasi ke Supabase:', err);
         }
-      } catch (err) {
-        console.warn('Gagal insert prestasi ke Supabase:', err);
+      };
+
+      // Proteksi timeout 3.5 detik agar modal tidak pernah tersangkut pada status "Menyimpan..."
+      try {
+        await Promise.race([
+          syncTask(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_MUTATION')), 3500))
+        ]);
+      } catch {
+        console.warn('[Cloud Sync] Sinkronisasi prestasi dilanjutkan di latar belakang');
       }
     }
     return true;
@@ -7635,34 +7664,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const client = getSupabaseClient();
     if (client && target) {
-      try {
-        const updatePayload: any = {
-          title: target.title,
-          category: target.category,
-          field: target.field,
-          rank: target.rank,
-          level: target.level,
-          recipient_name: target.recipientName,
-          school_name: target.schoolName,
-          year: target.year,
-          event_date: target.eventDate || null,
-          mentor_name: target.mentorName || null,
-          photo_url: target.photoUrl || null,
-          certificate_url: target.certificateUrl || null,
-          description: target.description || null,
-          updated_at: now,
-          author_id: target.authorId || null,
-          author_name: target.authorName || null,
-          author_role: target.authorRole || null
-        };
-        const { error: updErr } = await client.from('achievements').update(updatePayload).eq('id', id);
-        if (updErr) {
-          // Fallback tanpa kolom author jika belum ditambahkan di Supabase
-          const { author_id, author_name, author_role, ...safeUpdatePayload } = updatePayload;
-          await client.from('achievements').update(safeUpdatePayload).eq('id', id);
+      const syncTask = async () => {
+        try {
+          const updatePayload: any = {
+            title: target.title,
+            category: target.category,
+            field: target.field,
+            rank: target.rank,
+            level: target.level,
+            recipient_name: target.recipientName,
+            school_name: target.schoolName,
+            year: target.year,
+            event_date: target.eventDate || null,
+            mentor_name: target.mentorName || null,
+            photo_url: target.photoUrl || null,
+            certificate_url: target.certificateUrl || null,
+            description: target.description || null,
+            updated_at: now,
+            author_id: target.authorId || null,
+            author_name: target.authorName || null,
+            author_role: target.authorRole || null
+          };
+          const { error: updErr } = await client.from('achievements').update(updatePayload).eq('id', id);
+          if (updErr) {
+            // Fallback tanpa kolom author jika belum ditambahkan di Supabase
+            const { author_id, author_name, author_role, ...safeUpdatePayload } = updatePayload;
+            await client.from('achievements').update(safeUpdatePayload).eq('id', id);
+          }
+        } catch (err) {
+          console.warn('Gagal update prestasi di Supabase:', err);
         }
-      } catch (err) {
-        console.warn('Gagal update prestasi di Supabase:', err);
+      };
+
+      // Proteksi timeout 3.5 detik agar modal tidak pernah tersangkut pada status "Menyimpan..."
+      try {
+        await Promise.race([
+          syncTask(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_MUTATION')), 3500))
+        ]);
+      } catch {
+        console.warn('[Cloud Sync] Sinkronisasi prestasi dilanjutkan di latar belakang');
       }
     }
     return true;
@@ -7686,10 +7727,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const client = getSupabaseClient();
     if (client) {
+      const syncTask = async () => {
+        try {
+          await client.from('achievements').delete().eq('id', id);
+        } catch (err) {
+          console.warn('Gagal delete prestasi di Supabase:', err);
+        }
+      };
+
       try {
-        await client.from('achievements').delete().eq('id', id);
-      } catch (err) {
-        console.warn('Gagal delete prestasi di Supabase:', err);
+        await Promise.race([
+          syncTask(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_MUTATION')), 3500))
+        ]);
+      } catch {
+        console.warn('[Cloud Sync] Hapus prestasi dilanjutkan di latar belakang');
       }
     }
     return true;

@@ -34,12 +34,63 @@ export const getSupabaseConfig = () => {
 
 let clientInstance: SupabaseClient | null = null;
 
+/**
+ * Utilitas untuk menjalankan promise dengan batas waktu (timeout).
+ * Mencegah antarmuka pengguna macet / spinning tak berujung jika jaringan lambat atau antrean database penuh.
+ */
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number = 6000,
+  fallbackVal?: T
+): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<T>((resolve, reject) => {
+    timer = setTimeout(() => {
+      if (fallbackVal !== undefined) {
+        resolve(fallbackVal);
+      } else {
+        reject(new Error(`Timeout (${timeoutMs}ms)`));
+      }
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timer);
+    return result;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
 export const getSupabaseClient = (): SupabaseClient | null => {
   const { supabaseUrl, supabaseAnonKey, isConfigured } = getSupabaseConfig();
   if (!isConfigured) return null;
 
   if (!clientInstance) {
-    clientInstance = createClient(supabaseUrl, supabaseAnonKey);
+    clientInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true
+      },
+      global: {
+        fetch: (url, options = {}) => {
+          // Proteksi batas waktu 10 detik agar request tidak menggantung tanpa batas jika koneksi drop
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 10000);
+          if (options.signal) {
+            options.signal.addEventListener('abort', () => controller.abort());
+          }
+          return fetch(url, {
+            ...options,
+            signal: controller.signal
+          }).finally(() => {
+            clearTimeout(timer);
+          });
+        }
+      }
+    });
   }
   return clientInstance;
 };
