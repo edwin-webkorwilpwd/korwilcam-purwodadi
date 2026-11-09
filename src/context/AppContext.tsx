@@ -35,8 +35,7 @@ import {
   initialTeachers,
   initialServiceRequirements,
   initialDataRequests,
-  initialSocialMedia,
-  initialAchievements
+  initialSocialMedia
 } from '../data/initialData';
 
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
@@ -866,27 +865,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
+    // Diputus dari Supabase & dikosongkan untuk persiapan integrasi Google Spreadsheet
     try {
-      const saved = localStorage.getItem('korwilcam_achievements');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          // Bersihkan data dummy awal jika pernah tersimpan di browser
-          const cleaned = parsed.filter((a: any) => 
-            !['ach-1', 'ach-2', 'ach-3', 'ach-4', 'ach-5', 'ach-6'].includes(a.id) &&
-            !a.recipientName?.includes('Rangga Pratama') &&
-            !a.recipientName?.includes('Siti Nurhaliza') &&
-            !a.recipientName?.includes('Bambang Sudarsono')
-          );
-          if (cleaned.length > 0) {
-            return cleaned;
-          }
-        }
-      }
-      return initialAchievements;
-    } catch {
-      return initialAchievements;
-    }
+      localStorage.removeItem('korwilcam_achievements');
+    } catch {}
+    return [];
   });
   const [selectedAchievementSlug, setSelectedAchievementSlugState] = useState<string | null>(null);
 
@@ -1634,55 +1617,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })();
 
 
-      // 0.18 Fetch achievements IMMEDIATELY IN PARALLEL (Prestasi Siswa & Guru)
+      // 0.18 Fetch achievements - DIPUTUS DARI SUPABASE (Beralih ke Google Spreadsheet)
       const achievementsFetchPromise = (async () => {
+        setAchievements([]);
         try {
-          const { data: dbAchievements, error: achErr } = await client
-            .from('achievements')
-            .select('*')
-            .order('year', { ascending: false });
-
-          if (!achErr && dbAchievements && Array.isArray(dbAchievements)) {
-            if (dbAchievements.length > 0) {
-              const mapped: Achievement[] = dbAchievements.map((item: any) => ({
-                id: String(item.id),
-                title: item.title || '',
-                category: item.category || 'Siswa',
-                field: item.field || 'Lainnya',
-                rank: item.rank || '',
-                level: item.level || 'Kecamatan',
-                recipientName: item.recipient_name || item.recipientName || '',
-                schoolName: item.school_name || item.schoolName || '',
-                year: Number(item.year) || new Date().getFullYear(),
-                eventDate: item.event_date || item.eventDate || '',
-                mentorName: item.mentor_name || item.mentorName || '',
-                photoUrl: item.photo_url || item.photoUrl || '',
-                certificateUrl: item.certificate_url || item.certificateUrl || '',
-                description: item.description || '',
-                createdAt: item.created_at || item.createdAt || '',
-                updatedAt: item.updated_at || item.updatedAt || '',
-                authorId: item.author_id || item.authorId || '',
-                authorName: item.author_name || item.authorName || '',
-                authorRole: item.author_role || item.authorRole || ''
-              }));
-              setAchievements(mapped);
-              try {
-                localStorage.setItem('korwilcam_achievements', JSON.stringify(mapped));
-              } catch {}
-            } else {
-              // Jika di tabel Supabase kosong (0 data), kosongkan state & localStorage
-              setAchievements([]);
-              try {
-                localStorage.setItem('korwilcam_achievements', JSON.stringify([]));
-              } catch {}
-            }
-          } else {
-            // JIKA TERJADI ERROR (kuota limit / koneksi offline): Jangan pernah timpa data lokal dengan array kosong
-            console.warn('Gagal membaca achievements dari Supabase, mempertahankan data lokal:', achErr);
-          }
-        } catch (errAch) {
-          console.warn('Tabel achievements belum terbaca, mempertahankan data lokal:', errAch);
-        }
+          localStorage.removeItem('korwilcam_achievements');
+        } catch {}
       })();
 
 
@@ -2768,40 +2708,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel activity_log_settings:', logErr);
       }
 
-      // 16. Export achievements (Prestasi Siswa & Guru)
-      try {
-        if (achievements && achievements.length > 0) {
-          const achPayload = achievements.map((a) => ({
-            id: a.id,
-            title: a.title,
-            category: a.category,
-            field: a.field,
-            rank: a.rank,
-            level: a.level,
-            recipient_name: a.recipientName,
-            school_name: a.schoolName,
-            year: a.year,
-            event_date: a.eventDate || null,
-            mentor_name: a.mentorName || null,
-            photo_url: a.photoUrl || null,
-            certificate_url: a.certificateUrl || null,
-            description: a.description || null,
-            created_at: a.createdAt || new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            author_id: a.authorId || null,
-            author_name: a.authorName || null,
-            author_role: a.authorRole || null
-          }));
-          const { error: upsertErr } = await client.from('achievements').upsert(achPayload);
-          if (upsertErr) {
-            // Fallback jika kolom author belum ada di Supabase
-            const safeAch = achPayload.map(({ author_id, author_name, author_role, ...rest }: any) => rest);
-            await client.from('achievements').upsert(safeAch);
-          }
-        }
-      } catch (achErr) {
-        console.warn('Gagal ekspor tabel achievements:', achErr);
-      }
+      // 16. Tabel achievements DIPUTUS dari Supabase (Beralih ke Google Spreadsheet)
 
       setSyncStatus('connected');
       setIsSupabaseActive(true);
@@ -3061,52 +2968,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           } catch (e) {
             console.warn('Realtime broadcast_notifications error:', e);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'achievements' },
-        async () => {
-          try {
-            const { data: dbAchievements } = await client
-              .from('achievements')
-              .select('*')
-              .order('year', { ascending: false });
-            if (dbAchievements && dbAchievements.length > 0) {
-              const mapped: Achievement[] = dbAchievements.map((item: any) => ({
-                id: String(item.id),
-                title: item.title || '',
-                category: item.category || 'Siswa',
-                field: item.field || 'Lainnya',
-                rank: item.rank || '',
-                level: item.level || 'Kecamatan',
-                recipientName: item.recipient_name || item.recipientName || '',
-                schoolName: item.school_name || item.schoolName || '',
-                year: Number(item.year) || new Date().getFullYear(),
-                eventDate: item.event_date || item.eventDate || '',
-                mentorName: item.mentor_name || item.mentorName || '',
-                photoUrl: item.photo_url || item.photoUrl || '',
-                certificateUrl: item.certificate_url || item.certificateUrl || '',
-                description: item.description || '',
-                createdAt: item.created_at || item.createdAt || '',
-                updatedAt: item.updated_at || item.updatedAt || '',
-                authorId: item.author_id || item.authorId || '',
-                authorName: item.author_name || item.authorName || '',
-                authorRole: item.author_role || item.authorRole || ''
-              }));
-              setAchievements(mapped);
-              try {
-                localStorage.setItem('korwilcam_achievements', JSON.stringify(mapped));
-              } catch {}
-            } else if (dbAchievements && dbAchievements.length === 0) {
-              setAchievements([]);
-              try {
-                localStorage.setItem('korwilcam_achievements', JSON.stringify([]));
-              } catch {}
-            }
-          } catch (e) {
-            console.warn('Realtime achievements error:', e);
           }
         }
       )
@@ -7664,45 +7525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast('Data prestasi berhasil ditambahkan!', 'success');
 
-    const client = getSupabaseClient();
-    if (client) {
-      const syncTask = async () => {
-        try {
-          const payload: any = {
-            id: formattedItem.id,
-            title: formattedItem.title,
-            category: formattedItem.category,
-            field: formattedItem.field,
-            rank: formattedItem.rank,
-            level: formattedItem.level,
-            recipient_name: formattedItem.recipientName,
-            school_name: formattedItem.schoolName,
-            year: formattedItem.year,
-            event_date: formattedItem.eventDate || null,
-            mentor_name: formattedItem.mentorName || null,
-            photo_url: formattedItem.photoUrl || null,
-            certificate_url: formattedItem.certificateUrl || null,
-            description: formattedItem.description || null,
-            created_at: formattedItem.createdAt,
-            updated_at: formattedItem.updatedAt,
-            author_id: formattedItem.authorId || null,
-            author_name: formattedItem.authorName || null,
-            author_role: formattedItem.authorRole || null
-          };
-          const { error: insErr } = await client.from('achievements').insert(payload);
-          if (insErr) {
-            // Fallback tanpa kolom author jika belum ditambahkan di Supabase
-            const { author_id, author_name, author_role, ...safePayload } = payload;
-            await client.from('achievements').insert(safePayload);
-          }
-        } catch (err) {
-          console.warn('Gagal insert prestasi ke Supabase:', err);
-        }
-      };
-
-      // Eksekusi sinkronisasi ke cloud di latar belakang tanpa menahan modal pengguna
-      syncTask().catch((e) => console.warn('[Cloud Sync] Latar belakang sync warning:', e));
-    }
+    // Sinkronisasi Supabase dinonaktifkan (tabel achievements diputus, beralih ke Google Spreadsheet)
     return true;
   };
 
@@ -7730,43 +7553,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast('Data prestasi berhasil diperbarui!', 'success');
 
-    const client = getSupabaseClient();
-    if (client && target) {
-      const syncTask = async () => {
-        try {
-          const updatePayload: any = {
-            title: target.title,
-            category: target.category,
-            field: target.field,
-            rank: target.rank,
-            level: target.level,
-            recipient_name: target.recipientName,
-            school_name: target.schoolName,
-            year: target.year,
-            event_date: target.eventDate || null,
-            mentor_name: target.mentorName || null,
-            photo_url: target.photoUrl || null,
-            certificate_url: target.certificateUrl || null,
-            description: target.description || null,
-            updated_at: now,
-            author_id: target.authorId || null,
-            author_name: target.authorName || null,
-            author_role: target.authorRole || null
-          };
-          const { error: updErr } = await client.from('achievements').update(updatePayload).eq('id', id);
-          if (updErr) {
-            // Fallback tanpa kolom author jika belum ditambahkan di Supabase
-            const { author_id, author_name, author_role, ...safeUpdatePayload } = updatePayload;
-            await client.from('achievements').update(safeUpdatePayload).eq('id', id);
-          }
-        } catch (err) {
-          console.warn('Gagal update prestasi di Supabase:', err);
-        }
-      };
-
-      // Eksekusi sinkronisasi ke cloud di latar belakang tanpa menahan modal pengguna
-      syncTask().catch((e) => console.warn('[Cloud Sync] Latar belakang update warning:', e));
-    }
+    // Sinkronisasi Supabase dinonaktifkan (tabel achievements diputus, beralih ke Google Spreadsheet)
     return true;
   };
 
@@ -7786,18 +7573,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast('Data prestasi berhasil dihapus!', 'info');
 
-    const client = getSupabaseClient();
-    if (client) {
-      const syncTask = async () => {
-        try {
-          await client.from('achievements').delete().eq('id', id);
-        } catch (err) {
-          console.warn('Gagal delete prestasi di Supabase:', err);
-        }
-      };
-
-      syncTask().catch((e) => console.warn('[Cloud Sync] Latar belakang delete warning:', e));
-    }
+    // Sinkronisasi Supabase dinonaktifkan (tabel achievements diputus, beralih ke Google Spreadsheet)
     return true;
   };
 
@@ -7822,7 +7598,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDataRequests(initialDataRequests);
     setSocialMedia(initialSocialMedia);
     setLocalSocialMedia(initialSocialMedia);
-    setAchievements(initialAchievements);
+    setAchievements([]);
     localStorage.clear();
     showToast('Data berhasil direset ke data default bawaan.', 'info');
   };
