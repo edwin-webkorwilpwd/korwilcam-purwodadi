@@ -333,6 +333,7 @@ export type AchievementField =
 
 export interface Achievement {
   id: string;
+  slug?: string;              // Kode unik / slug URL (misal: "sheina-anindita-khairiniswa-mapsi")
   title: string;              // Nama ajang / kompetisi (misal: "FLS2N Tari Tradisional", "OSN Matematika")
   category: AchievementCategory; // Siswa | Guru
   field: AchievementField | string; // Bidang

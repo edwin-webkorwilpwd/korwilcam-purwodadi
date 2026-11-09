@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Trophy, 
@@ -17,14 +17,26 @@ import {
   ChevronRight,
   RotateCcw,
   CheckCircle2,
-  FileCheck
+  FileCheck,
+  Link2,
+  Check
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl, getGoogleDriveViewUrl } from '../lib/driveHelper';
+import { 
+  getAchievementSlug, 
+  getAchievementShareUrl, 
+  findAchievementBySlugOrId 
+} from '../lib/achievementHelper';
 import { Achievement, AchievementCategory, AchievementLevel } from '../types';
 
 export const AchievementsPage: React.FC = () => {
-  const { achievements } = useApp();
+  const { 
+    achievements, 
+    selectedAchievementSlug, 
+    setSelectedAchievementSlug, 
+    showToast 
+  } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | AchievementCategory>('ALL');
@@ -34,6 +46,41 @@ export const AchievementsPage: React.FC = () => {
 
   // Modal Detail State
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Sinkronisasi modal detail saat selectedAchievementSlug berubah (dari URL address bar atau klik kartu)
+  useEffect(() => {
+    if (selectedAchievementSlug) {
+      const match = findAchievementBySlugOrId(selectedAchievementSlug, achievements);
+      if (match) {
+        setSelectedAchievement(match);
+      }
+    } else {
+      setSelectedAchievement(null);
+    }
+  }, [selectedAchievementSlug, achievements]);
+
+  const handleCardClick = (item: Achievement) => {
+    const slug = getAchievementSlug(item);
+    setSelectedAchievement(item);
+    setSelectedAchievementSlug(slug);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedAchievement(null);
+    setSelectedAchievementSlug(null);
+  };
+
+  // Keyboard shortcut ESC untuk menutup modal detail secara cepat
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedAchievement) {
+        handleCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAchievement]);
 
   // Extract unique years
   const availableYears = useMemo(() => {
@@ -127,18 +174,30 @@ export const AchievementsPage: React.FC = () => {
   };
 
   const handleShareWhatsApp = (item: Achievement) => {
-    const text = `🏆 *PRESTASI SISWA & GURU KORWILCAM PURWODADI* 🏆\n\n` +
+    const shareUrl = getAchievementShareUrl(item);
+    const text = `🏆 *DETAIL PRESTASI ${item.category.toUpperCase()} KORWILCAM PURWODADI* 🏆\n\n` +
       `*Nama:* ${item.recipientName}\n` +
-      `*Kategori:* ${item.category}\n` +
-      `*Ajang / Prestasi:* ${item.title}\n` +
+      `*Ajang / Kompetisi:* ${item.title}\n` +
       `*Peringkat:* ${item.rank}\n` +
       `*Tingkat:* ${item.level}\n` +
-      `*Asal Sekolah:* ${item.schoolName}\n` +
+      `*Satuan Pendidikan:* ${item.schoolName}\n` +
       `*Tahun:* ${item.year}\n` +
-      (item.mentorName ? `*Pembimbing:* ${item.mentorName}\n` : '') +
-      `\nSelengkapnya dapat dilihat di Website Resmi Korwilcam Purwodadi: https://korwilcambidikpurwodadi.com`;
+      (item.mentorName ? `*Guru Pembimbing / Pelatih:* ${item.mentorName}\n` : '') +
+      `\nBuka dan lihat detail selengkapnya melalui tautan resmi:\n${shareUrl}`;
     
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCopyLink = (item: Achievement) => {
+    const shareUrl = getAchievementShareUrl(item);
+    try {
+      navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      showToast('Tautan unik prestasi berhasil disalin ke clipboard!', 'success');
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      showToast('Gagal menyalin tautan!', 'error');
+    }
   };
 
   const resetAllFilters = () => {
@@ -370,7 +429,7 @@ export const AchievementsPage: React.FC = () => {
                   return (
                     <article
                       key={item.id}
-                      onClick={() => setSelectedAchievement(item)}
+                      onClick={() => handleCardClick(item)}
                       className="group bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer transform hover:-translate-y-1"
                     >
                       {/* Image & Badges Container */}
@@ -510,7 +569,10 @@ export const AchievementsPage: React.FC = () => {
 
       {/* Modal Detail Prestasi */}
       {selectedAchievement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <div 
+          onClick={handleCloseModal}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+        >
           <div 
             className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
@@ -531,9 +593,9 @@ export const AchievementsPage: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setSelectedAchievement(null)}
+                onClick={handleCloseModal}
                 aria-label="Tutup modal detail prestasi"
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -645,18 +707,29 @@ export const AchievementsPage: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
-              <button
-                onClick={() => handleShareWhatsApp(selectedAchievement)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-xs"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Bagikan ke WhatsApp</span>
-              </button>
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleShareWhatsApp(selectedAchievement)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer active:scale-95"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Bagikan ke WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => handleCopyLink(selectedAchievement)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer active:scale-95"
+                  title="Salin tautan unik kartu prestasi ini"
+                >
+                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4 text-blue-600" />}
+                  <span>{copied ? 'Tautan Disalin!' : 'Salin Tautan'}</span>
+                </button>
+              </div>
 
               <button
-                onClick={() => setSelectedAchievement(null)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition"
+                onClick={handleCloseModal}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
               >
                 Tutup
               </button>

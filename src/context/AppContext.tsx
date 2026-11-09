@@ -57,6 +57,7 @@ import { getDocumentSlug, getDocumentDetailPath } from '../lib/documentHelper';
 import { getServiceRequirementSlug, getServiceRequirementDetailPath, generateServiceRequirementSlug } from '../lib/serviceRequirementHelper';
 import { generateDataRequestSlug, getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 import { parseKaryakuPath, getKaryakuPath } from '../lib/karyakuHelper';
+import { findAchievementBySlugOrId, getAchievementSlug } from '../lib/achievementHelper';
 import { 
   getLocalSocialMedia, 
   setLocalSocialMedia, 
@@ -247,6 +248,8 @@ interface AppContextType {
 
   // Prestasi Siswa & Guru
   achievements: Achievement[];
+  selectedAchievementSlug: string | null;
+  setSelectedAchievementSlug: (slug: string | null, customPath?: string) => void;
   addAchievement: (item: Omit<Achievement, 'id'>) => Promise<boolean>;
   updateAchievement: (id: string, item: Partial<Achievement>) => Promise<boolean>;
   deleteAchievement: (id: string) => Promise<boolean>;
@@ -877,6 +880,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
   });
+  const [selectedAchievementSlug, setSelectedAchievementSlugState] = useState<string | null>(null);
 
   // Konstanta Batas Waktu Inaktivitas Sesi CMS (20 Menit = 1.200.000 ms)
   const INACTIVITY_TIMEOUT_MS = 20 * 60 * 1000;
@@ -3100,6 +3104,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (tab !== 'purna-tugas' || customPath === '/purna-tugas' || customPath === '/profil#purna-tugas' || !customPath?.startsWith('/purna-tugas/')) {
       setSelectedPurnaTugasNipState(null);
     }
+    if ((tab !== 'achievements' && tab !== 'prestasi') || customPath === '/berita/prestasi' || !customPath?.startsWith('/berita/prestasi/')) {
+      setSelectedAchievementSlugState(null);
+    }
 
     const route = TAB_ROUTES[tab];
     let targetPath = customPath || (route ? route.path : `/${tab}`);
@@ -3448,6 +3455,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.title = TAB_ROUTES['purna-tugas']?.title || 'Purna Tugas - Korwilcam Purwodadi';
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const setSelectedAchievementSlug = (slug: string | null, customPath?: string) => {
+    setSelectedAchievementSlugState(slug);
+    setActiveTabState('achievements');
+    setSelectedNewsState(null);
+    setSelectedAnnouncementState(null);
+    setSelectedGalleryState(null);
+    setSelectedDocumentState(null);
+    setSelectedSchoolState(null);
+    setSelectedServiceRequirementState(null);
+    setSelectedOrganizationSlugState(null);
+    setSelectedPurnaTugasNipState(null);
+
+    const targetPath = customPath || (slug ? `/berita/prestasi/${encodeURIComponent(slug)}` : '/berita/prestasi');
+    if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
+      window.history.pushState({ tab: 'achievements', achievementSlug: slug }, '', targetPath);
+    }
+    if (slug) {
+      const found = findAchievementBySlugOrId(slug, achievements);
+      if (found) {
+        document.title = `Prestasi ${found.recipientName} - ${found.title} - Korwilcam Purwodadi`;
+      } else {
+        document.title = `Detail Prestasi - Korwilcam Purwodadi`;
+      }
+    } else {
+      document.title = TAB_ROUTES['achievements']?.title || 'Prestasi Siswa & Guru - Korwilcam Purwodadi';
+    }
   };
 
   // URL listener to detect when any menu, sub-menu, news slug, or announcement slug is loaded directly or on browser Back/Forward
@@ -3918,6 +3953,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!isOrgDetailPath) {
         setSelectedOrganizationSlugState(null);
       }
+      if (!rawPath.includes('prestasi')) {
+        setSelectedAchievementSlugState(null);
+      }
 
       // Match path to tabs
       if (rawPath === '/' || rawPath === '/beranda' || rawPath === '/home') {
@@ -4005,7 +4043,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedDocumentState(null);
         setSelectedSchoolState(null);
         setSelectedServiceRequirementState(null);
-        document.title = TAB_ROUTES['achievements']?.title || 'Prestasi Siswa & Guru - Korwilcam Purwodadi';
+        setSelectedPurnaTugasNipState(null);
+
+        let achCode: string | null = null;
+        if (rawPath.startsWith('/berita/prestasi/')) {
+          achCode = decodeURIComponent(rawPath.replace(/^\/berita\/prestasi\//, '')).trim();
+        } else if (rawPath.startsWith('/prestasi/')) {
+          achCode = decodeURIComponent(rawPath.replace(/^\/prestasi\//, '')).trim();
+        }
+        if (achCode) {
+          achCode = achCode.replace(/\/+$/, '');
+        }
+        setSelectedAchievementSlugState(achCode || null);
+
+        if (achCode) {
+          const found = findAchievementBySlugOrId(achCode, achievements);
+          if (found) {
+            document.title = `Prestasi ${found.recipientName} - ${found.title} - Korwilcam Purwodadi`;
+          } else {
+            document.title = `Detail Prestasi - Korwilcam Purwodadi`;
+          }
+        } else {
+          document.title = TAB_ROUTES['achievements']?.title || 'Prestasi Siswa & Guru - Korwilcam Purwodadi';
+        }
       } else if (rawPath.startsWith('/berita')) {
         setActiveTabState('news');
         setSelectedOrganizationSlugState(null);
@@ -7720,6 +7780,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteBroadcastNotification,
         refreshBroadcastHistory,
         achievements,
+        selectedAchievementSlug,
+        setSelectedAchievementSlug,
         addAchievement,
         updateAchievement,
         deleteAchievement,
