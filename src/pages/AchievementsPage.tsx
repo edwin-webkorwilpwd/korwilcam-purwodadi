@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Trophy, 
@@ -15,6 +15,9 @@ import {
   Share2, 
   ExternalLink, 
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   RotateCcw,
   CheckCircle2,
   FileCheck,
@@ -125,6 +128,63 @@ export const AchievementsPage: React.FC = () => {
     });
   }, [achievements, searchQuery, selectedCategory, selectedLevel, selectedYear, selectedField]);
 
+  // Pagination State - 15 kartu per halaman
+  const ITEMS_PER_PAGE = 15;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset pagination ke halaman 1 setiap kali filter atau kata kunci pencarian berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedLevel, selectedYear, selectedField]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAchievements.length / ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
+  const paginatedAchievements = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAchievements.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAchievements, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+    cardsContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      if (start > 2) {
+        pages.push('...');
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   // Helper for rank badge styling
   const getRankBadge = (rank: string) => {
     const r = rank.toLowerCase();
@@ -206,6 +266,7 @@ export const AchievementsPage: React.FC = () => {
     setSelectedLevel('ALL');
     setSelectedYear('ALL');
     setSelectedField('ALL');
+    setCurrentPage(1);
   };
 
   return (
@@ -410,138 +471,228 @@ export const AchievementsPage: React.FC = () => {
             </div>
 
             {/* Counter Results Notice */}
-            <div className="flex items-center justify-between text-xs sm:text-sm text-slate-500 px-1">
+            <div ref={cardsContainerRef} className="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm text-slate-500 px-1 gap-2">
               <p>
-                Menampilkan <span className="font-bold text-slate-800">{filteredAchievements.length}</span> data prestasi
+                Menampilkan{' '}
+                <span className="font-bold text-slate-800">
+                  {filteredAchievements.length === 0
+                    ? 0
+                    : `${(currentPage - 1) * ITEMS_PER_PAGE + 1} - ${Math.min(currentPage * ITEMS_PER_PAGE, filteredAchievements.length)}`}
+                </span>{' '}
+                dari <span className="font-bold text-slate-800">{filteredAchievements.length}</span> data prestasi
                 {selectedCategory !== 'ALL' && ` (${selectedCategory})`}
                 {selectedLevel !== 'ALL' && ` • Tingkat ${selectedLevel}`}
                 {selectedYear !== 'ALL' && ` • Tahun ${selectedYear}`}
               </p>
+              {totalPages > 1 && (
+                <span className="text-xs text-slate-500 font-medium">
+                  Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari{' '}
+                  <strong className="text-slate-800 font-bold">{totalPages}</strong> (15 kartu / halaman)
+                </span>
+              )}
             </div>
 
             {/* Cards Grid */}
-            {filteredAchievements.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
-                {filteredAchievements.map((item) => {
-                  const rankInfo = getRankBadge(item.rank);
-                  const photo = item.photoUrl ? formatGoogleDriveImageUrl(item.photoUrl, 600) : '';
+            {paginatedAchievements.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
+                  {paginatedAchievements.map((item) => {
+                    const rankInfo = getRankBadge(item.rank);
+                    const photo = item.photoUrl ? formatGoogleDriveImageUrl(item.photoUrl, 600) : '';
 
-                  return (
-                    <article
-                      key={item.id}
-                      onClick={() => handleCardClick(item)}
-                      className="group bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer transform hover:-translate-y-1"
-                    >
-                      {/* Image & Badges Container */}
-                      <div className="relative h-56 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
-                        {photo ? (
-                          <img
-                            src={photo}
-                            alt={`${item.recipientName} - ${item.title}`}
-                            loading="lazy"
-                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
-                            <Trophy className="w-12 h-12 text-slate-300 mb-1" />
-                            <span className="text-xs font-medium">Foto Prestasi</span>
-                          </div>
-                        )}
-
-                        {/* Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/20" />
-
-                        {/* Rank Badge on Top Left */}
-                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
-                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-md backdrop-blur-xs ${rankInfo.bg}`}>
-                            {rankInfo.icon}
-                            <span>{rankInfo.label}</span>
-                          </div>
-                        </div>
-
-                        {/* Category & Year on Top Right */}
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-xs ${
-                            item.category === 'Guru' 
-                              ? 'bg-indigo-600/90 text-white border border-indigo-400/40' 
-                              : 'bg-emerald-600/90 text-white border border-emerald-400/40'
-                          }`}>
-                            {item.category}
-                          </span>
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-black/60 text-white backdrop-blur-md border border-white/20">
-                            {item.year}
-                          </span>
-                        </div>
-
-                        {/* Level Pill on Bottom Left of Image */}
-                        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white z-10">
-                          <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${getLevelBadge(item.level)}`}>
-                            Tk. {item.level}
-                          </span>
-                          {item.eventDate && (
-                            <span className="text-xs text-slate-200 drop-shadow-xs flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-blue-300" />
-                              {item.eventDate}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Body Content */}
-                      <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                        <div className="space-y-2">
-                          {/* Field / Bidang Lomba */}
-                          {item.field && (
-                            <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
-                              {item.field}
-                            </p>
-                          )}
-
-                          {/* Recipient Name */}
-                          <h2 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
-                            {item.recipientName}
-                          </h2>
-
-                          {/* Competition Title */}
-                          <p className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
-                            {item.title}
-                          </p>
-
-                          {/* School & Mentor Info */}
-                          <div className="space-y-1 pt-1 text-xs text-slate-500">
-                            <div className="flex items-center gap-2">
-                              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate font-medium text-slate-600">{item.schoolName}</span>
+                    return (
+                      <article
+                        key={item.id}
+                        onClick={() => handleCardClick(item)}
+                        className="group bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer transform hover:-translate-y-1"
+                      >
+                        {/* Image & Badges Container */}
+                        <div className="relative h-56 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                          {photo ? (
+                            <img
+                              src={photo}
+                              alt={`${item.recipientName} - ${item.title}`}
+                              loading="lazy"
+                              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
+                              <Trophy className="w-12 h-12 text-slate-300 mb-1" />
+                              <span className="text-xs font-medium">Foto Prestasi</span>
                             </div>
-                            {item.mentorName && (
+                          )}
+
+                          {/* Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/20" />
+
+                          {/* Rank Badge on Top Left */}
+                          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-md backdrop-blur-xs ${rankInfo.bg}`}>
+                              {rankInfo.icon}
+                              <span>{rankInfo.label}</span>
+                            </div>
+                          </div>
+
+                          {/* Category & Year on Top Right */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-xs ${
+                              item.category === 'Guru' 
+                                ? 'bg-indigo-600/90 text-white border border-indigo-400/40' 
+                                : 'bg-emerald-600/90 text-white border border-emerald-400/40'
+                            }`}>
+                              {item.category}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-black/60 text-white backdrop-blur-md border border-white/20">
+                              {item.year}
+                            </span>
+                          </div>
+
+                          {/* Level Pill on Bottom Left of Image */}
+                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white z-10">
+                            <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${getLevelBadge(item.level)}`}>
+                              Tk. {item.level}
+                            </span>
+                            {item.eventDate && (
+                              <span className="text-xs text-slate-200 drop-shadow-xs flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-blue-300" />
+                                {item.eventDate}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Body Content */}
+                        <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                          <div className="space-y-2">
+                            {/* Field / Bidang Lomba */}
+                            {item.field && (
+                              <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
+                                {item.field}
+                              </p>
+                            )}
+
+                            {/* Recipient Name */}
+                            <h2 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                              {item.recipientName}
+                            </h2>
+
+                            {/* Competition Title */}
+                            <p className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
+                              {item.title}
+                            </p>
+
+                            {/* School & Mentor Info */}
+                            <div className="space-y-1 pt-1 text-xs text-slate-500">
                               <div className="flex items-center gap-2">
-                                <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate">Pembimbing: {item.mentorName}</span>
+                                <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate font-medium text-slate-600">{item.schoolName}</span>
                               </div>
+                              {item.mentorName && (
+                                <div className="flex items-center gap-2">
+                                  <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span className="truncate">Pembimbing: {item.mentorName}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Snippet Description */}
+                            {item.description && (
+                              <p className="text-xs text-slate-500 line-clamp-2 pt-1 border-t border-slate-100">
+                                {item.description}
+                              </p>
                             )}
                           </div>
 
-                          {/* Snippet Description */}
-                          {item.description && (
-                            <p className="text-xs text-slate-500 line-clamp-2 pt-1 border-t border-slate-100">
-                              {item.description}
-                            </p>
-                          )}
+                          {/* Card Footer Action */}
+                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:text-blue-700">
+                            <span>Lihat Detail Prestasi</span>
+                            <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                          </div>
                         </div>
+                      </article>
+                    );
+                  })}
+                </div>
 
-                        {/* Card Footer Action */}
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:text-blue-700">
-                          <span>Lihat Detail Prestasi</span>
-                          <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+                {/* Pagination Controls (15 kartu per halaman) */}
+                {totalPages > 1 && (
+                  <div className="pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200/80">
+                    <div className="text-xs text-slate-500 order-2 sm:order-1 text-center sm:text-left">
+                      Menampilkan halaman <span className="font-bold text-slate-800">{currentPage}</span> dari{' '}
+                      <span className="font-bold text-slate-800">{totalPages}</span> (15 kartu per halaman)
+                    </div>
+
+                    <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                      {/* First Page */}
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs"
+                        title="Halaman Pertama"
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </button>
+
+                      {/* Previous Page */}
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span className="hidden sm:inline">Sebelumnya</span>
+                      </button>
+
+                      {/* Page Numbers */}
+                      {getPageNumbers().map((p, idx) => {
+                        if (p === '...') {
+                          return (
+                            <span key={`ellipsis-${idx}`} className="px-2 py-1 text-slate-400 text-xs">
+                              ...
+                            </span>
+                          );
+                        }
+                        return (
+                          <button
+                            key={`page-${p}`}
+                            onClick={() => handlePageChange(Number(p))}
+                            className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold transition-all ${
+                              currentPage === p
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-600/20'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+
+                      {/* Next Page */}
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs"
+                      >
+                        <span className="hidden sm:inline">Selanjutnya</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+
+                      {/* Last Page */}
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs"
+                        title="Halaman Terakhir"
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               /* Filter Results Empty State */
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 max-w-xl mx-auto shadow-xs">
