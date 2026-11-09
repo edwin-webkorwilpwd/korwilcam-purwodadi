@@ -3814,7 +3814,18 @@ export const initialTeachers: TeacherNominative[] = [];
 
 export const initialServiceRequirements: ServiceRequirement[] = [];
 
-export const initialDataRequests: DataRequestLink[] = [];
+export const initialDataRequests: DataRequestLink[] = [
+  {
+    id: 'req-data-prestasi-siswa',
+    title: 'Data Prestasi Siswa Korwilcam Purwodadi',
+    slug: 'data-prestasi-siswa-korwilcam-purwodadi',
+    url: 'https://docs.google.com/forms/d/e/1FAIpQLScfW6xZ8J7m5_vL9p6-V5M8qK9_vL/viewform?embedded=true',
+    description: 'Layanan formulir online pengumpulan data prestasi siswa di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi.',
+    cropTop: 0,
+    isActive: true,
+    order: 1
+  }
+];
 
 export const initialSocialMedia: SocialMediaItem[] = [
   {
@@ -3897,5 +3908,104 @@ export const initialSocialMedia: SocialMediaItem[] = [
   }
 ];
 
-export const initialAchievements: Achievement[] = [];
+export const initialAchievements: Achievement[] = [
+  {
+    id: 'ach-1791641095260',
+    slug: 'sheina-anindita-khairiniswa-mapsi',
+    title: 'MAPSI',
+    category: 'Siswa',
+    field: 'Keagamaan / MAPSI',
+    rank: 'Juara 3',
+    level: 'Kecamatan',
+    recipientName: 'Sheina Anindita Khairiniswa',
+    schoolName: 'SDN 2 PULOREJO',
+    year: 2026,
+    eventDate: '10 Oktober 2026',
+    mentorName: 'ULYA HASANAH, A.Ma.Pd.',
+    photoUrl: 'https://drive.google.com/file/d/1qcFJwj7DqRIqzz2daUrNr8ZEnlgKdSr2/view?usp=drive_link',
+    description: 'Selamat dan sukses atas peraihan Juara 3 Lomba MAPSI Cabang Seni Komputer Islami Tingkat Kecamatan Purwodadi Tahun 2026.',
+    createdAt: '2026-10-10T08:00:00.000Z',
+    updatedAt: '2026-10-10T08:00:00.000Z',
+    authorName: 'Humas Korwilcam',
+    authorRole: 'Admin'
+  },
+  {
+    id: 'ach-1791779847400',
+    slug: 'khalifa-elshanum-mapsi',
+    title: 'MAPSI',
+    category: 'Siswa',
+    field: 'Keagamaan / MAPSI',
+    rank: 'Juara 1',
+    level: 'Kecamatan',
+    recipientName: 'Khalifa Elshanum',
+    schoolName: 'SDN 1 PURWODADI',
+    year: 2026,
+    eventDate: '10 Oktober 2026',
+    photoUrl: 'https://drive.google.com/file/d/1qcFJwj7DqRIqzz2daUrNr8ZEnlgKdSr2/view?usp=drive_link',
+    description: 'Juara 1 Lomba MAPSI Tingkat Kecamatan Purwodadi',
+    createdAt: '2026-10-10T08:30:00.000Z',
+    updatedAt: '2026-10-10T08:30:00.000Z',
+    authorName: 'Humas Korwilcam',
+    authorRole: 'Admin'
+  },
+  {
+    id: 'ach-1791780002275',
+    slug: 'elvina-kartika-zelifka-mapsi',
+    title: 'MAPSI',
+    category: 'Siswa',
+    field: 'Keagamaan / MAPSI',
+    rank: 'Juara 2',
+    level: 'Kecamatan',
+    recipientName: 'Elvina Kartika Zelifka',
+    schoolName: 'SDN 4 PURWODADI',
+    year: 2026,
+    eventDate: '10 Oktober 2026',
+    photoUrl: 'https://drive.google.com/file/d/1qcFJwj7DqRIqzz2daUrNr8ZEnlgKdSr2/view?usp=drive_link',
+    description: 'Juara 2 Lomba MAPSI Tingkat Kecamatan Purwodadi',
+    createdAt: '2026-10-10T09:00:00.000Z',
+    updatedAt: '2026-10-10T09:00:00.000Z',
+    authorName: 'Humas Korwilcam',
+    authorRole: 'Admin'
+  },
+  {
+    id: 'ach-1794196418857',
+    slug: 'aflakha-fianha-mafaza-mapsi-cabang-seni-tilawatil-qur-an-putri',
+    title: "MAPSI Cabang Seni Tilawatil Qur'an Putri",
+    category: 'Siswa',
+    field: 'Keagamaan / MAPSI',
+    rank: 'Juara 2',
+    level: 'Kecamatan',
+    recipientName: 'Aflakha Fianha Mafaza',
+    schoolName: 'SDIT AL FIRDAUS',
+    year: 2026,
+    eventDate: '29 Oktober 2026',
+    mentorName: 'Istiqomah, S.Pd.',
+    photoUrl: 'https://drive.google.com/file/d/1qcFJwj7DqRIqzz2daUrNr8ZEnlgKdSr2/view?usp=drive_link',
+    description: 'Alhamdulillah, sebuah pengalaman yang luar biasa bagi saya. Bertemu dengan peserta-peserta dari Kecamatan lain yang hebat. Terimakasih kepada semua pihak yang telah memberikan doa dan dukungannya.',
+    createdAt: '2026-10-29T10:00:00.000Z',
+    updatedAt: '2026-10-29T10:00:00.000Z',
+    authorName: 'Humas Korwilcam',
+    authorRole: 'Super Admin'
+  },
+  {
+    id: 'ach-1794196667993',
+    slug: 'muhammad-al-fatih-mapsi-cabang-seni-tilawatil-qur-an-putra',
+    title: "MAPSI Cabang Seni Tilawatil Qur'an Putra",
+    category: 'Siswa',
+    field: 'Keagamaan / MAPSI',
+    rank: 'Juara 1',
+    level: 'Kecamatan',
+    recipientName: 'Muhammad Al Fatih',
+    schoolName: 'SDIT AL FIRDAUS',
+    year: 2026,
+    eventDate: '29 Oktober 2026',
+    mentorName: 'Istiqomah, S.Pd.',
+    photoUrl: 'https://drive.google.com/file/d/1qcFJwj7DqRIqzz2daUrNr8ZEnlgKdSr2/view?usp=drive_link',
+    description: "Juara 1 MAPSI Cabang Seni Tilawatil Qur'an Tingkat Kecamatan Purwodadi.",
+    createdAt: '2026-10-29T10:30:00.000Z',
+    updatedAt: '2026-10-29T10:30:00.000Z',
+    authorName: 'Humas Korwilcam',
+    authorRole: 'Super Admin'
+  }
+];
 
