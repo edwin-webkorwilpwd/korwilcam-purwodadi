@@ -22,7 +22,10 @@ import {
   CheckCircle2,
   FileCheck,
   Link2,
-  Check
+  Check,
+  MapPin,
+  Play,
+  Star
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl, getGoogleDriveViewUrl } from '../lib/driveHelper';
@@ -185,35 +188,78 @@ export const AchievementsPage: React.FC = () => {
     return pages;
   };
 
-  // Helper for rank badge styling
+  // Helper for rank badge styling matching reference image
   const getRankBadge = (rank: string) => {
     const r = rank.toLowerCase();
     if (r.includes('juara 1') || r.includes('emas') || r.includes('1st')) {
       return {
-        bg: 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 border-amber-300 shadow-amber-200/50',
-        icon: <Trophy className="w-3.5 h-3.5 text-slate-900 shrink-0" />,
+        bg: 'bg-gradient-to-r from-amber-400 to-yellow-400 text-amber-950 border border-amber-300 font-extrabold shadow-md',
+        icon: <Trophy className="w-3.5 h-3.5 text-amber-950 shrink-0" />,
         label: rank
       };
     }
     if (r.includes('juara 2') || r.includes('perak') || r.includes('2nd')) {
       return {
-        bg: 'bg-gradient-to-r from-slate-200 to-slate-300 text-slate-800 border-slate-300 shadow-slate-200/50',
-        icon: <Medal className="w-3.5 h-3.5 text-slate-750 shrink-0" />,
+        bg: 'bg-white/95 text-slate-800 border border-slate-200/90 font-extrabold shadow-md backdrop-blur-xs',
+        icon: <Trophy className="w-3.5 h-3.5 text-slate-700 shrink-0" />,
         label: rank
       };
     }
     if (r.includes('juara 3') || r.includes('perunggu') || r.includes('3rd')) {
       return {
-        bg: 'bg-gradient-to-r from-amber-700 to-orange-700 text-white border-amber-600 shadow-amber-700/30',
-        icon: <Medal className="w-3.5 h-3.5 text-amber-100 shrink-0" />,
+        bg: 'bg-gradient-to-r from-orange-500 to-amber-600 text-white border border-orange-400 font-extrabold shadow-md',
+        icon: <Trophy className="w-3.5 h-3.5 text-white shrink-0" />,
         label: rank
       };
     }
     return {
-      bg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-blue-500/20',
+      bg: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border border-blue-400 font-extrabold shadow-md',
       icon: <Award className="w-3.5 h-3.5 text-white shrink-0" />,
       label: rank
     };
+  };
+
+  // Helper for card design theme (button gradients, wave colors, and hover accents)
+  const getCardDesignTheme = (index: number) => {
+    const themes = [
+      {
+        // Card 1 style: Deep Royal Blue with Amber Glow
+        buttonBg: 'bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 shadow-blue-600/30',
+        waveGrad1: ['#1e40af', '#1d4ed8'],
+        waveGrad2: ['#3b82f6', '#60a5fa'],
+        cardBorder: 'border-amber-300/80 hover:border-amber-400 shadow-md hover:shadow-xl hover:shadow-amber-500/10',
+      },
+      {
+        // Card 2 style: Royal Sky Blue
+        buttonBg: 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-600/30',
+        waveGrad1: ['#0284c7', '#0369a1'],
+        waveGrad2: ['#38bdf8', '#0ea5e9'],
+        cardBorder: 'border-sky-300/80 hover:border-sky-400 shadow-md hover:shadow-xl hover:shadow-sky-500/10',
+      },
+      {
+        // Card 3 style: Golden Amber ribbons with Forest Green button
+        buttonBg: 'bg-gradient-to-r from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 shadow-emerald-700/30',
+        waveGrad1: ['#b45309', '#d97706'],
+        waveGrad2: ['#f59e0b', '#fbbf24'],
+        cardBorder: 'border-amber-400/80 hover:border-amber-500 shadow-md hover:shadow-xl hover:shadow-amber-500/10',
+      },
+      {
+        // Card 4 style: Royal Purple
+        buttonBg: 'bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 shadow-purple-600/30',
+        waveGrad1: ['#6b21a8', '#7e22ce'],
+        waveGrad2: ['#a855f7', '#c084fc'],
+        cardBorder: 'border-purple-300/80 hover:border-purple-400 shadow-md hover:shadow-xl hover:shadow-purple-500/10',
+      },
+      {
+        // Card 5 style: Emerald Green
+        buttonBg: 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-600/30',
+        waveGrad1: ['#047857', '#059669'],
+        waveGrad2: ['#10b981', '#34d399'],
+        cardBorder: 'border-emerald-300/80 hover:border-emerald-400 shadow-md hover:shadow-xl hover:shadow-emerald-500/10',
+      },
+    ];
+
+    return themes[index % themes.length];
   };
 
   // Helper for level badge
@@ -490,18 +536,19 @@ export const AchievementsPage: React.FC = () => {
             {paginatedAchievements.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
-                  {paginatedAchievements.map((item) => {
+                  {paginatedAchievements.map((item, index) => {
                     const rankInfo = getRankBadge(item.rank);
+                    const cardTheme = getCardDesignTheme(index);
                     const photo = item.photoUrl ? formatGoogleDriveImageUrl(item.photoUrl, 600) : '';
 
                     return (
                       <article
                         key={item.id}
                         onClick={() => handleCardClick(item)}
-                        className="group bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer transform hover:-translate-y-1"
+                        className={`group bg-white rounded-[28px] border ${cardTheme.cardBorder} transition-all duration-300 flex flex-col overflow-hidden cursor-pointer transform hover:-translate-y-1 relative`}
                       >
                         {/* Image & Badges Container */}
-                        <div className="relative h-56 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                        <div className="relative h-60 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
                           {photo ? (
                             <img
                               src={photo}
@@ -519,73 +566,111 @@ export const AchievementsPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Gradient Overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/20" />
+                          {/* Gradient Overlay for photo contrast */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
 
-                          {/* Rank Badge on Top Left */}
-                          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
-                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-md backdrop-blur-xs ${rankInfo.bg}`}>
+                          {/* Top Left: Rank Badge */}
+                          <div className="absolute top-3 left-3 z-20">
+                            <div className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold shadow-md backdrop-blur-xs ${rankInfo.bg}`}>
                               {rankInfo.icon}
                               <span>{rankInfo.label}</span>
                             </div>
                           </div>
 
-                          {/* Category & Year on Top Right */}
-                          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-xs ${
+                          {/* Top Right: Category & Year Pills */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20">
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md flex items-center gap-1 text-white ${
                               item.category === 'Guru' 
-                                ? 'bg-indigo-600/90 text-white border border-indigo-400/40' 
-                                : 'bg-emerald-600/90 text-white border border-emerald-400/40'
+                                ? 'bg-indigo-600 border border-indigo-400/40' 
+                                : 'bg-emerald-500 border border-emerald-400/40'
                             }`}>
-                              {item.category}
+                              <CheckCircle2 className="w-3 h-3 text-white shrink-0" />
+                              <span>{item.category === 'Guru' ? 'Guru' : 'Siswa'}</span>
                             </span>
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-black/60 text-white backdrop-blur-md border border-white/20">
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-black/80 text-white backdrop-blur-xs shadow-md border border-white/20">
                               {item.year}
                             </span>
                           </div>
 
-                          {/* Level Pill on Bottom Left of Image */}
-                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white z-10">
-                            <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${getLevelBadge(item.level)}`}>
-                              Tk. {item.level}
+                          {/* Middle Arch Swoosh Ribbon Curving Along the Bottom-Right of the Photo */}
+                          <div className="absolute -bottom-0.5 right-0 pointer-events-none z-15 overflow-hidden">
+                            <svg className="w-40 h-14 block" viewBox="0 0 160 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <defs>
+                                <linearGradient id={`archGold-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#fef08a" />
+                                  <stop offset="50%" stopColor="#f59e0b" />
+                                  <stop offset="100%" stopColor="#b45309" />
+                                </linearGradient>
+                                <linearGradient id={`archMain-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor={cardTheme.waveGrad1[0]} />
+                                  <stop offset="100%" stopColor={cardTheme.waveGrad1[1]} />
+                                </linearGradient>
+                                <linearGradient id={`archAccent-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor={cardTheme.waveGrad2[0]} />
+                                  <stop offset="100%" stopColor={cardTheme.waveGrad2[1]} />
+                                </linearGradient>
+                              </defs>
+                              <path
+                                d="M 0 56 C 50 54 105 38 160 8 L 160 56 Z"
+                                fill={`url(#archGold-${item.id})`}
+                                opacity="0.95"
+                              />
+                              <path
+                                d="M 28 56 C 72 53 118 40 160 16 L 160 56 Z"
+                                fill={`url(#archMain-${item.id})`}
+                              />
+                              <path
+                                d="M 68 56 C 102 54 132 44 160 26 L 160 56 Z"
+                                fill={`url(#archAccent-${item.id})`}
+                                opacity="0.85"
+                              />
+                            </svg>
+                          </div>
+
+                          {/* Photo Bottom Badges: Level (Left) & Date (Right) */}
+                          <div className="absolute bottom-5 left-3 right-3 flex items-center justify-between z-20 pointer-events-none">
+                            {/* Tingkat pill on bottom left */}
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/95 backdrop-blur-md text-slate-800 shadow-md border border-slate-100">
+                              <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span>Tk. {item.level}</span>
                             </span>
-                            {item.eventDate && (
-                              <span className="text-xs text-slate-200 drop-shadow-xs flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-blue-300" />
-                                {item.eventDate}
-                              </span>
-                            )}
+
+                            {/* Date pill on bottom right */}
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-black/70 backdrop-blur-md text-white shadow-md border border-white/20">
+                              <Calendar className="w-3.5 h-3.5 text-blue-300 shrink-0" />
+                              <span>{item.eventDate || `${item.year}`}</span>
+                            </span>
                           </div>
                         </div>
 
-                        {/* Body Content */}
-                        <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                          <div className="space-y-2">
-                            {/* Field / Bidang Lomba */}
-                            {item.field && (
-                              <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
-                                {item.field}
-                              </p>
-                            )}
+                        {/* White Body with Upward Curved Notch Overlap */}
+                        <div className="relative z-20 -mt-3.5 bg-white rounded-t-[26px] px-5 pt-4 pb-5 flex flex-col flex-1 justify-between shadow-2xs">
+                          <div>
+                            {/* Bidang / Field Tag */}
+                            <div className="mb-2">
+                              <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 border border-blue-200/70 shadow-2xs">
+                                {item.field || 'PRESTASI'}
+                              </span>
+                            </div>
 
                             {/* Recipient Name */}
-                            <h2 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                            <h2 className="text-base sm:text-[18px] font-black text-slate-900 tracking-tight uppercase line-clamp-1 group-hover:text-blue-600 transition-colors mb-0.5">
                               {item.recipientName}
                             </h2>
 
                             {/* Competition Title */}
-                            <p className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
+                            <p className="text-xs sm:text-sm font-semibold text-slate-600 line-clamp-1 mb-2.5">
                               {item.title}
                             </p>
 
                             {/* School & Mentor Info */}
-                            <div className="space-y-1 pt-1 text-xs text-slate-500">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate font-medium text-slate-600">{item.schoolName}</span>
+                            <div className="space-y-1 mb-2.5 text-xs">
+                              <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                                <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span className="truncate">{item.schoolName}</span>
                               </div>
                               {item.mentorName && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 text-slate-500 font-medium">
                                   <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                   <span className="truncate">Pembimbing: {item.mentorName}</span>
                                 </div>
@@ -593,18 +678,92 @@ export const AchievementsPage: React.FC = () => {
                             </div>
 
                             {/* Snippet Description */}
-                            {item.description && (
-                              <p className="text-xs text-slate-500 line-clamp-2 pt-1 border-t border-slate-100">
-                                {item.description}
-                              </p>
-                            )}
+                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed min-h-[32px] mb-4">
+                              {item.description || `Prestasi membanggakan dari ${item.schoolName} dalam ajang kompetisi ${item.title}.`}
+                            </p>
                           </div>
 
-                          {/* Card Footer Action */}
-                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:text-blue-700">
-                            <span>Lihat Detail Prestasi</span>
-                            <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                          {/* Card Footer Action: Pill Button */}
+                          <div className="relative pt-2 flex items-center justify-between">
+                            <div className={`relative z-40 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-white shadow-md transition-all duration-200 group-hover:scale-105 ${cardTheme.buttonBg}`}>
+                              <div className="w-4 h-4 rounded-full bg-white/25 flex items-center justify-center shrink-0">
+                                <Play className="w-2.5 h-2.5 text-white fill-white translate-x-0.5" />
+                              </div>
+                              <span className="whitespace-nowrap">Lihat Detail Prestasi</span>
+                            </div>
                           </div>
+                        </div>
+
+                        {/* Decorative Multi-layer Curved Wave & Golden Star on Bottom-Right Corner (z-30 so it displays above white body) */}
+                        <div className="absolute bottom-0 right-0 pointer-events-none overflow-hidden rounded-br-[28px] z-30">
+                          <svg
+                            className="w-[145px] h-[85px] block"
+                            viewBox="0 0 145 85"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <defs>
+                              <linearGradient id={`waveGrad1-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor={cardTheme.waveGrad1[0]} />
+                                <stop offset="100%" stopColor={cardTheme.waveGrad1[1]} />
+                              </linearGradient>
+                              <linearGradient id={`waveGrad2-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor={cardTheme.waveGrad2[0]} />
+                                <stop offset="100%" stopColor={cardTheme.waveGrad2[1]} />
+                              </linearGradient>
+                              <linearGradient id={`goldRibbon-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#fef08a" />
+                                <stop offset="50%" stopColor="#f59e0b" />
+                                <stop offset="100%" stopColor="#b45309" />
+                              </linearGradient>
+                              <linearGradient id={`starGold-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#ffffff" />
+                                <stop offset="35%" stopColor="#fef08a" />
+                                <stop offset="70%" stopColor="#fbbf24" />
+                                <stop offset="100%" stopColor="#d97706" />
+                              </linearGradient>
+                            </defs>
+
+                            {/* Outer Gold Accent Ribbon */}
+                            <path
+                              d="M 10 85 C 36 78 70 56 145 32 L 145 85 Z"
+                              fill={`url(#goldRibbon-${item.id})`}
+                              opacity="0.95"
+                            />
+
+                            {/* Main Primary Gradient Wave */}
+                            <path
+                              d="M 28 85 C 54 80 94 58 145 44 L 145 85 Z"
+                              fill={`url(#waveGrad1-${item.id})`}
+                            />
+
+                            {/* Secondary Shading Curve */}
+                            <path
+                              d="M 58 85 C 84 82 112 70 145 56 L 145 85 Z"
+                              fill={`url(#waveGrad2-${item.id})`}
+                              opacity="0.9"
+                            />
+
+                            {/* Golden Star Emblem on Ribbon */}
+                            <g transform="translate(112, 50)">
+                              {/* Soft Glow */}
+                              <circle cx="12" cy="12" r="14" fill="#fde047" opacity="0.4" filter="blur(3px)" />
+                              {/* 5-pointed 3D Star */}
+                              <path
+                                d="M 12 1.5 L 15.2 8.2 L 22.5 8.9 L 17.2 13.8 L 18.8 21 L 12 17.2 L 5.2 21 L 6.8 13.8 L 1.5 8.9 L 8.8 8.2 Z"
+                                fill={`url(#starGold-${item.id})`}
+                                stroke="#92400e"
+                                strokeWidth="0.8"
+                                strokeLinejoin="round"
+                              />
+                              {/* 3D Highlight Facet */}
+                              <path
+                                d="M 12 1.5 L 15.2 8.2 L 12 17.2 L 8.8 8.2 Z"
+                                fill="#ffffff"
+                                opacity="0.35"
+                              />
+                            </g>
+                          </svg>
                         </div>
                       </article>
                     );
