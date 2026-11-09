@@ -472,9 +472,6 @@ export const NewsPage: React.FC = () => {
                   {selectedCategory !== 'ALL' && ` pada kategori "${selectedCategory}"`}
                   {searchQuery && ` untuk pencarian "${searchQuery}"`}
                 </span>
-                <span className="text-slate-400 font-medium">
-                  Halaman {newsCurrentPage} dari {totalNewsPages} (Total database: {news.length} berita)
-                </span>
               </div>
             )}
 
