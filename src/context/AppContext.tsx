@@ -1228,6 +1228,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const client = getSupabaseClient();
     if (!client) return false;
 
+    // Cache hit: Gunakan data sekolah lokal jika sudah ada di memori agar ratusan pengunjung tidak menarik ulang seluruh daftar sekolah
+    if (!force && _inMemorySchoolsCache && _inMemorySchoolsCache.length >= 50) {
+      return true;
+    }
+
     try {
       const { data: dbSchools, error: schErr } = await client
         .from('schools')
@@ -5163,6 +5168,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const incrementNewsViews = async (id: string) => {
+    if (!id) return;
+
+    // Cegah duplikasi penambahan tayangan dalam 1 sesi pembaca
+    const sessionKey = `viewed_news_${id}`;
+    if (typeof sessionStorage !== 'undefined') {
+      if (sessionStorage.getItem(sessionKey)) {
+        return;
+      }
+      sessionStorage.setItem(sessionKey, 'true');
+    }
+
     // 1. Hitung penambahan tayangan secara optimistik
     let calculatedNextViews = 1;
 
@@ -5207,56 +5223,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch {}
 
-    // 2. Persist ke Supabase Cloud jika terhubung
+    // 2. Persist ke Supabase Cloud di latar belakang dengan batas timeout 3 detik
     const client = getSupabaseClient();
     if (client) {
-      try {
-        // Coba 1: Gunakan RPC increment_news_views jika tersedia di database
-        const { data: rpcViews, error: rpcErr } = await client.rpc('increment_news_views', {
-          article_id: id
-        });
+      const cloudTask = async () => {
+        try {
+          // Coba 1: Gunakan RPC increment_news_views jika tersedia di database
+          const { data: rpcViews, error: rpcErr } = await client.rpc('increment_news_views', {
+            article_id: id
+          });
 
-        if (!rpcErr && typeof rpcViews === 'number' && rpcViews > 0) {
-          setNews((prev) =>
-            prev.map((n) => (n.id === id || n.slug === id ? { ...n, views: rpcViews } : n))
-          );
-          setSelectedNewsState((prev) =>
-            prev && (prev.id === id || prev.slug === id) ? { ...prev, views: rpcViews } : prev
-          );
-          return;
-        }
-
-        // Coba 2: Direct SELECT & UPDATE fallback
-        const cleanId = (id || '').replace(/[^a-zA-Z0-9_-]/g, '');
-        const { data: dbItem, error: fetchErr } = await client
-          .from('news')
-          .select('id, views, slug')
-          .or(`id.eq."${cleanId}",slug.eq."${cleanId}"`)
-          .maybeSingle();
-
-        if (!fetchErr && dbItem) {
-          const serverViews = (Number(dbItem.views) || 0) + 1;
-          const finalViews = Math.max(serverViews, calculatedNextViews);
-
-          const { error: updateErr } = await client
-            .from('news')
-            .update({ views: finalViews })
-            .eq('id', dbItem.id);
-
-          if (!updateErr) {
+          if (!rpcErr && typeof rpcViews === 'number' && rpcViews > 0) {
             setNews((prev) =>
-              prev.map((n) => (n.id === id || n.slug === id ? { ...n, views: finalViews } : n))
+              prev.map((n) => (n.id === id || n.slug === id ? { ...n, views: rpcViews } : n))
             );
             setSelectedNewsState((prev) =>
-              prev && (prev.id === id || prev.slug === id) ? { ...prev, views: finalViews } : prev
+              prev && (prev.id === id || prev.slug === id) ? { ...prev, views: rpcViews } : prev
             );
-          } else {
-            console.warn('Gagal update views Supabase:', updateErr);
+            return;
           }
-        }
-      } catch (err) {
-        console.warn('Silently failed to update news view count in Supabase:', err);
-      }
+
+          // Coba 2: Direct SELECT & UPDATE fallback
+          const cleanId = (id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+          const { data: dbItem, error: fetchErr } = await client
+            .from('news')
+            .select('id, views, slug')
+            .or(`id.eq."${cleanId}",slug.eq."${cleanId}"`)
+            .maybeSingle();
+
+          if (!fetchErr && dbItem) {
+            const serverViews = (Number(dbItem.views) || 0) + 1;
+            const finalViews = Math.max(serverViews, calculatedNextViews);
+
+            await client
+              .from('news')
+              .update({ views: finalViews })
+              .eq('id', dbItem.id);
+          }
+        } catch {}
+      };
+
+      // Jalankan tanpa memblokir render antarmuka pengguna
+      Promise.race([
+        cloudTask(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
+      ]).catch(() => {});
     }
   };
 
@@ -5298,41 +5309,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return prev;
     });
 
-    // 2. Persist to Supabase Cloud if connected
+    // 2. Persist to Supabase Cloud if connected (background task dengan timeout 3 detik)
     const client = getSupabaseClient();
     if (client) {
-      try {
-        const { data: dbItem } = await client
-          .from('news')
-          .select('total_read_seconds, read_count')
-          .eq('id', id)
-          .single();
+      const cloudTask = async () => {
+        try {
+          const { data: dbItem } = await client
+            .from('news')
+            .select('total_read_seconds, read_count')
+            .eq('id', id)
+            .single();
 
-        const dbTotal = dbItem ? (Number(dbItem.total_read_seconds) || 0) : 0;
-        const dbCount = dbItem ? (Number(dbItem.read_count) || 0) : 0;
+          const dbTotal = dbItem ? (Number(dbItem.total_read_seconds) || 0) : 0;
+          const dbCount = dbItem ? (Number(dbItem.read_count) || 0) : 0;
 
-        const finalTotal = dbItem ? dbTotal + secondsSpent : nextTotal;
-        const finalCount = dbItem ? (isNewSession ? dbCount + 1 : Math.max(1, dbCount)) : nextCount;
+          const finalTotal = dbItem ? dbTotal + secondsSpent : nextTotal;
+          const finalCount = dbItem ? (isNewSession ? dbCount + 1 : Math.max(1, dbCount)) : nextCount;
 
-        const { error } = await client
-          .from('news')
-          .update({
-            total_read_seconds: finalTotal,
-            read_count: finalCount
-          })
-          .eq('id', id);
+          await client
+            .from('news')
+            .update({
+              total_read_seconds: finalTotal,
+              read_count: finalCount
+            })
+            .eq('id', id);
+        } catch {}
+      };
 
-        if (!error && dbItem) {
-          setNews((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, totalReadSeconds: finalTotal, readCount: finalCount } : n))
-          );
-          setSelectedNewsState((prev) =>
-            prev && prev.id === id ? { ...prev, totalReadSeconds: finalTotal, readCount: finalCount } : prev
-          );
-        }
-      } catch (err) {
-        console.warn('Silently caught reading time update exception:', err);
-      }
+      Promise.race([
+        cloudTask(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
+      ]).catch(() => {});
     }
   };
 
