@@ -40,7 +40,14 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
     ? formatGoogleDriveImageUrl(item.image, 600) 
     : (photoList[0] && !isGoogleDriveFolderUrl(photoList[0]) ? formatGoogleDriveImageUrl(photoList[0], 600) : '');
   const detailUrl = getGalleryDetailPath(item);
-  const authorName = item.authorName || 'Super Administrator';
+  const authorName = (() => {
+    if (meta.authorName && meta.authorName.trim()) return meta.authorName.trim();
+    if (item.authorName && item.authorName.trim() && item.authorName.trim() !== 'Super Administrator') return item.authorName.trim();
+    if (item.date?.includes('9 November 2026') || item.title?.toLowerCase().includes('pgri') || item.title?.toLowerCase().includes('dharma wanita')) {
+      return 'Humas Korwilcam Purwodadi';
+    }
+    return item.authorName || 'Humas Korwilcam Purwodadi';
+  })();
   const subtitle = cleanDescription || `${item.date}. ${item.title}`;
 
   return (

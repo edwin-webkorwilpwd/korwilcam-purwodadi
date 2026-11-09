@@ -297,18 +297,30 @@ const META_END_TAG = ':DRIVE_META-->';
 export interface GalleryMetaPayload {
   driveFolderUrl?: string;
   images?: string[];
+  authorId?: string;
+  authorName?: string;
+  authorRole?: string;
 }
 
 export function embedGalleryMetadata(description: string, meta: GalleryMetaPayload): string {
   const baseDesc = (description || '').replace(/<!--DRIVE_META:[\s\S]*?:DRIVE_META-->/g, '').trim();
-  const hasMeta = Boolean((meta.driveFolderUrl && meta.driveFolderUrl.trim()) || (meta.images && meta.images.length > 0));
+  const hasMeta = Boolean(
+    (meta.driveFolderUrl && meta.driveFolderUrl.trim()) || 
+    (meta.images && meta.images.length > 0) ||
+    (meta.authorName && meta.authorName.trim()) ||
+    (meta.authorId && meta.authorId.trim()) ||
+    (meta.authorRole && meta.authorRole.trim())
+  );
   
   if (!hasMeta) return baseDesc;
 
   try {
     const jsonStr = JSON.stringify({
       driveFolderUrl: meta.driveFolderUrl?.trim() || '',
-      images: Array.isArray(meta.images) ? meta.images : []
+      images: Array.isArray(meta.images) ? meta.images : [],
+      authorId: meta.authorId?.trim() || '',
+      authorName: meta.authorName?.trim() || '',
+      authorRole: meta.authorRole?.trim() || ''
     });
     return `${baseDesc ? baseDesc + '\n\n' : ''}${META_START_TAG}${jsonStr}${META_END_TAG}`;
   } catch {
@@ -320,6 +332,9 @@ export function extractGalleryMetadata(description: string): {
   cleanDescription: string;
   driveFolderUrl?: string;
   images?: string[];
+  authorId?: string;
+  authorName?: string;
+  authorRole?: string;
 } {
   if (!description || typeof description !== 'string') {
     return { cleanDescription: '' };
@@ -337,7 +352,10 @@ export function extractGalleryMetadata(description: string): {
     return {
       cleanDescription,
       driveFolderUrl: typeof parsed.driveFolderUrl === 'string' ? parsed.driveFolderUrl : undefined,
-      images: Array.isArray(parsed.images) ? parsed.images : undefined
+      images: Array.isArray(parsed.images) ? parsed.images : undefined,
+      authorId: typeof parsed.authorId === 'string' && parsed.authorId.trim() ? parsed.authorId.trim() : undefined,
+      authorName: typeof parsed.authorName === 'string' && parsed.authorName.trim() ? parsed.authorName.trim() : undefined,
+      authorRole: typeof parsed.authorRole === 'string' && parsed.authorRole.trim() ? parsed.authorRole.trim() : undefined
     };
   } catch {
     return { cleanDescription };

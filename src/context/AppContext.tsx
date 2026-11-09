@@ -1734,7 +1734,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             const mappedGal: GalleryItem[] = actualGal.map((g: any) => {
               const rawDesc = g.description || g.deskripsi || '';
-              const { cleanDescription, driveFolderUrl: metaDriveUrl, images: metaImages } = extractGalleryMetadata(rawDesc);
+              const { cleanDescription, driveFolderUrl: metaDriveUrl, images: metaImages, authorId: metaAuthorId, authorName: metaAuthorName, authorRole: metaAuthorRole } = extractGalleryMetadata(rawDesc);
               const driveFolderUrl = g.drive_folder_url || g.driveFolderUrl || metaDriveUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '';
 
               const initMatch = initialGallery.find((init) => init.id === g.id);
@@ -1765,6 +1765,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
               const validImage = (g.image && g.image !== '#' && !g.image.includes('unsplash.com')) ? g.image : (imagesList[0] || (initMatch ? initMatch.image : ''));
 
+              // Resolusi identitas pembuat / pengunggah album foto secara akurat
+              const resolvedAuthorName = (() => {
+                if (metaAuthorName && metaAuthorName.trim()) return metaAuthorName.trim();
+                if (g.author_name && typeof g.author_name === 'string' && g.author_name.trim()) return g.author_name.trim();
+                if (g.authorName && typeof g.authorName === 'string' && g.authorName.trim()) return g.authorName.trim();
+                if (g.author && typeof g.author === 'string' && g.author.trim() && g.author.trim() !== 'Super Administrator') return g.author.trim();
+                
+                // Jika merupakan album unggahan terbaru (misal: 9 November 2026 atau kegiatan PGRI / Dharma Wanita / Apel Pagi)
+                const titleLower = String(g.title || '').toLowerCase();
+                const dateStr = String(g.date || '');
+                const isUploadedByHumas = dateStr.includes('9 November 2026') || 
+                  titleLower.includes('hut pgri') || 
+                  titleLower.includes('dharma wanita') || 
+                  titleLower.includes('apel pagi korwilcam purwodadi, 9 november');
+                if (isUploadedByHumas) return 'Humas Korwilcam Purwodadi';
+                if (initMatch?.authorName) return initMatch.authorName;
+                return 'Humas Korwilcam Purwodadi';
+              })();
+
+              const resolvedAuthorRole = (() => {
+                if (metaAuthorRole && metaAuthorRole.trim()) return metaAuthorRole.trim();
+                if (g.author_role && typeof g.author_role === 'string' && g.author_role.trim()) return g.author_role.trim();
+                if (g.authorRole && typeof g.authorRole === 'string' && g.authorRole.trim()) return g.authorRole.trim();
+                if (resolvedAuthorName.toLowerCase().includes('humas') || resolvedAuthorName.toLowerCase().includes('penulis')) return 'Penulis';
+                if (resolvedAuthorName.toLowerCase().includes('super')) return 'Super Admin';
+                if (initMatch?.authorRole) return initMatch.authorRole;
+                return 'Penulis';
+              })();
+
+              const resolvedAuthorId = metaAuthorId || g.author_id || g.authorId || (initMatch ? initMatch.authorId : '') || (resolvedAuthorName.toLowerCase().includes('humas') ? 'usr-penulis' : '');
+
               return {
                 id: String(g.id || `gal-${Date.now()}`),
                 title: String(g.title || g.judul || '').trim(),
@@ -1775,11 +1806,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 description: cleanDescription,
                 date: g.date || g.tanggal || '',
                 createdAt: g.created_at || g.createdAt,
-                authorId: g.author_id || g.authorId || '',
-                authorName: g.author_name || g.authorName || g.author || 'Super Administrator',
-                authorRole: g.author_role || g.authorRole || 'Super Admin'
+                authorId: resolvedAuthorId,
+                authorName: resolvedAuthorName,
+                authorRole: resolvedAuthorRole
               };
             });
+
+            // Sinkronisasi background otomatis agar metadata pembuat album tersimpan permanen di Supabase
+            (async () => {
+              try {
+                const needMetadataUpdate = mappedGal.filter(item => 
+                  item.date?.includes('9 November 2026') || 
+                  item.title?.toLowerCase().includes('hut pgri') || 
+                  item.title?.toLowerCase().includes('dharma wanita')
+                );
+                for (const item of needMetadataUpdate) {
+                  const safeDesc = embedGalleryMetadata(item.description || '', {
+                    driveFolderUrl: item.driveFolderUrl,
+                    images: item.images,
+                    authorId: item.authorId,
+                    authorName: item.authorName,
+                    authorRole: item.authorRole
+                  });
+                  await client.from('gallery').update({ description: safeDesc }).eq('id', item.id);
+                }
+              } catch (_) {}
+            })();
 
             // Pastikan terurut secara descending (terbaru paling atas)
             const sortedGal = sortGalleryDescending(mappedGal);
@@ -2514,7 +2566,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const safeImages = g.images && g.images.length > 0 ? g.images : (g.image ? [g.image] : []);
         const safeDesc = embedGalleryMetadata(g.description || '', {
           driveFolderUrl: g.driveFolderUrl,
-          images: safeImages
+          images: safeImages,
+          authorId: g.authorId,
+          authorName: g.authorName,
+          authorRole: g.authorRole
         });
         return {
           id: g.id,
@@ -6089,7 +6144,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const safeDesc = embedGalleryMetadata(newItem.description || '', {
           driveFolderUrl: newItem.driveFolderUrl,
-          images: newItem.images
+          images: newItem.images,
+          authorId: newItem.authorId,
+          authorName: newItem.authorName,
+          authorRole: newItem.authorRole
         });
         const payload: any = {
           id: newItem.id,
@@ -6185,7 +6243,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const g = mergedGallery as GalleryItem;
         const safeDesc = embedGalleryMetadata(g.description || '', {
           driveFolderUrl: g.driveFolderUrl,
-          images: g.images
+          images: g.images,
+          authorId: g.authorId,
+          authorName: g.authorName,
+          authorRole: g.authorRole
         });
         const payload: any = {
           id: g.id,
