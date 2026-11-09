@@ -40,7 +40,7 @@ let clientInstance: SupabaseClient | null = null;
  */
 export async function withTimeout<T>(
   promise: Promise<T>,
-  timeoutMs: number = 6000,
+  timeoutMs: number = 3500,
   fallbackVal?: T
 ): Promise<T> {
   let timer: any;
@@ -76,9 +76,10 @@ export const getSupabaseClient = (): SupabaseClient | null => {
       },
       global: {
         fetch: (url, options = {}) => {
-          // Proteksi batas waktu 10 detik agar request tidak menggantung tanpa batas jika koneksi drop
+          // Proteksi batas waktu 3.5 detik: website tidak akan pernah hanging/loading muter-muter
+          // jika kuota Supabase habis, jaringan lambat, atau server Supabase dibatasi
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 10000);
+          const timer = setTimeout(() => controller.abort(), 3500);
           if (options.signal) {
             options.signal.addEventListener('abort', () => controller.abort());
           }

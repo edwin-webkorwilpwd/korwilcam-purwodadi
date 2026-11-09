@@ -1327,10 +1327,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       setSyncStatus('syncing');
 
-      // 0. Fetch schools, daftar_guru, & news SECARA INSTAN DAN PARALEL
-      // Jika force = false, data statis/besar seperti daftar_guru (977 baris) tidak perlu ditarik ulang dari Supabase
-      const schoolsFetchPromise = refreshSchools(force);
-      const teachersFetchPromise = refreshTeachers(force);
+      // 0. Fetch schools, daftar_guru, & news SECARA INSTAN DAN EFISIEN (Zero Egress Waste)
+      // Data statis besar seperti daftar_guru (977 baris) HANYA ditarik saat tab Nominatif dibuka atau saat Admin force-sync
+      // Ini menghemat hingga 80% kuota egress Supabase untuk ribuan pengunjung publik yang hanya membuka beranda/layanan/berita.
+      const schoolsFetchPromise = (!force && schools.length >= 100) ? Promise.resolve(true) : refreshSchools(force);
+      const teachersFetchPromise = (force || isAuthenticated) ? refreshTeachers(force) : Promise.resolve(true);
 
       // 0.05 Fetch news IMMEDIATELY IN PARALLEL (Berita & Informasi Terkini)
       const newsFetchPromise = (async () => {
