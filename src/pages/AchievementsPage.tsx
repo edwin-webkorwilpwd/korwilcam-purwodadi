@@ -19,6 +19,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   RotateCcw,
+  RefreshCw,
   CheckCircle2,
   FileCheck,
   Link2,
@@ -41,8 +42,28 @@ export const AchievementsPage: React.FC = () => {
     achievements, 
     selectedAchievementSlug, 
     setSelectedAchievementSlug, 
+    refreshAchievements,
     showToast 
   } = useApp();
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-refresh saat halaman dibuka agar selalu menampilkan data sheet paling mutakhir
+  useEffect(() => {
+    refreshAchievements?.();
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshAchievements?.();
+      showToast('Data prestasi berhasil diperbarui langsung dari Google Spreadsheet!', 'success');
+    } catch {
+      showToast('Gagal memperbarui data prestasi dari Google Spreadsheet', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | AchievementCategory>('ALL');
@@ -500,6 +521,17 @@ export const AchievementsPage: React.FC = () => {
                       ))}
                     </select>
                   )}
+
+                  {/* Tombol Segarkan Data dari Google Spreadsheet */}
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+                    title="Muat ulang data terbaru langsung dari Google Spreadsheet"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">{isRefreshing ? 'Memuat...' : 'Segarkan'}</span>
+                  </button>
 
                   {/* Reset filter button if any active */}
                   {(searchQuery || selectedCategory !== 'ALL' || selectedLevel !== 'ALL' || selectedYear !== 'ALL' || selectedField !== 'ALL') && (
@@ -996,7 +1028,7 @@ export const AchievementsPage: React.FC = () => {
               {selectedAchievement.description && (
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Catatan & Deskripsi Prestasi
+                    Pesan & Kesan Siswa
                   </h4>
                   <p className="text-sm leading-relaxed text-slate-600 bg-white p-4 rounded-xl border border-slate-200">
                     {selectedAchievement.description}

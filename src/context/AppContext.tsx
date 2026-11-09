@@ -40,6 +40,7 @@ import {
 
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
+import { getLocalAchievementsCache, fetchAchievementsFromSheet } from '../services/achievementSheetService';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } from '../lib/galleryHelper';
@@ -260,6 +261,7 @@ interface AppContextType {
   achievements: Achievement[];
   selectedAchievementSlug: string | null;
   setSelectedAchievementSlug: (slug: string | null, customPath?: string) => void;
+  refreshAchievements: () => Promise<void>;
   addAchievement: (item: Omit<Achievement, 'id'>) => Promise<boolean>;
   updateAchievement: (id: string, item: Partial<Achievement>) => Promise<boolean>;
   deleteAchievement: (id: string) => Promise<boolean>;
@@ -865,11 +867,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
-    // Diputus dari Supabase & dikosongkan untuk persiapan integrasi Google Spreadsheet
-    try {
-      localStorage.removeItem('korwilcam_achievements');
-    } catch {}
-    return [];
+    return getLocalAchievementsCache();
   });
   const [selectedAchievementSlug, setSelectedAchievementSlugState] = useState<string | null>(null);
 
@@ -1617,12 +1615,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })();
 
 
-      // 0.18 Fetch achievements - DIPUTUS DARI SUPABASE (Beralih ke Google Spreadsheet)
+      // 0.18 Fetch achievements IMMEDIATELY IN PARALLEL (Google Spreadsheet Live)
       const achievementsFetchPromise = (async () => {
-        setAchievements([]);
         try {
-          localStorage.removeItem('korwilcam_achievements');
-        } catch {}
+          const live = await fetchAchievementsFromSheet();
+          if (live && live.length > 0) {
+            setAchievements(live);
+          }
+        } catch (e) {
+          console.warn('Gagal memuat live prestasi dari spreadsheet saat aplikasi dibuka:', e);
+        }
       })();
 
 
@@ -7577,6 +7579,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  const refreshAchievements = async (): Promise<void> => {
+    try {
+      const live = await fetchAchievementsFromSheet();
+      if (live && live.length > 0) {
+        setAchievements(live);
+      }
+    } catch (e) {
+      console.warn('Gagal merefresh data prestasi dari Google Spreadsheet:', e);
+    }
+  };
+
   const resetToDefaultData = () => {
     triggerActivityLog(
       'RESET DATA',
@@ -7664,6 +7677,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         achievements,
         selectedAchievementSlug,
         setSelectedAchievementSlug,
+        refreshAchievements,
         addAchievement,
         updateAchievement,
         deleteAchievement,
