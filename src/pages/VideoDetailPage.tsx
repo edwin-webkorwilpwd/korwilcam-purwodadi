@@ -4,7 +4,6 @@ import {
   ArrowLeft, 
   User, 
   Film, 
-  Play, 
   MessageCircle, 
   Building2, 
   CheckCircle2,
@@ -425,14 +424,6 @@ export const VideoDetailPage: React.FC = () => {
                             (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                          <div className="w-8 h-8 rounded-full bg-red-600/90 group-hover:bg-red-600 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                            <Play className="w-3.5 h-3.5 fill-white translate-x-0.5" />
-                          </div>
-                        </div>
-                        <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-black/85 text-white text-[10px] font-bold rounded">
-                          Video
-                        </span>
                       </div>
 
                       {/* Judul & Detail Informasi */}
@@ -522,14 +513,6 @@ export const VideoDetailPage: React.FC = () => {
                         (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                      <div className="w-7 h-7 rounded-full bg-red-600/90 group-hover:bg-red-600 text-white flex items-center justify-center shadow-md">
-                        <Play className="w-3 h-3 fill-white translate-x-0.5" />
-                      </div>
-                    </div>
-                    <span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/85 text-white text-[10px] font-bold rounded">
-                      Video
-                    </span>
                   </div>
 
                   {/* Keterangan di Kanan */}
