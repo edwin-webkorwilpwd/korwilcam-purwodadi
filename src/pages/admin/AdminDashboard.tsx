@@ -2965,28 +2965,32 @@ export const AdminDashboard: React.FC = () => {
   const [isGalleryBatchMode, setIsGalleryBatchMode] = useState<boolean>(true);
   const [singleGalleryPhotoInput, setSingleGalleryPhotoInput] = useState<string>('');
 
-  // Helper cek kepemilikan album galeri berdasarkan akun/role login
+  // Helper cek kepemilikan album galeri secara ketat per akun (menjaga privasi antar akun)
   const isGalleryItemOwner = (item: GalleryItem) => {
     if (!currentUser) return false;
-    // 1. Cocokkan ID akun pembuat
+    // 1. Cocokkan ID akun pembuat jika tersedia
     if (item.authorId && currentUser.id && item.authorId === currentUser.id) return true;
     
-    // 2. Cocokkan Nama Akun Pengunggah (case-insensitive)
+    // 2. Cocokkan Nama Akun Pengunggah secara persis (case-insensitive exact match)
     const authorNameClean = (item.authorName || '').trim().toLowerCase();
     const currentNameClean = (currentUser.name || '').trim().toLowerCase();
     const activeNameClean = (activeAuthorName || '').trim().toLowerCase();
+    const currentUsernameClean = (currentUser.username || '').trim().toLowerCase();
 
-    if (authorNameClean && (authorNameClean === currentNameClean || authorNameClean === activeNameClean)) {
+    if (authorNameClean && (
+      authorNameClean === currentNameClean || 
+      authorNameClean === activeNameClean ||
+      authorNameClean === currentUsernameClean
+    )) {
       return true;
     }
 
-    // 3. Khusus akun Humas Korwilcam Purwodadi / Penulis:
-    if (currentNameClean.includes('humas') && (authorNameClean.includes('humas') || authorNameClean === 'penulis')) {
-      return true;
-    }
-
-    // 4. Jika akun login adalah Admin / Super Admin yang mengelola album sistem
-    if (isAdminOrSuperAdmin && (authorNameClean.includes('super admin') || authorNameClean.includes('administrator'))) {
+    // 3. Khusus akun Super Admin / Administrator sistem jika mengelola album bawaan sistem
+    if (isSuperAdmin && (
+      authorNameClean === 'super administrator' ||
+      authorNameClean === 'super admin' ||
+      authorNameClean === 'administrator'
+    )) {
       return true;
     }
 
@@ -3005,16 +3009,29 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [currentUser, editingGalleryId, activeAuthorName, activeUserRole]);
 
+  // Sinkronkan tab filter galeri awal: Super Admin default 'all', role lain default 'mine'
+  useEffect(() => {
+    if (isSuperAdmin) {
+      setGalleryFilterTab('all');
+    } else {
+      setGalleryFilterTab('mine');
+    }
+  }, [isSuperAdmin]);
+
   // Filter daftar galeri yang tampil di CMS:
-  // - Tab 'mine': menampilkan album dokumentasi yang diunggah oleh akun login
-  // - Tab 'all': menampilkan seluruh album dokumentasi kegiatan se-Korwilcam
+  // - Super Admin: dapat melihat seluruh album (tab 'all') atau album miliknya (tab 'mine')
+  // - Akun Penulis / Humas / Role lainnya: HANYA dapat melihat album dokumentasi milik akun login (privasi terjaga)
   const displayedGallery = useMemo(() => {
     if (!currentUser) return [];
-    if (galleryFilterTab === 'mine') {
-      return sortGalleryDescending(gallery.filter((g) => isGalleryItemOwner(g)));
+    if (isSuperAdmin) {
+      if (galleryFilterTab === 'mine') {
+        return sortGalleryDescending(gallery.filter((g) => isGalleryItemOwner(g)));
+      }
+      return sortGalleryDescending(gallery);
     }
-    return sortGalleryDescending(gallery);
-  }, [gallery, currentUser, galleryFilterTab, isAdminOrSuperAdmin, activeAuthorName]);
+    // Akun non-SuperAdmin: HANYA menampilkan album dokumentasi yang diunggah oleh akun sendiri
+    return sortGalleryDescending(gallery.filter((g) => isGalleryItemOwner(g)));
+  }, [gallery, currentUser, galleryFilterTab, isSuperAdmin, activeAuthorName]);
 
   // --- PAGINATION GALERI KEGIATAN CMS (10 per halaman) ---
   const [galleryCurrentPage, setGalleryCurrentPage] = useState(1);
@@ -3170,8 +3187,8 @@ export const AdminDashboard: React.FC = () => {
 
     if (editingGalleryId) {
       const existingItem = gallery.find((g) => g.id === editingGalleryId);
-      if (existingItem && !isGalleryItemOwner(existingItem) && !isAdminOrSuperAdmin) {
-        showToast('Anda tidak memiliki izin untuk mengedit album yang diunggah oleh akun/role lain!', 'error');
+      if (existingItem && !isGalleryItemOwner(existingItem) && !isSuperAdmin) {
+        showToast('Anda tidak memiliki izin untuk mengedit album yang diunggah oleh akun lain!', 'error');
         return;
       }
 
@@ -3193,8 +3210,8 @@ export const AdminDashboard: React.FC = () => {
         images: imagesList,
         description: galleryForm.description.trim(),
         authorId: existingItem?.authorId || currentUser?.id,
-        authorName: galleryForm.authorName || activeAuthorName,
-        authorRole: galleryForm.authorRole || activeUserRole
+        authorName: existingItem?.authorName || galleryForm.authorName || activeAuthorName,
+        authorRole: existingItem?.authorRole || galleryForm.authorRole || activeUserRole
       });
       setEditingGalleryId(null);
       showNoticePopup({
@@ -4526,7 +4543,7 @@ export const AdminDashboard: React.FC = () => {
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
                 currentSection === 'gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
               }`}>
-                {isAdminOrSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
+                {isSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
               </span>
             </button>
           )}
@@ -12505,43 +12522,49 @@ export const AdminDashboard: React.FC = () => {
                   <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                     <Folder className="w-5 h-5 text-amber-500" />
                     <span>
-                      {galleryFilterTab === 'all'
-                        ? `Seluruh Koleksi Album Galeri (${gallery.length} Album)`
+                      {isSuperAdmin
+                        ? (galleryFilterTab === 'all'
+                            ? `Seluruh Koleksi Album Galeri (${gallery.length} Album)`
+                            : `Koleksi Album Unggahan Saya (${gallery.filter((g) => isGalleryItemOwner(g)).length} Album)`)
                         : `Koleksi Album Unggahan Saya (${gallery.filter((g) => isGalleryItemOwner(g)).length} Album)`}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {galleryFilterTab === 'all'
-                      ? 'Menampilkan seluruh album foto yang diunggah oleh pengelola website dan organisasi.'
+                    {isSuperAdmin
+                      ? (galleryFilterTab === 'all'
+                          ? 'Menampilkan seluruh album foto yang diunggah oleh semua akun pengelola website dan organisasi.'
+                          : `Menampilkan album foto dokumentasi yang diunggah dan dapat dikelola oleh akun ${currentUser?.name} (${currentUser?.role}).`)
                       : `Menampilkan album foto dokumentasi yang diunggah dan dapat dikelola oleh akun ${currentUser?.name} (${currentUser?.role}).`}
                   </p>
                 </div>
 
-                {/* Filter Tabs Unggahan Saya / Semua Album */}
-                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setGalleryFilterTab('mine')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      galleryFilterTab === 'mine'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                    }`}
-                  >
-                    Unggahan Saya ({gallery.filter((g) => isGalleryItemOwner(g)).length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGalleryFilterTab('all')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      galleryFilterTab === 'all'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                    }`}
-                  >
-                    Semua Album ({gallery.length})
-                  </button>
-                </div>
+                {/* Filter Tabs Unggahan Saya / Semua Album (Khusus Super Admin) */}
+                {isSuperAdmin && (
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setGalleryFilterTab('mine')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        galleryFilterTab === 'mine'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      Unggahan Saya ({gallery.filter((g) => isGalleryItemOwner(g)).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryFilterTab('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        galleryFilterTab === 'all'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      Semua Album ({gallery.length})
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Gallery Grid or Empty State */}
@@ -12553,7 +12576,7 @@ export const AdminDashboard: React.FC = () => {
                     const hasCover = Boolean(item.image && !isGoogleDriveFolderUrl(item.image) && !item.image.includes('/drive/folders'));
                     const coverSrc = hasCover ? formatGoogleDriveImageUrl(item.image, 500) : '';
                     const folderUrl = item.driveFolderUrl || (isGoogleDriveFolderUrl(item.image) ? item.image : '');
-                    const canManageItem = isGalleryItemOwner(item) || isAdminOrSuperAdmin;
+                    const canManageItem = isGalleryItemOwner(item) || isSuperAdmin;
 
                     return (
                       <div key={item.id} className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm group">
@@ -12653,13 +12676,13 @@ export const AdminDashboard: React.FC = () => {
                                       window.scrollTo({ top: 0, behavior: 'smooth' });
                                     }}
                                     className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                    title={isAdminOrSuperAdmin ? "Edit Album" : "Edit Album Saya"}
+                                    title={isSuperAdmin ? "Edit Album" : "Edit Album Saya"}
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     onClick={async () => {
-                                      if (!isGalleryItemOwner(item) && !isAdminOrSuperAdmin) {
+                                      if (!isGalleryItemOwner(item) && !isSuperAdmin) {
                                         showNoticePopup({
                                           title: 'Akses Ditolak!',
                                           message: 'Anda tidak memiliki hak akses untuk menghapus album yang diunggah oleh akun atau role lain.',
@@ -12691,7 +12714,7 @@ export const AdminDashboard: React.FC = () => {
                                   </button>
                                 </>
                               ) : (
-                                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200" title="Hanya akun pengunggah atau Administrator yang dapat mengedit/menghapus">
+                                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200" title="Hanya akun pengunggah atau Super Administrator yang dapat mengedit/menghapus">
                                   <Lock className="w-2.5 h-2.5 text-slate-400" />
                                   <span>Hanya Pemilik</span>
                                 </span>

@@ -1774,7 +1774,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 return 'Penulis';
               })();
 
-              const resolvedAuthorId = metaAuthorId || g.author_id || g.authorId || (initMatch ? initMatch.authorId : '') || (resolvedAuthorName.toLowerCase().includes('humas') ? 'usr-penulis' : '');
+              const resolvedAuthorId = metaAuthorId || g.author_id || g.authorId || (initMatch ? initMatch.authorId : '');
 
               return {
                 id: String(g.id || `gal-${Date.now()}`),
