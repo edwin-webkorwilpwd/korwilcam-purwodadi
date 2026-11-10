@@ -116,6 +116,22 @@ export interface GalleryItem {
   authorRole?: string;
 }
 
+export interface GalleryVideoItem {
+  id: string;
+  title: string;
+  slug: string;
+  youtubeUrl: string;
+  youtubeId: string;
+  date: string;
+  category: string;
+  description: string;
+  schoolName?: string;
+  authorName?: string;
+  thumbnailUrl: string;
+  embedUrl: string;
+  createdAt?: string;
+}
+
 export type StaffDivision = 
   | 'Pimpinan Korwilcam Purwodadi' 
   | 'Pengawas SD' 

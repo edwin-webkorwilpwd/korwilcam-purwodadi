@@ -1,18 +1,52 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
-  Images 
+  Images,
+  Video,
+  Camera,
+  RefreshCw,
+  ExternalLink,
+  Film,
+  Sparkles,
+  Search,
+  X
 } from 'lucide-react';
-import { GalleryItem } from '../types';
+import { GalleryItem, GalleryVideoItem } from '../types';
 import { sortGalleryDescending } from '../lib/galleryHelper';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { GalleryCard } from '../components/GalleryCard';
+import { VideoGalleryCard } from '../components/VideoGalleryCard';
+import { VIDEO_SPREADSHEET_URL } from '../services/videoSheetService';
 
 export const GalleryPage: React.FC = () => {
-  const { gallery, setSelectedGallery, galleryCategories } = useApp();
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const { 
+    gallery, 
+    setSelectedGallery, 
+    galleryCategories,
+    videos,
+    setSelectedVideo,
+    refreshVideosFromSheet,
+    isVideosLoading,
+    currentUser,
+    galleryActiveTab,
+    setGalleryActiveTab
+  } = useApp();
 
-  const categories = useMemo(() => {
+  const isSuperAdmin = currentUser?.role?.trim().toLowerCase() === 'super admin';
+
+  // State tab utama galeri: bersumber dari AppContext (sinkron saat kembali dari detail video)
+  const activeGalleryType = galleryActiveTab;
+
+  const [selectedPhotoCategory, setSelectedPhotoCategory] = useState<string>('ALL');
+  const [videoSearchQuery, setVideoSearchQuery] = useState<string>('');
+
+  // Sinkronisasi query param ?tab=video atau ?tab=photo
+  const handleSwitchTab = (tab: 'photo' | 'video') => {
+    setGalleryActiveTab(tab);
+  };
+
+  // Kategori Foto
+  const photoCategories = useMemo(() => {
     const list = [{ id: 'ALL', label: 'Semua Dokumentasi' }];
     galleryCategories.forEach((cat) => {
       const label = cat === 'Upacara' ? 'Upacara & Seremonial' : cat;
@@ -21,73 +55,244 @@ export const GalleryPage: React.FC = () => {
     return list;
   }, [galleryCategories]);
 
+  // Filtered Foto
   const filteredGallery = useMemo(() => {
-    const list = selectedCategory === 'ALL'
+    const list = selectedPhotoCategory === 'ALL'
       ? gallery
-      : gallery.filter((item) => item.category === selectedCategory);
+      : gallery.filter((item) => item.category === selectedPhotoCategory);
     return sortGalleryDescending(list);
-  }, [gallery, selectedCategory]);
+  }, [gallery, selectedPhotoCategory]);
+
+  // Filtered Video berdasarkan Judul dan Nama SD (Sekolah)
+  const filteredVideos = useMemo(() => {
+    const q = videoSearchQuery.trim().toLowerCase();
+    if (!q) {
+      return videos;
+    }
+    return videos.filter((v) => {
+      const matchTitle = (v.title || '').toLowerCase().includes(q);
+      const matchSchool = (v.schoolName || '').toLowerCase().includes(q);
+      const matchDesc = (v.description || '').toLowerCase().includes(q);
+      const matchCategory = (v.category || '').toLowerCase().includes(q);
+      return matchTitle || matchSchool || matchDesc || matchCategory;
+    });
+  }, [videos, videoSearchQuery]);
 
   const handleOpenAlbum = (item: GalleryItem, e: React.MouseEvent) => {
     e.preventDefault();
     setSelectedGallery(item);
   };
 
+  const handleOpenVideo = (item: GalleryVideoItem, e: React.MouseEvent) => {
+    e.preventDefault();
+    setSelectedVideo(item);
+  };
+
   return (
     <div className="space-y-10 pb-20">
       {/* Header Banner */}
       <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
-        <div className="max-w-5xl mx-auto text-center space-y-2.5 relative z-10">
+        <div className="max-w-5xl mx-auto text-center space-y-3 relative z-10">
+          
+          {/* Main Title & Subtitle */}
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
-            Galeri Kegiatan Pendidikan Purwodadi
+            {activeGalleryType === 'photo' 
+              ? 'Galeri Kegiatan Pendidikan Purwodadi' 
+              : 'Galeri Video Kegiatan Pendidikan Purwodadi'}
           </h1>
           <p className="text-blue-100 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
-            Dokumentasi lengkap momen penting, kegiatan pembelajaran, dan prestasi pendidikan se-Kecamatan Purwodadi dalam album visual.
+            {activeGalleryType === 'photo'
+              ? 'Dokumentasi lengkap momen penting, kegiatan pembelajaran, dan prestasi pendidikan se-Kecamatan Purwodadi dalam album visual.'
+              : 'Tayangan video resmi kegiatan sekolah, upacara, dan dokumentasi kejuaraan di lingkungan Korwilcam Purwodadi.'}
           </p>
-          <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto mt-2 shadow-xs" />
+          
+          <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto shadow-xs" />
 
-          {/* Filter Categories */}
-          <div className="pt-3 flex flex-wrap justify-center gap-2">
-            {categories.map((cat) => (
+          {/* Toggle Tab Utama: Foto Dokumentasi vs Video Kegiatan */}
+          <div className="pt-2 flex justify-center">
+            <div className="inline-flex p-1.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 shadow-inner">
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-white text-[#1b56ce] shadow-lg shadow-blue-950/20 ring-2 ring-white/50'
-                    : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
+                type="button"
+                onClick={() => handleSwitchTab('photo')}
+                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
+                  activeGalleryType === 'photo'
+                    ? 'bg-white text-blue-700 shadow-md scale-102 ring-2 ring-white/50'
+                    : 'text-white/85 hover:text-white hover:bg-white/10'
                 }`}
               >
-                {cat.label}
+                <Camera className="w-4 h-4" />
+                <span>Foto Kegiatan</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeGalleryType === 'photo' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'
+                }`}>
+                  {gallery.length}
+                </span>
               </button>
-            ))}
+
+              <button
+                type="button"
+                onClick={() => handleSwitchTab('video')}
+                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
+                  activeGalleryType === 'video'
+                    ? 'bg-red-600 text-white shadow-md scale-102 ring-2 ring-red-400/50'
+                    : 'text-white/85 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Video className="w-4 h-4" />
+                <span>Video Kegiatan</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeGalleryType === 'video' ? 'bg-white text-red-600' : 'bg-white/20 text-white'
+                }`}>
+                  {videos.length}
+                </span>
+              </button>
+            </div>
           </div>
+
+          {/* Sub-Kategori Filter & Aksi Tambahan */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+            {activeGalleryType === 'photo' ? (
+              photoCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedPhotoCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    selectedPhotoCategory === cat.id
+                      ? 'bg-white text-[#1b56ce] shadow-md ring-2 ring-white/50'
+                      : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))
+            ) : (
+              <div className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2.5 px-2">
+                {/* Search Bar Input: Cari Judul Video dan Nama SD */}
+                <div className="relative flex-1 w-full flex items-center bg-white rounded-full border border-white/70 shadow-lg shadow-blue-950/20 p-1 sm:p-1.5 focus-within:ring-2 focus-within:ring-white transition-all">
+                  <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xs shrink-0 ml-0.5">
+                    <Search className="w-4 h-4 text-white stroke-[2.5]" />
+                  </div>
+                  <input
+                    type="text"
+                    value={videoSearchQuery}
+                    onChange={(e) => setVideoSearchQuery(e.target.value)}
+                    placeholder="Cari video berdasarkan judul atau nama SD..."
+                    className="flex-1 min-w-0 px-3 py-1 sm:py-1.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-semibold outline-none"
+                  />
+                  {videoSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setVideoSearchQuery('')}
+                      className="p-1 mr-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0 cursor-pointer"
+                      title="Hapus kata kunci pencarian"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Tombol Segarkan Data Video dari Database Korwil */}
+                <button
+                  type="button"
+                  onClick={refreshVideosFromSheet}
+                  disabled={isVideosLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-white text-red-600 hover:bg-red-50 hover:text-red-700 shadow-md border border-white/60 transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                  title="Segarkan data video dari Database Korwil"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isVideosLoading ? 'animate-spin' : ''}`} />
+                  <span>Segarkan Data</span>
+                </button>
+
+                {/* Tombol Akses Spreadsheet untuk Super Admin */}
+                {isSuperAdmin && (
+                  <a
+                    href={VIDEO_SPREADSHEET_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md border border-white/30 transition-all shrink-0"
+                    title="Buka Database Spreadsheet Video di tab baru"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Spreadsheet</span>
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+
         </div>
         <CurvedHeaderArch />
       </section>
 
-      {/* Gallery Cards Grid */}
+      {/* Main Grid: Menampilkan Foto atau Video */}
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-5 sm:-mt-6 relative z-20">
-        {filteredGallery.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
-            {filteredGallery.map((item) => (
-              <GalleryCard
-                key={item.id}
-                item={item}
-                onClick={handleOpenAlbum}
-              />
-            ))}
-          </div>
+        {activeGalleryType === 'photo' ? (
+          /* 1. Grid Foto Kegiatan */
+          filteredGallery.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+              {filteredGallery.map((item) => (
+                <GalleryCard
+                  key={item.id}
+                  item={item}
+                  onClick={handleOpenAlbum}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto">
+              <Images className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-800">
+                Tidak Ada Dokumentasi Foto
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Belum ada album foto untuk kategori ini.
+              </p>
+            </div>
+          )
         ) : (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto">
-            <Images className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800">
-              Tidak Ada Dokumentasi
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Belum ada foto atau album untuk kategori ini.
-            </p>
-          </div>
+          /* 2. Grid Video Kegiatan (Sama Persis Struktur Kartu & 5 Kolom) */
+          filteredVideos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+              {filteredVideos.map((item) => (
+                <VideoGalleryCard
+                  key={item.id}
+                  item={item}
+                  onClick={handleOpenVideo}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-10 sm:p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto space-y-3">
+              <Film className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+              <h3 className="text-base font-bold text-slate-800">
+                {videoSearchQuery ? 'Video Tidak Ditemukan' : 'Belum Ada Video Kegiatan'}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                {videoSearchQuery
+                  ? `Tidak ada video kegiatan yang cocok dengan pencarian "${videoSearchQuery}". Silakan coba kata kunci judul atau nama sekolah lain.`
+                  : 'Daftar video kegiatan akan otomatis muncul dari Database Korwil setelah data diisikan.'}
+              </p>
+              {videoSearchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setVideoSearchQuery('')}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Hapus Pencarian</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={refreshVideosFromSheet}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md hover:bg-red-700 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Segarkan Data Sekarang</span>
+                </button>
+              )}
+            </div>
+          )
         )}
       </section>
     </div>

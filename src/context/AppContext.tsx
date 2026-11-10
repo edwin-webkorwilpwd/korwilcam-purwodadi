@@ -19,7 +19,8 @@ import {
   DataRequestLink,
   SocialMediaItem,
   BroadcastNotification,
-  Achievement
+  Achievement,
+  GalleryVideoItem
 } from '../types';
 import { 
   initialSchools, 
@@ -41,6 +42,8 @@ import {
 import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocalConfigToServer } from '../lib/supabase';
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
 import { getLocalAchievementsCache, fetchAchievementsFromSheet } from '../services/achievementSheetService';
+import { getLocalVideoCache, fetchVideosFromSheet } from '../services/videoSheetService';
+import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
 import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } from '../lib/galleryHelper';
@@ -198,6 +201,13 @@ interface AppContextType {
   setSelectedSchool: (school: School | null, customPath?: string) => void;
   selectedGallery: GalleryItem | null;
   setSelectedGallery: (gallery: GalleryItem | null) => void;
+  galleryActiveTab: 'photo' | 'video';
+  setGalleryActiveTab: (tab: 'photo' | 'video') => void;
+  selectedVideo: GalleryVideoItem | null;
+  setSelectedVideo: (video: GalleryVideoItem | null, customPath?: string) => void;
+  videos: GalleryVideoItem[];
+  refreshVideosFromSheet: () => Promise<void>;
+  isVideosLoading: boolean;
   selectedDocument: DocumentDownload | null;
   setSelectedDocument: (doc: DocumentDownload | null, customPath?: string) => void;
   incrementDocumentDownloadCount: (id: string) => Promise<void>;
@@ -728,6 +738,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedAnnouncement, setSelectedAnnouncementState] = useState<Announcement | null>(null);
   const [selectedSchool, setSelectedSchoolState] = useState<School | null>(null);
   const [selectedGallery, setSelectedGalleryState] = useState<GalleryItem | null>(null);
+  const [galleryActiveTab, setGalleryActiveTabState] = useState<'photo' | 'video'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'video' || window.location.pathname.startsWith('/galeri/video')) {
+        return 'video';
+      }
+      try {
+        const saved = sessionStorage.getItem('korwilcam_gallery_tab');
+        if (saved === 'video') return 'video';
+      } catch {}
+    }
+    return 'photo';
+  });
+  const [videos, setVideos] = useState<GalleryVideoItem[]>(() => getLocalVideoCache());
+  const [selectedVideo, setSelectedVideoState] = useState<GalleryVideoItem | null>(null);
+  const [isVideosLoading, setIsVideosLoading] = useState<boolean>(false);
   const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
   const [selectedServiceRequirement, setSelectedServiceRequirementState] = useState<ServiceRequirement | null>(null);
   const [organizations, setOrganizations] = useState<EducationalOrganization[]>(() => {
@@ -1624,6 +1650,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         } catch (e) {
           console.warn('Gagal memuat live prestasi dari spreadsheet saat aplikasi dibuka:', e);
+        }
+      })();
+
+      // 0.19 Fetch gallery videos IMMEDIATELY IN PARALLEL (Google Spreadsheet Video Kegiatan)
+      const videosFetchPromise = (async () => {
+        try {
+          const live = await fetchVideosFromSheet();
+          if (live && live.length > 0) {
+            setVideos(live);
+          }
+        } catch (e) {
+          console.warn('Gagal memuat live video kegiatan dari spreadsheet saat aplikasi dibuka:', e);
         }
       })();
 
@@ -3108,6 +3146,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (article) {
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      setSelectedVideoState(null);
       setSelectedDocumentState(null);
       setSelectedSchoolState(null);
       setSelectedOrganizationSlugState(null);
@@ -3195,6 +3234,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedSchoolState(null);
       setSelectedOrganizationSlugState(null);
       setSelectedServiceRequirementState(null);
+      setSelectedVideoState(null);
+      setGalleryActiveTabState('photo');
+      try {
+        sessionStorage.setItem('korwilcam_gallery_tab', 'photo');
+      } catch {}
       setActiveTabState('gallery');
       const slug = getGallerySlug(resolvedItem);
       const newPath = `/galeri/${encodeURIComponent(slug)}`;
@@ -3213,6 +3257,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         document.title = 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi';
       }
+    }
+  };
+
+  const setGalleryActiveTab = (tab: 'photo' | 'video') => {
+    setGalleryActiveTabState(tab);
+    try {
+      sessionStorage.setItem('korwilcam_gallery_tab', tab);
+    } catch {}
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        if (tab === 'video') {
+          url.searchParams.set('tab', 'video');
+        } else {
+          url.searchParams.delete('tab');
+        }
+        window.history.replaceState({ tab: 'gallery', galleryTab: tab }, '', url.toString());
+      } catch {}
+    }
+  };
+
+  const setSelectedVideo = (video: GalleryVideoItem | null, customPath?: string) => {
+    setSelectedVideoState(video);
+    if (video) {
+      setSelectedGalleryState(null);
+      setSelectedNewsState(null);
+      setSelectedAnnouncementState(null);
+      setSelectedDocumentState(null);
+      setSelectedSchoolState(null);
+      setSelectedOrganizationSlugState(null);
+      setSelectedServiceRequirementState(null);
+      setGalleryActiveTabState('video');
+      try {
+        sessionStorage.setItem('korwilcam_gallery_tab', 'video');
+      } catch {}
+      setActiveTabState('gallery');
+      const slug = video.slug || generateVideoSlug(video.title, video.id);
+      const newPath = customPath || `/galeri/video/${encodeURIComponent(slug)}`;
+      if (typeof window !== 'undefined' && window.location.pathname !== newPath) {
+        window.history.pushState({ videoSlug: slug, path: newPath }, '', newPath);
+      }
+      document.title = `${video.title} - Video Kegiatan Korwilcam Purwodadi`;
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else {
+      setGalleryActiveTabState('video');
+      try {
+        sessionStorage.setItem('korwilcam_gallery_tab', 'video');
+      } catch {}
+      const returnPath = '/galeri?tab=video';
+      if (typeof window !== 'undefined') {
+        if (window.location.pathname.startsWith('/galeri/video/') || window.location.pathname === '/galeri') {
+          window.history.pushState({ tab: 'gallery', galleryTab: 'video', path: returnPath }, '', returnPath);
+        }
+      }
+      document.title = 'Galeri Video Kegiatan - Korwilcam Purwodadi';
+    }
+  };
+
+  const refreshVideosFromSheet = async (): Promise<void> => {
+    setIsVideosLoading(true);
+    try {
+      const live = await fetchVideosFromSheet();
+      if (live && live.length > 0) {
+        setVideos(live);
+        showToast('Data video kegiatan berhasil diperbarui dari Database Korwil!', 'success');
+      } else {
+        showToast('Memuat data video dari cache lokal.', 'info');
+      }
+    } catch (e) {
+      console.warn('Gagal merefresh video dari Database Korwil:', e);
+      showToast('Gagal terhubung ke Database Korwil video.', 'error');
+    } finally {
+      setIsVideosLoading(false);
     }
   };
 
@@ -3252,6 +3371,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      setSelectedVideoState(null);
       setSelectedDocumentState(null);
       setSelectedSchoolState(null);
       setSelectedOrganizationSlugState(null);
@@ -3282,6 +3402,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedNewsState(null);
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      setSelectedVideoState(null);
       setSelectedDocumentState(null);
       setSelectedOrganizationSlugState(null);
       setSelectedServiceRequirementState(null);
@@ -3575,6 +3696,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSelectedServiceRequirementState(null);
           setSelectedOrganizationSlugState(null);
           document.title = `${found.title} - Korwilcam Purwodadi`;
+          return;
+        }
+      }
+
+      // 4a. Support /galeri/video/:slug
+      if (rawPath.startsWith('/galeri/video/') && rawPath !== '/galeri/video') {
+        const slug = decodeURIComponent(rawPath.replace(/^\/galeri\/video\//, '').trim());
+        setActiveTabState('gallery');
+        const currentVideos = (videos && videos.length > 0) ? videos : getLocalVideoCache();
+        const found = currentVideos.find((v) => 
+          v.id === slug || 
+          v.slug === slug || 
+          generateVideoSlug(v.title, v.id) === slug
+        );
+        if (found) {
+          setSelectedVideoState(found);
+          setSelectedGalleryState(null);
+          setSelectedNewsState(null);
+          setSelectedAnnouncementState(null);
+          setSelectedDocumentState(null);
+          setSelectedSchoolState(null);
+          setSelectedServiceRequirementState(null);
+          setSelectedOrganizationSlugState(null);
+          document.title = `${found.title} - Video Kegiatan Korwilcam Purwodadi`;
           return;
         }
       }
@@ -3875,6 +4020,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       setSelectedAnnouncementState(null);
       setSelectedGalleryState(null);
+      if (!rawPath.startsWith('/galeri/video/')) {
+        setSelectedVideoState(null);
+      }
       setSelectedDocumentState(null);
       setSelectedSchoolState(null);
       setSelectedServiceRequirementState(null);
@@ -4067,6 +4215,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (rawPath.startsWith('/galeri')) {
         setActiveTabState('gallery');
         setSelectedOrganizationSlugState(null);
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('tab') === 'video' || rawPath.startsWith('/galeri/video')) {
+            setGalleryActiveTabState('video');
+            try { sessionStorage.setItem('korwilcam_gallery_tab', 'video'); } catch {}
+          } else if (params.get('tab') === 'photo') {
+            setGalleryActiveTabState('photo');
+            try { sessionStorage.setItem('korwilcam_gallery_tab', 'photo'); } catch {}
+          }
+        }
         document.title = TAB_ROUTES['gallery'].title;
       } else if (rawPath.startsWith('/media-sosial') || rawPath.startsWith('/sosial-media') || rawPath.startsWith('/sosmed') || rawPath.startsWith('/kontak/sosial-media') || rawPath.startsWith('/kontak/sosmed')) {
         setActiveTabState('social-media');
@@ -7691,6 +7849,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedSchool,
         selectedGallery,
         setSelectedGallery,
+        galleryActiveTab,
+        setGalleryActiveTab,
+        selectedVideo,
+        setSelectedVideo,
+        videos,
+        refreshVideosFromSheet,
+        isVideosLoading,
         selectedDocument,
         setSelectedDocument,
         incrementDocumentDownloadCount,

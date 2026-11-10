@@ -29,6 +29,7 @@ const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m =>
 const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage').then(m => ({ default: m.DocumentDetailPage })));
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
+const VideoDetailPage = React.lazy(() => import('./pages/VideoDetailPage').then(m => ({ default: m.VideoDetailPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 const SocialMediaPage = React.lazy(() => import('./pages/SocialMediaPage').then(m => ({ default: m.SocialMediaPage })));
 const DataRequestPage = React.lazy(() => import('./pages/DataRequestPage').then(m => ({ default: m.DataRequestPage })));
@@ -82,6 +83,7 @@ const MainContent: React.FC = () => {
     selectedNews, 
     selectedAnnouncement, 
     selectedGallery, 
+    selectedVideo,
     selectedDocument,
     selectedServiceRequirement,
     menuVisibility,
@@ -222,6 +224,7 @@ const MainContent: React.FC = () => {
     !selectedNews &&
     !selectedAnnouncement &&
     !selectedGallery &&
+    !selectedVideo &&
     !selectedDocument &&
     !selectedServiceRequirement;
 
@@ -265,6 +268,8 @@ const MainContent: React.FC = () => {
                 <NewsDetailPage />
               ) : selectedAnnouncement ? (
                 <AnnouncementDetailPage />
+              ) : selectedVideo ? (
+                <VideoDetailPage />
               ) : selectedGallery ? (
                 <GalleryDetailPage />
               ) : selectedDocument ? (
@@ -301,6 +306,7 @@ const MainContent: React.FC = () => {
                   !selectedNews &&
                   !selectedAnnouncement &&
                   !selectedGallery &&
+                  !selectedVideo &&
                   !selectedDocument &&
                   !selectedServiceRequirement;
 

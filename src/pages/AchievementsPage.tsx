@@ -57,9 +57,9 @@ export const AchievementsPage: React.FC = () => {
     setIsRefreshing(true);
     try {
       await refreshAchievements?.();
-      showToast('Data prestasi berhasil diperbarui langsung dari Google Spreadsheet!', 'success');
+      showToast('Data prestasi berhasil diperbarui langsung dari Database Korwil!', 'success');
     } catch {
-      showToast('Gagal memperbarui data prestasi dari Google Spreadsheet', 'error');
+      showToast('Gagal memperbarui data prestasi dari Database Korwil', 'error');
     } finally {
       setIsRefreshing(false);
     }
@@ -522,12 +522,12 @@ export const AchievementsPage: React.FC = () => {
                     </select>
                   )}
 
-                  {/* Tombol Segarkan Data dari Google Spreadsheet */}
+                  {/* Tombol Segarkan Data dari Database Korwil */}
                   <button
                     onClick={handleRefresh}
                     disabled={isRefreshing}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition shadow-2xs disabled:opacity-50 cursor-pointer"
-                    title="Muat ulang data terbaru langsung dari Google Spreadsheet"
+                    title="Muat ulang data terbaru langsung dari Database Korwil"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline">{isRefreshing ? 'Memuat...' : 'Segarkan'}</span>
