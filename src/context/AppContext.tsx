@@ -3293,7 +3293,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sessionStorage.setItem('korwilcam_gallery_tab', 'video');
       } catch {}
       setActiveTabState('gallery');
-      const slug = video.slug || generateVideoSlug(video.title, video.id);
+      const slug = video.slug || generateVideoSlug(video.title, video.id, video.schoolName);
       const newPath = customPath || `/galeri/video/${encodeURIComponent(slug)}`;
       if (typeof window !== 'undefined' && window.location.pathname !== newPath) {
         window.history.pushState({ videoSlug: slug, path: newPath }, '', newPath);
@@ -3708,6 +3708,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const found = currentVideos.find((v) => 
           v.id === slug || 
           v.slug === slug || 
+          generateVideoSlug(v.title, v.id, v.schoolName) === slug ||
           generateVideoSlug(v.title, v.id) === slug
         );
         if (found) {

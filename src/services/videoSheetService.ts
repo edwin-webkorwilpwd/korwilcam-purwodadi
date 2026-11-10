@@ -13,18 +13,21 @@ export const VIDEO_SHEET_GID = '1627850125';
 export const VIDEO_CSV_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/export?format=csv&gid=${VIDEO_SHEET_GID}`;
 export const VIDEO_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${VIDEO_SHEET_GID}`;
 export const VIDEO_SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/edit?gid=${VIDEO_SHEET_GID}#gid=${VIDEO_SHEET_GID}`;
-export const VIDEO_CACHE_KEY = 'korwilcam_video_sheet_cache_v1';
+export const VIDEO_CACHE_KEY = 'korwilcam_video_sheet_cache_v2';
 
 /**
  * Membaca cache video galeri dari localStorage untuk pemuatan instan (0ms)
  */
 export function getLocalVideoCache(): GalleryVideoItem[] {
   try {
-    const raw = localStorage.getItem(VIDEO_CACHE_KEY);
+    const raw = localStorage.getItem(VIDEO_CACHE_KEY) || localStorage.getItem('korwilcam_video_sheet_cache_v1');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map((item: GalleryVideoItem) => ({
+          ...item,
+          slug: generateVideoSlug(item.title, item.id, item.schoolName)
+        }));
       }
     }
   } catch (e) {
@@ -147,7 +150,7 @@ export async function fetchVideosFromSheet(): Promise<GalleryVideoItem[]> {
     const authorName = rawSchool || 'Humas Korwilcam Purwodadi';
 
     const id = `video-${i + 1}`;
-    const slug = generateVideoSlug(title, id);
+    const slug = generateVideoSlug(title, id, schoolName);
     const thumbnailUrl = getYouTubeThumbnail(videoId);
     const embedUrl = getYouTubeEmbedUrl(videoId);
 

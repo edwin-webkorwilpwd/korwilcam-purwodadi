@@ -52,8 +52,12 @@ export function getYouTubeEmbedUrl(videoId: string, autoplay = true): string {
   return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoParam}&rel=0&modestbranding=1&playsinline=1&enablejsapi=1${originParam}`;
 }
 
-export function generateVideoSlug(title: string, id?: string): string {
-  const cleanTitle = (title || '')
+export function generateVideoSlug(title: string, id?: string, schoolName?: string): string {
+  const combined = schoolName && schoolName.trim()
+    ? `${title} ${schoolName.trim()}`
+    : title;
+
+  const cleanSlug = (combined || '')
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '')
@@ -61,11 +65,11 @@ export function generateVideoSlug(title: string, id?: string): string {
     .replace(/--+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  if (cleanTitle) return cleanTitle;
+  if (cleanSlug) return cleanSlug;
   return id ? `video-${id}` : 'video-kegiatan';
 }
 
-export function getVideoDetailPath(item: { slug?: string; title: string; id?: string }): string {
-  const slug = item.slug || generateVideoSlug(item.title, item.id);
+export function getVideoDetailPath(item: { slug?: string; title: string; id?: string; schoolName?: string }): string {
+  const slug = item.slug || generateVideoSlug(item.title, item.id, item.schoolName);
   return `/galeri/video/${encodeURIComponent(slug)}`;
 }

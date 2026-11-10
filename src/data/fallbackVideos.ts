@@ -4,7 +4,7 @@ export const FALLBACK_VIDEOS: GalleryVideoItem[] = [
   {
     id: 'vid-01',
     title: 'Upacara Peringatan Hari Pahlawan 10 November 2026 di Korwilcam Purwodadi',
-    slug: 'upacara-peringatan-hari-pahlawan-10-november-2026',
+    slug: 'upacara-peringatan-hari-pahlawan-10-november-2026-korwilcam-purwodadi',
     youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     youtubeId: 'dQw4w9WgXcQ',
     date: '10 November 2026',
@@ -18,7 +18,7 @@ export const FALLBACK_VIDEOS: GalleryVideoItem[] = [
   {
     id: 'vid-02',
     title: 'Ranting Korwil & TK Dalam Kegiatan Turnamen Voli HUT PGRI Cabang Purwodadi',
-    slug: 'turnamen-voli-hut-pgri-cabang-purwodadi-2026',
+    slug: 'turnamen-voli-hut-pgri-cabang-purwodadi-2026-pgri-cabang-purwodadi',
     youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     youtubeId: 'dQw4w9WgXcQ',
     date: '9 November 2026',
@@ -32,7 +32,7 @@ export const FALLBACK_VIDEOS: GalleryVideoItem[] = [
   {
     id: 'vid-03',
     title: 'Semarak Lomba MAPSI SD Tingkat Kecamatan Purwodadi Cabang Seni Tilawatil Quran',
-    slug: 'semarak-lomba-mapsi-sd-purwodadi-seni-tilawatil-quran',
+    slug: 'semarak-lomba-mapsi-sd-purwodadi-seni-tilawatil-quran-sd-negeri-5-ngraji',
     youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     youtubeId: 'dQw4w9WgXcQ',
     date: '29 Oktober 2026',
