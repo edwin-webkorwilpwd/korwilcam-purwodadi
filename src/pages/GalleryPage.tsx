@@ -49,9 +49,9 @@ export const GalleryPage: React.FC = () => {
   const [selectedPhotoCategory, setSelectedPhotoCategory] = useState<string>('ALL');
   const [videoSearchQuery, setVideoSearchQuery] = useState<string>('');
   
-  // State Pagination Video (15 video per halaman)
+  // State Pagination Video (12 video per halaman: 4 kolom x 3 baris)
   const [videoCurrentPage, setVideoCurrentPage] = useState<number>(1);
-  const VIDEOS_PER_PAGE = 15;
+  const VIDEOS_PER_PAGE = 12;
   const videoSectionRef = useRef<HTMLDivElement>(null);
 
   // State daftar video yang diacak (randomized) per sesi kunjungan pengunjung
@@ -309,11 +309,11 @@ export const GalleryPage: React.FC = () => {
             </div>
           )
         ) : (
-          /* 2. Grid Video Kegiatan (Sama Persis Struktur Kartu & 5 Kolom + Pagination Maks 15 Video) */
+          /* 2. Grid Video Kegiatan (Layout 4 Kolom agar Kartu & Thumbnail Tampil Lebih Besar & Terlihat Jelas) */
           filteredVideos.length > 0 ? (
             <div ref={videoSectionRef} className="space-y-8 scroll-mt-24">
-              {/* Grid Maksimal 15 Video per Halaman */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+              {/* Grid Video per Halaman (4 Kolom di Layar Lebar) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
                 {paginatedVideos.map((item) => (
                   <VideoGalleryCard
                     key={item.id}
@@ -323,8 +323,8 @@ export const GalleryPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* Komponen Pagination Video (Muncul jika total video lebih dari 15) */}
-              {totalVideoPages > 1 && (
+              {/* Komponen Pagination Video (12 video per halaman) */}
+              {filteredVideos.length > 0 && (
                 <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
                   {/* Info Jumlah Video & Halaman Aktif */}
                   <div className="text-xs sm:text-sm text-slate-500 order-2 sm:order-1 font-medium">
