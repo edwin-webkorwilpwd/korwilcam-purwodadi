@@ -20,6 +20,16 @@ import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { GalleryCard } from '../components/GalleryCard';
 import { VideoGalleryCard } from '../components/VideoGalleryCard';
 
+// Fungsi pengacakan Fisher-Yates untuk mengacak urutan video agar tidak urut
+const shuffleVideos = (videoList: GalleryVideoItem[]): GalleryVideoItem[] => {
+  const arr = [...videoList];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 export const GalleryPage: React.FC = () => {
   const { 
     gallery, 
@@ -44,14 +54,35 @@ export const GalleryPage: React.FC = () => {
   const VIDEOS_PER_PAGE = 15;
   const videoSectionRef = useRef<HTMLDivElement>(null);
 
+  // State daftar video yang diacak (randomized) per sesi kunjungan pengunjung
+  const [shuffledVideos, setShuffledVideos] = useState<GalleryVideoItem[]>([]);
+
+  // Mengacak video saat data video pertama kali dimuat atau diperbarui
+  useEffect(() => {
+    if (videos && videos.length > 0) {
+      setShuffledVideos(shuffleVideos(videos));
+    }
+  }, [videos]);
+
   // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
   useEffect(() => {
     setVideoCurrentPage(1);
   }, [videoSearchQuery]);
 
-  // Sinkronisasi query param ?tab=video atau ?tab=photo
+  // Sinkronisasi query param & acak ulang ketika pengunjung memilih tab video
   const handleSwitchTab = (tab: 'photo' | 'video') => {
     setGalleryActiveTab(tab);
+    if (tab === 'video' && videos && videos.length > 0) {
+      setShuffledVideos(shuffleVideos(videos));
+    }
+  };
+
+  // Segarkan data dan acak ulang kartu video
+  const handleRefreshVideos = () => {
+    refreshVideosFromSheet();
+    if (videos && videos.length > 0) {
+      setShuffledVideos(shuffleVideos(videos));
+    }
   };
 
   // Kategori Foto
@@ -72,20 +103,21 @@ export const GalleryPage: React.FC = () => {
     return sortGalleryDescending(list);
   }, [gallery, selectedPhotoCategory]);
 
-  // Filtered Video berdasarkan Judul dan Nama SD (Sekolah)
+  // Filtered Video berdasarkan Judul dan Nama SD (Sekolah) menggunakan urutan acak (shuffledVideos)
   const filteredVideos = useMemo(() => {
+    const baseList = shuffledVideos.length > 0 ? shuffledVideos : videos;
     const q = videoSearchQuery.trim().toLowerCase();
     if (!q) {
-      return videos;
+      return baseList;
     }
-    return videos.filter((v) => {
+    return baseList.filter((v) => {
       const matchTitle = (v.title || '').toLowerCase().includes(q);
       const matchSchool = (v.schoolName || '').toLowerCase().includes(q);
       const matchDesc = (v.description || '').toLowerCase().includes(q);
       const matchCategory = (v.category || '').toLowerCase().includes(q);
       return matchTitle || matchSchool || matchDesc || matchCategory;
     });
-  }, [videos, videoSearchQuery]);
+  }, [videos, shuffledVideos, videoSearchQuery]);
 
   // Total Halaman Video
   const totalVideoPages = Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE) || 1;
@@ -237,13 +269,13 @@ export const GalleryPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Tombol Segarkan Data Video dari Database Korwil */}
+                {/* Tombol Segarkan Data Video dari Database Korwil & Acak Ulang */}
                 <button
                   type="button"
-                  onClick={refreshVideosFromSheet}
+                  onClick={handleRefreshVideos}
                   disabled={isVideosLoading}
                   className="inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-white text-red-600 hover:bg-red-50 hover:text-red-700 shadow-md border border-white/60 transition-all disabled:opacity-50 cursor-pointer shrink-0"
-                  title="Segarkan data video dari Database Korwil"
+                  title="Segarkan data video dari Database Korwil & acak ulang"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isVideosLoading ? 'animate-spin' : ''}`} />
                   <span>Segarkan Data</span>

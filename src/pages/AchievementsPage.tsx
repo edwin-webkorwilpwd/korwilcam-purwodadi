@@ -37,6 +37,16 @@ import {
 } from '../lib/achievementHelper';
 import { Achievement, AchievementCategory, AchievementLevel } from '../types';
 
+// Fungsi pengacakan Fisher-Yates untuk mengacak kartu prestasi bagi setiap pengunjung
+const shuffleAchievements = (list: Achievement[]): Achievement[] => {
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 export const AchievementsPage: React.FC = () => {
   const { 
     achievements, 
@@ -48,6 +58,16 @@ export const AchievementsPage: React.FC = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // State kartu prestasi yang diacak (shuffled) untuk setiap kunjungan
+  const [shuffledAchievements, setShuffledAchievements] = useState<Achievement[]>([]);
+
+  // Acak data prestasi setiap kali data prestasi dimuat atau diperbarui
+  useEffect(() => {
+    if (achievements && achievements.length > 0) {
+      setShuffledAchievements(shuffleAchievements(achievements));
+    }
+  }, [achievements]);
+
   // Auto-refresh saat halaman dibuka agar selalu menampilkan data sheet paling mutakhir
   useEffect(() => {
     refreshAchievements?.();
@@ -57,6 +77,9 @@ export const AchievementsPage: React.FC = () => {
     setIsRefreshing(true);
     try {
       await refreshAchievements?.();
+      if (achievements && achievements.length > 0) {
+        setShuffledAchievements(shuffleAchievements(achievements));
+      }
       showToast('Data prestasi berhasil diperbarui langsung dari Database Korwil!', 'success');
     } catch {
       showToast('Gagal memperbarui data prestasi dari Database Korwil', 'error');
@@ -133,9 +156,10 @@ export const AchievementsPage: React.FC = () => {
     return { total, gold, silver, bronze, national, provincial };
   }, [achievements]);
 
-  // Filtered achievements
+  // Filtered achievements menggunakan urutan acak (shuffledAchievements)
   const filteredAchievements = useMemo(() => {
-    return achievements.filter((item) => {
+    const baseList = shuffledAchievements.length > 0 ? shuffledAchievements : achievements;
+    return baseList.filter((item) => {
       const matchSearch =
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.recipientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -150,7 +174,7 @@ export const AchievementsPage: React.FC = () => {
 
       return matchSearch && matchCategory && matchLevel && matchYear && matchField;
     });
-  }, [achievements, searchQuery, selectedCategory, selectedLevel, selectedYear, selectedField]);
+  }, [achievements, shuffledAchievements, searchQuery, selectedCategory, selectedLevel, selectedYear, selectedField]);
 
   // Pagination State - 15 kartu per halaman
   const ITEMS_PER_PAGE = 15;

@@ -8,7 +8,6 @@ import {
   Check, 
   User, 
   Film, 
-  ChevronRight, 
   ExternalLink, 
   Play, 
   Sparkles,
@@ -95,26 +94,33 @@ export const VideoDetailPage: React.FC = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(canonicalUrl)}`, '_blank');
   };
 
-  // Video rekomendasi sidebar (disaring berdasarkan filter chip khas YouTube)
+  // Video rekomendasi sidebar (diacak/shuffled dan dibatasi maksimal 10 video)
   const relatedVideos = useMemo(() => {
     if (!selectedVideo) return [];
     const others = videos.filter((v) => v.id !== selectedVideo.id);
 
+    let candidates = others;
     if (sidebarFilter === 'school' && selectedVideo.schoolName) {
       const matchSchool = others.filter((v) => 
         (v.schoolName || '').toLowerCase() === (selectedVideo.schoolName || '').toLowerCase()
       );
-      return matchSchool.length > 0 ? matchSchool : others;
-    }
-
-    if (sidebarFilter === 'category' && selectedVideo.category) {
+      if (matchSchool.length > 0) candidates = matchSchool;
+    } else if (sidebarFilter === 'category' && selectedVideo.category) {
       const matchCat = others.filter((v) => 
         (v.category || '').toLowerCase() === (selectedVideo.category || '').toLowerCase()
       );
-      return matchCat.length > 0 ? matchCat : others;
+      if (matchCat.length > 0) candidates = matchCat;
     }
 
-    return others;
+    // Algoritma Fisher-Yates untuk mengacak rekomendasi video secara merata (random shuffle)
+    const shuffled = [...candidates];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Tampilkan hanya 10 video saja
+    return shuffled.slice(0, 10);
   }, [videos, selectedVideo?.id, selectedVideo?.schoolName, selectedVideo?.category, sidebarFilter]);
 
   if (!selectedVideo) {
@@ -140,9 +146,9 @@ export const VideoDetailPage: React.FC = () => {
 
   return (
     <article className="min-h-screen bg-white pb-20 animate-in fade-in duration-200">
-      {/* Top Header & Breadcrumb Bar */}
+      {/* Top Header Navigation */}
       <div className="bg-white border-b border-slate-200/80 sticky top-16 z-20 shadow-xs">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-start">
           <button
             onClick={handleBackToGallery}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition-all group cursor-pointer"
@@ -151,31 +157,6 @@ export const VideoDetailPage: React.FC = () => {
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Kembali ke Galeri</span>
           </button>
-
-          {/* Breadcrumb Path */}
-          <nav className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium truncate">
-            <button 
-              onClick={() => {
-                setSelectedVideo(null);
-                setActiveTab('home');
-              }}
-              className="hover:text-blue-600 transition-colors"
-            >
-              Beranda
-            </button>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <button 
-              onClick={handleBackToGallery}
-              className="hover:text-blue-600 transition-colors"
-              title="Kembali ke Galeri Video Kegiatan"
-            >
-              Galeri
-            </button>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="text-slate-800 font-semibold truncate max-w-[200px]">
-              {selectedVideo.category}
-            </span>
-          </nav>
         </div>
       </div>
 
