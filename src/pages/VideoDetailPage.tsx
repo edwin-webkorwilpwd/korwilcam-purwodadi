@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   ArrowLeft, 
@@ -7,7 +7,9 @@ import {
   Play, 
   MessageCircle, 
   Building2, 
-  CheckCircle2 
+  CheckCircle2,
+  Maximize,
+  Minimize2
 } from 'lucide-react';
 import { GalleryVideoItem } from '../types';
 import { getVideoDetailPath, getYouTubeEmbedUrl } from '../lib/youtubeHelper';
@@ -23,6 +25,66 @@ export const VideoDetailPage: React.FC = () => {
 
   const [isDescExpanded, setIsDescExpanded] = useState<boolean>(false);
   const [sidebarFilter, setSidebarFilter] = useState<'all' | 'school' | 'category'>('all');
+
+  // State & Ref Layar Penuh (Fullscreen) untuk kompatibilitas iPhone Safari & seluruh ponsel
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  const handleToggleFullscreen = () => {
+    const container = playerContainerRef.current;
+    if (!isFullscreen) {
+      setIsFullscreen(true);
+      if (container) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen().catch(() => {});
+        } else if ((container as any).webkitRequestFullscreen) {
+          (container as any).webkitRequestFullscreen();
+        }
+      }
+    } else {
+      setIsFullscreen(false);
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitFullscreenElement && (document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  };
+
+  // Sinkronisasi status fullscreen sistem (jika user keluar lewat swipe / gesture / ESC)
+  useEffect(() => {
+    const onFsChange = () => {
+      const isFs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+      if (!isFs && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isFullscreen]);
+
+  // Kunci scroll halaman saat mode layar penuh aktif agar tidak bergulir di latar belakang
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
 
   const handleBackToGallery = () => {
     setSelectedVideo(null);
@@ -180,16 +242,46 @@ export const VideoDetailPage: React.FC = () => {
           {/* Kolom Kiri: Player Utama & Detail Khas YouTube */}
           <main className="lg:col-span-8 xl:col-span-8 space-y-3">
             
-            {/* 1. Cinema 16:9 Video Player */}
-            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-lg border border-black/10">
+            {/* 1. Cinema Video Player (Mendukung Layar Penuh di Safari iPhone & Semua HP) */}
+            <div 
+              ref={playerContainerRef}
+              className={
+                isFullscreen 
+                  ? "fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center w-screen h-screen p-0 m-0"
+                  : "relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-lg border border-black/10 group"
+              }
+            >
               <iframe
                 src={embedUrl}
                 title={selectedVideo.title}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                className={isFullscreen ? "w-full h-full border-0 max-w-full max-h-full" : "w-full h-full border-0"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                 allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
               />
+
+              {/* Tombol Perbesar Layar Penuh Mengambang (Solusi untuk Safari iPhone / Shorts) */}
+              {!isFullscreen ? (
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-10 px-2.5 py-1.5 rounded-lg bg-black/80 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg border border-white/20 active:scale-95 cursor-pointer"
+                  title="Perbesar Layar Penuh (Full Screen)"
+                >
+                  <Maximize className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold">Layar Penuh</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="fixed top-4 right-4 z-[10000] px-4 py-2 rounded-full bg-black/85 hover:bg-black text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-2xl border border-white/30 backdrop-blur-md active:scale-95 cursor-pointer"
+                  title="Tutup Layar Penuh"
+                >
+                  <Minimize2 className="w-4 h-4 text-white" />
+                  <span>Tutup Layar Penuh</span>
+                </button>
+              )}
             </div>
 
             {/* 2. Judul Video (Tepat di bawah player seperti YouTube) */}
@@ -231,8 +323,18 @@ export const VideoDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Tombol Aksi (Hanya WhatsApp) */}
+              {/* Tombol Aksi (Layar Penuh & WhatsApp) */}
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="px-3.5 sm:px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                  title="Buka video dalam mode Layar Penuh"
+                >
+                  <Maximize className="w-4 h-4 text-slate-700" />
+                  <span>Layar Penuh</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleShareWhatsApp}

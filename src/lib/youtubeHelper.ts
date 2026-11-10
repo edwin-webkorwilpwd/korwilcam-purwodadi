@@ -48,8 +48,8 @@ export function getYouTubeEmbedUrl(videoId: string, autoplay = true): string {
   const originParam = typeof window !== 'undefined' && window.location.origin 
     ? `&origin=${encodeURIComponent(window.location.origin)}` 
     : '';
-  // Gunakan domain resmi youtube-nocookie.com + parameter origin & enablejsapi agar bebas dari Error 153
-  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoParam}&rel=0&modestbranding=1&playsinline=1&enablejsapi=1${originParam}`;
+  // Gunakan domain resmi youtube-nocookie.com + parameter origin & enablejsapi agar bebas dari Error 153, serta fs=1 untuk memastikan tombol fullscreen selalu aktif
+  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoParam}&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&fs=1${originParam}`;
 }
 
 export function generateVideoSlug(title: string, id?: string, schoolName?: string): string {
