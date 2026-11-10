@@ -169,25 +169,20 @@ export const GalleryPage: React.FC = () => {
   return (
     <div className="space-y-10 pb-20">
       {/* Header Banner */}
-      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-6 pb-12 sm:pt-7 sm:pb-14 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
-        <div className="max-w-5xl mx-auto text-center space-y-3 relative z-10">
+      <section className="relative bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white pt-5 pb-10 sm:pt-6 sm:pb-12 px-4 sm:px-6 lg:px-8 shadow-md overflow-hidden">
+        <div className="max-w-5xl mx-auto text-center space-y-2.5 sm:space-y-3 relative z-10">
           
-          {/* Main Title & Subtitle */}
+          {/* Main Title */}
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight drop-shadow-sm">
             {activeGalleryType === 'photo' 
               ? 'Galeri Kegiatan Pendidikan Purwodadi' 
               : 'Galeri Video Kegiatan Pendidikan Purwodadi'}
           </h1>
-          <p className="text-blue-100 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
-            {activeGalleryType === 'photo'
-              ? 'Dokumentasi lengkap momen penting, kegiatan pembelajaran, dan prestasi pendidikan se-Kecamatan Purwodadi dalam album visual.'
-              : 'Tayangan video resmi kegiatan sekolah, upacara, dan dokumentasi kejuaraan di lingkungan Korwilcam Purwodadi.'}
-          </p>
           
           <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto shadow-xs" />
 
           {/* Toggle Tab Utama: Foto Dokumentasi vs Video Kegiatan */}
-          <div className="pt-2 flex justify-center">
+          <div className="pt-0.5 sm:pt-1 flex justify-center">
             <div className="inline-flex p-1.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 shadow-inner">
               <button
                 type="button"
@@ -228,7 +223,7 @@ export const GalleryPage: React.FC = () => {
           </div>
 
           {/* Sub-Kategori Filter & Aksi Tambahan */}
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+          <div className="pt-1 sm:pt-1.5 flex flex-wrap items-center justify-center gap-2">
             {activeGalleryType === 'photo' ? (
               photoCategories.map((cat) => (
                 <button
