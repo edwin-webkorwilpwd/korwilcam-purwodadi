@@ -252,10 +252,10 @@ export default async function handler(req: any, res: any) {
       ? `${origin}/berita/${encodeURIComponent(targetSlug)}`
       : `${origin}/berita/${encodeURIComponent(targetSlug)}`;
 
-    // Prepare absolute image URL & dimensions
+    // Prepare absolute image URL & dimensions (Optimasi Khusus WhatsApp < 300KB agar gambar sampul tajam dan tidak pecah)
     let ogImageUrl = `${origin}/logo.png`;
-    let ogWidth = 1200;
-    let ogHeight = 630;
+    let ogWidth = 640;
+    let ogHeight = 360;
 
     if (isAnnouncement) {
       // DYNAMIC OFFICIAL ANNOUNCEMENT LETTER IMAGE (SURAT RESMI DOKUMEN)
@@ -265,17 +265,30 @@ export default async function handler(req: any, res: any) {
     } else if (article.image) {
       const cleanImg = String(article.image).trim();
       if (cleanImg.startsWith('data:')) {
+        // Base64 gambar: kompresi dinamis via api/image menjadi JPEG 640px (< 150KB)
         ogImageUrl = `${origin}/api/image?id=${encodeURIComponent(article.id)}`;
+        ogWidth = 640;
+        ogHeight = 360;
       } else if (cleanImg.startsWith('http')) {
-        // Konversi link Google Drive agar langsung menyajikan gambar murni CDN tanpa halangan login
+        // Deteksi Google Drive URL
         const driveMatch = cleanImg.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || cleanImg.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
         if (driveMatch && driveMatch[1]) {
-          ogImageUrl = `https://lh3.googleusercontent.com/d/${driveMatch[1]}=s1200`;
+          const cleanDriveId = driveMatch[1].replace(/=.*$/, '');
+          // Gunakan Google CDN =s640: otomatis mengompresi gambar ke JPEG ~120-150KB (di bawah batas 300KB WhatsApp)
+          // Menghindari file raksasa 1.5MB yang membuat crawler WhatsApp men-downgrade gambar menjadi pecah/buram!
+          ogImageUrl = `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
+          ogWidth = 640;
+          ogHeight = 360;
         } else {
-          ogImageUrl = cleanImg;
+          // Link eksternal non-Drive: salurkan ke api/image agar dikompresi ke JPEG < 200KB
+          ogImageUrl = `${origin}/api/image?id=${encodeURIComponent(article.id)}`;
+          ogWidth = 640;
+          ogHeight = 360;
         }
       } else if (cleanImg.startsWith('/')) {
         ogImageUrl = `${origin}${cleanImg}`;
+        ogWidth = 640;
+        ogHeight = 360;
       }
     }
 
@@ -297,11 +310,13 @@ export default async function handler(req: any, res: any) {
   <meta property="og:description" content="${escapeHtml(summaryText)}">
   <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
   <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="${ogWidth}">
   <meta property="og:image:height" content="${ogHeight}">
   <meta property="og:image:alt" content="${escapeHtml(article.title)}">
   <meta property="og:url" content="${escapeHtml(currentUrl)}">
   <link rel="canonical" href="${escapeHtml(redirectUrl)}">
+  <link rel="image_src" href="${escapeHtml(ogImageUrl)}">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">

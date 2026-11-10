@@ -25,7 +25,7 @@ import { paginateArticleContent } from '../lib/articlePaginator';
 import { getNewsShortUrl, getNewsShortCode } from '../lib/shortLink';
 import { stripHtml } from '../lib/stripHtml';
 import { sanitizeHtml } from '../lib/sanitizeHtml';
-import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, prefetchGoogleDriveImage } from '../lib/driveHelper';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -89,14 +89,45 @@ export const NewsDetailPage: React.FC = () => {
   const recordNewsReadingTimeRef = React.useRef(recordNewsReadingTime);
   recordNewsReadingTimeRef.current = recordNewsReadingTime;
 
-  // 1. Scroll ke paling atas HANYA SEKALI saat pertama kali membuka artikel baru
+  // 1. Scroll ke paling atas HANYA SEKALI saat pertama kali membuka artikel baru & update metadata Open Graph
   const lastScrolledArticleIdRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (selectedNews?.id && lastScrolledArticleIdRef.current !== selectedNews.id) {
       lastScrolledArticleIdRef.current = selectedNews.id;
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
-  }, [selectedNews?.id]);
+
+    if (selectedNews?.title) {
+      const prevTitle = document.title;
+      document.title = `${selectedNews.title} - Korwilcam Purwodadi`;
+
+      // Update Open Graph image tags dynamically di browser
+      if (selectedNews.image) {
+        const compressedImg = formatGoogleDriveImageUrl(selectedNews.image, 640);
+        prefetchGoogleDriveImage(selectedNews.image, 640);
+
+        const updateMeta = (prop: string, val: string) => {
+          let el = document.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement | null;
+          if (!el) {
+            el = document.createElement('meta');
+            el.setAttribute('property', prop);
+            document.head.appendChild(el);
+          }
+          el.setAttribute('content', val);
+        };
+
+        updateMeta('og:image', compressedImg);
+        updateMeta('og:image:secure_url', compressedImg);
+        updateMeta('og:image:type', 'image/jpeg');
+        updateMeta('og:image:width', '640');
+        updateMeta('og:image:height', '360');
+      }
+
+      return () => {
+        document.title = prevTitle;
+      };
+    }
+  }, [selectedNews]);
 
   // 2. Track & hitung jumlah tayangan berita: bertambah setiap kali artikel dibuka atau direfresh
   const lastTrackedIdRef = React.useRef<string | null>(null);
@@ -243,6 +274,12 @@ export const NewsDetailPage: React.FC = () => {
     const linkToShare = canonicalArticleUrl || window.location.href.split('?')[0];
     const pageLabel = isPaginated && currentPage > 1 ? ` (Hal. ${currentPage})` : '';
     const text = encodeURIComponent(`*${selectedNews.title}*${pageLabel}\n\nBaca selengkapnya di Portal Resmi Korwilcam Purwodadi:\n${linkToShare}`);
+    
+    // Pastikan varian kompresi gambar 640px (< 160KB) diprefetch ke cache CDN Google sebelum WhatsApp crawler menyedotnya
+    if (selectedNews.image) {
+      prefetchGoogleDriveImage(selectedNews.image, 640);
+    }
+    
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
