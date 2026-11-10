@@ -34,19 +34,93 @@ export default async function handler(req: any, res: any) {
       return res.end('Missing or invalid image ID');
     }
 
-    const { data: article } = await supabase
-      .from('news')
-      .select('id, image')
-      .or(`id.eq.${cleanId},slug.eq.${cleanId}`)
-      .limit(1)
-      .maybeSingle();
+    const isGallery = (req.query?.type || '').toString().toLowerCase() === 'gallery' || cleanId.startsWith('gal-');
+    let rawImage = '';
 
-    if (!article || !article.image) {
+    if (isGallery) {
+      // 1. Coba ambil dari tabel gallery berdasarkan ID
+      const { data: galItem } = await supabase
+        .from('gallery')
+        .select('id, title, image, images, description')
+        .or(`id.eq.${cleanId},id.eq.gal-${cleanId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (galItem) {
+        if (galItem.image && galItem.image !== '#' && !galItem.image.includes('/drive/folders') && !galItem.image.includes('unsplash.com')) {
+          rawImage = String(galItem.image).trim();
+        } else if (Array.isArray(galItem.images) && galItem.images[0]) {
+          rawImage = String(galItem.images[0]).trim();
+        } else if (galItem.description) {
+          const driveMetaMatch = galItem.description.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
+          if (driveMetaMatch && driveMetaMatch[1]) {
+            try {
+              const parsed = JSON.parse(driveMetaMatch[1]);
+              if (parsed && Array.isArray(parsed.images) && parsed.images[0]) {
+                rawImage = String(parsed.images[0]).trim();
+              }
+            } catch {}
+          }
+          if (!rawImage) {
+            try {
+              const parsed = JSON.parse(galItem.description);
+              if (parsed && Array.isArray(parsed.images) && parsed.images[0]) {
+                rawImage = String(parsed.images[0]).trim();
+              }
+            } catch {}
+          }
+        }
+      }
+
+      // Jika belum ketemu, cari berdasarkan slug judul galeri
+      if (!rawImage) {
+        const { data: allGalleries } = await supabase
+          .from('gallery')
+          .select('id, title, image, images, description')
+          .limit(100);
+
+        if (allGalleries && allGalleries.length > 0) {
+          const matchGal = allGalleries.find((g: any) => {
+            if (!g.title) return false;
+            const s = g.title
+              .toLowerCase()
+              .trim()
+              .replace(/[^\w\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/--+/g, '-')
+              .replace(/^-+|-+$/g, '');
+            return s === cleanId.toLowerCase() || cleanId.toLowerCase().includes(s) || s.includes(cleanId.toLowerCase());
+          });
+
+          if (matchGal) {
+            if (matchGal.image && matchGal.image !== '#' && !matchGal.image.includes('/drive/folders') && !matchGal.image.includes('unsplash.com')) {
+              rawImage = String(matchGal.image).trim();
+            } else if (Array.isArray(matchGal.images) && matchGal.images[0]) {
+              rawImage = String(matchGal.images[0]).trim();
+            }
+          }
+        }
+      }
+    }
+
+    // Jika bukan galeri atau belum ketemu di galeri, periksa tabel news (berita)
+    if (!rawImage) {
+      const { data: article } = await supabase
+        .from('news')
+        .select('id, image')
+        .or(`id.eq.${cleanId},slug.eq.${cleanId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (article && article.image) {
+        rawImage = String(article.image).trim();
+      }
+    }
+
+    if (!rawImage) {
       res.statusCode = 404;
       return res.end('Image not found');
     }
-
-    const rawImage = String(article.image).trim();
 
     // 1. Google Drive: redirect langsung ke Google CDN terkompresi s640 (sangat cepat & < 160KB)
     const driveMatch = rawImage.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || rawImage.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);

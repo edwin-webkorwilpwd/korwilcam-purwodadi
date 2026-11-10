@@ -93,7 +93,68 @@ export const GalleryDetailPage: React.FC = () => {
 
   const totalPhotos = albumPhotos.length;
   const currentPhoto = albumPhotos[activePhotoIndex] || albumPhotos[0] || '';
-  const currentUrl = window.location.href;
+
+  // URL Kanonikal resmi untuk sharing album foto ke WhatsApp / Sosial Media
+  const canonicalShareUrl = useMemo(() => {
+    if (!selectedGallery) return 'https://korwilcampurwodadi.web.id/galeri';
+    const slug = getGallerySlug(selectedGallery);
+    return `https://korwilcampurwodadi.web.id/galeri/${encodeURIComponent(slug)}`;
+  }, [selectedGallery]);
+
+  // Varian gambar sampul terkompresi otomatis (< 150KB) untuk pratinjau WhatsApp
+  const compressedCoverUrl = useMemo(() => {
+    const raw = albumPhotos[0] || selectedGallery?.image || '';
+    if (!raw || raw === '#' || raw.includes('/drive/folders')) {
+      return 'https://korwilcampurwodadi.web.id/logo.png';
+    }
+    if (isGoogleDriveUrl(raw)) {
+      // Gunakan Google CDN =s640 (~90-130KB, di bawah batas maksimal 300KB WhatsApp)
+      return formatGoogleDriveImageUrl(raw, 640);
+    }
+    if (raw.startsWith('http')) {
+      return raw;
+    }
+    if (raw.startsWith('/')) {
+      return `https://korwilcampurwodadi.web.id${raw}`;
+    }
+    return raw;
+  }, [albumPhotos, selectedGallery]);
+
+  // Sinkronisasi tag Open Graph & judul dinamis ke <head> dokumen
+  useEffect(() => {
+    if (!selectedGallery) return;
+    const prevTitle = document.title;
+    document.title = `${selectedGallery.title} - Galeri Foto Korwilcam Purwodadi`;
+
+    const updateMeta = (prop: string, val: string) => {
+      let el = document.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('property', prop);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', val);
+    };
+
+    updateMeta('og:title', `${selectedGallery.title} - Dokumentasi Foto Kegiatan`);
+    updateMeta('og:description', cleanDescription || `Dokumentasi foto kegiatan ${selectedGallery.title} di lingkungan Korwilcam Purwodadi.`);
+    updateMeta('og:url', canonicalShareUrl);
+    updateMeta('og:image', compressedCoverUrl);
+    updateMeta('og:image:secure_url', compressedCoverUrl);
+    updateMeta('og:image:type', 'image/jpeg');
+    updateMeta('og:image:width', '640');
+    updateMeta('og:image:height', '420');
+
+    // Preload gambar ke cache memori browser
+    if (compressedCoverUrl && compressedCoverUrl.startsWith('http')) {
+      const img = new Image();
+      img.src = compressedCoverUrl;
+    }
+
+    return () => {
+      document.title = prevTitle;
+    };
+  }, [selectedGallery, canonicalShareUrl, compressedCoverUrl, cleanDescription]);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -138,7 +199,7 @@ export const GalleryDetailPage: React.FC = () => {
   }
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(currentUrl);
+    navigator.clipboard.writeText(canonicalShareUrl);
     setCopied(true);
     showToast('Tautan album galeri berhasil disalin!', 'success');
     setTimeout(() => setCopied(false), 2500);
@@ -150,6 +211,12 @@ export const GalleryDetailPage: React.FC = () => {
       : '';
     const albumSourceText = `Jumlah Foto: ${totalPhotos} Foto Dokumentasi\n`;
 
+    // Pastikan gambar sampul terkompresi diprefetch sebelum WhatsApp crawler mengambilnya
+    if (compressedCoverUrl && compressedCoverUrl.startsWith('http')) {
+      const imgPreload = new Image();
+      imgPreload.src = compressedCoverUrl;
+    }
+
     const text = encodeURIComponent(
       `*DOKUMENTASI KEGIATAN KORWILCAM PURWODADI*\n\n` +
       `*${selectedGallery.title}*\n` +
@@ -157,7 +224,7 @@ export const GalleryDetailPage: React.FC = () => {
       albumSourceText +
       authorText +
       `\nKeterangan:\n${cleanDescription || 'Dokumentasi kegiatan pendidikan se-Kecamatan Purwodadi.'}\n\n` +
-      `Lihat seluruh slide show foto lengkapnya pada tautan resmi berikut:\n${currentUrl}`
+      `Lihat seluruh slide show foto lengkapnya pada tautan resmi berikut:\n${canonicalShareUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };

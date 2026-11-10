@@ -146,6 +146,16 @@ export default async function handler(req: any, res: any) {
       rawParam.startsWith('video/') ||
       rawParam.includes('/video/');
 
+    const isExplicitGallery = 
+      query.type === 'gallery' ||
+      (!isExplicitVideo && (
+        rawParam.startsWith('galeri/') ||
+        rawParam.startsWith('gallery/') ||
+        rawParam.startsWith('g/') ||
+        rawParam.startsWith('gal-') ||
+        rawParam.includes('/galeri/')
+      ));
+
     // IF VIDEO REQUEST -> Kembalikan Open Graph khusus video kegiatan lengkap dengan thumbnail YouTube
     if (isExplicitVideo) {
       const cleanSlug = rawParam
@@ -293,6 +303,233 @@ export default async function handler(req: any, res: any) {
     <h2 style="font-size: 18px; margin-bottom: 12px; color: #0f172a;">${escapeHtml(videoTitle)}</h2>
     <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">Sedang mengalihkan ke video kegiatan resmi...</p>
     <a href="${redirectUrl}" style="display: inline-block; padding: 10px 20px; background: #dc2626; color: white; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">Tonton Sekarang</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+      res.statusCode = 200;
+      return res.end(html);
+    }
+
+    // IF GALLERY REQUEST -> Kembalikan Open Graph khusus album foto kegiatan dengan gambar sampul terkompresi < 300KB
+    if (isExplicitGallery) {
+      const cleanSlug = rawParam
+        .replace(/^galeri\//, '')
+        .replace(/^gallery\//, '')
+        .replace(/^g\//, '')
+        .replace(/^\//, '')
+        .toLowerCase()
+        .trim();
+
+      let galleryItem: any = null;
+
+      // 1. Fetch from Supabase 'gallery' table
+      try {
+        // Coba query langsung berdasarkan ID
+        const { data: directItem } = await supabase
+          .from('gallery')
+          .select('id, title, category, image, images, description, date, author_name, author_role')
+          .or(`id.eq.${cleanSlug},id.eq.gal-${cleanSlug}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (directItem) {
+          galleryItem = directItem;
+        } else {
+          // Query daftar album terbaru untuk dicocokkan dengan slug
+          const { data: dbGalleries } = await supabase
+            .from('gallery')
+            .select('id, title, category, image, images, description, date, author_name, author_role')
+            .order('created_at', { ascending: false })
+            .limit(200);
+
+          if (dbGalleries && dbGalleries.length > 0) {
+            galleryItem = dbGalleries.find((g: any) => {
+              if (!g.title) return false;
+              const s = g.title
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/--+/g, '-')
+                .replace(/^-+|-+$/g, '');
+              return (
+                s === cleanSlug ||
+                g.id === cleanSlug ||
+                cleanSlug.includes(s) ||
+                s.includes(cleanSlug) ||
+                (query.id && g.id === query.id)
+              );
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching gallery for og:image:', err);
+      }
+
+      // 2. Fallback static initial gallery if not in db
+      if (!galleryItem) {
+        const fallbackGalleries = [
+          {
+            id: "gal-1791163139973",
+            title: "Apel Pagi 5 Oktober 2026",
+            category: "Apel Pagi",
+            date: "5 Oktober 2026",
+            image: "https://lh3.googleusercontent.com/d/1_ysw9n4ehJVgpkq8unzfmrJdRijOqscq",
+            description: "Dokumentasi kegiatan Apel Pagi seluruh pegawai Korwilcam Purwodadi tanggal 5 Oktober 2026."
+          },
+          {
+            id: "gal-1789350781225",
+            title: "14 Agustus 2026. Apel Pagi Pegawai Korwilcam Purwodadi",
+            category: "Upacara",
+            date: "14 September 2026",
+            image: "/gallery/apel-14-agustus-2026-1.jpg",
+            description: "Dokumentasi pelaksanaan Apel Pagi pegawai Korwilcam Purwodadi tanggal 14 Agustus 2026."
+          },
+          {
+            id: "gal-1788839526109",
+            title: "7 Agustus 2026. Apel Pagi Pegawai Korwilcam Purwodadi",
+            category: "Upacara",
+            date: "8 September 2026",
+            image: "/gallery/apel-7-agustus-2026-1.jpg",
+            description: "Dokumentasi pelaksanaan Apel Pagi pegawai Korwilcam Purwodadi tanggal 7 Agustus 2026."
+          }
+        ];
+        galleryItem = fallbackGalleries.find((g) => {
+          const s = g.title
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/--+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          return s === cleanSlug || g.id === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug);
+        });
+      }
+
+      // 3. Determine title & description
+      const galleryTitle = galleryItem?.title || cleanSlug
+        .split('-')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      let cleanDesc = '';
+      if (galleryItem?.description) {
+        const driveMetaMatch = galleryItem.description.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
+        if (driveMetaMatch && driveMetaMatch[1]) {
+          try {
+            cleanDesc = galleryItem.description.replace(/<!--DRIVE_META:[\s\S]*?:DRIVE_META-->/g, '').trim();
+          } catch {}
+        }
+        if (!cleanDesc) {
+          try {
+            const parsed = JSON.parse(galleryItem.description);
+            cleanDesc = parsed.cleanDescription || parsed.description || galleryItem.description;
+          } catch {
+            cleanDesc = galleryItem.description;
+          }
+        }
+      }
+      const galleryDesc = cleanDesc || `Dokumentasi foto kegiatan ${galleryTitle} di lingkungan Korwilcam Purwodadi.`;
+
+      // 4. Determine Cover Image & Apply Compression
+      let rawCover = '';
+      if (galleryItem) {
+        if (galleryItem.image && galleryItem.image !== '#' && !galleryItem.image.includes('/drive/folders') && !galleryItem.image.includes('unsplash.com')) {
+          rawCover = String(galleryItem.image).trim();
+        } else if (Array.isArray(galleryItem.images) && galleryItem.images[0]) {
+          rawCover = String(galleryItem.images[0]).trim();
+        } else if (galleryItem.description) {
+          const driveMetaMatch = galleryItem.description.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
+          if (driveMetaMatch && driveMetaMatch[1]) {
+            try {
+              const parsed = JSON.parse(driveMetaMatch[1]);
+              if (parsed && Array.isArray(parsed.images) && parsed.images[0]) {
+                rawCover = String(parsed.images[0]).trim();
+              }
+            } catch {}
+          }
+          if (!rawCover) {
+            try {
+              const parsed = JSON.parse(galleryItem.description);
+              if (parsed && Array.isArray(parsed.images) && parsed.images[0]) {
+                rawCover = String(parsed.images[0]).trim();
+              }
+            } catch {}
+          }
+        }
+      }
+
+      let ogImageUrl = `${origin}/logo.png`;
+      let ogWidth = 800;
+      let ogHeight = 500;
+
+      if (rawCover) {
+        // A. Google Drive Image: Kompresi instan via Google CDN =s640 (ukuran ~80-140KB, di bawah batas 300KB WhatsApp)
+        const driveMatch = rawCover.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || rawCover.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+        if (driveMatch && driveMatch[1]) {
+          const cleanDriveId = driveMatch[1].replace(/=.*$/, '');
+          ogImageUrl = `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
+          ogWidth = 640;
+          ogHeight = 420;
+        } else if (rawCover.startsWith('data:') || rawCover.startsWith('http')) {
+          // B. Base64 atau External Image: Salurkan ke api/image agar dikompresi oleh sharp menjadi JPEG < 150KB
+          const idParam = galleryItem?.id ? encodeURIComponent(galleryItem.id) : encodeURIComponent(cleanSlug);
+          ogImageUrl = `${origin}/api/image?id=${idParam}&type=gallery`;
+          ogWidth = 640;
+          ogHeight = 420;
+        } else if (rawCover.startsWith('/')) {
+          ogImageUrl = `${origin}${rawCover}`;
+          ogWidth = 640;
+          ogHeight = 420;
+        }
+      }
+
+      const redirectUrl = `${origin}/galeri/${encodeURIComponent(cleanSlug)}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="id" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(galleryTitle)} - Galeri Korwilcam Purwodadi</title>
+  <meta name="description" content="${escapeHtml(galleryDesc)}">
+
+  <!-- Open Graph / Facebook / WhatsApp (Gambar Sampul Terkompresi < 300KB untuk WA Preview) -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Portal Resmi Korwilcam Purwodadi">
+  <meta property="og:title" content="${escapeHtml(galleryTitle)}">
+  <meta property="og:description" content="${escapeHtml(galleryDesc)}">
+  <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="${ogWidth}">
+  <meta property="og:image:height" content="${ogHeight}">
+  <meta property="og:image:alt" content="${escapeHtml(galleryTitle)}">
+  <meta property="og:url" content="${escapeHtml(currentUrl)}">
+  <link rel="canonical" href="${escapeHtml(redirectUrl)}">
+  <link rel="image_src" href="${escapeHtml(ogImageUrl)}">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(galleryTitle)}">
+  <meta name="twitter:description" content="${escapeHtml(galleryDesc)}">
+  <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}">
+
+  <!-- Instant Redirect for Humans -->
+  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+  <script>
+    window.location.replace(${JSON.stringify(redirectUrl)});
+  </script>
+</head>
+<body style="font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px;">
+  <div style="max-width: 500px; text-align: center; background: white; padding: 32px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);">
+    <h2 style="font-size: 18px; margin-bottom: 12px; color: #0f172a;">${escapeHtml(galleryTitle)}</h2>
+    <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">Sedang mengalihkan ke dokumentasi foto kegiatan...</p>
+    <a href="${redirectUrl}" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">Buka Album Sekarang</a>
   </div>
 </body>
 </html>`;

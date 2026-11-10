@@ -61,6 +61,10 @@
       "destination": "/api/share?id=:id*&type=announcement"
     },
     {
+      "source": "/g/:id*",
+      "destination": "/api/share?id=:id*&type=gallery"
+    },
+    {
       "source": "/pengumuman/:slug*",
       "has": [
         {
@@ -81,6 +85,28 @@
         }
       ],
       "destination": "/api/share?slug=:slug*&type=video"
+    },
+    {
+      "source": "/galeri/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*&type=gallery"
+    },
+    {
+      "source": "/gallery/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*&type=gallery"
     },
     {
       "source": "/berita/:slug*",
