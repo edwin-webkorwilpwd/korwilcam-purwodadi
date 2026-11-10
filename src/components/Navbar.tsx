@@ -15,7 +15,8 @@ import {
   ChevronDown,
   ArrowRight,
   Share2,
-  Briefcase
+  Briefcase,
+  Home
 } from 'lucide-react';
 import { getDataRequestSlug, getDataRequestPath } from '../lib/dataRequestHelper';
 import { NAVIGATION_CONFIG, isItemActive, isParentActive } from '../config/navigationConfig';
@@ -66,6 +67,18 @@ export const Navbar: React.FC = () => {
   const toggleMobileSection = (section: string) => {
     setMobileOpenSection((prev) => (prev === section ? null : section));
   };
+
+  // Kunci scroll halaman belakang saat sidebar mobile sedang terbuka
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   // Path langsung ke formulir permintaan data aktif pertama dengan slug
   const firstActiveDataReq = (dataRequests || []).find((r) => r.isActive !== false);
@@ -852,514 +865,383 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile Drawer Overlay & Sidebar (Sesuai Desain Gambar 2: Off-canvas White Sidebar dari Kanan) */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-gradient-to-b from-[#1b56ce] via-[#184ebd] to-[#143794] border-b border-white/20 px-3.5 pt-3 pb-6 space-y-2 shadow-2xl animate-in fade-in slide-in-from-top-3 text-white max-h-[85vh] overflow-y-auto">
-          {/* 1. Beranda */}
-          {isHomeVisible && (
-            <button
-              onClick={() => handleNavClick('home', '/beranda')}
-              className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
-                activeTab === 'home' 
-                  ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
-                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-              }`}
-            >
-              <BookOpen className={`w-4 h-4 ${activeTab === 'home' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
-              <span>Beranda</span>
-            </button>
-          )}
+        <div className="lg:hidden">
+          {/* 1. Backdrop Gelap Semi-Transparan */}
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 animate-in fade-in"
+            aria-hidden="true"
+          />
 
-          {/* 2. Profil Instansi (Dropdown Collapsible) */}
-          {isProfileVisible && (
-            <div className={`rounded-xl overflow-hidden border transition-all ${
-              mobileOpenSection === 'profile' 
-                ? 'bg-white/10 border-white/25 shadow-md' 
-                : 'bg-white/5 border-white/10'
-            }`}>
+          {/* 2. White Sidebar Panel (Slide-in dari Kanan) */}
+          <div className="fixed top-0 bottom-0 right-0 z-50 w-[300px] sm:w-[340px] max-w-[85vw] bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out animate-in slide-in-from-right">
+            {/* Header Sidebar: Judul "Menu Navigasi" & Tombol Tutup (X) */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">
+                Menu Navigasi
+              </h2>
               <button
-                onClick={() => toggleMobileSection('profile')}
-                className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
-                  ['profile', 'nominatif', 'organization', 'purna-tugas'].includes(activeTab)
-                    ? 'text-white font-bold'
-                    : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-                }`}
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1.5 -mr-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer"
+                aria-label="Tutup menu navigasi"
               >
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-4 h-4 text-sky-300" />
-                  <span>Profil Instansi</span>
-                  {['profile', 'nominatif', 'organization', 'purna-tugas'].includes(activeTab) && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  )}
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
-                    mobileOpenSection === 'profile' ? 'rotate-180 text-white' : ''
-                  }`}
-                />
+                <X className="w-5 h-5" />
               </button>
+            </div>
 
-              {mobileOpenSection === 'profile' && (
-                <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
-                  {isItemActive(menuVisibility, 'profile.welcome') && (
-                    <button
-                      onClick={() => handleNavClick('profile', '/profil#sambutan')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Sambutan & Visi Misi</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              {/* Beranda (Pill Button dengan Icon Home) */}
+              {isHomeVisible && (
+                <button
+                  type="button"
+                  onClick={() => handleNavClick('home', '/beranda')}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2.5 transition-all cursor-pointer ${
+                    activeTab === 'home'
+                      ? 'bg-sky-50 text-sky-700 font-bold border border-sky-200/80 shadow-2xs'
+                      : 'text-slate-700 hover:bg-slate-50 hover:text-sky-700'
+                  }`}
+                >
+                  <Home className={`w-4 h-4 ${activeTab === 'home' ? 'text-sky-600' : 'text-slate-400'}`} />
+                  <span>Beranda</span>
+                </button>
+              )}
 
-                  {isItemActive(menuVisibility, 'profile.structure') && (
-                    <button
-                      onClick={() => handleNavClick('profile', '/profil#struktur')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Struktur Organisasi</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
+              {/* 1. PROFIL INSTANSI */}
+              {isProfileVisible && (
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-1 pb-1 select-none">
+                    PROFIL INSTANSI
+                  </div>
+                  <div className="space-y-0.5">
+                    {isItemActive(menuVisibility, 'profile.welcome') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('profile', '/profil#sambutan')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Sambutan & Visi Misi
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'profile.structure') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('profile', '/profil#struktur')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Struktur Organisasi
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'profile.nominative') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'nominatif'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Nominatif Guru & Tendik
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'profile.organization') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrganizationSlug(null);
+                          handleNavClick('organization', '/profil#organisasi');
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'organization'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Organisasi Mitra & Profesi
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'profile.purna-tugas') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'purna-tugas'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Purna Tugas
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                  {isItemActive(menuVisibility, 'profile.nominative') && (
-                    <button
-                      onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'nominatif' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Nominatif Guru</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
+              {/* 2. BERITA */}
+              {isNewsVisible && (
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-1 pb-1 select-none">
+                    BERITA
+                  </div>
+                  <div className="space-y-0.5">
+                    {isItemActive(menuVisibility, 'news.latest') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('news', '/berita')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda') && !window.location.pathname.includes('/prestasi')))
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Berita Terkini
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'news.announcements') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('news', '/berita/pengumuman')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Pengumuman & Edaran
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'news.agenda') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('news', '/berita/agenda')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Agenda Kegiatan
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'news.achievements') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('achievements', '/berita/prestasi')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'achievements'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Prestasi Siswa & Guru
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                  {isItemActive(menuVisibility, 'profile.organization') && (
-                    <button
-                      onClick={() => {
-                        setSelectedOrganizationSlug(null);
-                        handleNavClick('organization', '/profil#organisasi');
-                      }}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'organization' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Organisasi Mitra & Profesi</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
+              {/* 3. LAYANAN TERPADU */}
+              {isServicesVisible && (
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-1 pb-1 select-none">
+                    LAYANAN TERPADU
+                  </div>
+                  <div className="space-y-0.5">
+                    {isItemActive(menuVisibility, 'services.requirements') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'service-requirements'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Persyaratan Pelayanan
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'services.downloads') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'downloads'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Unduh Berkas & Dokumen
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'services.aula') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'service-aula'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Peminjaman Aula
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'services.cuti') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'service-cuti'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Surat Cuti ASN
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'services.survey') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'service-survey'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Survey Pelayanan
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'services.data-request') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'service-permintaan-data'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Permintaan Data
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                  {isItemActive(menuVisibility, 'profile.purna-tugas') && (
-                    <button
-                      onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'purna-tugas' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Purna Tugas</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
+              {/* 4. PENDIDIKAN & KEGIATAN */}
+              {(isSopVisible || isSchoolsVisible || isKaryakuVisible || isGalleryVisible) && (
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-1 pb-1 select-none">
+                    PENDIDIKAN & KEGIATAN
+                  </div>
+                  <div className="space-y-0.5">
+                    {isSopVisible && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'sop-pelayanan'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        SOP Pelayanan
+                      </button>
+                    )}
+                    {isSchoolsVisible && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('schools', '/sekolah')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'schools'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Data Sekolah
+                      </button>
+                    )}
+                    {isKaryakuVisible && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('karyaku', '/karyaku')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'karyaku'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Karyaku
+                      </button>
+                    )}
+                    {isGalleryVisible && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('gallery', '/galeri')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'gallery'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Galeri Kegiatan
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 5. KONTAK & MEDIA */}
+              {isContactVisible && (
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-1 pb-1 select-none">
+                    KONTAK & MEDIA
+                  </div>
+                  <div className="space-y-0.5">
+                    {isItemActive(menuVisibility, 'contact.office') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('contact', '/kontak')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'contact'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Kontak & Pengaduan
+                      </button>
+                    )}
+                    {isItemActive(menuVisibility, 'contact.social') && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('social-media', '/media-sosial')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors cursor-pointer ${
+                          activeTab === 'social-media'
+                            ? 'bg-sky-50 text-sky-800 font-bold'
+                            : 'text-sky-700 hover:text-sky-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        Media Sosial Resmi
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          )}
-
-          {/* 3. SOP */}
-          {isSopVisible && (
-            <button
-              onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
-              className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
-                activeTab === 'sop-pelayanan' 
-                  ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
-                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-              }`}
-            >
-              <FileCheck className={`w-4 h-4 ${activeTab === 'sop-pelayanan' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
-              <span>SOP</span>
-            </button>
-          )}
-
-          {/* 4. Sekolah */}
-          {isSchoolsVisible && (
-            <button
-              onClick={() => handleNavClick('schools', '/sekolah')}
-              className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
-                activeTab === 'schools' 
-                  ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
-                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-              }`}
-            >
-              <GraduationCap className={`w-4 h-4 ${activeTab === 'schools' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
-              <span>Sekolah</span>
-            </button>
-          )}
-
-          {/* 4.5. Karyaku */}
-          {isKaryakuVisible && (
-            <button
-              onClick={() => handleNavClick('karyaku', '/karyaku')}
-              className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
-                activeTab === 'karyaku' 
-                  ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
-                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-              }`}
-            >
-              <BookOpen className={`w-4 h-4 ${activeTab === 'karyaku' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
-              <span>Karyaku</span>
-            </button>
-          )}
-
-          {/* 5. Berita (Dropdown Collapsible) */}
-          {isNewsVisible && (
-            <div className={`rounded-xl overflow-hidden border transition-all ${
-              mobileOpenSection === 'news' 
-                ? 'bg-white/10 border-white/25 shadow-md' 
-                : 'bg-white/5 border-white/10'
-            }`}>
-              <button
-                onClick={() => toggleMobileSection('news')}
-                className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
-                  activeTab === 'news' || activeTab === 'achievements' ? 'text-white font-bold' : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <BellRing className="w-4 h-4 text-sky-300" />
-                  <span>Berita</span>
-                  {(activeTab === 'news' || activeTab === 'achievements') && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  )}
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
-                    mobileOpenSection === 'news' ? 'rotate-180 text-white' : ''
-                  }`}
-                />
-              </button>
-
-              {mobileOpenSection === 'news' && (
-                <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
-                  {isItemActive(menuVisibility, 'news.latest') && (
-                    <button
-                      onClick={() => handleNavClick('news', '/berita')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda') && !window.location.pathname.includes('/prestasi')))
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Berita Terkini</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'news.announcements') && (
-                    <button
-                      onClick={() => handleNavClick('news', '/berita/pengumuman')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Pengumuman & Edaran</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'news.agenda') && (
-                    <button
-                      onClick={() => handleNavClick('news', '/berita/agenda')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Agenda Kegiatan</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'news.achievements') && (
-                    <button
-                      onClick={() => handleNavClick('achievements', '/berita/prestasi')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'achievements'
-                          ? 'bg-blue-600 text-white font-bold shadow-sm'
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
-                        <span>Prestasi Siswa & Guru</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 6. Layanan Terpadu (Dropdown Collapsible) */}
-          {isServicesVisible && (
-            <div className={`rounded-xl overflow-hidden border transition-all ${
-              mobileOpenSection === 'services' 
-                ? 'bg-white/10 border-white/25 shadow-md' 
-                : 'bg-white/5 border-white/10'
-            }`}>
-              <button
-                onClick={() => toggleMobileSection('services')}
-                className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
-                  ['service-requirements', 'downloads', 'service-aula', 'service-cuti', 'service-survey', 'service-permintaan-data'].includes(activeTab)
-                    ? 'text-white font-bold'
-                    : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-4 h-4 text-sky-300" />
-                  <span>Layanan Terpadu</span>
-                  {['service-requirements', 'downloads', 'service-aula', 'service-cuti', 'service-survey', 'service-permintaan-data'].includes(activeTab) && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  )}
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
-                    mobileOpenSection === 'services' ? 'rotate-180 text-white' : ''
-                  }`}
-                />
-              </button>
-
-              {mobileOpenSection === 'services' && (
-                <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
-                  {/* 1. Persyaratan Pelayanan */}
-                  {isItemActive(menuVisibility, 'services.requirements') && (
-                    <button
-                      onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'service-requirements' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Persyaratan Pelayanan</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'services.downloads') && (
-                    <button
-                      onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'downloads' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Unduh Berkas</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'services.aula') && (
-                    <button
-                      onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'service-aula' 
-                          ? 'bg-amber-500 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                        <span>Peminjaman Aula</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'services.cuti') && (
-                    <button
-                      onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'service-cuti' 
-                          ? 'bg-emerald-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        <span>Surat Cuti</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'services.survey') && (
-                    <button
-                      onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'service-survey' 
-                          ? 'bg-purple-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                        <span>Survey Pelayanan</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'services.data-request') && (
-                    <button
-                      onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'service-permintaan-data' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Permintaan Data</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 7. Galeri Kegiatan */}
-          {isGalleryVisible && (
-            <button
-              onClick={() => handleNavClick('gallery', '/galeri')}
-              className={`w-full text-left px-3.5 py-3 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all ${
-                activeTab === 'gallery' 
-                  ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-950/20' 
-                  : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-              }`}
-            >
-              <ImageIcon className={`w-4 h-4 ${activeTab === 'gallery' ? 'text-[#1b56ce]' : 'text-sky-300'}`} />
-              <span>Galeri Kegiatan</span>
-            </button>
-          )}
-
-          {/* 8. Kontak & Media Sosial (Dropdown Collapsible) */}
-          {isContactVisible && (
-            <div className={`rounded-xl overflow-hidden border transition-all ${
-              mobileOpenSection === 'contact' 
-                ? 'bg-white/10 border-white/25 shadow-md' 
-                : 'bg-white/5 border-white/10'
-            }`}>
-              <button
-                onClick={() => toggleMobileSection('contact')}
-                className={`w-full px-3.5 py-3 text-sm font-semibold flex items-center justify-between transition-colors ${
-                  ['contact', 'social-media'].includes(activeTab)
-                    ? 'text-white font-bold'
-                    : 'text-white/90 hover:bg-white/10 active:bg-white/15'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-sky-300" />
-                  <span>Kontak & Media Sosial</span>
-                  {['contact', 'social-media'].includes(activeTab) && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  )}
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 text-sky-200 transition-transform duration-200 ${
-                    mobileOpenSection === 'contact' ? 'rotate-180 text-white' : ''
-                  }`}
-                />
-              </button>
-
-              {mobileOpenSection === 'contact' && (
-                <div className="px-2.5 pt-1.5 pb-2.5 space-y-1 bg-black/25 border-t border-white/10 animate-in fade-in duration-150">
-                  {isItemActive(menuVisibility, 'contact.office') && (
-                    <button
-                      onClick={() => handleNavClick('contact', '/kontak')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'contact' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-300"></span>
-                        <span>Kontak & Pengaduan</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-
-                  {isItemActive(menuVisibility, 'contact.social') && (
-                    <button
-                      onClick={() => handleNavClick('social-media', '/media-sosial')}
-                      className={`w-full text-left pl-4 pr-3 py-2.5 rounded-lg text-[13px] font-medium flex items-center justify-between transition-colors ${
-                        activeTab === 'social-media' 
-                          ? 'bg-blue-600 text-white font-bold shadow-sm' 
-                          : 'text-slate-100 hover:bg-white/10 active:bg-white/15'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <Share2 className="w-3.5 h-3.5 text-sky-300" />
-                        <span>Media Sosial</span>
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-60" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          </div>
         </div>
       )}
     </header>
