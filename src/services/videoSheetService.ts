@@ -14,6 +14,8 @@ export const VIDEO_CSV_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPR
 export const VIDEO_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${VIDEO_SHEET_GID}`;
 export const VIDEO_SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/edit?gid=${VIDEO_SHEET_GID}#gid=${VIDEO_SHEET_GID}`;
 export const VIDEO_CACHE_KEY = 'korwilcam_video_sheet_cache_v2';
+export const VIDEO_CACHE_TIMESTAMP_KEY = 'korwilcam_video_sheet_last_fetch';
+export const VIDEO_CACHE_TTL_MS = 3 * 60 * 1000; // 3 Menit Smart Cache TTL untuk Anti-Lag & Cegah Rate Limit Google
 
 /**
  * Membaca cache video galeri dari localStorage untuk pemuatan instan (0ms)
@@ -51,8 +53,23 @@ export function saveLocalVideoCache(items: GalleryVideoItem[]): void {
 
 /**
  * Mengambil data video dari Google Spreadsheet dan mengonversinya menjadi daftar GalleryVideoItem
+ * Mendukung Smart TTL Caching (3 menit) untuk mencegah lag dan lonjakan request saat diakses banyak pengunjung sekaligus
  */
-export async function fetchVideosFromSheet(): Promise<GalleryVideoItem[]> {
+export async function fetchVideosFromSheet(forceRefresh = false): Promise<GalleryVideoItem[]> {
+  // Jika bukan paksa refresh, gunakan cache lokal instan jika masih dalam TTL 3 menit
+  if (!forceRefresh) {
+    try {
+      const lastFetchStr = localStorage.getItem(VIDEO_CACHE_TIMESTAMP_KEY);
+      const cached = getLocalVideoCache();
+      if (lastFetchStr && cached && cached.length > 0) {
+        const lastFetch = Number(lastFetchStr);
+        if (!isNaN(lastFetch) && Date.now() - lastFetch < VIDEO_CACHE_TTL_MS) {
+          return cached;
+        }
+      }
+    } catch {}
+  }
+
   let csvText = '';
   let lastError: Error | null = null;
 
@@ -172,6 +189,9 @@ export async function fetchVideosFromSheet(): Promise<GalleryVideoItem[]> {
 
   if (items.length > 0) {
     saveLocalVideoCache(items);
+    try {
+      localStorage.setItem(VIDEO_CACHE_TIMESTAMP_KEY, String(Date.now()));
+    } catch {}
     return items;
   }
 

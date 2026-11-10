@@ -7,6 +7,8 @@ export const PRESTASI_SHEET_GID = '723592882';
 export const PRESTASI_CSV_URL = `https://docs.google.com/spreadsheets/d/${PRESTASI_SPREADSHEET_ID}/export?format=csv&gid=${PRESTASI_SHEET_GID}`;
 export const PRESTASI_SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${PRESTASI_SPREADSHEET_ID}/edit?gid=${PRESTASI_SHEET_GID}#gid=${PRESTASI_SHEET_GID}`;
 export const PRESTASI_CACHE_KEY = 'korwilcam_achievements_sheet_cache_v2';
+export const PRESTASI_CACHE_TIMESTAMP_KEY = 'korwilcam_achievements_sheet_last_fetch';
+export const PRESTASI_CACHE_TTL_MS = 3 * 60 * 1000; // 3 Menit Smart Cache TTL Anti-Lag
 
 /**
  * Deteksi otomatis Bidang Kompetisi berdasarkan nama perlombaan
@@ -163,8 +165,22 @@ export function getLocalAchievementsCache(): Achievement[] {
 
 /**
  * Tarik data live langsung dari Google Spreadsheet
+ * Dilengkapi Smart TTL Cache (3 menit) untuk menjamin kecepatan 0ms bagi ribuan pengunjung
  */
-export async function fetchAchievementsFromSheet(): Promise<Achievement[]> {
+export async function fetchAchievementsFromSheet(forceRefresh = false): Promise<Achievement[]> {
+  if (!forceRefresh) {
+    try {
+      const lastFetchStr = localStorage.getItem(PRESTASI_CACHE_TIMESTAMP_KEY);
+      const cached = getLocalAchievementsCache();
+      if (lastFetchStr && cached && cached.length > 0) {
+        const lastFetch = Number(lastFetchStr);
+        if (!isNaN(lastFetch) && Date.now() - lastFetch < PRESTASI_CACHE_TTL_MS) {
+          return cached;
+        }
+      }
+    } catch {}
+  }
+
   try {
     const res = await fetch(PRESTASI_CSV_URL, {
       method: 'GET',
@@ -269,6 +285,7 @@ export async function fetchAchievementsFromSheet(): Promise<Achievement[]> {
     if (items.length > 0) {
       try {
         localStorage.setItem(PRESTASI_CACHE_KEY, JSON.stringify(items));
+        localStorage.setItem(PRESTASI_CACHE_TIMESTAMP_KEY, String(Date.now()));
       } catch (e) {
         console.warn('Gagal menyimpan cache prestasi:', e);
       }

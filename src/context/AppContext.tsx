@@ -3320,7 +3320,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshVideosFromSheet = async (): Promise<void> => {
     setIsVideosLoading(true);
     try {
-      const live = await fetchVideosFromSheet();
+      const live = await fetchVideosFromSheet(true);
       if (live && live.length > 0) {
         setVideos(live);
         showToast('Data video kegiatan berhasil diperbarui dari Database Korwil!', 'success');
@@ -7740,7 +7740,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshAchievements = async (): Promise<void> => {
     try {
-      const live = await fetchAchievementsFromSheet();
+      const live = await fetchAchievementsFromSheet(true);
       if (live && live.length > 0) {
         setAchievements(live);
       }
