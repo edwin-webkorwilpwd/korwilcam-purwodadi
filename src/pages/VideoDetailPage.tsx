@@ -2,28 +2,15 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   ArrowLeft, 
-  Calendar, 
-  Share2, 
-  Copy, 
-  Check, 
   User, 
   Film, 
-  ExternalLink, 
   Play, 
-  Sparkles,
-  MessageCircle,
-  Video as VideoIcon,
-  Building2,
-  CheckCircle2
+  MessageCircle, 
+  Building2, 
+  CheckCircle2 
 } from 'lucide-react';
 import { GalleryVideoItem } from '../types';
 import { getVideoDetailPath, getYouTubeEmbedUrl } from '../lib/youtubeHelper';
-
-const FacebookIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-  </svg>
-);
 
 export const VideoDetailPage: React.FC = () => {
   const { 
@@ -31,11 +18,9 @@ export const VideoDetailPage: React.FC = () => {
     setSelectedVideo, 
     videos, 
     setActiveTab, 
-    showToast,
     setGalleryActiveTab
   } = useApp();
 
-  const [copied, setCopied] = useState<boolean>(false);
   const [isDescExpanded, setIsDescExpanded] = useState<boolean>(false);
   const [sidebarFilter, setSidebarFilter] = useState<'all' | 'school' | 'category'>('all');
 
@@ -58,40 +43,68 @@ export const VideoDetailPage: React.FC = () => {
     return getYouTubeEmbedUrl(selectedVideo.youtubeId, true);
   }, [selectedVideo?.youtubeId, selectedVideo?.embedUrl]);
 
-  // Update dynamic page title
+  // URL Kanonikal resmi untuk dibagikan (WhatsApp crawler mewajibkan domain publik https://korwilcampurwodadi.web.id)
+  const canonicalUrl = useMemo(() => {
+    if (!selectedVideo) return 'https://korwilcampurwodadi.web.id/galeri?tab=video';
+    const videoPath = getVideoDetailPath(selectedVideo);
+    const queryV = selectedVideo.youtubeId ? `?v=${encodeURIComponent(selectedVideo.youtubeId)}` : '';
+    return `https://korwilcampurwodadi.web.id${videoPath}${queryV}`;
+  }, [selectedVideo]);
+
+  // Update dynamic page title & metadata Open Graph untuk thumbnail WhatsApp / Sosmed
   useEffect(() => {
     if (!selectedVideo?.title) return;
     const prevTitle = document.title;
     document.title = `${selectedVideo.title} - Video Kegiatan Korwilcam Purwodadi`;
+
+    const updateMeta = (prop: string, val: string) => {
+      let el = document.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('property', prop);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', val);
+    };
+
+    const updateNameMeta = (name: string, val: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('name', name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', val);
+    };
+
+    const thumb = selectedVideo.thumbnailUrl || (selectedVideo.youtubeId ? `https://img.youtube.com/vi/${selectedVideo.youtubeId}/hqdefault.jpg` : 'https://korwilcampurwodadi.web.id/logo.png');
+    const desc = selectedVideo.description || `Tonton video dokumentasi kegiatan ${selectedVideo.title} di Portal Resmi Korwilcam Purwodadi.`;
+
+    updateMeta('og:title', selectedVideo.title);
+    updateMeta('og:description', desc);
+    updateMeta('og:image', thumb);
+    updateMeta('og:image:secure_url', thumb);
+    updateMeta('og:image:type', 'image/jpeg');
+    updateMeta('og:image:width', '480');
+    updateMeta('og:image:height', '360');
+    updateMeta('og:url', canonicalUrl);
+    updateMeta('og:type', 'video.other');
+    updateMeta('og:site_name', 'Korwilcam Purwodadi');
+
+    updateNameMeta('twitter:card', 'summary_large_image');
+    updateNameMeta('twitter:title', selectedVideo.title);
+    updateNameMeta('twitter:description', desc);
+    updateNameMeta('twitter:image', thumb);
+
     return () => {
       document.title = prevTitle;
     };
-  }, [selectedVideo?.title]);
-
-  // URL Kanonikal resmi untuk dibagikan
-  const siteOrigin = typeof window !== 'undefined' && window.location.origin
-    ? window.location.origin
-    : 'https://korwilcampurwodadi.web.id';
-
-  const canonicalUrl = selectedVideo 
-    ? `${siteOrigin}${getVideoDetailPath(selectedVideo)}`
-    : (typeof window !== 'undefined' ? window.location.href : '');
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(canonicalUrl);
-    setCopied(true);
-    showToast('Tautan video berhasil disalin ke clipboard!', 'success');
-    setTimeout(() => setCopied(false), 2500);
-  };
+  }, [selectedVideo, canonicalUrl]);
 
   const handleShareWhatsApp = () => {
     if (!selectedVideo) return;
     const text = encodeURIComponent(`*${selectedVideo.title}*\n\nTonton video dokumentasi kegiatan resmi Korwilcam Purwodadi selengkapnya di:\n${canonicalUrl}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-  };
-
-  const handleShareFacebook = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(canonicalUrl)}`, '_blank');
   };
 
   // Video rekomendasi sidebar (diacak/shuffled dan dibatasi maksimal 10 video)
@@ -218,52 +231,17 @@ export const VideoDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Tombol Aksi Pill Khas YouTube (Bagikan, Salin Link, Buka YouTube) */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Tombol Bagikan WhatsApp */}
+              {/* Tombol Aksi (Hanya WhatsApp) */}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleShareWhatsApp}
-                  className="px-3.5 sm:px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                  className="px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-2xs"
                   title="Bagikan video ke WhatsApp"
                 >
                   <MessageCircle className="w-4 h-4 text-emerald-600 fill-emerald-600/20" />
-                  <span>Bagikan</span>
+                  <span>WhatsApp</span>
                 </button>
-
-                {/* Tombol Salin Tautan */}
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="px-3.5 sm:px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                  title="Salin Tautan Video"
-                >
-                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
-                  <span>{copied ? 'Tersalin' : 'Salin Link'}</span>
-                </button>
-
-                {/* Tombol Bagikan Facebook */}
-                <button
-                  type="button"
-                  onClick={handleShareFacebook}
-                  className="p-2 sm:px-3 sm:py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                  title="Bagikan ke Facebook"
-                >
-                  <FacebookIcon className="w-4 h-4 text-blue-600" />
-                  <span className="hidden sm:inline">Facebook</span>
-                </button>
-
-                {/* Tombol Buka di YouTube */}
-                <a
-                  href={selectedVideo.youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3.5 sm:px-4 py-2 rounded-full bg-red-50 hover:bg-red-100 text-red-600 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all active:scale-95 border border-red-200/70 shadow-2xs"
-                  title="Buka langsung di aplikasi YouTube"
-                >
-                  <span>Buka di YouTube</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
               </div>
             </div>
 

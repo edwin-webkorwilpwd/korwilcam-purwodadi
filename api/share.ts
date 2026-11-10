@@ -42,6 +42,51 @@ function decodeAnnouncementKeys(param: string): string[] {
   return Array.from(new Set(list));
 }
 
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentVal = '';
+  let insideQuote = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (insideQuote && nextChar === '"') {
+        currentVal += '"';
+        i++;
+      } else {
+        insideQuote = !insideQuote;
+      }
+    } else if (char === ',' && !insideQuote) {
+      currentRow.push(currentVal.trim());
+      currentVal = '';
+    } else if ((char === '\r' || char === '\n') && !insideQuote) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      currentRow.push(currentVal.trim());
+      if (currentRow.some(val => val.length > 0)) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentVal = '';
+    } else {
+      currentVal += char;
+    }
+  }
+
+  if (currentVal.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentVal.trim());
+    if (currentRow.some(val => val.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+}
+
 function escapeHtml(str: string): string {
   if (!str) return '';
   return str
@@ -94,6 +139,169 @@ export default async function handler(req: any, res: any) {
       rawParam.startsWith('pengumuman/') ||
       rawParam.startsWith('ann-') ||
       rawParam.includes('pengumuman');
+
+    const isExplicitVideo = 
+      query.type === 'video' ||
+      rawParam.startsWith('galeri/video/') ||
+      rawParam.startsWith('video/') ||
+      rawParam.includes('/video/');
+
+    // IF VIDEO REQUEST -> Kembalikan Open Graph khusus video kegiatan lengkap dengan thumbnail YouTube
+    if (isExplicitVideo) {
+      const cleanSlug = rawParam
+        .replace(/^galeri\/video\//, '')
+        .replace(/^video\//, '')
+        .replace(/^\//, '')
+        .toLowerCase()
+        .trim();
+
+      let videoTitle = '';
+      let videoDesc = '';
+      let youtubeId = (query.v || '').toString().trim();
+      let videoSchool = '';
+
+      // 1. Data fallback video
+      const fallbackVideos = [
+        {
+          title: 'Upacara Peringatan Hari Pahlawan 10 November 2026 di Korwilcam Purwodadi',
+          slug: 'upacara-peringatan-hari-pahlawan-10-november-2026-korwilcam-purwodadi',
+          youtubeId: 'dQw4w9WgXcQ',
+          schoolName: 'Korwilcam Purwodadi',
+          description: 'Dokumentasi video lengkap upacara peringatan Hari Pahlawan 10 November 2026 bersama jajaran Korwilcam, Kepala SD, dan perwakilan siswa se-Kecamatan Purwodadi.'
+        },
+        {
+          title: 'Ranting Korwil & TK Dalam Kegiatan Turnamen Voli HUT PGRI Cabang Purwodadi',
+          slug: 'turnamen-voli-hut-pgri-cabang-purwodadi-2026-pgri-cabang-purwodadi',
+          youtubeId: 'dQw4w9WgXcQ',
+          schoolName: 'PGRI Cabang Purwodadi',
+          description: 'Keseruan dan sportivitas guru-guru Korwilcam Purwodadi dalam turnamen bola voli memperingati HUT PGRI dan Hari Guru Nasional tingkat Kecamatan Purwodadi.'
+        },
+        {
+          title: 'Semarak Lomba MAPSI SD Tingkat Kecamatan Purwodadi Cabang Seni Tilawatil Quran',
+          slug: 'semarak-lomba-mapsi-sd-purwodadi-seni-tilawatil-quran-sd-negeri-5-ngraji',
+          youtubeId: 'dQw4w9WgXcQ',
+          schoolName: 'SD Negeri 5 Ngraji',
+          description: 'Penampilan memukau para qori-qoriah cilik perwakilan sekolah dasar se-Kecamatan Purwodadi dalam ajang bergengsi MAPSI SD cabang Tilawatil Quran.'
+        }
+      ];
+
+      const matchFallback = fallbackVideos.find(v => 
+        v.slug === cleanSlug || cleanSlug.includes(v.slug) || v.slug.includes(cleanSlug)
+      );
+      if (matchFallback) {
+        videoTitle = matchFallback.title;
+        videoDesc = matchFallback.description;
+        videoSchool = matchFallback.schoolName;
+        if (!youtubeId) youtubeId = matchFallback.youtubeId;
+      }
+
+      // 2. Coba fetch Google Spreadsheet untuk data mutakhir
+      try {
+        const sheetRes = await fetch(
+          'https://docs.google.com/spreadsheets/d/1uN-DBqXn-TkqR9iiqZLGZNBMEx91K4kbD3nmz_tu-pY/export?format=csv&gid=1627850125',
+          { signal: AbortSignal.timeout(2500) }
+        );
+        if (sheetRes.ok) {
+          const csv = await sheetRes.text();
+          if (csv && !csv.includes('<!DOCTYPE html>')) {
+            const rows = parseCSV(csv);
+            for (const r of rows) {
+              const rTitle = (r[1] || '').trim();
+              const rUrl = (r[2] || '').trim();
+              const rDesc = (r[5] || '').trim();
+              const rSchool = (r[6] || '').trim();
+              if (!rTitle || rTitle.toUpperCase() === 'JUDUL' || rTitle.toUpperCase() === 'TES') continue;
+
+              const rSlug = (rSchool ? `${rTitle} ${rSchool}` : rTitle)
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/--+/g, '-')
+                .replace(/^-+|-+$/g, '');
+
+              if (rSlug === cleanSlug || cleanSlug.includes(rSlug) || rSlug.includes(cleanSlug)) {
+                videoTitle = rTitle;
+                videoDesc = rDesc || `Dokumentasi video kegiatan ${rTitle} di lingkungan Korwilcam Purwodadi.`;
+                videoSchool = rSchool;
+                const m = rUrl.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/i);
+                if (m && m[1]) youtubeId = m[1];
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Abaikan jika timeout, fallback ke judul turunan slug
+      }
+
+      if (!videoTitle) {
+        videoTitle = cleanSlug
+          .split('-')
+          .filter(Boolean)
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+      }
+
+      if (!videoDesc) {
+        videoDesc = `Tonton video dokumentasi kegiatan resmi ${videoTitle} di Portal Resmi Korwilcam Purwodadi.`;
+      }
+
+      const ogImageUrl = youtubeId
+        ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
+        : `${origin}/logo.png`;
+
+      const redirectUrl = `${origin}/galeri/video/${encodeURIComponent(cleanSlug)}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="id" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(videoTitle)} - Video Korwilcam Purwodadi</title>
+  <meta name="description" content="${escapeHtml(videoDesc)}">
+
+  <!-- Open Graph / Facebook / WhatsApp (Spesial Thumbnail Video YouTube) -->
+  <meta property="og:type" content="video.other">
+  <meta property="og:site_name" content="Portal Resmi Korwilcam Purwodadi">
+  <meta property="og:title" content="${escapeHtml(videoTitle)}">
+  <meta property="og:description" content="${escapeHtml(videoDesc)}">
+  <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="480">
+  <meta property="og:image:height" content="360">
+  <meta property="og:image:alt" content="${escapeHtml(videoTitle)}">
+  <meta property="og:url" content="${escapeHtml(currentUrl)}">
+  <link rel="canonical" href="${escapeHtml(redirectUrl)}">
+  <link rel="image_src" href="${escapeHtml(ogImageUrl)}">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(videoTitle)}">
+  <meta name="twitter:description" content="${escapeHtml(videoDesc)}">
+  <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}">
+
+  <!-- Instant Redirect for Humans -->
+  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+  <script>
+    window.location.replace(${JSON.stringify(redirectUrl)});
+  </script>
+</head>
+<body style="font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px;">
+  <div style="max-width: 500px; text-align: center; background: white; padding: 32px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);">
+    <h2 style="font-size: 18px; margin-bottom: 12px; color: #0f172a;">${escapeHtml(videoTitle)}</h2>
+    <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">Sedang mengalihkan ke video kegiatan resmi...</p>
+    <a href="${redirectUrl}" style="display: inline-block; padding: 10px 20px; background: #dc2626; color: white; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">Tonton Sekarang</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+      res.statusCode = 200;
+      return res.end(html);
+    }
 
     let article: any = null;
 
