@@ -198,6 +198,21 @@ export const VideoDetailPage: React.FC = () => {
     return shuffled.slice(0, 10);
   }, [videos, selectedVideo?.id, selectedVideo?.schoolName, selectedVideo?.category, sidebarFilter]);
 
+  // 6 Video rekomendasi di bawah media player (diacak secara independen, 1 baris 3 video)
+  const bottomRecommendedVideos = useMemo(() => {
+    if (!selectedVideo || !videos || videos.length === 0) return [];
+    const others = videos.filter((v) => v.id !== selectedVideo.id);
+
+    // Algoritma Fisher-Yates untuk mengacak 6 video pilihan di bawah player
+    const shuffled = [...others];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled.slice(0, 6);
+  }, [videos, selectedVideo?.id]);
+
   if (!selectedVideo) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
@@ -371,6 +386,76 @@ export const VideoDetailPage: React.FC = () => {
                 {isDescExpanded ? 'Tampilkan lebih sedikit' : '...lebih banyak'}
               </button>
             </div>
+
+            {/* 5. Rekomendasi 6 Video Acak di Bawah Player (1 Baris 3 Video) */}
+            {bottomRecommendedVideos.length > 0 && (
+              <div className="pt-6 mt-6 border-t border-slate-200/80 space-y-3.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shadow-2xs">
+                    <Film className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-base text-slate-900 leading-none">
+                      Pilihan Video Lainnya
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Dokumentasi video kegiatan pilihan se-Kecamatan Purwodadi
+                    </p>
+                  </div>
+                </div>
+
+                {/* Grid 6 Video: 1 Baris Terdiri dari 3 Video */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-4 pt-1">
+                  {bottomRecommendedVideos.map((vid) => (
+                    <div
+                      key={`bottom-${vid.id}`}
+                      onClick={() => {
+                        setSelectedVideo(vid);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="group cursor-pointer flex flex-col bg-slate-50/70 hover:bg-slate-100/90 rounded-2xl p-2 sm:p-2.5 transition-all duration-200 border border-slate-200/70 hover:border-slate-300 shadow-2xs hover:shadow-xs"
+                    >
+                      {/* Thumbnail 16:9 */}
+                      <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black shadow-xs">
+                        <img
+                          src={vid.thumbnailUrl}
+                          alt={vid.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-red-600/90 group-hover:bg-red-600 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <Play className="w-3.5 h-3.5 fill-white translate-x-0.5" />
+                          </div>
+                        </div>
+                        <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-black/85 text-white text-[10px] font-bold rounded">
+                          Video
+                        </span>
+                      </div>
+
+                      {/* Judul & Detail Informasi */}
+                      <div className="flex-1 flex flex-col justify-between pt-2">
+                        <div>
+                          <h4 className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                            {vid.title}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium line-clamp-1 mt-1 flex items-center gap-1">
+                            <span className="truncate">{vid.schoolName || vid.authorName || 'Humas Korwilcam'}</span>
+                            <CheckCircle2 className="w-3 h-3 fill-slate-400 text-white shrink-0" />
+                          </p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
+                          <span>{vid.date}</span>
+                          <span className="text-red-600 font-semibold truncate max-w-[100px]">{vid.category}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </main>
 
           {/* Kolom Kanan: Sidebar Rekomendasi Video Khas YouTube */}
