@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Images,
@@ -8,7 +8,11 @@ import {
   Film,
   Sparkles,
   Search,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { GalleryItem, GalleryVideoItem } from '../types';
 import { sortGalleryDescending } from '../lib/galleryHelper';
@@ -34,6 +38,16 @@ export const GalleryPage: React.FC = () => {
 
   const [selectedPhotoCategory, setSelectedPhotoCategory] = useState<string>('ALL');
   const [videoSearchQuery, setVideoSearchQuery] = useState<string>('');
+  
+  // State Pagination Video (15 video per halaman)
+  const [videoCurrentPage, setVideoCurrentPage] = useState<number>(1);
+  const VIDEOS_PER_PAGE = 15;
+  const videoSectionRef = useRef<HTMLDivElement>(null);
+
+  // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
+  useEffect(() => {
+    setVideoCurrentPage(1);
+  }, [videoSearchQuery]);
 
   // Sinkronisasi query param ?tab=video atau ?tab=photo
   const handleSwitchTab = (tab: 'photo' | 'video') => {
@@ -72,6 +86,43 @@ export const GalleryPage: React.FC = () => {
       return matchTitle || matchSchool || matchDesc || matchCategory;
     });
   }, [videos, videoSearchQuery]);
+
+  // Total Halaman Video
+  const totalVideoPages = Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE) || 1;
+
+  // Daftar Video yang Ditampilkan pada Halaman Aktif (Maks 15 video)
+  const paginatedVideos = useMemo(() => {
+    const startIndex = (videoCurrentPage - 1) * VIDEOS_PER_PAGE;
+    return filteredVideos.slice(startIndex, startIndex + VIDEOS_PER_PAGE);
+  }, [filteredVideos, videoCurrentPage, VIDEOS_PER_PAGE]);
+
+  // Navigasi Pindah Halaman Video
+  const handleVideoPageChange = (page: number) => {
+    if (page < 1 || page > totalVideoPages || page === videoCurrentPage) return;
+    setVideoCurrentPage(page);
+    if (videoSectionRef.current) {
+      videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 380, behavior: 'smooth' });
+    }
+  };
+
+  // Generator Angka Halaman Video
+  const getVideoPageNumbers = (): (number | string)[] => {
+    const pages: (number | string)[] = [];
+    if (totalVideoPages <= 7) {
+      for (let i = 1; i <= totalVideoPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (videoCurrentPage > 3) pages.push('...');
+      const start = Math.max(2, videoCurrentPage - 1);
+      const end = Math.min(totalVideoPages - 1, videoCurrentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (videoCurrentPage < totalVideoPages - 2) pages.push('...');
+      pages.push(totalVideoPages);
+    }
+    return pages;
+  };
 
   const handleOpenAlbum = (item: GalleryItem, e: React.MouseEvent) => {
     e.preventDefault();
@@ -231,16 +282,100 @@ export const GalleryPage: React.FC = () => {
             </div>
           )
         ) : (
-          /* 2. Grid Video Kegiatan (Sama Persis Struktur Kartu & 5 Kolom) */
+          /* 2. Grid Video Kegiatan (Sama Persis Struktur Kartu & 5 Kolom + Pagination Maks 15 Video) */
           filteredVideos.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
-              {filteredVideos.map((item) => (
-                <VideoGalleryCard
-                  key={item.id}
-                  item={item}
-                  onClick={handleOpenVideo}
-                />
-              ))}
+            <div ref={videoSectionRef} className="space-y-8 scroll-mt-24">
+              {/* Grid Maksimal 15 Video per Halaman */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+                {paginatedVideos.map((item) => (
+                  <VideoGalleryCard
+                    key={item.id}
+                    item={item}
+                    onClick={handleOpenVideo}
+                  />
+                ))}
+              </div>
+
+              {/* Komponen Pagination Video (Muncul jika total video lebih dari 15) */}
+              {totalVideoPages > 1 && (
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Info Jumlah Video & Halaman Aktif */}
+                  <div className="text-xs sm:text-sm text-slate-500 order-2 sm:order-1 font-medium">
+                    Menampilkan <span className="font-bold text-slate-800">{(videoCurrentPage - 1) * VIDEOS_PER_PAGE + 1} - {Math.min(videoCurrentPage * VIDEOS_PER_PAGE, filteredVideos.length)}</span> dari <span className="font-bold text-slate-800">{filteredVideos.length}</span> video kegiatan (halaman <span className="font-bold text-red-600">{videoCurrentPage}</span>/{totalVideoPages})
+                  </div>
+
+                  {/* Tombol Kontrol Pagination */}
+                  <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                    {/* Halaman Pertama */}
+                    <button
+                      type="button"
+                      onClick={() => handleVideoPageChange(1)}
+                      disabled={videoCurrentPage === 1}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                      title="Halaman Pertama"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Halaman Sebelumnya */}
+                    <button
+                      type="button"
+                      onClick={() => handleVideoPageChange(videoCurrentPage - 1)}
+                      disabled={videoCurrentPage === 1}
+                      className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="Halaman Sebelumnya"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">Sebelumnya</span>
+                    </button>
+
+                    {/* Tombol Nomor Halaman */}
+                    {getVideoPageNumbers().map((p, idx) => (
+                      typeof p === 'number' ? (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleVideoPageChange(p)}
+                          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            videoCurrentPage === p
+                              ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-extrabold scale-105'
+                              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ) : (
+                        <span key={idx} className="w-6 text-center text-slate-400 font-bold text-xs select-none">
+                          {p}
+                        </span>
+                      )
+                    ))}
+
+                    {/* Halaman Selanjutnya */}
+                    <button
+                      type="button"
+                      onClick={() => handleVideoPageChange(videoCurrentPage + 1)}
+                      disabled={videoCurrentPage === totalVideoPages}
+                      className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="Halaman Selanjutnya"
+                    >
+                      <span className="hidden sm:inline">Selanjutnya</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Halaman Terakhir */}
+                    <button
+                      type="button"
+                      onClick={() => handleVideoPageChange(totalVideoPages)}
+                      disabled={videoCurrentPage === totalVideoPages}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                      title="Halaman Terakhir"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-white rounded-3xl p-10 sm:p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto space-y-3">
