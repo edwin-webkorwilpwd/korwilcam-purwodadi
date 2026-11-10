@@ -5,7 +5,6 @@ import {
   Video,
   Camera,
   RefreshCw,
-  ExternalLink,
   Film,
   Sparkles,
   Search,
@@ -16,7 +15,6 @@ import { sortGalleryDescending } from '../lib/galleryHelper';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { GalleryCard } from '../components/GalleryCard';
 import { VideoGalleryCard } from '../components/VideoGalleryCard';
-import { VIDEO_SPREADSHEET_URL } from '../services/videoSheetService';
 
 export const GalleryPage: React.FC = () => {
   const { 
@@ -27,12 +25,9 @@ export const GalleryPage: React.FC = () => {
     setSelectedVideo,
     refreshVideosFromSheet,
     isVideosLoading,
-    currentUser,
     galleryActiveTab,
     setGalleryActiveTab
   } = useApp();
-
-  const isSuperAdmin = currentUser?.role?.trim().toLowerCase() === 'super admin';
 
   // State tab utama galeri: bersumber dari AppContext (sinkron saat kembali dari detail video)
   const activeGalleryType = galleryActiveTab;
@@ -202,20 +197,6 @@ export const GalleryPage: React.FC = () => {
                   <RefreshCw className={`w-3.5 h-3.5 ${isVideosLoading ? 'animate-spin' : ''}`} />
                   <span>Segarkan Data</span>
                 </button>
-
-                {/* Tombol Akses Spreadsheet untuk Super Admin */}
-                {isSuperAdmin && (
-                  <a
-                    href={VIDEO_SPREADSHEET_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md border border-white/30 transition-all shrink-0"
-                    title="Buka Database Spreadsheet Video di tab baru"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Spreadsheet</span>
-                  </a>
-                )}
               </div>
             )}
           </div>
