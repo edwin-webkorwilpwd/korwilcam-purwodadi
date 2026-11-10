@@ -41,7 +41,7 @@ export default async function handler(req: any, res: any) {
       // 1. Coba ambil dari tabel gallery berdasarkan ID
       const { data: galItem } = await supabase
         .from('gallery')
-        .select('id, title, image, images, description')
+        .select('*')
         .or(`id.eq.${cleanId},id.eq.gal-${cleanId}`)
         .limit(1)
         .maybeSingle();
@@ -76,7 +76,7 @@ export default async function handler(req: any, res: any) {
       if (!rawImage) {
         const { data: allGalleries } = await supabase
           .from('gallery')
-          .select('id, title, image, images, description')
+          .select('*')
           .limit(100);
 
         if (allGalleries && allGalleries.length > 0) {
@@ -122,11 +122,24 @@ export default async function handler(req: any, res: any) {
       return res.end('Image not found');
     }
 
-    // 1. Google Drive: redirect langsung ke Google CDN terkompresi s640 (sangat cepat & < 160KB)
-    const driveMatch = rawImage.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || rawImage.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+    // 1. Google Drive: fetch dan sajikan langsung buffer gambar terkompresi s640 (200 OK)
+    const driveMatch = rawImage.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || rawImage.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{15,})/) || rawImage.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
     if (driveMatch && driveMatch[1]) {
       const cleanDriveId = driveMatch[1].replace(/=.*$/, '');
-      res.writeHead(302, { Location: `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640` });
+      const cdnUrl = `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
+      try {
+        const driveRes = await fetch(cdnUrl, { signal: AbortSignal.timeout(3500) });
+        if (driveRes.ok) {
+          const arrBuf = await driveRes.arrayBuffer();
+          const buf = Buffer.from(arrBuf);
+          res.setHeader('Content-Type', 'image/jpeg');
+          res.setHeader('Content-Length', buf.length);
+          res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
+          res.statusCode = 200;
+          return res.end(buf);
+        }
+      } catch (err) {}
+      res.writeHead(302, { Location: cdnUrl });
       return res.end();
     }
 

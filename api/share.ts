@@ -327,10 +327,12 @@ export default async function handler(req: any, res: any) {
 
       // 1. Fetch from Supabase 'gallery' table
       try {
-        // Coba query langsung berdasarkan ID
+        let dbGalleries: any[] | null = null;
+
+        // Coba query langsung berdasarkan ID (gunakan select('*') agar tidak gagal jika ada kolom opsional)
         const { data: directItem } = await supabase
           .from('gallery')
-          .select('id, title, category, image, images, description, date, author_name, author_role')
+          .select('*')
           .or(`id.eq.${cleanSlug},id.eq.gal-${cleanSlug}`)
           .limit(1)
           .maybeSingle();
@@ -338,30 +340,46 @@ export default async function handler(req: any, res: any) {
         if (directItem) {
           galleryItem = directItem;
         } else {
-          // Query daftar album terbaru untuk dicocokkan dengan slug
-          const { data: dbGalleries } = await supabase
+          // Query daftar album dari Supabase dengan select('*')
+          const { data: allGal } = await supabase
             .from('gallery')
-            .select('id, title, category, image, images, description, date, author_name, author_role')
-            .order('created_at', { ascending: false })
+            .select('*')
             .limit(200);
 
-          if (dbGalleries && dbGalleries.length > 0) {
+          if (allGal && allGal.length > 0) {
+            dbGalleries = allGal;
+          }
+        }
+
+        if (!galleryItem && dbGalleries && dbGalleries.length > 0) {
+          const normalizeSlug = (str: string) =>
+            (str || '')
+              .toLowerCase()
+              .trim()
+              .replace(/[^\w\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/--+/g, '-')
+              .replace(/^-+|-+$/g, '');
+
+          galleryItem = dbGalleries.find((g: any) => {
+            if (!g) return false;
+            if (g.id === cleanSlug || g.id === `gal-${cleanSlug}`) return true;
+            if (g.slug && normalizeSlug(g.slug) === cleanSlug) return true;
+            if (g.title) {
+              const s = normalizeSlug(g.title);
+              if (s === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug)) return true;
+            }
+            return false;
+          });
+
+          // Fallback pencocokan kata (token-based match)
+          if (!galleryItem) {
+            const slugWords = cleanSlug.split('-').filter(w => w.length > 2);
             galleryItem = dbGalleries.find((g: any) => {
-              if (!g.title) return false;
-              const s = g.title
-                .toLowerCase()
-                .trim()
-                .replace(/[^\w\s-]/g, '')
-                .replace(/\s+/g, '-')
-                .replace(/--+/g, '-')
-                .replace(/^-+|-+$/g, '');
-              return (
-                s === cleanSlug ||
-                g.id === cleanSlug ||
-                cleanSlug.includes(s) ||
-                s.includes(cleanSlug) ||
-                (query.id && g.id === query.id)
-              );
+              if (!g || !g.title) return false;
+              const s = normalizeSlug(g.title);
+              const matchCount = slugWords.filter(w => s.includes(w)).length;
+              return matchCount >= Math.min(3, slugWords.length);
             });
           }
         }
@@ -438,41 +456,56 @@ export default async function handler(req: any, res: any) {
       // 4. Determine Cover Image & Apply Compression
       let rawCover = '';
       if (galleryItem) {
-        if (galleryItem.image && galleryItem.image !== '#' && !galleryItem.image.includes('/drive/folders') && !galleryItem.image.includes('unsplash.com')) {
-          rawCover = String(galleryItem.image).trim();
-        } else if (Array.isArray(galleryItem.images) && galleryItem.images[0]) {
-          rawCover = String(galleryItem.images[0]).trim();
-        } else if (galleryItem.description) {
+        let parsedImages: string[] = [];
+        if (Array.isArray(galleryItem.images)) {
+          parsedImages = galleryItem.images;
+        } else if (typeof galleryItem.images === 'string' && galleryItem.images.trim().startsWith('[')) {
+          try {
+            const arr = JSON.parse(galleryItem.images);
+            if (Array.isArray(arr)) parsedImages = arr;
+          } catch {}
+        }
+
+        if (galleryItem.description) {
           const driveMetaMatch = galleryItem.description.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
           if (driveMetaMatch && driveMetaMatch[1]) {
             try {
               const parsed = JSON.parse(driveMetaMatch[1]);
-              if (parsed && Array.isArray(parsed.images) && parsed.images[0]) {
-                rawCover = String(parsed.images[0]).trim();
-              }
-            } catch {}
-          }
-          if (!rawCover) {
-            try {
-              const parsed = JSON.parse(galleryItem.description);
-              if (parsed && Array.isArray(parsed.images) && parsed.images[0]) {
-                rawCover = String(parsed.images[0]).trim();
+              if (parsed && Array.isArray(parsed.images) && parsed.images.length > 0) {
+                if (parsedImages.length === 0) parsedImages = parsed.images;
               }
             } catch {}
           }
         }
+
+        const filterValid = (img: any) =>
+          typeof img === 'string' &&
+          img.trim().length > 0 &&
+          img !== '#' &&
+          !img.includes('unsplash.com') &&
+          !img.includes('/drive/folders');
+
+        if (filterValid(galleryItem.image)) {
+          rawCover = String(galleryItem.image).trim();
+        } else if (parsedImages.some(filterValid)) {
+          rawCover = String(parsedImages.find(filterValid)).trim();
+        }
       }
 
       let ogImageUrl = `${origin}/logo.png`;
-      let ogWidth = 800;
-      let ogHeight = 500;
+      let ogWidth = 640;
+      let ogHeight = 420;
 
       if (rawCover) {
         // A. Google Drive Image: Kompresi instan via Google CDN =s640 (ukuran ~80-140KB, di bawah batas 300KB WhatsApp)
-        const driveMatch = rawCover.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || rawCover.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
-        if (driveMatch && driveMatch[1]) {
-          const cleanDriveId = driveMatch[1].replace(/=.*$/, '');
-          ogImageUrl = `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
+        const matchLh3 = rawCover.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{15,})/);
+        const matchFileD = rawCover.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/);
+        const matchIdParam = rawCover.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+        const cleanDriveId = (matchLh3 && matchLh3[1]) || (matchFileD && matchFileD[1]) || (matchIdParam && matchIdParam[1]);
+
+        if (cleanDriveId) {
+          const safeId = cleanDriveId.replace(/=.*$/, '');
+          ogImageUrl = `https://lh3.googleusercontent.com/d/${safeId}=s640`;
           ogWidth = 640;
           ogHeight = 420;
         } else if (rawCover.startsWith('data:') || rawCover.startsWith('http')) {
