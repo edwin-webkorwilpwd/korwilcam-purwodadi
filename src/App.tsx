@@ -22,6 +22,7 @@ const NominativePage = React.lazy(() => import('./pages/NominativePage').then(m 
 const NewsPage = React.lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const NewsDetailPage = React.lazy(() => import('./pages/NewsDetailPage').then(m => ({ default: m.NewsDetailPage })));
 const AchievementsPage = React.lazy(() => import('./pages/AchievementsPage').then(m => ({ default: m.AchievementsPage })));
+const AchievementUploadPage = React.lazy(() => import('./pages/AchievementUploadPage').then(m => ({ default: m.AchievementUploadPage })));
 const AnnouncementDetailPage = React.lazy(() => import('./pages/AnnouncementDetailPage').then(m => ({ default: m.AnnouncementDetailPage })));
 const OrganizationPage = React.lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
 const PurnaTugasPage = React.lazy(() => import('./pages/PurnaTugasPage').then(m => ({ default: m.PurnaTugasPage })));
@@ -286,6 +287,7 @@ const MainContent: React.FC = () => {
                   {(activeTab === 'nominatif' || activeTab === 'nominative') && <NominativePage />}
                   {activeTab === 'news' && <NewsPage />}
                   {(activeTab === 'achievements' || activeTab === 'prestasi') && <AchievementsPage />}
+                  {activeTab === 'achievement-upload' && <AchievementUploadPage />}
                   {activeTab === 'organization' && <OrganizationPage />}
                   {activeTab === 'purna-tugas' && <PurnaTugasPage />}
                   {activeTab === 'service-requirements' && <ServiceRequirementsPage />}

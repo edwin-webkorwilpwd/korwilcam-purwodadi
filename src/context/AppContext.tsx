@@ -3033,6 +3033,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'news': { path: '/berita', title: 'Warta & Informasi Terkini - Korwilcam Purwodadi' },
     'achievements': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'prestasi': { path: '/berita/prestasi', title: 'Prestasi Siswa & Guru - Korwilcam Purwodadi' },
+    'achievement-upload': { path: '/prestasi/upload', title: 'Upload Data Prestasi Siswa & Guru - Korwilcam Purwodadi' },
     'organization': { path: '/profil#organisasi', title: 'Organisasi Pendidikan - Korwilcam Purwodadi' },
     'purna-tugas': { path: '/profil#purna-tugas', title: 'Purna Tugas - Korwilcam Purwodadi' },
     'service-requirements': { path: '/layanan/persyaratan-pelayanan', title: 'Persyaratan Pelayanan - Korwilcam Purwodadi' },
@@ -4115,6 +4116,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else {
           document.title = TAB_ROUTES['karyaku']?.title || 'Karyaku - Korwilcam Purwodadi';
         }
+      } else if (
+        rawPath === '/prestasi/upload' || 
+        rawPath === '/berita/prestasi/upload' || 
+        rawPath === '/prestasi/tambah' || 
+        rawPath === '/prestasi/form'
+      ) {
+        setActiveTabState('achievement-upload');
+        setSelectedOrganizationSlugState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedGalleryState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        setSelectedPurnaTugasNipState(null);
+        setSelectedAchievementSlugState(null);
+        document.title = TAB_ROUTES['achievement-upload']?.title || 'Upload Data Prestasi Siswa & Guru - Korwilcam Purwodadi';
       } else if (rawPath === '/berita/prestasi' || rawPath.startsWith('/berita/prestasi') || rawPath === '/prestasi' || rawPath.startsWith('/prestasi')) {
         setActiveTabState('achievements');
         setSelectedOrganizationSlugState(null);

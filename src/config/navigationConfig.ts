@@ -489,6 +489,7 @@ export function checkRouteActive(
   if (
     activeTab === 'achievements' ||
     activeTab === 'prestasi' ||
+    activeTab === 'achievement-upload' ||
     cleanPath === '/berita/prestasi' ||
     cleanPath.startsWith('/berita/prestasi') ||
     cleanPath === '/prestasi' ||

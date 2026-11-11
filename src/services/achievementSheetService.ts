@@ -10,6 +10,183 @@ export const PRESTASI_CACHE_KEY = 'korwilcam_achievements_sheet_cache_v2';
 export const PRESTASI_CACHE_TIMESTAMP_KEY = 'korwilcam_achievements_sheet_last_fetch';
 export const PRESTASI_CACHE_TTL_MS = 3 * 60 * 1000; // 3 Menit Smart Cache TTL Anti-Lag
 
+export const PRESTASI_WEBAPP_STORAGE_KEY = 'korwilcam_prestasi_gas_url';
+export const DEFAULT_PRESTASI_WEBAPP_URL = 
+  (import.meta.env.VITE_PRESTASI_WEBAPP_URL as string) || 
+  'https://script.google.com/macros/s/AKfycbzcDK-zSTbtYYw-at5zZGaLzv2IpLGTBjkNtRPQ11QOg5ClaTNmm5ip3GcFQvOxq0wSwg/exec';
+
+export interface AchievementSubmitPayload {
+  title: string;          // Kolom B: Nama Lomba
+  level: string;          // Kolom C: Jenjang Lomba
+  rank: string;           // Kolom D: Peringkat / Juara
+  year: number | string;  // Kolom E: Tahun Perlombaan
+  recipientName: string;  // Kolom F: Nama Lengkap Siswa
+  schoolName: string;     // Kolom G: Asal Sekolah
+  mentorName?: string;    // Kolom H: Nama Guru Pembimbing
+  eventDate?: string;     // Kolom I: Tanggal Pelaksanaan
+  photoUrl?: string;      // Kolom J: Link Foto Google Drive
+  description?: string;   // Kolom K: Ucapan Pesan & Kesan Siswa
+}
+
+let inMemoryPrestasiWebAppUrl = '';
+
+export function getPrestasiWebAppUrl(): string {
+  if (inMemoryPrestasiWebAppUrl && inMemoryPrestasiWebAppUrl.trim()) {
+    return inMemoryPrestasiWebAppUrl.trim();
+  }
+  try {
+    const saved = localStorage.getItem(PRESTASI_WEBAPP_STORAGE_KEY);
+    if (saved && saved.trim()) {
+      inMemoryPrestasiWebAppUrl = saved.trim();
+      return inMemoryPrestasiWebAppUrl;
+    }
+  } catch {}
+  return DEFAULT_PRESTASI_WEBAPP_URL;
+}
+
+export function setPrestasiWebAppUrl(url: string): void {
+  const clean = (url || '').trim();
+  inMemoryPrestasiWebAppUrl = clean;
+  try {
+    localStorage.setItem(PRESTASI_WEBAPP_STORAGE_KEY, clean);
+  } catch {}
+}
+
+export const PRESTASI_GOOGLE_APPS_SCRIPT_CODE = `/**
+ * =========================================================================
+ * WEBHOOK GOOGLE APPS SCRIPT (GAS) - UPLOAD DATA PRESTASI KORWILCAM PURWODADI
+ * =========================================================================
+ * 
+ * Spreadsheet Target:
+ * https://docs.google.com/spreadsheets/d/1-p4oGqZW4G1QEU0F3DDVcn7mO9mx03iltdNp_KumA9Q/edit?gid=723592882#gid=723592882
+ * Target GID: 723592882
+ * 
+ * PEMETAAN KOLOM:
+ * Kolom A (1) : Timestamp (Waktu Unggah Otomatis)
+ * Kolom B (2) : Nama Lomba
+ * Kolom C (3) : Jenjang Lomba
+ * Kolom D (4) : Peringkat / Juara
+ * Kolom E (5) : Tahun Perlombaan
+ * Kolom F (6) : Nama Lengkap Siswa
+ * Kolom G (7) : Asal Sekolah
+ * Kolom H (8) : Nama Guru Pembimbing
+ * Kolom I (9) : Tanggal Pelaksanaan
+ * Kolom J (10): Link Foto Google Drive
+ * Kolom K (11): Ucapan Pesan & Kesan Siswa
+ */
+
+function doPost(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const TARGET_GID = 723592882;
+    
+    // Cari sheet berdasarkan GID 723592882 agar tepat sasaran
+    let sheet = ss.getSheets().find(s => s.getSheetId() === TARGET_GID);
+    if (!sheet) {
+      sheet = ss.getActiveSheet();
+    }
+    
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput(
+        JSON.stringify({ status: 'error', message: 'Payload tidak ditemukan' })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    const data = JSON.parse(e.postData.contents);
+    
+    // Format Waktu WIB (Asia/Jakarta)
+    const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "dd/MM/yyyy HH:mm:ss");
+    
+    // Susun baris baru sesuai urutan kolom A sampai K
+    const newRow = [
+      timestamp,                                               // Kolom A: Timestamp
+      data.title || '',                                        // Kolom B: Nama Lomba
+      data.level || '',                                        // Kolom C: Jenjang Lomba
+      data.rank || '',                                         // Kolom D: Peringkat / Juara
+      data.year || new Date().getFullYear(),                   // Kolom E: Tahun Perlombaan
+      data.recipientName || '',                                // Kolom F: Nama Lengkap Siswa
+      data.schoolName || '',                                   // Kolom G: Asal Sekolah
+      data.mentorName || '',                                   // Kolom H: Nama Guru Pembimbing
+      data.eventDate || '',                                    // Kolom I: Tanggal Pelaksanaan
+      data.photoUrl || '',                                     // Kolom J: Link Foto Google Drive
+      data.description || ''                                   // Kolom K: Ucapan Pesan & Kesan Siswa
+    ];
+    
+    sheet.appendRow(newRow);
+    
+    const lastRowIndex = sheet.getLastRow();
+    
+    // Rapikan formatting font dan alignment baris baru
+    const rowRange = sheet.getRange(lastRowIndex, 1, 1, newRow.length);
+    rowRange.setFontFamily('Arial');
+    rowRange.setFontSize(10);
+    rowRange.setVerticalAlignment('middle');
+    
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: 'success',
+        message: 'Data prestasi berhasil disimpan ke Google Spreadsheet!',
+        row: lastRowIndex
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: 'error',
+        message: error.toString()
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(
+    'Webhook Google Apps Script Prestasi Korwilcam Purwodadi Aktif & Siap Menerima Data.'
+  );
+}`;
+
+/**
+ * Kirim data prestasi langsung ke Google Spreadsheet via GAS Web App
+ */
+export async function submitAchievementToSheet(payload: AchievementSubmitPayload): Promise<{ success: boolean; message: string }> {
+  const webAppUrl = getPrestasiWebAppUrl();
+
+  if (!webAppUrl) {
+    return {
+      success: false,
+      message: 'URL Google Apps Script Web App belum dikonfigurasi. Harap masukkan URL Web App terlebih dahulu.'
+    };
+  }
+
+  try {
+    await fetch(webAppUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload),
+      mode: 'no-cors'
+    });
+
+    // Reset timestamp cache agar saat user kembali ke daftar prestasi, data baru langsung ditarik
+    try {
+      localStorage.removeItem(PRESTASI_CACHE_TIMESTAMP_KEY);
+    } catch {}
+
+    return {
+      success: true,
+      message: 'Data prestasi berhasil terkirim dan disimpan ke Google Spreadsheet!'
+    };
+  } catch (err: any) {
+    console.error('Gagal mengirim data prestasi ke Spreadsheet:', err);
+    return {
+      success: false,
+      message: `Terjadi kendala saat mengirim data: ${err?.message || err}`
+    };
+  }
+}
+
 /**
  * Deteksi otomatis Bidang Kompetisi berdasarkan nama perlombaan
  */

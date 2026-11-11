@@ -26,7 +26,9 @@ import {
   Check,
   MapPin,
   Play,
-  Star
+  Star,
+  Plus,
+  Upload
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { formatGoogleDriveImageUrl, isGoogleDriveUrl, getGoogleDriveViewUrl } from '../lib/driveHelper';
@@ -53,6 +55,7 @@ export const AchievementsPage: React.FC = () => {
     selectedAchievementSlug, 
     setSelectedAchievementSlug, 
     refreshAchievements,
+    setActiveTab,
     showToast 
   } = useApp();
 
@@ -377,6 +380,29 @@ export const AchievementsPage: React.FC = () => {
           </p>
           <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto mt-2 shadow-xs" />
 
+          {/* Action Header: Tombol Upload Prestasi Baru & Refresh Data */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('achievement-upload', '/prestasi/upload')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-900 text-xs sm:text-sm font-bold shadow-lg shadow-amber-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-slate-900 stroke-[2.5]" />
+              <span>Upload Prestasi Baru</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white text-xs sm:text-sm font-semibold backdrop-blur-md transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              title="Sinkronkan data terbaru langsung dari Google Spreadsheet"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isRefreshing ? 'Menyinkronkan...' : 'Refresh Data'}</span>
+            </button>
+          </div>
+
           {/* Stats Bar Counters (Hanya tampil jika ada data prestasi di database) */}
           {stats.total > 0 && (
             <div className="pt-4 max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 text-left">
@@ -545,17 +571,6 @@ export const AchievementsPage: React.FC = () => {
                       ))}
                     </select>
                   )}
-
-                  {/* Tombol Segarkan Data dari Database Korwil */}
-                  <button
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition shadow-2xs disabled:opacity-50 cursor-pointer"
-                    title="Muat ulang data terbaru langsung dari Database Korwil"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{isRefreshing ? 'Memuat...' : 'Segarkan'}</span>
-                  </button>
 
                   {/* Reset filter button if any active */}
                   {(searchQuery || selectedCategory !== 'ALL' || selectedLevel !== 'ALL' || selectedYear !== 'ALL' || selectedField !== 'ALL') && (
