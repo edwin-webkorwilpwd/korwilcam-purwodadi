@@ -16,6 +16,10 @@ import {
   setNewsWebAppUrl,
   formatNewsDate
 } from '../../services/newsSheetService';
+import {
+  SERVICE_REQUIREMENTS_SPREADSHEET_URL,
+  fetchServiceRequirementsFromSheet
+} from '../../services/serviceRequirementsSheetService';
 import { 
   LayoutDashboard, 
   Home,
@@ -350,6 +354,7 @@ export const AdminDashboard: React.FC = () => {
     updateServiceRequirement,
     deleteServiceRequirement,
     resetServiceRequirements,
+    refreshServiceRequirementsFromSheet,
     addServiceRequirementCategory,
     deleteServiceRequirementCategory,
     dataRequests,
@@ -2033,6 +2038,16 @@ export const AdminDashboard: React.FC = () => {
     const start = (serviceReqCurrentPage - 1) * serviceReqItemsPerPage;
     return filteredServiceRequirements.slice(start, start + serviceReqItemsPerPage);
   }, [filteredServiceRequirements, serviceReqCurrentPage, serviceReqItemsPerPage]);
+
+  const [isServiceReqSyncing, setIsServiceReqSyncing] = useState(false);
+  const handleSyncServiceReqsFromSheet = async () => {
+    setIsServiceReqSyncing(true);
+    try {
+      await refreshServiceRequirementsFromSheet(true);
+    } finally {
+      setIsServiceReqSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (serviceReqCurrentPage > totalServiceReqPages) {
@@ -10415,10 +10430,33 @@ export const AdminDashboard: React.FC = () => {
                     Kelola Persyaratan Pelayanan
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Atur daftar jenis pelayanan dan berkas persyaratan yang harus dipenuhi oleh pemohon (Guru, Sekolah, Siswa, dan Masyarakat Umum).
+                    Atur daftar jenis pelayanan dan berkas persyaratan yang harus dipenuhi oleh pemohon. Database persyaratan pelayanan tersambung ke Google Spreadsheet.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {/* Hanya Super Admin yang memiliki hak akses melihat lembar kerja spreadsheet */}
+                  {isSuperAdmin && (
+                    <a
+                      href={SERVICE_REQUIREMENTS_SPREADSHEET_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all shadow-xs"
+                      title="Buka lembar kerja Google Spreadsheet Persyaratan Pelayanan"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Buka Spreadsheet Layanan</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSyncServiceReqsFromSheet}
+                    disabled={isServiceReqSyncing}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-blue-200 transition-all shadow-xs disabled:opacity-50"
+                    title="Tarik data persyaratan pelayanan terbaru dari Google Spreadsheet"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isServiceReqSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isServiceReqSyncing ? 'Menyinkronkan...' : 'Sinkronkan'}</span>
+                  </button>
                   {serviceRequirements.length > 0 && (
                     <button
                       type="button"

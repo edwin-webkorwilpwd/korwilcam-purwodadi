@@ -64,6 +64,12 @@ import {
   deleteNewsFromSheet,
   incrementNewsViewsInSheet
 } from '../services/newsSheetService';
+import {
+  fetchServiceRequirementsFromSheet,
+  saveServiceRequirementToSheet,
+  deleteServiceRequirementFromSheet,
+  clearAllServiceRequirementsInSheet
+} from '../services/serviceRequirementsSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -269,6 +275,7 @@ interface AppContextType {
   updateServiceRequirement: (id: string, item: Partial<ServiceRequirement>) => Promise<boolean>;
   deleteServiceRequirement: (id: string) => Promise<boolean>;
   resetServiceRequirements: () => Promise<boolean>;
+  refreshServiceRequirementsFromSheet: (force?: boolean) => Promise<void>;
   addServiceRequirementCategory: (categoryName: string) => Promise<boolean>;
   deleteServiceRequirementCategory: (categoryName: string) => Promise<boolean>;
   
@@ -1404,105 +1411,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.1 Fetch service_requirements and categories IMMEDIATELY IN PARALLEL
+      // 0.1 Fetch service_requirements and categories from Google Spreadsheet
       const serviceReqsFetchPromise = (async () => {
         try {
-          // Fetch categories from service_categories table if exists
-          try {
-            const { data: dbCats } = await client
-              .from('service_categories')
-              .select('name')
-              .order('created_at', { ascending: true });
-            if (Array.isArray(dbCats) && dbCats.length > 0) {
-              const catNames = dbCats.map((c: any) => String(c.name || '').trim()).filter(Boolean);
-              if (catNames.length > 0) {
-                setServiceRequirementCategories((prev) => {
-                  const merged = Array.from(new Set([...prev, ...catNames]));
-                  try {
-                    localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
-                  } catch {}
-                  return merged;
-                });
-              }
+          const sheetRes = await fetchServiceRequirementsFromSheet();
+          if (sheetRes && Array.isArray(sheetRes.items)) {
+            setServiceRequirements(sheetRes.items);
+            if (sheetRes.categories && sheetRes.categories.length > 0) {
+              setServiceRequirementCategories((prev) => {
+                const merged = Array.from(new Set([...prev, ...sheetRes.categories]));
+                try {
+                  localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
             }
-          } catch {}
-
-          const { data: dbReqs, error: reqErr } = await client
-            .from('service_requirements')
-            .select('*')
-            .order('sort_order', { ascending: true });
-
-          if (!reqErr && Array.isArray(dbReqs)) {
-            // 1. Ekstrak master kategori tersimpan di Supabase
-            const sysCat = dbReqs.find((r: any) => r.id === 'system-service-categories');
-            if (sysCat) {
-              try {
-                let parsed: string[] = [];
-                if (Array.isArray(sysCat.requirements) && sysCat.requirements.length > 0) {
-                  parsed = sysCat.requirements;
-                } else if (sysCat.notes) {
-                  parsed = JSON.parse(sysCat.notes);
-                }
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  setServiceRequirementCategories((prev) => {
-                    const merged = Array.from(new Set([...prev, ...parsed]));
-                    try {
-                      localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
-                    } catch {}
-                    return merged;
-                  });
-                }
-              } catch {}
-            }
-
-            // 2. Filter hanya layanan publik riil (abaikan system-service-categories)
-            const actualReqs = dbReqs.filter((r: any) => r.id !== 'system-service-categories');
-
-            // Ekstrak kategori dari masing-masing layanan aktual
-            actualReqs.forEach((r: any) => {
-              if (r.category && typeof r.category === 'string') {
-                const c = r.category.trim();
-                if (c && c !== 'System') {
-                  setServiceRequirementCategories((prev) => {
-                    if (prev.includes(c)) return prev;
-                    const merged = [...prev, c];
-                    try {
-                      localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
-                    } catch {}
-                    return merged;
-                  });
-                }
-              }
-            });
-
-            const mappedReqs: ServiceRequirement[] = actualReqs.map((r: any, index: number) => ({
-              id: String(r.id || `req-${Date.now()}-${index}`),
-              title: String(r.title || '').trim(),
-              category: String(r.category || 'Kepegawaian & GTK').trim(),
-              description: String(r.description || '').trim(),
-              requirements: Array.isArray(r.requirements) 
-                ? r.requirements 
-                : (typeof r.requirements === 'string' ? JSON.parse(r.requirements) : []),
-              notes: r.notes || '',
-              estimatedTime: r.estimated_time || r.estimatedTime || '1 - 3 Hari Kerja',
-              fee: r.fee || 'Gratis / Rp 0',
-              order: typeof r.sort_order === 'number' ? r.sort_order : (r.order || index + 1),
-              createdAt: r.created_at || r.createdAt,
-              updatedAt: r.updated_at || r.updatedAt
-            }));
-            setServiceRequirements(mappedReqs);
-            try {
-              localStorage.setItem('korwilcam_service_requirements', JSON.stringify(mappedReqs));
-            } catch {}
-          } else {
-            // Jika di database belum ada data atau tabel belum dibuat, kosongkan
-            setServiceRequirements([]);
-            try {
-              localStorage.setItem('korwilcam_service_requirements', JSON.stringify([]));
-            } catch {}
           }
         } catch (errReq) {
-          console.warn('Tabel service_requirements belum terbaca, mempertahankan cache lokal:', errReq);
+          console.warn('Gagal memuat service_requirements dari Spreadsheet:', errReq);
         }
       })();
 
@@ -2363,51 +2289,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Gagal ekspor tabel daftar_guru:', tErr);
       }
 
-      // 13. Export service_requirements & master categories
-      try {
-        const reqPayload: any[] = serviceRequirements.map((r) => ({
-          id: r.id,
-          title: r.title,
-          category: r.category || 'Kepegawaian & GTK',
-          description: r.description || '',
-          requirements: r.requirements || [],
-          notes: r.notes || '',
-          estimated_time: r.estimatedTime || '1-3 Hari Kerja',
-          fee: r.fee || 'Gratis / Rp 0',
-          sort_order: r.order || 1,
-          created_at: r.createdAt || new Date().toISOString(),
-          updated_at: r.updatedAt || new Date().toISOString()
-        }));
-
-        // Sertakan record system-service-categories untuk sinkronisasi master kategori antar-admin
-        reqPayload.push({
-          id: 'system-service-categories',
-          title: 'System Service Categories',
-          category: 'System',
-          description: 'Master category list for service requirements',
-          requirements: serviceRequirementCategories,
-          notes: JSON.stringify(serviceRequirementCategories),
-          estimated_time: '1 Hari',
-          fee: 'Gratis',
-          sort_order: -999,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-        await client.from('service_requirements').upsert(reqPayload);
-
-        // Ekspor juga ke tabel service_categories jika tabel ini sudah dibuat
-        try {
-          const catPayload = serviceRequirementCategories.map((c) => ({
-            id: `cat-${c.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
-            name: c,
-            created_at: new Date().toISOString()
-          }));
-          await client.from('service_categories').upsert(catPayload, { onConflict: 'name' });
-        } catch {}
-      } catch (rErr) {
-        console.warn('Gagal ekspor tabel service_requirements:', rErr);
-      }
+      // 13. Persyaratan Pelayanan (Dikelola via Google Spreadsheet, terputus dari Supabase)
 
       // 14. Export data_requests (Layanan Permintaan Data Webview)
       try {
@@ -2583,11 +2465,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daftar_guru' },
-        triggerDebouncedRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'service_requirements' },
         triggerDebouncedRefresh
       )
       .on(
@@ -6568,26 +6445,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menambahkan jenis layanan: "${newItem.title}" (${newItem.category})`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('service_requirements').upsert({
-          id: newItem.id,
-          title: newItem.title,
-          category: newItem.category || 'Kepegawaian & GTK',
-          description: newItem.description || '',
-          requirements: newItem.requirements || [],
-          notes: newItem.notes || '',
-          estimated_time: newItem.estimatedTime || '1-3 Hari Kerja',
-          fee: newItem.fee || 'Gratis / Rp 0',
-          sort_order: newItem.order,
-          created_at: newItem.createdAt,
-          updated_at: newItem.updatedAt
-        });
-      } catch (err) {
-        console.warn('Supabase addServiceRequirement warning:', err);
-      }
-    }
+    // Simpan ke Google Spreadsheet (via GAS)
+    saveServiceRequirementToSheet(newItem, 'create').catch((err) => {
+      console.warn('Gagal sinkron tambah layanan ke Spreadsheet:', err);
+    });
+
     showToast(`Jenis layanan "${newItem.title}" berhasil ditambahkan!`, 'success');
     return true;
   };
@@ -6617,27 +6479,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'Standar Pelayanan',
         `Memperbarui jenis layanan: "${target.title}"`
       );
+
+      // Simpan pembaruan ke Google Spreadsheet (via GAS)
+      saveServiceRequirementToSheet(target, 'update').catch((err) => {
+        console.warn('Gagal sinkron update layanan ke Spreadsheet:', err);
+      });
     }
-    const client = getSupabaseClient();
-    if (client && target) {
-      try {
-        await client.from('service_requirements').upsert({
-          id: target.id,
-          title: target.title,
-          category: target.category || 'Kepegawaian & GTK',
-          description: target.description || '',
-          requirements: target.requirements || [],
-          notes: target.notes || '',
-          estimated_time: target.estimatedTime || '1-3 Hari Kerja',
-          fee: target.fee || 'Gratis / Rp 0',
-          sort_order: target.order || 1,
-          created_at: target.createdAt || new Date().toISOString(),
-          updated_at: target.updatedAt
-        });
-      } catch (err) {
-        console.warn('Supabase updateServiceRequirement warning:', err);
-      }
-    }
+
     showToast('Persyaratan pelayanan berhasil diperbarui!', 'success');
     return true;
   };
@@ -6657,14 +6505,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus jenis layanan: "${target?.title || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('service_requirements').delete().match({ id });
-      } catch (err) {
-        console.warn('Supabase deleteServiceRequirement warning:', err);
-      }
-    }
+    // Hapus dari Google Spreadsheet (via GAS)
+    deleteServiceRequirementFromSheet(id).catch((err) => {
+      console.warn('Gagal sinkron hapus layanan ke Spreadsheet:', err);
+    });
+
     showToast(`Layanan "${target?.title || ''}" berhasil dihapus!`, 'info');
     return true;
   };
@@ -6681,8 +6526,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'Mengosongkan seluruh data persyaratan pelayanan'
     );
 
+    // Kosongkan di Google Spreadsheet (via GAS)
+    clearAllServiceRequirementsInSheet().catch((err) => {
+      console.warn('Gagal sinkron reset layanan ke Spreadsheet:', err);
+    });
+
     showToast('Data persyaratan pelayanan telah dikosongkan!', 'info');
     return true;
+  };
+
+  const refreshServiceRequirementsFromSheet = async (force: boolean = true): Promise<void> => {
+    try {
+      const res = await fetchServiceRequirementsFromSheet(force);
+      if (res && Array.isArray(res.items)) {
+        setServiceRequirements(res.items);
+        if (res.categories && res.categories.length > 0) {
+          setServiceRequirementCategories((prev) => Array.from(new Set([...prev, ...res.categories])));
+        }
+        showToast('Persyaratan pelayanan berhasil disinkronkan dari Spreadsheet!', 'success');
+      }
+    } catch (err: any) {
+      showToast(`Gagal menyinkronkan persyaratan pelayanan: ${err?.message || 'Error'}`, 'error');
+    }
   };
 
   const addServiceRequirementCategory = async (categoryName: string): Promise<boolean> => {
@@ -6703,44 +6568,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_service_categories', JSON.stringify(updatedCategories));
     } catch {}
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        // 1. Simpan ke system record di tabel service_requirements (pasti ada)
-        await client.from('service_requirements').upsert({
-          id: 'system-service-categories',
-          title: 'System Service Categories',
-          category: 'System',
-          description: 'Master kategori persyaratan pelayanan',
-          requirements: updatedCategories,
-          notes: JSON.stringify(updatedCategories),
-          estimated_time: '1 Hari',
-          fee: 'Gratis',
-          sort_order: -999,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-        // 2. Simpan juga ke tabel service_categories jika tabel ini sudah dibuat di Supabase
-        try {
-          await client.from('service_categories').upsert({
-            id: `cat-${trimmed.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
-            name: trimmed,
-            created_at: new Date().toISOString()
-          }, { onConflict: 'name' });
-        } catch {}
-
-        showToast(`Kategori "${trimmed}" berhasil disimpan di Supabase Cloud untuk seluruh admin!`, 'success');
-        return true;
-      } catch (err: any) {
-        console.warn('Gagal sinkron kategori ke Supabase:', err);
-        showToast('Kategori tersimpan di penyimpanan lokal.', 'info');
-        return false;
-      }
-    } else {
-      showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
-      return true;
-    }
+    showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
+    return true;
   };
 
   const deleteServiceRequirementCategory = async (categoryName: string): Promise<boolean> => {
@@ -6758,29 +6587,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_service_categories', JSON.stringify(updatedCategories));
     } catch {}
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('service_requirements').upsert({
-          id: 'system-service-categories',
-          title: 'System Service Categories',
-          category: 'System',
-          description: 'Master kategori persyaratan pelayanan',
-          requirements: updatedCategories,
-          notes: JSON.stringify(updatedCategories),
-          estimated_time: '1 Hari',
-          fee: 'Gratis',
-          sort_order: -999,
-          updated_at: new Date().toISOString()
-        });
-
-        try {
-          await client.from('service_categories').delete().eq('name', trimmed);
-        } catch {}
-      } catch (err) {
-        console.warn('Gagal menghapus kategori dari Supabase:', err);
-      }
-    }
+    showToast(`Kategori "${trimmed}" telah dihapus.`, 'info');
     return true;
   };
 
@@ -7170,6 +6977,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateServiceRequirement,
         deleteServiceRequirement,
         resetServiceRequirements,
+        refreshServiceRequirementsFromSheet,
         addServiceRequirementCategory,
         deleteServiceRequirementCategory,
         dataRequests,
