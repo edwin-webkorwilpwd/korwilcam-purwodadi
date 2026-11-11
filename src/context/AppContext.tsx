@@ -3043,6 +3043,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'service-survey': { path: '/layanan/survey-pelayanan', title: 'Survey Kepuasan Pelayanan Terpadu - Korwilcam Purwodadi' },
     'service-permintaan-data': { path: '/layanan/permintaan-data', title: 'Layanan Permintaan Data - Korwilcam Purwodadi' },
     'gallery': { path: '/galeri', title: 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi' },
+    'video-upload': { path: '/galeri/video/upload', title: 'Upload Video Kegiatan - Korwilcam Purwodadi' },
     'contact': { path: '/kontak', title: 'Kontak & Layanan Pengaduan - Korwilcam Purwodadi' },
     'social-media': { path: '/media-sosial', title: 'Media Sosial Resmi - Korwilcam Purwodadi' },
     'admin-login': { path: '/angmin/lugin', title: 'Login Panel Admin - Korwilcam Purwodadi' },
@@ -3701,6 +3702,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
+      // 4a. Support /galeri/video/upload
+      if (rawPath === '/galeri/video/upload' || rawPath === '/video/upload' || rawPath === '/galeri/upload-video') {
+        setActiveTabState('video-upload');
+        setSelectedVideoState(null);
+        setSelectedGalleryState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        setSelectedOrganizationSlugState(null);
+        document.title = TAB_ROUTES['video-upload']?.title || 'Upload Video Kegiatan - Korwilcam Purwodadi';
+        return;
+      }
+
       // 4a. Support /galeri/video/:slug
       if (rawPath.startsWith('/galeri/video/') && rawPath !== '/galeri/video') {
         const slug = decodeURIComponent(rawPath.replace(/^\/galeri\/video\//, '').trim());
@@ -4231,6 +4247,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setActiveTabState('downloads');
           document.title = TAB_ROUTES['downloads'].title;
         }
+      } else if (rawPath === '/galeri/video/upload' || rawPath === '/video/upload' || rawPath === '/galeri/upload-video') {
+        setActiveTabState('video-upload');
+        setSelectedOrganizationSlugState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedGalleryState(null);
+        setSelectedVideoState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        document.title = TAB_ROUTES['video-upload']?.title || 'Upload Video Kegiatan - Korwilcam Purwodadi';
       } else if (rawPath.startsWith('/galeri')) {
         setActiveTabState('gallery');
         setSelectedOrganizationSlugState(null);

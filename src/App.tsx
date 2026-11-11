@@ -31,6 +31,7 @@ const DocumentDetailPage = React.lazy(() => import('./pages/DocumentDetailPage')
 const GalleryPage = React.lazy(() => import('./pages/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const GalleryDetailPage = React.lazy(() => import('./pages/GalleryDetailPage').then(m => ({ default: m.GalleryDetailPage })));
 const VideoDetailPage = React.lazy(() => import('./pages/VideoDetailPage').then(m => ({ default: m.VideoDetailPage })));
+const VideoUploadPage = React.lazy(() => import('./pages/VideoUploadPage').then(m => ({ default: m.VideoUploadPage })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 const SocialMediaPage = React.lazy(() => import('./pages/SocialMediaPage').then(m => ({ default: m.SocialMediaPage })));
 const DataRequestPage = React.lazy(() => import('./pages/DataRequestPage').then(m => ({ default: m.DataRequestPage })));
@@ -293,6 +294,7 @@ const MainContent: React.FC = () => {
                   {activeTab === 'service-requirements' && <ServiceRequirementsPage />}
                   {activeTab === 'downloads' && <DownloadsPage />}
                   {activeTab === 'gallery' && <GalleryPage />}
+                  {activeTab === 'video-upload' && <VideoUploadPage />}
                   {activeTab === 'contact' && <ContactPage />}
                   {activeTab === 'social-media' && <SocialMediaPage />}
                 </>

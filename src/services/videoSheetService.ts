@@ -17,6 +17,173 @@ export const VIDEO_CACHE_KEY = 'korwilcam_video_sheet_cache_v2';
 export const VIDEO_CACHE_TIMESTAMP_KEY = 'korwilcam_video_sheet_last_fetch';
 export const VIDEO_CACHE_TTL_MS = 3 * 60 * 1000; // 3 Menit Smart Cache TTL untuk Anti-Lag & Cegah Rate Limit Google
 
+export const VIDEO_WEBAPP_STORAGE_KEY = 'korwilcam_video_gas_url';
+export const DEFAULT_VIDEO_WEBAPP_URL = 
+  (import.meta.env.VITE_VIDEO_WEBAPP_URL as string) || 
+  'https://script.google.com/macros/s/AKfycbzP8RnPezs-Vr5X9pd0KGWdIk8qs-T6zqg7KDWWiE1CqFkJg6-NRcK4zZWooxgz4Nah/exec';
+
+export interface VideoSubmitPayload {
+  title: string;        // Kolom B: Judul Vidio
+  youtubeUrl: string;   // Kolom C: Link Vidio Youtube
+  eventDate: string;    // Kolom D: Tanggal Kegiatan
+  category: string;     // Kolom E: Kategori Kegiatan
+  description: string;  // Kolom F: Deskripsi Vidio
+  schoolName: string;   // Kolom G: Nama Sekolah / Organisasi
+}
+
+let inMemoryVideoWebAppUrl = '';
+
+export function getVideoWebAppUrl(): string {
+  if (inMemoryVideoWebAppUrl && inMemoryVideoWebAppUrl.trim()) {
+    return inMemoryVideoWebAppUrl.trim();
+  }
+  try {
+    const saved = localStorage.getItem(VIDEO_WEBAPP_STORAGE_KEY);
+    if (saved && saved.trim()) {
+      inMemoryVideoWebAppUrl = saved.trim();
+      return inMemoryVideoWebAppUrl;
+    }
+  } catch {}
+  return DEFAULT_VIDEO_WEBAPP_URL;
+}
+
+export function setVideoWebAppUrl(url: string): void {
+  const clean = (url || '').trim();
+  inMemoryVideoWebAppUrl = clean;
+  try {
+    localStorage.setItem(VIDEO_WEBAPP_STORAGE_KEY, clean);
+  } catch {}
+}
+
+export const VIDEO_GOOGLE_APPS_SCRIPT_CODE = `/**
+ * =========================================================================
+ * WEBHOOK GOOGLE APPS SCRIPT (GAS) - UPLOAD DATA VIDIO KORWILCAM PURWODADI
+ * =========================================================================
+ * Spreadsheet Target:
+ * https://docs.google.com/spreadsheets/d/1uN-DBqXn-TkqR9iiqZLGZNBMEx91K4kbD3nmz_tu-pY/edit?usp=sharing
+ * Target Sheet GID : 1627850125
+ *
+ * PEMETAAN KOLOM:
+ * Kolom A (1) : Timestamp (Otomatis)
+ * Kolom B (2) : Judul Vidio
+ * Kolom C (3) : Link Vidio Youtube
+ * Kolom D (4) : Tanggal Kegiatan
+ * Kolom E (5) : Kategori Kegiatan
+ * Kolom F (6) : Deskripsi Vidio
+ * Kolom G (7) : Nama Sekolah / Organisasi
+ */
+
+function doPost(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const TARGET_GID = 1627850125;
+    
+    // Cari tab sheet berdasarkan GID 1627850125 agar tepat sasaran
+    let sheet = ss.getSheets().find(function(s) {
+      return s.getSheetId() === TARGET_GID;
+    });
+    
+    if (!sheet) {
+      sheet = ss.getActiveSheet();
+    }
+    
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput(
+        JSON.stringify({ status: 'error', message: 'Payload data tidak ditemukan' })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    const data = JSON.parse(e.postData.contents);
+    
+    // Format Waktu WIB (Asia/Jakarta)
+    const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "dd/MM/yyyy HH:mm:ss");
+    
+    // Susun baris baru sesuai urutan kolom A sampai G
+    const newRow = [
+      timestamp,                    // Kolom A: Timestamp
+      data.title || '',             // Kolom B: Judul Vidio
+      data.youtubeUrl || '',        // Kolom C: Link Vidio Youtube
+      data.eventDate || '',         // Kolom D: Tanggal Kegiatan
+      data.category || 'Kegiatan',  // Kolom E: Kategori Kegiatan
+      data.description || '',       // Kolom F: Deskripsi Vidio
+      data.schoolName || ''         // Kolom G: Nama Sekolah / Organisasi
+    ];
+    
+    sheet.appendRow(newRow);
+    
+    const lastRowIndex = sheet.getLastRow();
+    
+    // Rapikan formatting font dan perataan baris baru
+    const rowRange = sheet.getRange(lastRowIndex, 1, 1, newRow.length);
+    rowRange.setFontFamily('Arial');
+    rowRange.setFontSize(10);
+    rowRange.setVerticalAlignment('middle');
+    
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: 'success',
+        message: 'Data video berhasil disimpan ke Database Korwilcam!',
+        row: lastRowIndex
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: 'error',
+        message: error.toString()
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(
+    'Webhook Google Apps Script Galeri Video Korwilcam Purwodadi Aktif & Siap Menerima Data.'
+  );
+}`;
+
+/**
+ * Kirim data video langsung ke Google Spreadsheet via GAS Web App
+ */
+export async function submitVideoToSheet(payload: VideoSubmitPayload): Promise<{ success: boolean; message: string }> {
+  const webAppUrl = getVideoWebAppUrl();
+
+  if (!webAppUrl) {
+    return {
+      success: false,
+      message: 'Sistem pengiriman video sedang dipersiapkan oleh Pengelola.'
+    };
+  }
+
+  try {
+    await fetch(webAppUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload),
+      mode: 'no-cors'
+    });
+
+    // Reset timestamp cache agar saat user kembali ke daftar video, data baru langsung ditarik
+    try {
+      localStorage.removeItem(VIDEO_CACHE_TIMESTAMP_KEY);
+    } catch {}
+
+    return {
+      success: true,
+      message: 'Data video berhasil terkirim dan disimpan ke Database Korwilcam!'
+    };
+  } catch (err: any) {
+    console.error('Gagal mengirim data video ke Spreadsheet:', err);
+    return {
+      success: false,
+      message: `Terjadi kendala saat mengirim data: ${err?.message || err}`
+    };
+  }
+}
+
 /**
  * Membaca cache video galeri dari localStorage untuk pemuatan instan (0ms)
  */

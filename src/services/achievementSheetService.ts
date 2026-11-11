@@ -176,7 +176,7 @@ export async function submitAchievementToSheet(payload: AchievementSubmitPayload
 
     return {
       success: true,
-      message: 'Data prestasi berhasil terkirim dan disimpan ke Google Spreadsheet!'
+      message: 'Data prestasi berhasil terkirim dan disimpan ke Database Korwilcam!'
     };
   } catch (err: any) {
     console.error('Gagal mengirim data prestasi ke Spreadsheet:', err);

@@ -12,7 +12,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Plus,
+  Upload
 } from 'lucide-react';
 import { GalleryItem, GalleryVideoItem } from '../types';
 import { sortGalleryDescending } from '../lib/galleryHelper';
@@ -50,7 +52,8 @@ export const GalleryPage: React.FC = () => {
     refreshVideosFromSheet,
     isVideosLoading,
     galleryActiveTab,
-    setGalleryActiveTab
+    setGalleryActiveTab,
+    setActiveTab
   } = useApp();
 
   // State tab utama galeri: bersumber dari AppContext (sinkron saat kembali dari detail video)
@@ -297,6 +300,17 @@ export const GalleryPage: React.FC = () => {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isVideosLoading ? 'animate-spin' : ''}`} />
                   <span>Segarkan Data</span>
+                </button>
+
+                {/* Tombol Upload Video Kegiatan Baru */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('video-upload', '/galeri/video/upload')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-md border border-red-500/40 transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                  title="Unggah Video Kegiatan Pendidikan Baru"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Upload Video</span>
                 </button>
               </div>
             )}

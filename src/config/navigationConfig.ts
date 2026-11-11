@@ -566,7 +566,7 @@ export function checkRouteActive(
   }
 
   // 12. Galeri
-  if (activeTab === 'gallery' || cleanPath.startsWith('/galeri')) {
+  if (activeTab === 'gallery' || activeTab === 'video-upload' || cleanPath.startsWith('/galeri')) {
     if (!isItemActive(visibility, 'gallery')) {
       return { isAvailable: false, itemTitle: 'Galeri Kegiatan', itemId: 'gallery' };
     }
