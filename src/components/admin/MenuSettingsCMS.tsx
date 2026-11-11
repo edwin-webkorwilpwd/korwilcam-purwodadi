@@ -88,8 +88,12 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     setLocalVisibility(updated);
     setHasUnsavedChanges(false);
     try {
-      await updateMenuVisibility(updated);
-      showToast(`Menu ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'}.`, 'success');
+      const success = await updateMenuVisibility(updated);
+      if (success) {
+        showToast(`Menu ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'} & tersimpan ke Cloud.`, 'success');
+      } else {
+        showToast('Perhatian: Gagal sinkron ke Cloud Supabase (Izin RLS tabel navigation_settings tertutup). Perubahan hanya tersimpan lokal.', 'error');
+      }
     } catch {
       showToast('Gagal menyimpan perubahan ke server.', 'error');
     }
@@ -109,8 +113,12 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     setLocalVisibility(updated);
     setHasUnsavedChanges(false);
     try {
-      await updateMenuVisibility(updated);
-      showToast(`Semua sub menu ${parent.label} ${enableAll ? 'diaktifkan' : 'dinonaktifkan'}.`, 'success');
+      const success = await updateMenuVisibility(updated);
+      if (success) {
+        showToast(`Semua sub menu ${parent.label} ${enableAll ? 'diaktifkan' : 'dinonaktifkan'} & tersimpan ke Cloud.`, 'success');
+      } else {
+        showToast('Perhatian: Gagal sinkron ke Cloud Supabase (Izin RLS navigation_settings tertutup). Tersimpan lokal.', 'error');
+      }
     } catch {
       showToast('Gagal menyimpan perubahan ke server.', 'error');
     }
