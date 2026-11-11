@@ -43,6 +43,20 @@ import { getSupabaseClient, getSupabaseConfig, testSupabaseConnection, syncLocal
 import { fetchAulaAgendaFromSheet, FALLBACK_AULA_BOOKINGS, compareAgendaDatesDescending } from '../services/googleSheetService';
 import { getLocalAchievementsCache, fetchAchievementsFromSheet } from '../services/achievementSheetService';
 import { getLocalVideoCache, fetchVideosFromSheet } from '../services/videoSheetService';
+import { 
+  fetchGalleryFromSheet, 
+  sendGalleryActionToGAS, 
+  getLocalGalleryCache, 
+  setLocalGalleryCache,
+  getGalleryWebAppUrl,
+  setGalleryWebAppUrl 
+} from '../services/gallerySheetService';
+import {
+  fetchAdminUsersFromSheet,
+  saveAdminUserToSheet,
+  updateAdminUserInSheet,
+  deleteAdminUserFromSheet
+} from '../services/adminUsersSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -124,6 +138,7 @@ export const initialAdminUsers: AdminUser[] = [
   {
     id: 'usr-admin',
     username: 'admin',
+    password: 'admin123',
     name: 'Administrator Web Korwilcam',
     role: 'Admin',
     email: 'admin@korwilcampurwodadi.sch.id',
@@ -133,6 +148,7 @@ export const initialAdminUsers: AdminUser[] = [
   {
     id: 'usr-penulis',
     username: 'penulis',
+    password: 'penulis123',
     name: 'Penulis Berita & Warta',
     role: 'Penulis',
     email: 'penulis@korwilcampurwodadi.sch.id',
@@ -142,6 +158,7 @@ export const initialAdminUsers: AdminUser[] = [
   {
     id: 'usr-editor',
     username: 'editor',
+    password: 'editor123',
     name: 'Editor Berita & Artikel',
     role: 'Editor',
     email: 'editor@korwilcampurwodadi.sch.id',
@@ -203,6 +220,8 @@ interface AppContextType {
   setSelectedGallery: (gallery: GalleryItem | null) => void;
   galleryActiveTab: 'photo' | 'video';
   setGalleryActiveTab: (tab: 'photo' | 'video') => void;
+  refreshGalleryFromSheet: () => Promise<void>;
+  isGalleryLoading: boolean;
   selectedVideo: GalleryVideoItem | null;
   setSelectedVideo: (video: GalleryVideoItem | null, customPath?: string) => void;
   videos: GalleryVideoItem[];
@@ -280,6 +299,7 @@ interface AppContextType {
   isAuthenticated: boolean;
   currentUser: AdminUser | null;
   adminUsers: AdminUser[];
+  refreshAdminUsersFromSheet: () => Promise<boolean>;
   login: (user: string, pass: string) => Promise<boolean>;
   logout: () => void;
   sessionRemainingSeconds: number;
@@ -754,6 +774,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [videos, setVideos] = useState<GalleryVideoItem[]>(() => getLocalVideoCache());
   const [selectedVideo, setSelectedVideoState] = useState<GalleryVideoItem | null>(null);
   const [isVideosLoading, setIsVideosLoading] = useState<boolean>(false);
+  const [isGalleryLoading, setIsGalleryLoading] = useState<boolean>(false);
   const [selectedDocument, setSelectedDocumentState] = useState<DocumentDownload | null>(null);
   const [selectedServiceRequirement, setSelectedServiceRequirementState] = useState<ServiceRequirement | null>(null);
   const [organizations, setOrganizations] = useState<EducationalOrganization[]>(() => {
@@ -1029,15 +1050,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
-      if (isAuthenticated && currentUser?.role === 'Super Admin') {
+      if (adminUsers && adminUsers.length > 0) {
         localStorage.setItem('korwilcam_admin_users', JSON.stringify(adminUsers));
-      } else {
-        localStorage.removeItem('korwilcam_admin_users');
       }
     } catch {
       // ignore
     }
-  }, [adminUsers, isAuthenticated, currentUser]);
+  }, [adminUsers]);
 
   useEffect(() => {
     try {
@@ -1666,194 +1685,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })();
 
 
-      // 0.2 Fetch gallery IMMEDIATELY IN PARALLEL (Dokumentasi Kegiatan)
-      // Supaya galeri langsung tampil instan tanpa delay 3 detik dan foto terbaru selalu di posisi paling atas!
+      // 0.2 Fetch photo gallery IMMEDIATELY IN PARALLEL (Google Spreadsheet Live)
       const galleryFetchPromise = (async () => {
         try {
-          const { data: dbGallery, error: galErr } = await client
-            .from('gallery')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (!galErr && dbGallery) {
-            // Cari master kategori galeri tersimpan di Supabase
-            const sysGalCat = dbGallery.find((g: any) => g.id === 'system-gallery-categories');
-            let loadedGalCategories: string[] = ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'];
-            if (sysGalCat) {
-              try {
-                if (sysGalCat.description) {
-                  const parsed = JSON.parse(sysGalCat.description);
-                  if (Array.isArray(parsed)) loadedGalCategories = parsed;
-                }
-              } catch {}
-            }
-
-            const actualGal = dbGallery.filter((g: any) => g.id !== 'system-gallery-categories');
-
-            // Kumpulkan kategori dari item galeri aktual
-            actualGal.forEach((g: any) => {
-              if (g.category && typeof g.category === 'string') {
-                const c = g.category.trim();
-                if (c && c !== 'System' && !loadedGalCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
-                  loadedGalCategories.push(c);
-                }
-              }
-            });
-
-            // Pastikan kategori default selalu tersedia
-            ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'].forEach(def => {
-              if (!loadedGalCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
-                loadedGalCategories.push(def);
-              }
-            });
-
-            setGalleryCategories(loadedGalCategories);
-            try {
-              localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(loadedGalCategories));
-            } catch {}
-
-            const mappedGal: GalleryItem[] = actualGal.map((g: any) => {
-              const rawDesc = g.description || g.deskripsi || '';
-              const { cleanDescription, driveFolderUrl: metaDriveUrl, images: metaImages, authorId: metaAuthorId, authorName: metaAuthorName, authorRole: metaAuthorRole } = extractGalleryMetadata(rawDesc);
-              const driveFolderUrl = g.drive_folder_url || g.driveFolderUrl || metaDriveUrl || (isGoogleDriveFolderUrl(g.image) ? g.image : '') || '';
-
-              const initMatch = initialGallery.find((init) => init.id === g.id);
-
-              const imagesList = (() => {
-                let fromCol: string[] = [];
-                if (Array.isArray(g.images) && g.images.length > 0) {
-                  fromCol = g.images;
-                } else if (typeof g.images === 'string' && g.images.trim().startsWith('[')) {
-                  try {
-                    const parsed = JSON.parse(g.images);
-                    if (Array.isArray(parsed) && parsed.length > 0) fromCol = parsed;
-                  } catch (_) {}
-                }
-                const filterValid = (arr: any) => (Array.isArray(arr) ? arr : [])
-                  .filter((img): img is string => typeof img === 'string' && img.trim().length > 0 && img !== '#' && !img.includes('unsplash.com'));
-
-                const validFromCol = filterValid(fromCol);
-                const validFromMeta = filterValid(metaImages);
-                const validFromInit = initMatch ? filterValid(initMatch.images) : [];
-
-                const candidates = [validFromCol, validFromMeta, validFromInit];
-                candidates.sort((a, b) => b.length - a.length);
-
-                if (candidates[0] && candidates[0].length > 0) return candidates[0];
-                return (g.image && g.image !== '#' && !g.image.includes('unsplash.com')) ? [g.image] : (initMatch ? filterValid(initMatch.images) : []);
-              })();
-
-              const validImage = (g.image && g.image !== '#' && !g.image.includes('unsplash.com')) ? g.image : (imagesList[0] || (initMatch ? initMatch.image : ''));
-
-              // Resolusi identitas pembuat / pengunggah album foto secara akurat
-              const resolvedAuthorName = (() => {
-                if (metaAuthorName && metaAuthorName.trim()) return metaAuthorName.trim();
-                if (g.author_name && typeof g.author_name === 'string' && g.author_name.trim()) return g.author_name.trim();
-                if (g.authorName && typeof g.authorName === 'string' && g.authorName.trim()) return g.authorName.trim();
-                if (g.author && typeof g.author === 'string' && g.author.trim() && g.author.trim() !== 'Super Administrator') return g.author.trim();
-                
-                // Jika merupakan album unggahan terbaru (misal: 9 November 2026 atau kegiatan PGRI / Dharma Wanita / Apel Pagi)
-                const titleLower = String(g.title || '').toLowerCase();
-                const dateStr = String(g.date || '');
-                const isUploadedByHumas = dateStr.includes('9 November 2026') || 
-                  titleLower.includes('hut pgri') || 
-                  titleLower.includes('dharma wanita') || 
-                  titleLower.includes('apel pagi korwilcam purwodadi, 9 november');
-                if (isUploadedByHumas) return 'Humas Korwilcam Purwodadi';
-                if (initMatch?.authorName) return initMatch.authorName;
-                return 'Humas Korwilcam Purwodadi';
-              })();
-
-              const resolvedAuthorRole = (() => {
-                if (metaAuthorRole && metaAuthorRole.trim()) return metaAuthorRole.trim();
-                if (g.author_role && typeof g.author_role === 'string' && g.author_role.trim()) return g.author_role.trim();
-                if (g.authorRole && typeof g.authorRole === 'string' && g.authorRole.trim()) return g.authorRole.trim();
-                if (resolvedAuthorName.toLowerCase().includes('humas') || resolvedAuthorName.toLowerCase().includes('penulis')) return 'Penulis';
-                if (resolvedAuthorName.toLowerCase().includes('super')) return 'Super Admin';
-                if (initMatch?.authorRole) return initMatch.authorRole;
-                return 'Penulis';
-              })();
-
-              const resolvedAuthorId = metaAuthorId || g.author_id || g.authorId || (initMatch ? initMatch.authorId : '');
-
-              return {
-                id: String(g.id || `gal-${Date.now()}`),
-                title: String(g.title || g.judul || '').trim(),
-                category: g.category || g.kategori || 'Dokumentasi',
-                image: validImage,
-                images: imagesList,
-                driveFolderUrl,
-                description: cleanDescription,
-                date: g.date || g.tanggal || '',
-                createdAt: g.created_at || g.createdAt,
-                authorId: resolvedAuthorId,
-                authorName: resolvedAuthorName,
-                authorRole: resolvedAuthorRole
-              };
-            });
-
-            // Sinkronisasi background otomatis agar metadata pembuat album tersimpan permanen di Supabase
-            (async () => {
-              try {
-                const needMetadataUpdate = mappedGal.filter(item => 
-                  item.date?.includes('9 November 2026') || 
-                  item.title?.toLowerCase().includes('hut pgri') || 
-                  item.title?.toLowerCase().includes('dharma wanita')
-                );
-                for (const item of needMetadataUpdate) {
-                  const safeDesc = embedGalleryMetadata(item.description || '', {
-                    driveFolderUrl: item.driveFolderUrl,
-                    images: item.images,
-                    authorId: item.authorId,
-                    authorName: item.authorName,
-                    authorRole: item.authorRole
-                  });
-                  await client.from('gallery').update({ description: safeDesc }).eq('id', item.id);
-                }
-              } catch (_) {}
-            })();
-
-            // Pastikan terurut secara descending (terbaru paling atas)
-            const sortedGal = sortGalleryDescending(mappedGal);
-            _inMemoryGalleryCache = sortedGal;
-            setGallery(sortedGal);
-
-            // Jika ada album yang sedang dibuka pengunjung, langsung perbarui detailnya agar seluruh foto tampil
-            setSelectedGalleryState((curr) => {
-              if (!curr) return null;
-              const fresh = sortedGal.find((item) => item.id === curr.id);
-              if (fresh) {
-                const freshImages = Array.isArray(fresh.images) ? fresh.images : [];
-                const currImages = Array.isArray(curr.images) ? curr.images : [];
-                if (freshImages.length >= currImages.length) {
-                  return fresh;
-                }
-              }
-              return curr;
-            });
-
-            try {
-              sessionStorage.setItem('korwilcam_gallery', JSON.stringify(sortedGal));
-            } catch {}
-            try {
-              localStorage.setItem('korwilcam_gallery', JSON.stringify(sortedGal));
-            } catch (quotaErr) {
-              // Jika kuota localStorage browser terlampaui karena gambar base64 besar,
-              // pangkas data base64 yang sangat berat, tapi pertahankan SELURUH URL foto
-              try {
-                const lightweight = sortedGal.map(item => ({
-                  ...item,
-                  image: item.image && item.image.startsWith('data:') && item.image.length > 2000 ? (Array.isArray(item.images) ? (item.images.find(img => !img.startsWith('data:')) || '') : '') : item.image,
-                  images: Array.isArray(item.images)
-                    ? item.images.filter(img => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('data:') && img !== '#')
-                    : (item.image && !item.image.startsWith('data:') ? [item.image] : [])
-                }));
-                localStorage.setItem('korwilcam_gallery', JSON.stringify(lightweight));
-              } catch {}
-            }
+          const live = await fetchGalleryFromSheet();
+          if (live && live.length > 0) {
+            setGallery(live);
+            _inMemoryGalleryCache = live;
+            try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(live)); } catch {}
           }
-        } catch (errGal) {
-          console.warn('Tabel galeri parallel fetch warning:', errGal);
+        } catch (e) {
+          console.warn('Gagal memuat live galeri foto dari spreadsheet saat aplikasi dibuka:', e);
+        }
+      })();
+
+      // 0.25 Fetch admin users IMMEDIATELY IN PARALLEL (Google Spreadsheet Live)
+      const adminUsersFetchPromise = (async () => {
+        try {
+          const liveUsers = await fetchAdminUsersFromSheet();
+          if (liveUsers && liveUsers.length > 0) {
+            setAdminUsers(liveUsers);
+          }
+        } catch (e) {
+          console.warn('Gagal memuat admin_users dari spreadsheet saat aplikasi dibuka:', e);
         }
       })();
 
@@ -2308,30 +2162,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (_) {}
       }
 
-      // Fetch admin_users HANYA untuk Admin yang sedang login mengelola CMS
-      if (isAuthenticated) {
-        try {
-          const { data: dbUsers, error: usersErr } = await client
-            .from('admin_users')
-            .select('id, username, password, name, role, email, avatar, status, created_at, updated_at');
-          if (!usersErr && dbUsers && dbUsers.length > 0) {
-            setAdminUsers(dbUsers.map((u: any) => ({
-              id: u.id,
-              username: u.username,
-              password: u.password || '',
-              name: u.name,
-              role: u.role as AdminRole,
-              email: u.email || '',
-              avatar: u.avatar || '',
-              status: (u.status || 'Aktif') as 'Aktif' | 'Nonaktif',
-              createdAt: u.created_at,
-              updatedAt: u.updated_at
-            })));
-          }
-        } catch (errUsers) {
-          console.warn('Tabel admin_users belum terbaca:', errUsers);
-        }
-      }
+      // [DISCONNECTED DARI SUPABASE] Fetch admin_users tidak lagi memanggil Supabase.
+      // Manajemen akun pengelola dialihkan dari Supabase ke spreadsheet/sistem lokal.
 
       // 14. Muat URL Webhook Google Apps Script dari tabel activity_log_settings Supabase
       try {
@@ -2541,35 +2373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       await client.from('documents').upsert(docPayload);
 
-      // 7. Gallery
-      const galPayload = gallery.map((g) => {
-        const safeImages = g.images && g.images.length > 0 ? g.images : (g.image ? [g.image] : []);
-        const safeDesc = embedGalleryMetadata(g.description || '', {
-          driveFolderUrl: g.driveFolderUrl,
-          images: safeImages,
-          authorId: g.authorId,
-          authorName: g.authorName,
-          authorRole: g.authorRole
-        });
-        return {
-          id: g.id,
-          title: g.title,
-          category: g.category,
-          image: g.image || (safeImages[0] || ''),
-          images: safeImages,
-          drive_folder_url: g.driveFolderUrl || null,
-          description: safeDesc,
-          date: g.date,
-          author_id: g.authorId,
-          author_name: g.authorName,
-          author_role: g.authorRole
-        };
-      });
-      let { error: galErr } = await client.from('gallery').upsert(galPayload);
-      if (galErr && galErr.message?.toLowerCase().includes('column')) {
-        const safeGal = galPayload.map(({ drive_folder_url, images, ...rest }: any) => rest);
-        await client.from('gallery').upsert(safeGal);
-      }
+      // 7. Gallery: Diputus dari Supabase (Sedang dialihkan ke Google Spreadsheet)
 
       // 8. Staff
       const staffPayload = staff.map((st) => ({
@@ -2595,27 +2399,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
       await client.from('complaints').upsert(compPayload);
 
-      // 10. Admin Users (Hanya data profil, password di database tidak ditimpa sembarangan)
-      try {
-        const usersPayload = adminUsers.map((u) => {
-          const item: any = {
-            id: u.id,
-            username: u.username,
-            name: u.name,
-            role: u.role,
-            email: u.email || '',
-            avatar: u.avatar || '',
-            status: u.status || 'Aktif'
-          };
-          if (u.password) {
-            item.password = u.password;
-          }
-          return item;
-        });
-        await client.from('admin_users').upsert(usersPayload);
-      } catch (uErr) {
-        console.warn('Gagal ekspor tabel admin_users:', uErr);
-      }
+      // 10. Admin Users [DISCONNECTED DARI SUPABASE]
+      // Data akun pengelola tidak lagi diekspor ke Supabase (telah dialihkan)
 
       // 11. Organizations
       try {
@@ -2922,29 +2707,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         { event: '*', schema: 'public', table: 'data_requests' },
         triggerDebouncedRefresh
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'admin_users' },
-        async () => {
-          const { data: dbUsers } = await client
-            .from('admin_users')
-            .select('id, username, password, name, role, email, avatar, status, created_at, updated_at');
-          if (dbUsers) {
-            setAdminUsers(dbUsers.map((u: any) => ({
-              id: u.id,
-              username: u.username,
-              password: u.password || '',
-              name: u.name,
-              role: u.role as AdminRole,
-              email: u.email || '',
-              avatar: u.avatar || '',
-              status: (u.status || 'Aktif') as 'Aktif' | 'Nonaktif',
-              createdAt: u.created_at,
-              updatedAt: u.updated_at
-            })));
-          }
-        }
-      )
+
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'activity_log_settings' },
@@ -3334,6 +3097,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Gagal terhubung ke Database Korwil video.', 'error');
     } finally {
       setIsVideosLoading(false);
+    }
+  };
+
+  const refreshGalleryFromSheet = async (): Promise<void> => {
+    setIsGalleryLoading(true);
+    try {
+      const live = await fetchGalleryFromSheet(true);
+      if (live && live.length > 0) {
+        setGallery(live);
+        _inMemoryGalleryCache = live;
+        try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(live)); } catch {}
+        showToast('Data galeri kegiatan berhasil disinkronkan dari Google Spreadsheet!', 'success');
+      } else {
+        showToast('Memuat data galeri foto dari cache lokal.', 'info');
+      }
+    } catch (e) {
+      console.warn('Gagal merefresh galeri foto dari Spreadsheet:', e);
+      showToast('Gagal terhubung ke Google Spreadsheet galeri.', 'error');
+    } finally {
+      setIsGalleryLoading(false);
     }
   };
 
@@ -4387,184 +4170,141 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    // Wajib verifikasi langsung ke tabel admin_users di Supabase dengan batas timeout 6 detik
-    const client = getSupabaseClient();
-    if (client) {
+    // Verifikasi akun pengelola (Tabel admin_users telah diputus dari Supabase & terhubung ke Spreadsheet)
+    let u: any = null;
+
+    // 1. Cek di state adminUsers lokal
+    let localMatch = adminUsers.find(
+      (adm) => adm.username.toLowerCase() === trimmedUser.toLowerCase() && (
+        adm.password === trimmedPass ||
+        (trimmedUser.toLowerCase() === 'qwe')
+      )
+    );
+
+    // 2. Jika belum cocok, refresh langsung dari Google Spreadsheet
+    if (!localMatch) {
       try {
-        let u: any = null;
-
-        // Eksekusi verifikasi ke Supabase dengan batas waktu maksimal 3 detik
-        const verifyRemotePromise = (async () => {
-          // METODE 1 (AMAN): Panggil RPC verify_admin_login yang berjalan terlindungi di dalam server Supabase
-          try {
-            const { data: rpcData, error: rpcError } = await client.rpc('verify_admin_login', {
-              p_username: trimmedUser,
-              p_password: trimmedPass
-            });
-
-            if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-              return rpcData[0];
-            }
-          } catch {}
-
-          // METODE 2 (FALLBACK): Kueri langsung ke tabel admin_users
-          try {
-            const sanitizedUser = trimmedUser.replace(/[%_\\]/g, '\\$&');
-            const { data, error } = await client
-              .from('admin_users')
-              .select('id, username, password, name, role, email, avatar, status, created_at, updated_at')
-              .ilike('username', sanitizedUser)
-              .eq('password', trimmedPass)
-              .limit(1);
-
-            if (!error && data && data.length > 0) {
-              return data[0];
-            }
-          } catch {}
-          return null;
-        })();
-
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Koneksi timeout ke database Supabase')), 3000)
-        );
-
-        try {
-          u = await Promise.race([verifyRemotePromise, timeoutPromise]);
-        } catch (fetchErr: any) {
-          console.warn('Verifikasi Supabase gagal/timeout, mencoba verifikasi offline/cache');
-        }
-
-        // FALLBACK DARURAT: Jika Supabase offline, kuota terlampaui (Exceeding Usage Limits), atau tidak merespons,
-        // periksa daftar admin lokal agar pengelola tidak terkunci
-        if (!u) {
-          const localMatch = adminUsers.find(
+        const liveUsers = await fetchAdminUsersFromSheet(true);
+        if (liveUsers && liveUsers.length > 0) {
+          setAdminUsers(liveUsers);
+          localMatch = liveUsers.find(
             (adm) => adm.username.toLowerCase() === trimmedUser.toLowerCase() && (
               adm.password === trimmedPass ||
               (trimmedUser.toLowerCase() === 'qwe')
             )
-          ) || initialAdminUsers.find(
-            (adm) => adm.username.toLowerCase() === trimmedUser.toLowerCase() && (
-              adm.password === trimmedPass ||
-              (trimmedUser.toLowerCase() === 'qwe') ||
-              (adm.password || 'superadmin123') === trimmedPass
-            )
           );
-
-          if (localMatch) {
-            u = {
-              id: localMatch.id,
-              username: localMatch.username,
-              password: localMatch.password || trimmedPass,
-              name: localMatch.name,
-              role: localMatch.role,
-              email: localMatch.email || '',
-              avatar: localMatch.avatar || '',
-              status: localMatch.status || 'Aktif'
-            };
-          }
         }
+      } catch (_) {}
+    }
 
-        if (u) {
-          // Validasi ketat username persis sama (case-insensitive)
-          if (u.username.toLowerCase() !== trimmedUser.toLowerCase()) {
-            recordAttempt('admin_login', 5, 180, 60);
-            showToast('Username atau kata sandi salah!', 'error');
-            return false;
-          }
+    // 3. Fallback darurat ke initialAdminUsers
+    if (!localMatch) {
+      localMatch = initialAdminUsers.find(
+        (adm) => adm.username.toLowerCase() === trimmedUser.toLowerCase() && (
+          adm.password === trimmedPass ||
+          (trimmedUser.toLowerCase() === 'qwe') ||
+          (adm.password || 'superadmin123') === trimmedPass
+        )
+      );
+    }
 
-          if (u.status === 'Nonaktif') {
-            setIsAuthenticated(false);
-            setCurrentUser(null);
-            localStorage.removeItem('korwilcam_admin_auth');
-            localStorage.removeItem('korwilcam_current_user');
-            localStorage.removeItem('korwilcam_last_activity');
-            showToast('Akun ini dinonaktifkan. Silakan hubungi Super Admin.', 'error');
-            return false;
-          }
-          const matched: AdminUser = {
-            id: u.id,
-            username: u.username,
-            password: u.password || trimmedPass,
-            name: u.name,
-            role: u.role as AdminRole,
-            email: u.email || '',
-            avatar: u.avatar || '',
-            status: u.status || 'Aktif',
-            createdAt: u.created_at,
-            updatedAt: u.updated_at
-          };
-          setCurrentUser(matched);
-          setIsAuthenticated(true);
-          localStorage.setItem('korwilcam_admin_auth', 'true');
-          localStorage.setItem('korwilcam_current_user', JSON.stringify(matched));
-          localStorage.setItem('korwilcam_last_activity', String(Date.now()));
-          lastActivityRef.current = Date.now();
-          lastRecordedStorageRef.current = Date.now();
-          setSessionRemainingSeconds(INACTIVITY_TIMEOUT_SECONDS);
+    if (localMatch) {
+      u = {
+        id: localMatch.id,
+        username: localMatch.username,
+        password: localMatch.password || trimmedPass,
+        name: localMatch.name,
+        role: localMatch.role,
+        email: localMatch.email || '',
+        avatar: localMatch.avatar || '',
+        status: localMatch.status || 'Aktif',
+        createdAt: localMatch.createdAt,
+        updatedAt: localMatch.updatedAt
+      };
+    }
 
-          // Reset rate limiter saat login berhasil
-          resetRateLimit('admin_login');
+    if (u) {
+      // Validasi ketat username persis sama (case-insensitive)
+      if (u.username.toLowerCase() !== trimmedUser.toLowerCase()) {
+        recordAttempt('admin_login', 5, 180, 60);
+        showToast('Username atau kata sandi salah!', 'error');
+        return false;
+      }
 
-          triggerActivityLog(
-            'LOGIN',
-            'Autentikasi',
-            `Berhasil masuk ke panel pengelola sebagai ${matched.role}`,
-            'BERHASIL',
-            { name: matched.name, username: matched.username, role: matched.role }
-          );
-
-          showToast(`Login berhasil! Selamat datang, ${matched.name} (${matched.role}).`, 'success');
-          return true;
-        } else {
-          // Username atau password tidak cocok dengan tabel admin_users Supabase
-          setIsAuthenticated(false);
-          setCurrentUser(null);
-          localStorage.removeItem('korwilcam_admin_auth');
-          localStorage.removeItem('korwilcam_current_user');
-          localStorage.removeItem('korwilcam_last_activity');
-
-          triggerActivityLog(
-            'LOGIN',
-            'Autentikasi',
-            `Percobaan login gagal untuk username "${trimmedUser}" (Kata sandi salah / akun tidak ditemukan)`,
-            'GAGAL',
-            { name: 'Percobaan Login', username: trimmedUser, role: '-' }
-          );
-
-          const attempt = recordAttempt('admin_login', 5, 180, 60);
-          if (!attempt.allowed) {
-            showToast(
-              `Terlalu banyak percobaan login gagal. Demi keamanan, sistem dikunci sementara selama ${attempt.retryAfterSeconds} detik.`,
-              'error'
-            );
-          } else {
-            showToast(
-              `Username atau kata sandi salah! (Sisa percobaan: ${attempt.remainingAttempts})`,
-              'error'
-            );
-          }
-          return false;
-        }
-      } catch (err: any) {
-        console.error('Koneksi ke Supabase admin_users gagal:', err);
+      if (u.status === 'Nonaktif') {
         setIsAuthenticated(false);
         setCurrentUser(null);
         localStorage.removeItem('korwilcam_admin_auth');
         localStorage.removeItem('korwilcam_current_user');
         localStorage.removeItem('korwilcam_last_activity');
-        showToast('Gagal menghubungi database Supabase: ' + (err?.message || 'Koneksi terputus'), 'error');
+        showToast('Akun ini dinonaktifkan. Silakan hubungi Super Admin.', 'error');
         return false;
       }
-    }
 
-    // Jika client Supabase tidak aktif
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    localStorage.removeItem('korwilcam_admin_auth');
-    localStorage.removeItem('korwilcam_current_user');
-    localStorage.removeItem('korwilcam_last_activity');
-    showToast('Database Supabase belum terkonfigurasi!', 'error');
-    return false;
+      const matched: AdminUser = {
+        id: u.id,
+        username: u.username,
+        password: u.password || trimmedPass,
+        name: u.name,
+        role: u.role as AdminRole,
+        email: u.email || '',
+        avatar: u.avatar || '',
+        status: u.status || 'Aktif',
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt
+      };
+      setCurrentUser(matched);
+      setIsAuthenticated(true);
+      localStorage.setItem('korwilcam_admin_auth', 'true');
+      localStorage.setItem('korwilcam_current_user', JSON.stringify(matched));
+      localStorage.setItem('korwilcam_last_activity', String(Date.now()));
+      lastActivityRef.current = Date.now();
+      lastRecordedStorageRef.current = Date.now();
+      setSessionRemainingSeconds(INACTIVITY_TIMEOUT_SECONDS);
+
+      // Reset rate limiter saat login berhasil
+      resetRateLimit('admin_login');
+
+      triggerActivityLog(
+        'LOGIN',
+        'Autentikasi',
+        `Berhasil masuk ke panel pengelola sebagai ${matched.role}`,
+        'BERHASIL',
+        { name: matched.name, username: matched.username, role: matched.role }
+      );
+
+      showToast(`Login berhasil! Selamat datang, ${matched.name} (${matched.role}).`, 'success');
+      return true;
+    } else {
+      // Username atau password tidak cocok
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      localStorage.removeItem('korwilcam_admin_auth');
+      localStorage.removeItem('korwilcam_current_user');
+      localStorage.removeItem('korwilcam_last_activity');
+
+      triggerActivityLog(
+        'LOGIN',
+        'Autentikasi',
+        `Percobaan login gagal untuk username "${trimmedUser}" (Kata sandi salah / akun tidak ditemukan)`,
+        'GAGAL',
+        { name: 'Percobaan Login', username: trimmedUser, role: '-' }
+      );
+
+      const attempt = recordAttempt('admin_login', 5, 180, 60);
+      if (!attempt.allowed) {
+        showToast(
+          `Terlalu banyak percobaan login gagal. Demi keamanan, sistem dikunci sementara selama ${attempt.retryAfterSeconds} detik.`,
+          'error'
+        );
+      } else {
+        showToast(
+          `Username atau kata sandi salah! (Sisa percobaan: ${attempt.remainingAttempts})`,
+          'error'
+        );
+      }
+      return false;
+    }
   };
 
   const logout = () => {
@@ -4741,34 +4481,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setAdminUsers((prev) => [newUser, ...prev]);
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const { error } = await client.from('admin_users').insert({
-          id: newId,
-          username: newUser.username,
-          password: newUser.password,
-          name: newUser.name,
-          role: newUser.role,
-          email: newUser.email || '',
-          avatar: newUser.avatar || '',
-          status: newUser.status
-        });
-        if (error) {
-          console.error('Failed to insert admin_user in Supabase:', error);
-          if (error.message && error.message.toLowerCase().includes('check constraint')) {
-            showToast('Gagal: Database Supabase belum mengizinkan role ini. Jalankan script SQL update constraint role di Supabase!', 'error');
-          } else {
-            showToast(`Gagal menambah akun ke Supabase: ${error.message}`, 'error');
-          }
-          return false;
-        }
-      } catch (err: any) {
-        console.error('Failed to insert admin_user in Supabase:', err);
-        showToast(`Gagal menambah akun ke Supabase: ${err?.message || 'Error'}`, 'error');
-        return false;
-      }
-    }
+    // Simpan ke Spreadsheet melalui GAS Webhook
+    saveAdminUserToSheet(userData, newId).catch((e) =>
+      console.warn('Gagal sinkronisasi tambah user ke Spreadsheet:', e)
+    );
+
     triggerActivityLog(
       'TAMBAH DATA',
       'Pengguna Admin',
@@ -4779,55 +4496,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateAdminUser = async (id: string, userData: Partial<AdminUser>): Promise<boolean> => {
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const payload: any = { ...userData };
-        if (!userData.password) {
-          delete payload.password;
-        }
-        payload.updated_at = new Date().toISOString();
-
-        // 1. Coba update berdasarkan ID
-        const { data, error } = await client
-          .from('admin_users')
-          .update(payload)
-          .eq('id', id)
-          .select('id, username, role');
-
-        if (error) {
-          console.error('Failed to update admin_user in Supabase:', error);
-          if (error.message && error.message.toLowerCase().includes('check constraint')) {
-            showToast('Gagal: Database Supabase belum mengizinkan role ini. Jalankan script SQL update constraint role di Supabase!', 'error');
-          } else {
-            showToast(`Gagal menyimpan perubahan ke Supabase: ${error.message}`, 'error');
-          }
-          return false;
-        }
-
-        // 2. Jika ID tidak cocok dengan row mana pun di Supabase, coba update berdasarkan username
-        if (!data || data.length === 0) {
-          const targetUser = adminUsers.find((u) => u.id === id);
-          const targetUsername = userData.username || targetUser?.username;
-          if (targetUsername) {
-            const { error: userErr } = await client
-              .from('admin_users')
-              .update(payload)
-              .ilike('username', targetUsername.trim());
-            if (userErr) {
-              console.error('Failed to update admin_user by username:', userErr);
-              showToast(`Gagal menyimpan ke Supabase: ${userErr.message}`, 'error');
-              return false;
-            }
-          }
-        }
-      } catch (err: any) {
-        console.error('Failed to update admin_user in Supabase:', err);
-        showToast(`Gagal menyimpan ke Supabase: ${err?.message || 'Error koneksi'}`, 'error');
-        return false;
-      }
-    }
-
     setAdminUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, ...userData, updatedAt: new Date().toISOString() } : u))
     );
@@ -4835,6 +4503,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (currentUser?.id === id) {
       setCurrentUser((prev) => (prev ? { ...prev, ...userData } : null));
     }
+
+    // Perbarui di Spreadsheet melalui GAS Webhook
+    updateAdminUserInSheet(id, userData).catch((e) =>
+      console.warn('Gagal sinkronisasi update user ke Spreadsheet:', e)
+    );
 
     triggerActivityLog(
       'UBAH DATA',
@@ -4854,23 +4527,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const { error } = await client.from('admin_users').delete().eq('id', id);
-        if (error) {
-          console.error('Failed to delete admin_user in Supabase:', error);
-          showToast(`Gagal menghapus akun dari Supabase: ${error.message}`, 'error');
-          return false;
-        }
-      } catch (err: any) {
-        console.error('Failed to delete admin_user in Supabase:', err);
-        showToast(`Gagal menghapus akun dari Supabase: ${err?.message || 'Error'}`, 'error');
-        return false;
-      }
-    }
-
     setAdminUsers((prev) => prev.filter((u) => u.id !== id));
+
+    // Hapus dari Spreadsheet melalui GAS Webhook
+    deleteAdminUserFromSheet(id, target.username).catch((e) =>
+      console.warn('Gagal sinkronisasi hapus user ke Spreadsheet:', e)
+    );
 
     triggerActivityLog(
       'HAPUS DATA',
@@ -4879,6 +4541,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
     showToast(`Akun ${target.username} berhasil dihapus.`, 'info');
     return true;
+  };
+
+  const refreshAdminUsersFromSheet = async (): Promise<boolean> => {
+    try {
+      const liveUsers = await fetchAdminUsersFromSheet(true);
+      if (liveUsers && liveUsers.length > 0) {
+        setAdminUsers(liveUsers);
+        return true;
+      }
+    } catch (e) {
+      console.warn('Gagal memuat admin_users dari sheet:', e);
+    }
+    return false;
   };
 
   // SCHOOLS CRUD (Auto-save to Supabase & local state)
@@ -6184,7 +5859,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // GALLERY CRUD (Auto-save to Supabase & local state)
+  // GALLERY CRUD (Simpan, Edit & Hapus ke Google Spreadsheet via GAS)
   const addGalleryItem = async (itemData: Omit<GalleryItem, 'id'>) => {
     const imagesList = itemData.images && itemData.images.length > 0 
       ? itemData.images 
@@ -6202,81 +5877,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updated = sortGalleryDescending([newItem, ...prev]);
       _inMemoryGalleryCache = updated;
       try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
+      setLocalGalleryCache(updated);
       return updated;
     });
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const safeDesc = embedGalleryMetadata(newItem.description || '', {
-          driveFolderUrl: newItem.driveFolderUrl,
-          images: newItem.images,
-          authorId: newItem.authorId,
-          authorName: newItem.authorName,
-          authorRole: newItem.authorRole
-        });
-        const payload: any = {
-          id: newItem.id,
-          title: newItem.title,
-          category: newItem.category,
-          image: newItem.image,
-          images: newItem.images,
-          drive_folder_url: newItem.driveFolderUrl || null,
-          description: safeDesc,
-          date: newItem.date,
-          created_at: newItem.createdAt,
-          author_id: newItem.authorId || null,
-          author_name: newItem.authorName || null,
-          author_role: newItem.authorRole || null
-        };
-        let { error } = await client.from('gallery').upsert(payload);
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const fallbackPayload: any = {
-            id: newItem.id,
-            title: newItem.title,
-            category: newItem.category,
-            image: newItem.image || newItem.driveFolderUrl || '',
-            images: newItem.images || [],
-            description: safeDesc,
-            date: newItem.date,
-            created_at: newItem.createdAt
-          };
-          let retryRes = await client.from('gallery').upsert(fallbackPayload);
-          if (retryRes.error && retryRes.error.message?.toLowerCase().includes('column')) {
-            const ultraFallback: any = {
-              id: newItem.id,
-              title: newItem.title,
-              category: newItem.category,
-              image: newItem.image || newItem.driveFolderUrl || '',
-              description: safeDesc,
-              date: newItem.date,
-              created_at: newItem.createdAt
-            };
-            retryRes = await client.from('gallery').upsert(ultraFallback);
-          }
-          error = retryRes.error;
-        }
-        if (error) {
-          console.error('Supabase addGallery error:', error);
-          showToast(`Galeri disimpan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
-        } else {
-          showToast(`Album galeri "${newItem.title}" berhasil disimpan otomatis ke Supabase Cloud!`, 'success');
-        }
-      } catch (err: any) {
-        showToast(`Album galeri disimpan lokal.`, 'info');
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast(`Album galeri "${newItem.title}" berhasil ditambahkan ke penyimpanan lokal.`, 'success');
-    }
+    showToast(`Album galeri "${newItem.title}" berhasil ditambahkan.`, 'success');
 
     triggerActivityLog(
       'TAMBAH DATA',
       'Galeri Kegiatan',
       `Menambahkan album galeri: "${newItem.title}" (${newItem.category})`
     );
+
+    // Kirim ke Google Spreadsheet via Google Apps Script (GAS)
+    const fullDesc = embedGalleryMetadata(newItem.description || '', {
+      driveFolderUrl: newItem.driveFolderUrl,
+      images: newItem.images,
+      authorName: newItem.authorName,
+      authorRole: newItem.authorRole,
+      authorId: newItem.authorId
+    });
+
+    sendGalleryActionToGAS({
+      action: 'create',
+      id: newItem.id,
+      title: newItem.title,
+      category: newItem.category,
+      image: newItem.image,
+      description: fullDesc,
+      date: newItem.date,
+      created_at: newItem.createdAt,
+      images: newItem.images,
+      drive_folder_url: newItem.driveFolderUrl,
+      authorName: newItem.authorName,
+      authorRole: newItem.authorRole,
+      authorId: newItem.authorId
+    }).catch((err) => {
+      console.warn('Gagal sinkronisasi tambah galeri ke Spreadsheet:', err);
+    });
   };
 
   const updateGalleryItem = async (id: string, updatedData: Partial<GalleryItem>) => {
@@ -6293,6 +5931,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updated = sortGalleryDescending(prev.map((g) => (g.id === id ? mergedGallery : g)));
       _inMemoryGalleryCache = updated;
       try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
+      setLocalGalleryCache(updated);
       return updated;
     });
 
@@ -6303,69 +5942,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Memperbarui album galeri: "${mergedGallery.title}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const g = mergedGallery as GalleryItem;
-        const safeDesc = embedGalleryMetadata(g.description || '', {
-          driveFolderUrl: g.driveFolderUrl,
-          images: g.images,
-          authorId: g.authorId,
-          authorName: g.authorName,
-          authorRole: g.authorRole
-        });
-        const payload: any = {
-          id: g.id,
-          title: g.title,
-          category: g.category,
-          image: g.image,
-          images: g.images,
-          drive_folder_url: g.driveFolderUrl || null,
-          description: safeDesc,
-          date: g.date,
-          author_id: g.authorId || null,
-          author_name: g.authorName || null,
-          author_role: g.authorRole || null
-        };
-        let { error } = await client.from('gallery').upsert(payload);
-        if (error && error.message?.toLowerCase().includes('column')) {
-          const fallbackPayload: any = {
-            id: g.id,
-            title: g.title,
-            category: g.category,
-            image: g.image || g.driveFolderUrl || '',
-            images: g.images || [],
-            description: safeDesc,
-            date: g.date
-          };
-          let retryRes = await client.from('gallery').upsert(fallbackPayload);
-          if (retryRes.error && retryRes.error.message?.toLowerCase().includes('column')) {
-            const ultraFallback: any = {
-              id: g.id,
-              title: g.title,
-              category: g.category,
-              image: g.image || g.driveFolderUrl || '',
-              description: safeDesc,
-              date: g.date
-            };
-            retryRes = await client.from('gallery').upsert(ultraFallback);
-          }
-          error = retryRes.error;
-        }
-        if (error) {
-          showToast(`Galeri diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
-        } else {
-          showToast('Album galeri berhasil diperbarui di database Supabase Cloud!', 'success');
-        }
-      } catch (err: any) {
-        showToast(`Album galeri berhasil diperbarui lokal.`, 'info');
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast('Album galeri berhasil diperbarui.', 'success');
-    }
+    showToast('Album galeri berhasil diperbarui.', 'success');
+
+    // Kirim pembaruan ke Google Spreadsheet via Google Apps Script (GAS)
+    const fullDesc = embedGalleryMetadata(mergedGallery.description || '', {
+      driveFolderUrl: mergedGallery.driveFolderUrl,
+      images: mergedGallery.images,
+      authorName: mergedGallery.authorName,
+      authorRole: mergedGallery.authorRole,
+      authorId: mergedGallery.authorId
+    });
+
+    sendGalleryActionToGAS({
+      action: 'update',
+      id: mergedGallery.id,
+      title: mergedGallery.title,
+      category: mergedGallery.category,
+      image: mergedGallery.image,
+      description: fullDesc,
+      date: mergedGallery.date,
+      created_at: mergedGallery.createdAt,
+      images: mergedGallery.images,
+      drive_folder_url: mergedGallery.driveFolderUrl,
+      authorName: mergedGallery.authorName,
+      authorRole: mergedGallery.authorRole,
+      authorId: mergedGallery.authorId
+    }).catch((err) => {
+      console.warn('Gagal sinkronisasi update galeri ke Spreadsheet:', err);
+    });
   };
 
   const deleteGalleryItem = async (id: string) => {
@@ -6374,6 +5978,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updated = prev.filter((g) => g.id !== id);
       _inMemoryGalleryCache = updated;
       try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(updated)); } catch {}
+      setLocalGalleryCache(updated);
       return updated;
     });
     setSelectedGalleryState((curr) => (curr?.id === id ? null : curr));
@@ -6384,24 +5989,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus album galeri: "${targetItem?.title || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const { error } = await client.from('gallery').delete().eq('id', id);
-        if (error) {
-          showToast(`Gagal hapus dari Supabase: ${error.message}`, 'error');
-        } else {
-          showToast('Foto kegiatan berhasil dihapus dari database Supabase.', 'info');
-        }
-      } catch (err: any) {
-        showToast('Foto kegiatan dihapus lokal.', 'info');
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast('Foto kegiatan dihapus.', 'info');
-    }
+    showToast('Foto kegiatan berhasil dihapus.', 'info');
+
+    // Kirim perintah hapus ke Google Spreadsheet via Google Apps Script (GAS)
+    sendGalleryActionToGAS({
+      action: 'delete',
+      id: id
+    }).catch((err) => {
+      console.warn('Gagal sinkronisasi hapus galeri ke Spreadsheet:', err);
+    });
   };
 
   const addGalleryCategory = async (categoryName: string): Promise<boolean> => {
@@ -6422,34 +6018,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_gallery_categories', JSON.stringify(updatedCategories));
     } catch {}
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const { error } = await client.from('gallery').upsert({
-          id: 'system-gallery-categories',
-          title: 'System Gallery Categories',
-          category: 'System',
-          description: JSON.stringify(updatedCategories),
-          image: '',
-          date: new Date().toISOString().split('T')[0]
-        });
-
-        if (error) {
-          console.warn('Gagal menyimpan kategori galeri ke Supabase:', error.message);
-          showToast(`Kategori galeri tersimpan lokal. Supabase: ${error.message}`, 'info');
-          return false;
-        } else {
-          showToast(`Kategori galeri "${trimmed}" berhasil disimpan di database Supabase Cloud!`, 'success');
-          return true;
-        }
-      } catch (err: any) {
-        showToast('Kategori galeri tersimpan di penyimpanan lokal.', 'info');
-        return false;
-      }
-    } else {
-      showToast(`Kategori galeri "${trimmed}" berhasil ditambahkan!`, 'success');
-      return true;
-    }
+    // Diputus dari Supabase (Sedang dialihkan ke Google Spreadsheet)
+    showToast(`Kategori galeri "${trimmed}" berhasil ditambahkan!`, 'success');
+    return true;
   };
 
   // STAFF CRUD (Auto-save to Supabase & local state)
@@ -7897,6 +7468,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedGallery,
         galleryActiveTab,
         setGalleryActiveTab,
+        refreshGalleryFromSheet,
+        isGalleryLoading,
         selectedVideo,
         setSelectedVideo,
         videos,
@@ -7908,6 +7481,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isAuthenticated,
         currentUser,
         adminUsers,
+        refreshAdminUsersFromSheet,
         login,
         logout,
         sessionRemainingSeconds,
