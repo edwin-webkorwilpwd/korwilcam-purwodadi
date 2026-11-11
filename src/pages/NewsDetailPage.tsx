@@ -26,6 +26,7 @@ import { getNewsShortUrl, getNewsShortCode } from '../lib/shortLink';
 import { stripHtml } from '../lib/stripHtml';
 import { sanitizeHtml } from '../lib/sanitizeHtml';
 import { formatGoogleDriveImageUrl, prefetchGoogleDriveImage } from '../lib/driveHelper';
+import { formatNewsDate } from '../services/newsSheetService';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -496,7 +497,7 @@ export const NewsDetailPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3.5 sm:gap-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
                 <div className="flex items-center gap-1.5 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{selectedNews.date}</span>
+                  <span>{formatNewsDate(selectedNews.date)}</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 font-medium">
@@ -531,13 +532,20 @@ export const NewsDetailPage: React.FC = () => {
                   title="Klik untuk memperbesar gambar sampul"
                 >
                   <img
-                    src={formatGoogleDriveImageUrl(selectedNews.image, 1600)}
+                    src={formatGoogleDriveImageUrl(selectedNews.image, 1600) || '/gallery/cover-7-agustus-2026.jpg'}
                     alt={selectedNews.title}
                     decoding="async"
                     fetchPriority="high"
+                    referrerPolicy="no-referrer"
                     className="w-full max-h-[440px] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                      const target = e.target as HTMLImageElement;
+                      if (selectedNews.image && target.src !== selectedNews.image && !target.dataset.triedOriginal) {
+                        target.dataset.triedOriginal = 'true';
+                        target.src = selectedNews.image;
+                        return;
+                      }
+                      target.src = '/gallery/cover-7-agustus-2026.jpg';
                     }}
                   />
                   <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-black/60 group-hover:bg-black/80 backdrop-blur-md text-white text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-md select-none">

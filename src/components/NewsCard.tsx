@@ -12,6 +12,7 @@ import {
 import { getArticleReadingStats } from '../lib/readingTime';
 import { stripHtml } from '../lib/stripHtml';
 import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
+import { formatNewsDate } from '../services/newsSheetService';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -29,13 +30,20 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
       {/* 1. Cover Image with Category Badge, Bottom Curve & Blue Leaf Wave */}
       <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-slate-100">
         <img
-          src={formatGoogleDriveImageUrl(article.image, 600)}
+          src={formatGoogleDriveImageUrl(article.image, 600) || '/gallery/cover-7-agustus-2026.jpg'}
           alt={article.title}
           loading="lazy"
           decoding="async"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+            const target = e.target as HTMLImageElement;
+            if (article.image && target.src !== article.image && !target.dataset.triedOriginal) {
+              target.dataset.triedOriginal = 'true';
+              target.src = article.image;
+              return;
+            }
+            target.src = '/gallery/cover-7-agustus-2026.jpg';
           }}
         />
 
@@ -103,7 +111,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
             {/* Tanggal */}
             <div className="flex items-center gap-1">
               <Calendar className="w-3 h-3 text-blue-500 shrink-0" />
-              <span>{article.date}</span>
+              <span>{formatNewsDate(article.date)}</span>
             </div>
 
             <span className="text-slate-300 font-light">|</span>

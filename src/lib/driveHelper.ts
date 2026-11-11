@@ -11,6 +11,11 @@ export function extractGoogleDriveId(url: string): string | null {
   if (!url || typeof url !== 'string') return null;
   const trimmed = url.trim();
 
+  // Lindungi Base64 data URI, blob URI, atau local path agar tidak salah dipotong
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('/')) {
+    return null;
+  }
+
   // 1. Format /file/d/{id} atau /d/{id}
   const matchFileD = trimmed.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/);
   if (matchFileD && matchFileD[1]) return matchFileD[1];
@@ -32,6 +37,7 @@ export function extractGoogleDriveId(url: string): string | null {
 
 export function isGoogleDriveUrl(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/')) return false;
   return /drive\.google\.com|googleusercontent\.com\/d\//i.test(url);
 }
 
@@ -44,6 +50,11 @@ export function isGoogleDriveUrl(url: string): boolean {
 export function formatGoogleDriveImageUrl(url: string, size?: number): string {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
+
+  // Jika berupa base64 data URI atau local path, kembalikan langsung
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
 
   const driveId = extractGoogleDriveId(trimmed);
   if (driveId) {

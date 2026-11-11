@@ -10,6 +10,12 @@ import {
   ADMIN_USERS_SPREADSHEET_URL,
   fetchAdminUsersFromSheet
 } from '../../services/adminUsersSheetService';
+import {
+  NEWS_SPREADSHEET_URL,
+  getNewsWebAppUrl,
+  setNewsWebAppUrl,
+  formatNewsDate
+} from '../../services/newsSheetService';
 import { 
   LayoutDashboard, 
   Home,
@@ -285,6 +291,7 @@ export const AdminDashboard: React.FC = () => {
     addNews,
     updateNews,
     deleteNews,
+    refreshNewsFromSheet,
     newsCategories,
     addNewsCategory,
     addAnnouncement,
@@ -2222,6 +2229,18 @@ export const AdminDashboard: React.FC = () => {
   // --- 4. NEWS & INFORMASI CMS STATE ---
   const [newsSubTab, setNewsSubTab] = useState<'news' | 'announcements'>('news');
   const [newsFilterTab, setNewsFilterTab] = useState<'all' | 'mine'>('all');
+  const [isNewsSyncing, setIsNewsSyncing] = useState(false);
+  const [newsGasUrlInput, setNewsGasUrlInput] = useState(() => getNewsWebAppUrl());
+  const [isNewsGasModalOpen, setIsNewsGasModalOpen] = useState(false);
+
+  const handleSyncNewsFromSheet = async () => {
+    setIsNewsSyncing(true);
+    try {
+      await refreshNewsFromSheet(true);
+    } finally {
+      setIsNewsSyncing(false);
+    }
+  };
 
   // News form
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
@@ -7030,13 +7049,40 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 4: KELOLA WARTA & INFORMASI */}
           {currentSection === 'news-cms' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                  Kelola Warta & Pengumuman
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Konten ini langsung ditampilkan pada menu Warta & Informasi web publik. (Data Agenda penggunaan aula dikelola otomatis langsung dari database spreadsheet).
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    Kelola Warta & Pengumuman
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Konten ini langsung ditampilkan pada menu Warta & Informasi web publik. Database berita tersambung ke Google Spreadsheet.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Hanya Super Admin yang memiliki hak akses melihat lembar kerja spreadsheet */}
+                  {isSuperAdmin && (
+                    <a
+                      href={NEWS_SPREADSHEET_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all shadow-xs"
+                      title="Buka lembar kerja Google Spreadsheet database berita"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Buka Spreadsheet Berita</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSyncNewsFromSheet}
+                    disabled={isNewsSyncing}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-blue-200 transition-all shadow-xs disabled:opacity-50"
+                    title="Tarik & sinkronkan artikel berita terbaru dari Google Spreadsheet"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isNewsSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isNewsSyncing ? 'Menyinkronkan...' : 'Sinkronkan Berita'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Sub tabs (Khusus non-Editor) */}
@@ -7499,17 +7545,24 @@ export const AdminDashboard: React.FC = () => {
                             <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                               <div className="flex items-center gap-3 min-w-0">
                                 <img 
-                                  src={formatGoogleDriveImageUrl(item.image, 200)} 
+                                  src={formatGoogleDriveImageUrl(item.image, 200) || '/gallery/cover-7-agustus-2026.jpg'} 
                                   alt={item.title} 
+                                  referrerPolicy="no-referrer"
                                   className="w-12 h-12 rounded-lg object-cover shrink-0 bg-slate-100" 
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                                    const target = e.target as HTMLImageElement;
+                                    if (item.image && target.src !== item.image && !target.dataset.triedOriginal) {
+                                      target.dataset.triedOriginal = 'true';
+                                      target.src = item.image;
+                                      return;
+                                    }
+                                    target.src = '/gallery/cover-7-agustus-2026.jpg';
                                   }}
                                 />
                                 <div className="min-w-0">
                                   <h4 className="font-bold text-slate-900 text-xs truncate">{item.title}</h4>
                                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                                    <span>{item.date}</span>
+                                    <span>{formatNewsDate(item.date)}</span>
                                     <span>•</span>
                                     <span>{item.category}</span>
                                     <span>•</span>

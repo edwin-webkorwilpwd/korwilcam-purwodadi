@@ -57,6 +57,13 @@ import {
   updateAdminUserInSheet,
   deleteAdminUserFromSheet
 } from '../services/adminUsersSheetService';
+import {
+  fetchNewsFromSheet,
+  createNewsInSheet,
+  updateNewsInSheet,
+  deleteNewsFromSheet,
+  incrementNewsViewsInSheet
+} from '../services/newsSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -323,6 +330,7 @@ interface AppContextType {
   addNews: (newsItem: Omit<NewsArticle, 'id'>) => void;
   updateNews: (id: string, newsItem: Partial<NewsArticle>) => void;
   deleteNews: (id: string) => void;
+  refreshNewsFromSheet: (force?: boolean) => Promise<void>;
   addNewsCategory: (categoryName: string) => Promise<boolean>;
   incrementNewsViews: (id: string) => Promise<void>;
   recordNewsReadingTime: (id: string, secondsSpent: number, isNewSession?: boolean) => Promise<void>;
@@ -1359,116 +1367,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const schoolsFetchPromise = (!force && schools.length >= 100) ? Promise.resolve(true) : refreshSchools(force);
       const teachersFetchPromise = (force || isAuthenticated) ? refreshTeachers(force) : Promise.resolve(true);
 
-      // 0.05 Fetch news IMMEDIATELY IN PARALLEL (Berita & Informasi Terkini)
+      // 0.05 Fetch news dari Google Spreadsheet & Cache
       const newsFetchPromise = (async () => {
         try {
-          const { data: dbNews, error: newsErr } = await client
-            .from('news')
-            .select('*')
-            .order('created_at', { ascending: false });
+          const sheetNews = await fetchNewsFromSheet(force);
+          if (sheetNews && sheetNews.length > 0) {
+            _inMemoryNewsCache = sheetNews;
+            setNews(sheetNews);
+            try {
+              sessionStorage.setItem('korwilcam_news', JSON.stringify(sheetNews));
+              localStorage.setItem('korwilcam_news', JSON.stringify(sheetNews));
+            } catch {}
 
-          if (!newsErr && dbNews) {
-            // Cari master kategori tersimpan di Supabase
-            const sysCatItem = dbNews.find((n: any) => n.id === 'system-news-categories' || n.slug === 'system-news-categories');
-            let loadedCategories: string[] = ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'];
-            if (sysCatItem) {
-              try {
-                if (Array.isArray(sysCatItem.tags) && sysCatItem.tags.length > 0) {
-                  loadedCategories = sysCatItem.tags.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
-                } else if (sysCatItem.content) {
-                  const parsed = JSON.parse(sysCatItem.content);
-                  if (Array.isArray(parsed)) loadedCategories = parsed.map((t: string) => t === 'TK/PAUD' ? 'TK/KB' : t);
-                }
-              } catch {}
+            // Ekstrak kategori dari berita spreadsheet
+            const catSet = new Set<string>(['Kedinasan', 'SD', 'TK/KB', 'Prestasi']);
+            sheetNews.forEach((n) => {
+              if (n.category) catSet.add(n.category.trim());
+            });
+            const allCats = Array.from(catSet);
+            setNewsCategories(allCats);
+            try {
+              localStorage.setItem('korwilcam_news_categories', JSON.stringify(allCats));
+            } catch {}
+          } else {
+            const cached = _inMemoryNewsCache || [];
+            if (cached.length > 0) {
+              setNews(cached);
             }
-
-            // Filter keluar record master sistem agar tidak muncul sebagai berita artikel di website
-            const actualArticles = dbNews.filter((n: any) => n.id !== 'system-news-categories' && n.slug !== 'system-news-categories');
-
-            // Kumpulkan kategori dari artikel berita yang ada
-            actualArticles.forEach((n: any) => {
-              if (n.category && typeof n.category === 'string') {
-                const rawC = n.category.trim();
-                const c = rawC === 'TK/PAUD' ? 'TK/KB' : rawC;
-                if (c && !loadedCategories.some(cat => cat.toLowerCase() === c.toLowerCase())) {
-                  loadedCategories.push(c);
-                }
-              }
-            });
-
-            // Pastikan kategori default selalu tersedia
-            ['Kedinasan', 'SD', 'TK/KB', 'Prestasi'].forEach(def => {
-              if (!loadedCategories.some(cat => cat.toLowerCase() === def.toLowerCase())) {
-                loadedCategories.push(def);
-              }
-            });
-
-            setNewsCategories(loadedCategories);
-            try {
-              localStorage.setItem('korwilcam_news_categories', JSON.stringify(loadedCategories));
-            } catch {}
-
-            const mappedArticles: NewsArticle[] = actualArticles.map((n: any) => {
-              const id = String(n.id || `news-${Date.now()}`);
-              const title = String(n.title || n.judul || '').trim();
-              const slug = n.slug || (title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `berita-${Date.now()}`);
-              let parsedTags: string[] = [];
-              if (Array.isArray(n.tags)) {
-                parsedTags = n.tags;
-              } else if (typeof n.tags === 'string') {
-                try {
-                  const p = JSON.parse(n.tags);
-                  if (Array.isArray(p)) parsedTags = p;
-                  else parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-                } catch {
-                  parsedTags = n.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-                }
-              }
-              const existingLocal = _inMemoryNewsCache?.find((p) => p.id === id || p.slug === slug);
-              const serverViews = Number(n.views || 0);
-              const localViews = existingLocal ? Number(existingLocal.views || 0) : 0;
-              const finalViews = Math.max(serverViews, localViews);
-
-              const rawSummary = String(n.summary || n.ringkasan || '').trim();
-              const strippedSummary = stripHtml(rawSummary);
-              const plainContent = stripHtml(String(n.content || n.isi || n.konten || ''));
-              const fallbackSummary = plainContent.length > 180 ? plainContent.slice(0, 180).trim() + '...' : plainContent;
-              const safeSummary = strippedSummary || fallbackSummary;
-
-              return {
-                id,
-                title,
-                slug,
-                category: n.category || n.kategori || 'Kedinasan',
-                summary: safeSummary,
-                content: n.content || n.isi || n.konten || '',
-                author: n.author || n.penulis || 'Humas Korwilcam',
-                authorId: n.author_id || n.authorId || undefined,
-                authorRole: n.author_role || n.authorRole || undefined,
-                date: n.date || n.tanggal || (n.created_at ? new Date(n.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })),
-                image: n.image || n.gambar || '',
-                views: finalViews,
-                totalReadSeconds: Math.max(Number(n.total_read_seconds) || 0, existingLocal?.totalReadSeconds || 0),
-                readCount: Math.max(Number(n.read_count) || 0, existingLocal?.readCount || 0),
-                tags: parsedTags
-              };
-            });
-
-            _inMemoryNewsCache = mappedArticles;
-            setNews(mappedArticles);
-            try {
-              sessionStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
-              localStorage.setItem('korwilcam_news', JSON.stringify(mappedArticles));
-            } catch {}
-
-            setSelectedNewsState((current) => {
-              if (!current) return null;
-              const updated = mappedArticles.find((a) => a.id === current.id || a.slug === current.slug);
-              return updated || current;
-            });
           }
         } catch (errNews) {
-          console.warn('Gagal memuat berita dari Supabase:', errNews);
+          console.warn('Gagal memuat berita dari Spreadsheet:', errNews);
+          const cached = _inMemoryNewsCache || [];
+          if (cached.length > 0) {
+            setNews(cached);
+          }
         }
       })();
 
@@ -2283,27 +2215,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await client.from('schools').upsert(safeSchools);
       }
 
-      // 3. News
-      const newsPayload = news.map((n) => ({
-        id: n.id,
-        title: n.title,
-        slug: n.slug,
-        category: n.category,
-        summary: n.summary,
-        content: n.content,
-        author: n.author,
-        author_id: n.authorId,
-        author_role: n.authorRole,
-        date: n.date,
-        image: n.image,
-        views: n.views,
-        tags: n.tags
-      }));
-      let { error: newsErr } = await client.from('news').upsert(newsPayload);
-      if (newsErr && newsErr.message?.toLowerCase().includes('column')) {
-        const safeNews = newsPayload.map(({ author_id, author_role, ...rest }: any) => rest);
-        await client.from('news').upsert(safeNews);
-      }
+      // 3. News (DIPUTUS DARI SUPABASE - Dikelola via Spreadsheet)
+      // Tidak lagi mengekspor data berita ke Supabase
 
       // 4. Announcements
       const annPayload = announcements.map((a) => ({
@@ -2622,11 +2535,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'schools' },
-        triggerDebouncedRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'news' },
         triggerDebouncedRefresh
       )
       .on(
@@ -4744,40 +4652,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const supabasePayload = {
-          id: newArticle.id,
-          title: newArticle.title,
-          slug: newArticle.slug,
-          category: newArticle.category,
-          summary: newArticle.summary,
-          content: newArticle.content,
-          author: newArticle.author,
-          date: newArticle.date,
-          image: newArticle.image,
-          views: Number(newArticle.views || 0),
-          tags: Array.isArray(newArticle.tags) ? newArticle.tags : []
-        };
+    // Sinkronkan ke Google Spreadsheet via GAS di latar belakang
+    createNewsInSheet(newArticle).catch((err) => {
+      console.warn('Gagal simpan berita ke Spreadsheet:', err);
+    });
 
-        const { error } = await client.from('news').upsert(supabasePayload);
-
-        if (error) {
-          console.error('Supabase addNews error:', error);
-          showToast(`Berita diterbitkan lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
-        } else {
-          showToast('Artikel berita berhasil diterbitkan & tersimpan otomatis ke Supabase Cloud!', 'success');
-        }
-      } catch (err: any) {
-        showToast(`Berita disimpan lokal.`, 'info');
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast('Artikel berita berhasil diterbitkan di penyimpanan lokal.', 'success');
-    }
+    showToast('Artikel berita berhasil diterbitkan!', 'success');
 
     triggerActivityLog(
       'TAMBAH DATA',
@@ -4826,50 +4706,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Memperbarui artikel berita: "${mergedNews.title}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const n = mergedNews as NewsArticle;
-        const safeSlug = n.slug || (n.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `berita-${Date.now()}`;
-        const safeSummary = stripHtml(n.summary) || generateSummary(n.content, 180);
+    // Sinkronkan edit ke Google Spreadsheet via GAS di latar belakang
+    updateNewsInSheet(id, mergedNews).catch((err) => {
+      console.warn('Gagal update berita ke Spreadsheet:', err);
+    });
 
-        const supabasePayload = {
-          title: n.title,
-          slug: safeSlug,
-          category: n.category || 'Kedinasan',
-          summary: safeSummary,
-          content: n.content || '',
-          author: n.author || 'Humas Korwilcam',
-          date: n.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-          image: n.image,
-          views: Number(n.views || 0),
-          tags: Array.isArray(n.tags) ? n.tags : []
-        };
-
-        // 1. Try update first:
-        let { error, data } = await client.from('news').update(supabasePayload).eq('id', id).select();
-
-        // 2. If row was not found in Supabase (e.g. created offline), fallback to upsert with id:
-        if (!error && (!data || data.length === 0)) {
-          const upsertRes = await client.from('news').upsert({ id: n.id, ...supabasePayload }).select();
-          error = upsertRes.error;
-        }
-
-        if (error) {
-          console.error('Supabase updateNews error:', error);
-          showToast(`Berita diperbarui lokal. Gagal sinkron Supabase: ${error.message}`, 'error');
-        } else {
-          showToast('Berita berhasil diperbarui di database Supabase Cloud!', 'success');
-        }
-      } catch (err: any) {
-        showToast(`Berita diperbarui lokal.`, 'info');
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast('Berita berhasil diperbarui di penyimpanan lokal.', 'success');
-    }
+    showToast('Berita berhasil diperbarui!', 'success');
   };
 
   const deleteNews = async (id: string) => {
@@ -4892,23 +4734,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus artikel berita: "${targetNews?.title || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const { error } = await client.from('news').delete().eq('id', id);
-        if (error) {
-          showToast(`Gagal hapus berita di Supabase: ${error.message}`, 'error');
-        } else {
-          showToast('Artikel berita berhasil dihapus dari database Supabase.', 'info');
-        }
-      } catch (err: any) {
-        showToast('Artikel berita berhasil dihapus lokal.', 'info');
-      } finally {
-        setSyncStatus('connected');
+    // Sinkronkan hapus ke Google Spreadsheet via GAS di latar belakang
+    deleteNewsFromSheet(id).catch((err) => {
+      console.warn('Gagal hapus berita di Spreadsheet:', err);
+    });
+
+    showToast('Artikel berita berhasil dihapus.', 'info');
+  };
+
+  const refreshNewsFromSheet = async (force: boolean = true): Promise<void> => {
+    try {
+      const sheetNews = await fetchNewsFromSheet(force);
+      if (sheetNews && sheetNews.length > 0) {
+        _inMemoryNewsCache = sheetNews;
+        setNews(sheetNews);
+        try {
+          sessionStorage.setItem('korwilcam_news', JSON.stringify(sheetNews));
+          localStorage.setItem('korwilcam_news', JSON.stringify(sheetNews));
+        } catch {}
+
+        const catSet = new Set<string>(['Kedinasan', 'SD', 'TK/KB', 'Prestasi']);
+        sheetNews.forEach((n) => {
+          if (n.category) catSet.add(n.category.trim());
+        });
+        const allCats = Array.from(catSet);
+        setNewsCategories(allCats);
+        try {
+          localStorage.setItem('korwilcam_news_categories', JSON.stringify(allCats));
+        } catch {}
+        showToast('Data berita berhasil disinkronkan dari Google Spreadsheet!', 'success');
+      } else {
+        showToast('Berhasil terhubung ke Spreadsheet (data berita terkini).', 'info');
       }
-    } else {
-      showToast('Artikel berita berhasil dihapus dari penyimpanan lokal.', 'info');
+    } catch (err: any) {
+      showToast(`Gagal sinkron berita dari Spreadsheet: ${err.message || 'Error Jaringan'}`, 'error');
     }
   };
 
@@ -4931,38 +4790,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_news_categories', JSON.stringify(updatedCategories));
     } catch {}
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const { error } = await client.from('news').upsert({
-          id: 'system-news-categories',
-          title: 'System News Categories',
-          slug: 'system-news-categories',
-          category: 'System',
-          summary: 'Master category list',
-          content: JSON.stringify(updatedCategories),
-          tags: updatedCategories,
-          author: 'System',
-          date: new Date().toISOString().split('T')[0],
-          image: ''
-        });
-
-        if (error) {
-          console.warn('Gagal menyimpan kategori ke Supabase:', error.message);
-          showToast(`Kategori tersimpan lokal. Supabase: ${error.message}`, 'info');
-          return false;
-        } else {
-          showToast(`Kategori "${trimmed}" berhasil disimpan di database Supabase Cloud!`, 'success');
-          return true;
-        }
-      } catch (err: any) {
-        showToast('Kategori tersimpan di penyimpanan lokal.', 'info');
-        return false;
-      }
-    } else {
-      showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
-      return true;
-    }
+    // DIPUTUS DARI SUPABASE: Kategori disimpan secara lokal & siap sinkron ke Spreadsheet
+    showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
+    return true;
   };
 
   const incrementNewsViews = async (id: string) => {
@@ -5004,7 +4834,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return prev;
     });
 
-    // Simpan segera ke localStorage agar tersinkronisasi saat refresh halaman seketika
+    // Simpan segera ke localStorage & sessionStorage agar tersinkronisasi saat refresh halaman seketika
     try {
       const savedRaw = localStorage.getItem('korwilcam_news');
       if (savedRaw) {
@@ -5017,56 +4847,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             return n;
           });
           localStorage.setItem('korwilcam_news', JSON.stringify(updated));
+          sessionStorage.setItem('korwilcam_news', JSON.stringify(updated));
         }
       }
     } catch {}
 
-    // 2. Persist ke Supabase Cloud di latar belakang dengan batas timeout 3 detik
-    const client = getSupabaseClient();
-    if (client) {
-      const cloudTask = async () => {
-        try {
-          // Coba 1: Gunakan RPC increment_news_views jika tersedia di database
-          const { data: rpcViews, error: rpcErr } = await client.rpc('increment_news_views', {
-            article_id: id
-          });
-
-          if (!rpcErr && typeof rpcViews === 'number' && rpcViews > 0) {
-            setNews((prev) =>
-              prev.map((n) => (n.id === id || n.slug === id ? { ...n, views: rpcViews } : n))
-            );
-            setSelectedNewsState((prev) =>
-              prev && (prev.id === id || prev.slug === id) ? { ...prev, views: rpcViews } : prev
-            );
-            return;
-          }
-
-          // Coba 2: Direct SELECT & UPDATE fallback
-          const cleanId = (id || '').replace(/[^a-zA-Z0-9_-]/g, '');
-          const { data: dbItem, error: fetchErr } = await client
-            .from('news')
-            .select('id, views, slug')
-            .or(`id.eq."${cleanId}",slug.eq."${cleanId}"`)
-            .maybeSingle();
-
-          if (!fetchErr && dbItem) {
-            const serverViews = (Number(dbItem.views) || 0) + 1;
-            const finalViews = Math.max(serverViews, calculatedNextViews);
-
-            await client
-              .from('news')
-              .update({ views: finalViews })
-              .eq('id', dbItem.id);
-          }
-        } catch {}
-      };
-
-      // Jalankan tanpa memblokir render antarmuka pengguna
-      Promise.race([
-        cloudTask(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
-      ]).catch(() => {});
-    }
+    // Sinkronkan penambahan views ke Google Spreadsheet via GAS di latar belakang
+    incrementNewsViewsInSheet(id).catch(() => {});
   };
 
   // Record & average news reading time from actual reader interactions
@@ -5107,38 +4894,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return prev;
     });
 
-    // 2. Persist to Supabase Cloud if connected (background task dengan timeout 3 detik)
-    const client = getSupabaseClient();
-    if (client) {
-      const cloudTask = async () => {
-        try {
-          const { data: dbItem } = await client
-            .from('news')
-            .select('total_read_seconds, read_count')
-            .eq('id', id)
-            .single();
-
-          const dbTotal = dbItem ? (Number(dbItem.total_read_seconds) || 0) : 0;
-          const dbCount = dbItem ? (Number(dbItem.read_count) || 0) : 0;
-
-          const finalTotal = dbItem ? dbTotal + secondsSpent : nextTotal;
-          const finalCount = dbItem ? (isNewSession ? dbCount + 1 : Math.max(1, dbCount)) : nextCount;
-
-          await client
-            .from('news')
-            .update({
-              total_read_seconds: finalTotal,
-              read_count: finalCount
-            })
-            .eq('id', id);
-        } catch {}
-      };
-
-      Promise.race([
-        cloudTask(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
-      ]).catch(() => {});
-    }
+    // Simpan segera ke localStorage & sessionStorage
+    try {
+      const savedRaw = localStorage.getItem('korwilcam_news');
+      if (savedRaw) {
+        const parsed = JSON.parse(savedRaw);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((n: any) => {
+            if (n.id === id) {
+              return {
+                ...n,
+                totalReadSeconds: nextTotal,
+                readCount: nextCount
+              };
+            }
+            return n;
+          });
+          localStorage.setItem('korwilcam_news', JSON.stringify(updated));
+          sessionStorage.setItem('korwilcam_news', JSON.stringify(updated));
+        }
+      }
+    } catch {}
+    // DIPUTUS DARI SUPABASE: Waktu baca berita dikelola lokal
   };
 
   // ANNOUNCEMENTS CRUD (Auto-save to Supabase & local state, auto-sync to Layanan Unduhan)
@@ -7500,6 +7277,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addNews,
         updateNews,
         deleteNews,
+        refreshNewsFromSheet,
         newsCategories,
         addNewsCategory,
         incrementNewsViews,

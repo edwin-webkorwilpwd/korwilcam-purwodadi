@@ -15,6 +15,7 @@ import {
 import { formatIndonesianDate, compareAgendaDatesDescending } from '../services/googleSheetService';
 import { stripHtml } from '../lib/stripHtml';
 import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
+import { formatNewsDate } from '../services/newsSheetService';
 
 export const HomePage: React.FC = () => {
   const { news, schools, announcements, aulaBookings, setActiveTab, setSelectedAnnouncement, setSelectedNews } = useApp();
@@ -158,13 +159,20 @@ export const HomePage: React.FC = () => {
                 >
                   <div className="relative w-full aspect-[16/10] sm:h-72 md:h-80 overflow-hidden bg-slate-100">
                     <img
-                      src={formatGoogleDriveImageUrl(featuredNews.image, 1000)}
+                      src={formatGoogleDriveImageUrl(featuredNews.image, 1000) || '/gallery/cover-7-agustus-2026.jpg'}
                       alt={featuredNews.title}
                       loading="lazy"
                       decoding="async"
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                        const target = e.target as HTMLImageElement;
+                        if (featuredNews.image && target.src !== featuredNews.image && !target.dataset.triedOriginal) {
+                          target.dataset.triedOriginal = 'true';
+                          target.src = featuredNews.image;
+                          return;
+                        }
+                        target.src = '/gallery/cover-7-agustus-2026.jpg';
                       }}
                     />
                     <div className="absolute top-4 left-4 z-10">
@@ -214,13 +222,20 @@ export const HomePage: React.FC = () => {
                     {/* Thumbnail */}
                     <div className="w-28 sm:w-36 md:w-40 h-20 sm:h-22 rounded-lg overflow-hidden bg-slate-100 shrink-0">
                       <img
-                        src={formatGoogleDriveImageUrl(art.image, 400)}
+                        src={formatGoogleDriveImageUrl(art.image, 400) || '/gallery/cover-7-agustus-2026.jpg'}
                         alt={art.title}
                         loading="lazy"
                         decoding="async"
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                          const target = e.target as HTMLImageElement;
+                          if (art.image && target.src !== art.image && !target.dataset.triedOriginal) {
+                            target.dataset.triedOriginal = 'true';
+                            target.src = art.image;
+                            return;
+                          }
+                          target.src = '/gallery/cover-7-agustus-2026.jpg';
                         }}
                       />
                     </div>
@@ -232,7 +247,7 @@ export const HomePage: React.FC = () => {
                       </h4>
                       <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium">
                         <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{art.date}</span>
+                        <span className="truncate">{formatNewsDate(art.date)}</span>
                       </div>
                     </div>
                   </article>
