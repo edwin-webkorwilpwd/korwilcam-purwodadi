@@ -1,4 +1,7 @@
-import { getSupabaseClient } from './supabase';
+import { 
+  fetchNavigationFromSheet, 
+  saveMaintenanceToSheet 
+} from '../services/navigationSheetService';
 
 export interface MaintenanceConfig {
   isEnabled: boolean;
@@ -59,74 +62,33 @@ export const setLocalMaintenanceConfig = (config: MaintenanceConfig): void => {
 };
 
 /**
- * Mengambil status mode maintenance dari Supabase Cloud (tabel: navigation_settings dengan id 'maintenance')
+ * Mengambil status mode maintenance dari Google Spreadsheet
  */
-export const fetchMaintenanceFromSupabase = async (): Promise<MaintenanceConfig> => {
+export const fetchMaintenanceFromSupabase = async (forceRefresh = false): Promise<MaintenanceConfig> => {
   try {
-    const client = getSupabaseClient();
-    if (!client) {
-      return getLocalMaintenanceConfig();
-    }
-
-    const { data, error } = await client
-      .from('navigation_settings')
-      .select('items')
-      .eq('id', 'maintenance')
-      .maybeSingle();
-
-    if (error) {
-      console.warn('Catatan fetch maintenance dari Supabase:', error.message);
-      return getLocalMaintenanceConfig();
-    }
-
-    if (data && typeof data.items === 'object' && data.items !== null) {
-      const config: MaintenanceConfig = {
-        isEnabled: Boolean(data.items.isEnabled),
-        title: data.items.title || DEFAULT_MAINTENANCE_CONFIG.title,
-        message: data.items.message || DEFAULT_MAINTENANCE_CONFIG.message,
-        subMessage: data.items.subMessage || DEFAULT_MAINTENANCE_CONFIG.subMessage,
-        updatedAt: data.items.updatedAt,
-        updatedBy: data.items.updatedBy
+    const sheetData = await fetchNavigationFromSheet(forceRefresh);
+    if (sheetData.maintenanceConfig) {
+      return {
+        isEnabled: Boolean(sheetData.maintenanceConfig.isEnabled),
+        title: sheetData.maintenanceConfig.title || DEFAULT_MAINTENANCE_CONFIG.title,
+        message: sheetData.maintenanceConfig.message || DEFAULT_MAINTENANCE_CONFIG.message,
+        subMessage: sheetData.maintenanceConfig.subMessage || DEFAULT_MAINTENANCE_CONFIG.subMessage,
+        updatedAt: sheetData.maintenanceConfig.updatedAt,
+        updatedBy: sheetData.maintenanceConfig.updatedBy
       };
-      setLocalMaintenanceConfig(config);
-      return config;
     }
-  } catch (err) {
-    console.warn('Error saat fetchMaintenanceFromSupabase:', err);
+  } catch (e) {
+    console.warn('Gagal memuat status maintenance dari Spreadsheet:', e);
   }
   return getLocalMaintenanceConfig();
 };
 
 /**
- * Menyimpan status mode maintenance ke Supabase Cloud dan LocalStorage
+ * Menyimpan status mode maintenance ke Google Spreadsheet & LocalStorage
  */
 export const saveMaintenanceToSupabase = async (
   config: MaintenanceConfig
 ): Promise<boolean> => {
-  setLocalMaintenanceConfig(config);
-
-  try {
-    const client = getSupabaseClient();
-    if (!client) return true;
-
-    const payload = {
-      id: 'maintenance',
-      items: {
-        ...config,
-        updatedAt: new Date().toISOString()
-      },
-      updated_at: new Date().toISOString()
-    };
-
-    const { error } = await client.from('navigation_settings').upsert(payload);
-
-    if (error) {
-      console.warn('Gagal upsert maintenance settings ke Supabase:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('Gagal menyimpan maintenance config ke Supabase:', err);
-    return false;
-  }
+  const result = await saveMaintenanceToSheet(config);
+  return result.success;
 };

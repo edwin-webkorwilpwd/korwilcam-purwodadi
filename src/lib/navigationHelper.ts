@@ -1,5 +1,12 @@
-import { getSupabaseClient } from './supabase';
 import { MenuVisibilityMap } from '../config/navigationConfig';
+import { 
+  fetchNavigationFromSheet, 
+  saveNavigationMenuToSheet,
+  NAVIGATION_SPREADSHEET_ID,
+  NAVIGATION_SPREADSHEET_URL
+} from '../services/navigationSheetService';
+
+export { NAVIGATION_SPREADSHEET_ID, NAVIGATION_SPREADSHEET_URL };
 
 const LOCAL_STORAGE_KEY = 'korwilcam_menu_visibility';
 
@@ -34,73 +41,39 @@ export const getLocalNavigationVisibility = (): MenuVisibilityMap => {
 export const setLocalNavigationVisibility = (visibility: MenuVisibilityMap): void => {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(visibility));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('korwilcam_menu_visibility_changed', { detail: visibility }));
+    }
   } catch (err) {
     console.warn('Gagal menyimpan visibilitas menu ke LocalStorage:', err);
   }
 };
 
 /**
- * Mengambil status visibilitas menu dari Supabase Cloud (tabel: navigation_settings)
+ * Mengambil status visibilitas menu dari Google Spreadsheet
  */
-export const fetchNavigationVisibilityFromSupabase = async (): Promise<MenuVisibilityMap> => {
+export const fetchNavigationVisibilityFromSupabase = async (forceRefresh = false): Promise<MenuVisibilityMap> => {
   try {
-    const client = getSupabaseClient();
-    if (!client) {
-      return getLocalNavigationVisibility();
-    }
-
-    const { data, error } = await client
-      .from('navigation_settings')
-      .select('items')
-      .eq('id', 'default')
-      .maybeSingle();
-
-    if (error) {
-      // Jika tabel belum dibuat, jangan crash, cukup fallback ke LocalStorage
-      console.warn('Catatan tabel navigation_settings Supabase:', error.message);
-      return getLocalNavigationVisibility();
-    }
-
-    if (data && typeof data.items === 'object' && data.items !== null) {
-      const merged = {
+    const sheetData = await fetchNavigationFromSheet(forceRefresh);
+    if (sheetData.menuVisibility) {
+      return {
         ...DEFAULT_MENU_VISIBILITY,
-        ...data.items
+        ...sheetData.menuVisibility
       };
-      setLocalNavigationVisibility(merged);
-      return merged;
     }
-  } catch (err) {
-    console.warn('Error saat fetchNavigationVisibilityFromSupabase:', err);
+  } catch (e) {
+    console.warn('Gagal memuat visibilitas menu dari Spreadsheet:', e);
   }
   return getLocalNavigationVisibility();
 };
 
 /**
- * Menyimpan status visibilitas menu ke Supabase Cloud dan LocalStorage
+ * Menyimpan status visibilitas menu ke Google Spreadsheet & LocalStorage
  */
 export const saveNavigationVisibilityToSupabase = async (
   visibility: MenuVisibilityMap
 ): Promise<boolean> => {
-  // Simpan ke local storage terlebih dahulu agar langsung instan
-  setLocalNavigationVisibility(visibility);
-
-  try {
-    const client = getSupabaseClient();
-    if (!client) return true;
-
-    const { error } = await client.from('navigation_settings').upsert({
-      id: 'default',
-      items: visibility,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      console.warn('Gagal upsert navigation_settings ke Supabase:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('Gagal menyimpan navigation_settings ke Supabase:', err);
-    return false;
-  }
+  const result = await saveNavigationMenuToSheet(visibility);
+  return result.success;
 };

@@ -1575,7 +1575,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.175 Fetch navigation_settings & maintenance_settings IMMEDIATELY IN PARALLEL
+      // 0.175 Fetch menu visibility & maintenance settings (LocalStorage / Persiapan Spreadsheet)
       const navSettingsFetchPromise = (async () => {
         try {
           const vis = await fetchNavigationVisibilityFromSupabase();
@@ -1587,7 +1587,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setMaintenanceConfig(mConfig);
           }
         } catch (errNav) {
-          console.warn('Tabel navigation_settings / maintenance belum terbaca:', errNav);
+          console.warn('Gagal memuat pengaturan menu / maintenance:', errNav);
         }
       })();
 
@@ -2484,26 +2484,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Realtime channel HANYA dibuka untuk akun Admin yang sedang login mengelola CMS.
     if (!isAuthenticated) return;
 
-    // 3. Realtime Listener Khusus untuk Status Maintenance & Visibilitas Menu (Aktif untuk Admin terautentikasi)
-    // Berbobot sangat ringan (hanya 2 baris data), namun krusial agar HP/perangkat lain langsung membuka/menutup portal saat mode maintenance diubah
-    const navChannel = client
-      .channel('korwilcam-navigation-sync-global')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'navigation_settings' },
-        async () => {
-          try {
-            const mConfig = await fetchMaintenanceFromSupabase();
-            if (mConfig) setMaintenanceConfig(mConfig);
-            const vis = await fetchNavigationVisibilityFromSupabase();
-            if (vis && typeof vis === 'object') setMenuVisibility(vis);
-          } catch (e) {
-            console.warn('Realtime global navigation_settings error:', e);
-          }
-        }
-      )
-      .subscribe();
-
     // 4. Realtime Postgres Changes Subscription untuk Seluruh Menu & Konten (Aktif untuk Semua Pengunjung Publik & Admin):
     // Memastikan setiap ada artikel berita, foto, pengumuman, atau perubahan data baru di CMS,
     // seluruh layar pengunjung di HP, laptop, dan browser lain langsung otomatis ter-update secara real-time!
@@ -2652,24 +2632,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'navigation_settings' },
-        async () => {
-          try {
-            const vis = await fetchNavigationVisibilityFromSupabase();
-            if (vis && typeof vis === 'object') {
-              setMenuVisibility(vis);
-            }
-            const mConfig = await fetchMaintenanceFromSupabase();
-            if (mConfig) {
-              setMaintenanceConfig(mConfig);
-            }
-          } catch (e) {
-            console.warn('Realtime navigation_settings / maintenance error:', e);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
         { event: '*', schema: 'public', table: 'broadcast_notifications' },
         async () => {
           try {
@@ -2688,7 +2650,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
       window.removeEventListener('focus', handleGlobalVisibilityOrFocus);
       document.removeEventListener('visibilitychange', handleGlobalVisibilityOrFocus);
-      client.removeChannel(navChannel);
       client.removeChannel(channel);
     };
   }, [isSupabaseActive, isAuthenticated]);

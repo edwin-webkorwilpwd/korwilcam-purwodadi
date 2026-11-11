@@ -9,6 +9,10 @@ import {
   isParentActive,
   getNavigationStats
 } from '../../config/navigationConfig';
+import {
+  NAVIGATION_SPREADSHEET_URL,
+  fetchNavigationFromSheet
+} from '../../services/navigationSheetService';
 import { 
   Sliders, 
   Eye, 
@@ -65,6 +69,7 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     return initial;
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Sync dengan context jika menuVisibility dari luar (misal: realtime sync) berubah
@@ -90,12 +95,12 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     try {
       const success = await updateMenuVisibility(updated);
       if (success) {
-        showToast(`Menu ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'} & tersimpan ke Cloud.`, 'success');
+        showToast(`Menu ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'} & tersimpan ke Spreadsheet.`, 'success');
       } else {
-        showToast('Perhatian: Gagal sinkron ke Cloud Supabase (Izin RLS tabel navigation_settings tertutup). Perubahan hanya tersimpan lokal.', 'error');
+        showToast('Pengaturan menu tersimpan secara lokal.', 'info');
       }
     } catch {
-      showToast('Gagal menyimpan perubahan ke server.', 'error');
+      showToast('Gagal menyimpan perubahan pengaturan menu.', 'error');
     }
   };
 
@@ -115,12 +120,12 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     try {
       const success = await updateMenuVisibility(updated);
       if (success) {
-        showToast(`Semua sub menu ${parent.label} ${enableAll ? 'diaktifkan' : 'dinonaktifkan'} & tersimpan ke Cloud.`, 'success');
+        showToast(`Semua sub menu ${parent.label} ${enableAll ? 'diaktifkan' : 'dinonaktifkan'} & tersimpan ke Spreadsheet.`, 'success');
       } else {
-        showToast('Perhatian: Gagal sinkron ke Cloud Supabase (Izin RLS navigation_settings tertutup). Tersimpan lokal.', 'error');
+        showToast('Pengaturan menu tersimpan secara lokal.', 'info');
       }
     } catch {
-      showToast('Gagal menyimpan perubahan ke server.', 'error');
+      showToast('Gagal menyimpan perubahan pengaturan menu.', 'error');
     }
   };
 
@@ -170,7 +175,7 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     try {
       const success = await updateMenuVisibility(localVisibility);
       if (success) {
-        showToast('Pengaturan tampilan menu berhasil disimpan dan disinkronkan ke website!', 'success');
+        showToast('Pengaturan tampilan menu berhasil disimpan ke Google Spreadsheet & website!', 'success');
         setHasUnsavedChanges(false);
       } else {
         showToast('Pengaturan disimpan di penyimpanan lokal browser.', 'info');
@@ -180,6 +185,26 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
       showToast(`Gagal menyimpan pengaturan: ${err.message || 'Error'}`, 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Sinkronkan data menu terbaru dari Google Spreadsheet
+  const handleSyncFromSheet = async () => {
+    setIsSyncing(true);
+    try {
+      const sheetData = await fetchNavigationFromSheet(true);
+      if (sheetData.menuVisibility) {
+        setLocalVisibility(sheetData.menuVisibility);
+        await updateMenuVisibility(sheetData.menuVisibility);
+        setHasUnsavedChanges(false);
+        showToast('Berhasil menyinkronkan susunan menu terbaru dari Google Spreadsheet!', 'success');
+      } else {
+        showToast('Tidak ada perubahan data di Spreadsheet. Menggunakan pengaturan tersimpan.', 'info');
+      }
+    } catch (err: any) {
+      showToast(`Gagal menyinkronkan dari Spreadsheet: ${err.message || 'Error'}`, 'error');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -269,12 +294,35 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
             </h1>
             <p className="text-blue-100 text-sm leading-relaxed">
               Atur dan kontrol penuh visibilitas setiap menu utama dan sub-menu yang akan ditampilkan di website publik.
-              Jika suatu sub-menu dinonaktifkan (misalnya <strong className="text-white underline decoration-amber-400">Unduh Berkas</strong>), 
+              Database pengaturan tersambung ke Google Spreadsheet. Jika suatu sub-menu dinonaktifkan (misalnya <strong className="text-white underline decoration-amber-400">Unduh Berkas</strong>), 
               sub-menu tersebut otomatis tidak akan muncul pada dropdown navigasi website.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {currentUser?.role === 'Super Admin' && (
+              <a
+                href={NAVIGATION_SPREADSHEET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 text-xs font-bold transition-all border border-emerald-400/30 backdrop-blur-md cursor-pointer"
+                title="Buka lembar kerja Google Spreadsheet database menu & navigasi"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Buka Spreadsheet Menu</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSyncFromSheet}
+              disabled={isSyncing || isSaving}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all border border-white/20 backdrop-blur-md cursor-pointer disabled:opacity-50"
+              title="Tarik data menu terbaru dari Google Spreadsheet"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-300' : ''}`} />
+              <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Menu'}</span>
+            </button>
             <button
               type="button"
               onClick={handleResetToDefault}
@@ -382,7 +430,7 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center justify-between gap-3 shadow-sm animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2.5 text-xs text-amber-900 font-medium">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-            <span>Terdapat perubahan pengaturan visibilitas menu yang belum disimpan ke Supabase Cloud.</span>
+            <span>Terdapat perubahan pengaturan visibilitas menu yang belum disimpan.</span>
           </div>
           <button
             type="button"
@@ -723,7 +771,7 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
             <span className="w-3 h-3 rounded-full bg-amber-400 animate-ping" />
             <div>
               <p className="text-xs font-bold text-white">
-                Perubahan pengaturan visibilitas menu belum disimpan ke Supabase Cloud
+                Perubahan pengaturan visibilitas menu belum disimpan
               </p>
               <p className="text-[11px] text-slate-300">
                 Klik tombol "Simpan Perubahan" agar website publik segera menampilkan susunan menu terbaru.

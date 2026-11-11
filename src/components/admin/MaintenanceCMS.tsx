@@ -108,7 +108,7 @@ export const MaintenanceCMS: React.FC = () => {
           pendingToggleState ? 'info' : 'success'
         );
       } else {
-        showToast('Gagal memperbarui status maintenance ke cloud.', 'error');
+        showToast('Gagal memperbarui status maintenance.', 'error');
       }
     } catch (e: any) {
       showToast(`Terjadi kesalahan: ${e.message}`, 'error');
@@ -128,7 +128,7 @@ export const MaintenanceCMS: React.FC = () => {
         updatedBy: currentUser?.name || 'Super Admin'
       });
       if (success) {
-        showToast('Teks pesan maintenance berhasil disimpan ke Supabase Cloud!', 'success');
+        showToast('Teks pesan maintenance berhasil disimpan!', 'success');
       } else {
         showToast('Gagal menyimpan teks pesan maintenance.', 'error');
       }
