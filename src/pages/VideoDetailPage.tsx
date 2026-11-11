@@ -23,7 +23,6 @@ export const VideoDetailPage: React.FC = () => {
   } = useApp();
 
   const [isDescExpanded, setIsDescExpanded] = useState<boolean>(false);
-  const [sidebarFilter, setSidebarFilter] = useState<'all' | 'school' | 'category'>('all');
 
   // State & Ref Layar Penuh (Fullscreen) untuk kompatibilitas iPhone Safari & seluruh ponsel
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -95,7 +94,6 @@ export const VideoDetailPage: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     setIsDescExpanded(false);
-    setSidebarFilter('all');
   }, [selectedVideo?.id]);
 
   // URL Embed YouTube Resmi Bebas Error 153 dengan Referer Domain
@@ -170,24 +168,11 @@ export const VideoDetailPage: React.FC = () => {
 
   // Video rekomendasi sidebar (diacak/shuffled dan dibatasi maksimal 10 video)
   const relatedVideos = useMemo(() => {
-    if (!selectedVideo) return [];
+    if (!selectedVideo || !videos || videos.length === 0) return [];
     const others = videos.filter((v) => v.id !== selectedVideo.id);
 
-    let candidates = others;
-    if (sidebarFilter === 'school' && selectedVideo.schoolName) {
-      const matchSchool = others.filter((v) => 
-        (v.schoolName || '').toLowerCase() === (selectedVideo.schoolName || '').toLowerCase()
-      );
-      if (matchSchool.length > 0) candidates = matchSchool;
-    } else if (sidebarFilter === 'category' && selectedVideo.category) {
-      const matchCat = others.filter((v) => 
-        (v.category || '').toLowerCase() === (selectedVideo.category || '').toLowerCase()
-      );
-      if (matchCat.length > 0) candidates = matchCat;
-    }
-
     // Algoritma Fisher-Yates untuk mengacak rekomendasi video secara merata (random shuffle)
-    const shuffled = [...candidates];
+    const shuffled = [...others];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -195,7 +180,7 @@ export const VideoDetailPage: React.FC = () => {
 
     // Tampilkan hanya 10 video saja
     return shuffled.slice(0, 10);
-  }, [videos, selectedVideo?.id, selectedVideo?.schoolName, selectedVideo?.category, sidebarFilter]);
+  }, [videos, selectedVideo?.id]);
 
   // 6 Video rekomendasi di bawah media player (diacak secara independen, 1 baris 3 video)
   const bottomRecommendedVideos = useMemo(() => {
@@ -449,49 +434,8 @@ export const VideoDetailPage: React.FC = () => {
             )}
           </main>
 
-          {/* Kolom Kanan: Sidebar Rekomendasi Video Khas YouTube */}
-          <aside className="lg:col-span-4 xl:col-span-4 space-y-3">
-            {/* Filter Chips Khas YouTube (Semua, Sekolah Terkait, Kategori) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
-              <button
-                type="button"
-                onClick={() => setSidebarFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  sidebarFilter === 'all'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                }`}
-              >
-                Semua
-              </button>
-
-              {selectedVideo.schoolName && (
-                <button
-                  type="button"
-                  onClick={() => setSidebarFilter('school')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    sidebarFilter === 'school'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                  }`}
-                >
-                  Dari {selectedVideo.schoolName}
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setSidebarFilter('category')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  sidebarFilter === 'category'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                }`}
-              >
-                {selectedVideo.category}
-              </button>
-            </div>
-
+          {/* Kolom Kanan: Sidebar Rekomendasi Video Khas YouTube (Sejajar dengan Puncak Media Player) */}
+          <aside className="lg:col-span-4 xl:col-span-4 lg:-mt-1.5">
             {/* Daftar Video Terkait dalam Format Baris Horizontal Khas YouTube */}
             <div className="space-y-3">
               {relatedVideos.map((vid) => (

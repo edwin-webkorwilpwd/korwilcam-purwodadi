@@ -30,6 +30,16 @@ const shuffleVideos = (videoList: GalleryVideoItem[]): GalleryVideoItem[] => {
   return arr;
 };
 
+// Fungsi pengacakan Fisher-Yates untuk mengacak urutan album foto kegiatan agar selalu tampil acak bagi pengunjung
+const shuffleGallery = (galleryList: GalleryItem[]): GalleryItem[] => {
+  const arr = [...galleryList];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 export const GalleryPage: React.FC = () => {
   const { 
     gallery, 
@@ -56,6 +66,8 @@ export const GalleryPage: React.FC = () => {
 
   // State daftar video yang diacak (randomized) per sesi kunjungan pengunjung
   const [shuffledVideos, setShuffledVideos] = useState<GalleryVideoItem[]>([]);
+  // State daftar album foto yang diacak (randomized) per sesi kunjungan pengunjung
+  const [shuffledGallery, setShuffledGallery] = useState<GalleryItem[]>([]);
 
   // Mengacak video saat data video pertama kali dimuat atau diperbarui
   useEffect(() => {
@@ -64,14 +76,24 @@ export const GalleryPage: React.FC = () => {
     }
   }, [videos]);
 
+  // Mengacak album foto saat data galeri pertama kali dimuat atau diperbarui
+  useEffect(() => {
+    if (gallery && gallery.length > 0) {
+      setShuffledGallery(shuffleGallery(gallery));
+    }
+  }, [gallery]);
+
   // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
   useEffect(() => {
     setVideoCurrentPage(1);
   }, [videoSearchQuery]);
 
-  // Sinkronisasi query param & acak ulang ketika pengunjung memilih tab video
+  // Sinkronisasi query param & acak ulang ketika pengunjung memilih tab foto / video
   const handleSwitchTab = (tab: 'photo' | 'video') => {
     setGalleryActiveTab(tab);
+    if (tab === 'photo' && gallery && gallery.length > 0) {
+      setShuffledGallery(shuffleGallery(gallery));
+    }
     if (tab === 'video' && videos && videos.length > 0) {
       setShuffledVideos(shuffleVideos(videos));
     }
@@ -95,13 +117,14 @@ export const GalleryPage: React.FC = () => {
     return list;
   }, [galleryCategories]);
 
-  // Filtered Foto
+  // Filtered Foto menggunakan urutan acak (shuffledGallery) agar setiap pengunjung mendapat tampilan acak
   const filteredGallery = useMemo(() => {
-    const list = selectedPhotoCategory === 'ALL'
-      ? gallery
-      : gallery.filter((item) => item.category === selectedPhotoCategory);
-    return sortGalleryDescending(list);
-  }, [gallery, selectedPhotoCategory]);
+    const baseList = shuffledGallery.length > 0 ? shuffledGallery : gallery;
+    if (selectedPhotoCategory === 'ALL') {
+      return baseList;
+    }
+    return baseList.filter((item) => item.category === selectedPhotoCategory);
+  }, [gallery, shuffledGallery, selectedPhotoCategory]);
 
   // Filtered Video berdasarkan Judul dan Nama SD (Sekolah) menggunakan urutan acak (shuffledVideos)
   const filteredVideos = useMemo(() => {

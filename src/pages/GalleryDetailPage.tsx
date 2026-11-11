@@ -249,8 +249,17 @@ export const GalleryDetailPage: React.FC = () => {
     showToast(`Memulai unduhan seluruh ${totalPhotos} foto dalam album...`, 'info');
   };
 
-  // Other albums for recommendations
-  const otherAlbums = gallery.filter((item) => item.id !== selectedGallery.id).slice(0, 3);
+  // Other albums for recommendations (diacak secara dinamis)
+  const otherAlbums = useMemo(() => {
+    if (!selectedGallery || !gallery) return [];
+    const others = gallery.filter((item) => item.id !== selectedGallery.id);
+    const shuffled = [...others];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 3);
+  }, [gallery, selectedGallery?.id]);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
