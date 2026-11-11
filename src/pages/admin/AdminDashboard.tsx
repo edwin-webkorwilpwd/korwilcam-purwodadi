@@ -12070,13 +12070,32 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 6: KELOLA GALERI */}
           {currentSection === 'gallery-cms' && (
             <div className="space-y-8">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                  Kelola Galeri Foto Kegiatan
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Upload dan kelola foto kegiatan pembelajaran, lomba, dan upacara se-Purwodadi.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    Kelola Galeri Foto Kegiatan
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Upload dan kelola foto kegiatan pembelajaran, lomba, dan upacara se-Purwodadi.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const raw = localStorage.getItem('korwilcam_gallery');
+                    if (raw) {
+                      navigator.clipboard.writeText(raw);
+                      showToast('Data 10 Album Galeri (JSON) berhasil disalin ke clipboard! Silakan paste di chat.', 'success');
+                    } else {
+                      showToast('Data galeri di localStorage kosong.', 'error');
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer shrink-0"
+                  title="Salin seluruh data 10 album galeri lokal untuk ditanam permanen ke sistem"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Salin Data Galeri (JSON)</span>
+                </button>
               </div>
 
               {/* Form */}

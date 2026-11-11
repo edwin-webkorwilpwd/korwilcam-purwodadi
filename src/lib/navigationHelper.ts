@@ -3,6 +3,10 @@ import { MenuVisibilityMap } from '../config/navigationConfig';
 
 const LOCAL_STORAGE_KEY = 'korwilcam_menu_visibility';
 
+export const DEFAULT_MENU_VISIBILITY: MenuVisibilityMap = {
+  'services.data-request': false
+};
+
 /**
  * Mengambil status visibilitas menu dari LocalStorage
  */
@@ -12,13 +16,16 @@ export const getLocalNavigationVisibility = (): MenuVisibilityMap => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed;
+        return {
+          ...DEFAULT_MENU_VISIBILITY,
+          ...parsed
+        };
       }
     }
   } catch (err) {
     console.warn('Gagal membaca visibilitas menu dari LocalStorage:', err);
   }
-  return {};
+  return { ...DEFAULT_MENU_VISIBILITY };
 };
 
 /**
@@ -55,8 +62,12 @@ export const fetchNavigationVisibilityFromSupabase = async (): Promise<MenuVisib
     }
 
     if (data && typeof data.items === 'object' && data.items !== null) {
-      setLocalNavigationVisibility(data.items);
-      return data.items;
+      const merged = {
+        ...DEFAULT_MENU_VISIBILITY,
+        ...data.items
+      };
+      setLocalNavigationVisibility(merged);
+      return merged;
     }
   } catch (err) {
     console.warn('Error saat fetchNavigationVisibilityFromSupabase:', err);

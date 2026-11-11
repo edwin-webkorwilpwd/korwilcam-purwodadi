@@ -78,19 +78,25 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
     return getNavigationStats(localVisibility);
   }, [localVisibility]);
 
-  // Toggle satu menu atau sub-menu
-  const handleToggleItem = (id: string, currentStatus: boolean) => {
+  // Toggle satu menu atau sub-menu dengan auto-save instan
+  const handleToggleItem = async (id: string, currentStatus: boolean) => {
     const nextStatus = !currentStatus;
     const updated = {
       ...localVisibility,
       [id]: nextStatus,
     };
     setLocalVisibility(updated);
-    setHasUnsavedChanges(true);
+    setHasUnsavedChanges(false);
+    try {
+      await updateMenuVisibility(updated);
+      showToast(`Menu ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'}.`, 'success');
+    } catch {
+      showToast('Gagal menyimpan perubahan ke server.', 'error');
+    }
   };
 
-  // Toggle semua sub-menu dari suatu parent
-  const handleToggleAllChildren = (parent: NavigationItem, enableAll: boolean) => {
+  // Toggle semua sub-menu dari suatu parent dengan auto-save instan
+  const handleToggleAllChildren = async (parent: NavigationItem, enableAll: boolean) => {
     if (!parent.children) return;
     const updated = { ...localVisibility };
     parent.children.forEach((child) => {
@@ -101,11 +107,17 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
       updated[parent.id] = true;
     }
     setLocalVisibility(updated);
-    setHasUnsavedChanges(true);
+    setHasUnsavedChanges(false);
+    try {
+      await updateMenuVisibility(updated);
+      showToast(`Semua sub menu ${parent.label} ${enableAll ? 'diaktifkan' : 'dinonaktifkan'}.`, 'success');
+    } catch {
+      showToast('Gagal menyimpan perubahan ke server.', 'error');
+    }
   };
 
-  // Aktifkan semua menu & sub-menu
-  const handleEnableAll = () => {
+  // Aktifkan semua menu & sub-menu dengan auto-save instan
+  const handleEnableAll = async () => {
     const updated: MenuVisibilityMap = {};
     NAVIGATION_CONFIG.forEach((item) => {
       updated[item.id] = true;
@@ -116,8 +128,14 @@ export const MenuSettingsCMS: React.FC<MenuSettingsCMSProps> = ({ onGoToWebsite 
       }
     });
     setLocalVisibility(updated);
-    setHasUnsavedChanges(true);
-    showToast('Seluruh menu dan sub menu disiapkan untuk aktif.', 'info');
+    setIsSaving(true);
+    try {
+      await updateMenuVisibility(updated);
+      setHasUnsavedChanges(false);
+      showToast('Seluruh menu dan sub menu telah diaktifkan.', 'success');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Reset ke pengaturan bawaan

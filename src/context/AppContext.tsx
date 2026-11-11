@@ -6772,10 +6772,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetMenuVisibility = async (): Promise<boolean> => {
     const defaultMap: MenuVisibilityMap = {};
     NAVIGATION_CONFIG.forEach((item) => {
-      defaultMap[item.id] = true;
+      defaultMap[item.id] = item.defaultEnabled !== false;
       if (item.children) {
         item.children.forEach((child) => {
-          defaultMap[child.id] = true;
+          defaultMap[child.id] = child.defaultEnabled !== false;
         });
       }
     });
@@ -6784,7 +6784,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     triggerActivityLog(
       'UBAH DATA',
       'Pengaturan Menu',
-      'Mereset seluruh menu dan sub-menu navigasi website ke pengaturan bawaan aktif'
+      'Mereset seluruh menu dan sub-menu navigasi website ke pengaturan bawaan'
     );
     return success;
   };

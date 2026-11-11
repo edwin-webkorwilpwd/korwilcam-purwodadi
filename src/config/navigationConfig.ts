@@ -219,7 +219,7 @@ export const NAVIGATION_CONFIG: NavigationItem[] = [
         path: '/layanan/permintaan-data',
         tab: 'service-permintaan-data',
         description: 'Layanan formulir permohonan data dan informasi kependidikan.',
-        defaultEnabled: true,
+        defaultEnabled: false,
       },
     ],
   },
@@ -262,12 +262,33 @@ export const NAVIGATION_CONFIG: NavigationItem[] = [
 ];
 
 /**
+ * Mencari item atau sub-item navigasi berdasarkan id
+ */
+export function findNavigationItemById(id: string): NavigationItem | NavigationSubItem | undefined {
+  for (const item of NAVIGATION_CONFIG) {
+    if (item.id === id) return item;
+    if (item.children) {
+      for (const child of item.children) {
+        if (child.id === id) return child;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
  * Memeriksa apakah suatu menu atau submenu aktif
- * Default nilai adalah true (aktif) kecuali jika secara eksplisit diset ke false
+ * Mengutamakan status dari visibility map; jika belum diset, merujuk ke defaultEnabled pada konfigurasi
  */
 export function isItemActive(visibility: MenuVisibilityMap, id: string): boolean {
-  if (!visibility) return true;
-  return visibility[id] !== false;
+  if (visibility && typeof visibility[id] === 'boolean') {
+    return visibility[id];
+  }
+  const item = findNavigationItemById(id);
+  if (item && typeof item.defaultEnabled === 'boolean') {
+    return item.defaultEnabled;
+  }
+  return true;
 }
 
 /**
