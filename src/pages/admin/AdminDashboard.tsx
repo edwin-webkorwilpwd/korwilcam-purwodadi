@@ -20,6 +20,9 @@ import {
   SERVICE_REQUIREMENTS_SPREADSHEET_URL,
   fetchServiceRequirementsFromSheet
 } from '../../services/serviceRequirementsSheetService';
+import {
+  DATA_REQUESTS_SPREADSHEET_URL
+} from '../../services/dataRequestSheetService';
 import { 
   LayoutDashboard, 
   Home,
@@ -362,6 +365,7 @@ export const AdminDashboard: React.FC = () => {
     updateDataRequest,
     deleteDataRequest,
     toggleDataRequestActive,
+    refreshDataRequestsFromSheet,
     showConfirmDialog,
     showNoticePopup,
     activityLogUrl,
@@ -895,6 +899,16 @@ export const AdminDashboard: React.FC = () => {
   const [dataReqPreviewKey, setDataReqPreviewKey] = useState<number>(0);
   const [isSavingDataReq, setIsSavingDataReq] = useState<boolean>(false);
   const [copiedDataReqId, setCopiedDataReqId] = useState<string | null>(null);
+  const [isDataReqSyncing, setIsDataReqSyncing] = useState<boolean>(false);
+
+  const handleSyncDataRequestsFromSheet = async () => {
+    setIsDataReqSyncing(true);
+    try {
+      await refreshDataRequestsFromSheet(true);
+    } finally {
+      setIsDataReqSyncing(false);
+    }
+  };
 
   // --- PAGINATION PERMINTAAN DATA (WEBVIEW) CMS (10 per halaman) ---
   const [dataReqCurrentPage, setDataReqCurrentPage] = useState(1);
@@ -11407,7 +11421,30 @@ export const AdminDashboard: React.FC = () => {
                     Atur formulir online (Google Form, Spreadsheet, dsb.) yang ditampilkan sebagai Webview di website publik.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Hanya Super Admin yang memiliki hak akses melihat lembar kerja spreadsheet */}
+                  {isSuperAdmin && (
+                    <a
+                      href={DATA_REQUESTS_SPREADSHEET_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all shadow-xs"
+                      title="Buka lembar kerja Google Spreadsheet Permintaan Data"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Buka Spreadsheet Data</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSyncDataRequestsFromSheet}
+                    disabled={isDataReqSyncing}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-blue-200 transition-all shadow-xs disabled:opacity-50"
+                    title="Tarik data tautan permintaan data terbaru dari Google Spreadsheet"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isDataReqSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isDataReqSyncing ? 'Menyinkronkan...' : 'Sinkronkan'}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('service-permintaan-data', '/layanan/permintaan-data')}

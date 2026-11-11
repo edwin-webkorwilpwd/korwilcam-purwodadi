@@ -70,6 +70,11 @@ import {
   deleteServiceRequirementFromSheet,
   clearAllServiceRequirementsInSheet
 } from '../services/serviceRequirementsSheetService';
+import {
+  fetchDataRequestsFromSheet,
+  saveDataRequestToSheet,
+  deleteDataRequestFromSheet
+} from '../services/dataRequestSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -287,6 +292,7 @@ interface AppContextType {
   updateDataRequest: (id: string, data: Partial<DataRequestLink>) => Promise<boolean>;
   deleteDataRequest: (id: string) => Promise<boolean>;
   toggleDataRequestActive: (id: string) => Promise<boolean>;
+  refreshDataRequestsFromSheet: (force?: boolean) => Promise<void>;
   
   // Media Sosial Resmi
   socialMedia: SocialMediaItem[];
@@ -1432,48 +1438,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.15 Fetch data_requests IMMEDIATELY IN PARALLEL (Layanan Permintaan Data Webview)
+      // 0.15 Fetch data_requests dari Google Spreadsheet (force refresh on load)
       const dataReqsFetchPromise = (async () => {
         try {
-          const { data: dbDataReqs, error: dataReqErr } = await client
-            .from('data_requests')
-            .select('*')
-            .order('sort_order', { ascending: true });
-
-          if (!dataReqErr && Array.isArray(dbDataReqs)) {
-            if (dbDataReqs.length > 0) {
-              const mappedDataReqs: DataRequestLink[] = dbDataReqs.map((d: any, index: number) => {
-                const itemTitle = String(d.title || d.judul || '').trim();
-                return {
-                  id: String(d.id || `req-data-${Date.now()}-${index}`),
-                  title: itemTitle,
-                  slug: d.slug ? String(d.slug).trim() : generateDataRequestSlug(itemTitle),
-                  url: String(d.url || d.link || '').trim(),
-                  description: d.description || d.keterangan || '',
-                  cropTop: typeof d.crop_top === 'number' ? d.crop_top : (d.cropTop || 0),
-                  isActive: d.is_active !== false && d.isActive !== false,
-                  order: typeof d.sort_order === 'number' ? d.sort_order : (d.order || index + 1),
-                  createdAt: d.created_at || d.createdAt,
-                  updatedAt: d.updated_at || d.updatedAt
-                };
-              });
-              setDataRequests(mappedDataReqs);
-              try {
-                localStorage.setItem('korwilcam_data_requests', JSON.stringify(mappedDataReqs));
-              } catch {}
-            } else {
-              // Jika respons sukses dari Supabase dan tabel memang 0 data
-              setDataRequests([]);
-              try {
-                localStorage.setItem('korwilcam_data_requests', JSON.stringify([]));
-              } catch {}
-            }
-          } else {
-            // Jangan hapus data lokal jika Supabase mengembalikan error / kuota limit
-            console.warn('Gagal membaca data_requests dari Supabase, mempertahankan cache lokal:', dataReqErr);
+          const sheetItems = await fetchDataRequestsFromSheet(true);
+          if (sheetItems && Array.isArray(sheetItems) && sheetItems.length > 0) {
+            setDataRequests(sheetItems);
           }
         } catch (errDataReq) {
-          console.warn('Tabel data_requests belum terbaca, mempertahankan cache lokal:', errDataReq);
+          console.warn('Gagal memuat data_requests dari Spreadsheet:', errDataReq);
         }
       })();
 
@@ -2290,27 +2263,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // 13. Persyaratan Pelayanan (Dikelola via Google Spreadsheet, terputus dari Supabase)
-
-      // 14. Export data_requests (Layanan Permintaan Data Webview)
-      try {
-        if (dataRequests && dataRequests.length > 0) {
-          const dataReqPayload = dataRequests.map((d, index) => ({
-            id: d.id,
-            title: d.title,
-            slug: d.slug || generateDataRequestSlug(d.title),
-            url: d.url,
-            description: d.description || '',
-            crop_top: d.cropTop || 0,
-            is_active: d.isActive !== false,
-            sort_order: d.order || index + 1,
-            created_at: d.createdAt || new Date().toISOString(),
-            updated_at: d.updatedAt || new Date().toISOString()
-          }));
-          await client.from('data_requests').upsert(dataReqPayload);
-        }
-      } catch (dErr) {
-        console.warn('Gagal ekspor tabel data_requests:', dErr);
-      }
+      // 14. Layanan Permintaan Data (Dikelola via Google Spreadsheet, terputus dari Supabase)
 
       // 15. Export activity_log_settings (Hanya 1 baris URL Webhook Apps Script)
       try {
@@ -2465,11 +2418,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daftar_guru' },
-        triggerDebouncedRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'data_requests' },
         triggerDebouncedRefresh
       )
 
@@ -6592,7 +6540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // ==========================================================
-  // PERMINTAAN DATA (WEBVIEW) CRUD
+  // PERMINTAAN DATA (WEBVIEW) CRUD (Tersambung ke Google Spreadsheet)
   // ==========================================================
   const addDataRequest = async (item: Omit<DataRequestLink, 'id'>): Promise<boolean> => {
     const slug = (item.slug && item.slug.trim())
@@ -6619,27 +6567,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menambahkan tautan permintaan data: "${newItem.title}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      (async () => {
-        try {
-          await client.from('data_requests').upsert({
-            id: newItem.id,
-            title: newItem.title,
-            slug: newItem.slug,
-            url: newItem.url,
-            description: newItem.description || '',
-            crop_top: newItem.cropTop || 0,
-            is_active: newItem.isActive !== false,
-            sort_order: newItem.order,
-            created_at: newItem.createdAt,
-            updated_at: newItem.updatedAt
-          });
-        } catch (err) {
-          console.warn('Supabase addDataRequest warning:', err);
-        }
-      })();
-    }
+    // Simpan ke Google Spreadsheet (via GAS)
+    saveDataRequestToSheet(newItem, 'create').catch((err) => {
+      console.warn('Gagal sinkron tambah permintaan data ke Spreadsheet:', err);
+    });
+
     showToast(`Tautan "${newItem.title}" berhasil ditambahkan!`, 'success');
     return true;
   };
@@ -6674,29 +6606,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'Permintaan Data',
         `Memperbarui tautan permintaan data: "${target.title}"`
       );
+
+      // Simpan pembaruan ke Google Spreadsheet (via GAS)
+      saveDataRequestToSheet(target, 'update').catch((err) => {
+        console.warn('Gagal sinkron update permintaan data ke Spreadsheet:', err);
+      });
     }
 
-    const client = getSupabaseClient();
-    if (client && target) {
-      (async () => {
-        try {
-          await client.from('data_requests').upsert({
-            id: target.id,
-            title: target.title,
-            slug: target.slug || generateDataRequestSlug(target.title),
-            url: target.url,
-            description: target.description || '',
-            crop_top: target.cropTop || 0,
-            is_active: target.isActive !== false,
-            sort_order: target.order || 1,
-            created_at: target.createdAt || new Date().toISOString(),
-            updated_at: target.updatedAt
-          });
-        } catch (err) {
-          console.warn('Supabase updateDataRequest warning:', err);
-        }
-      })();
-    }
     showToast('Tautan permintaan data berhasil diperbarui!', 'success');
     return true;
   };
@@ -6715,16 +6631,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus tautan permintaan data: "${target?.title || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      (async () => {
-        try {
-          await client.from('data_requests').delete().match({ id });
-        } catch (err) {
-          console.warn('Supabase deleteDataRequest warning:', err);
-        }
-      })();
-    }
+    // Hapus dari Google Spreadsheet (via GAS)
+    deleteDataRequestFromSheet(id).catch((err) => {
+      console.warn('Gagal sinkron hapus permintaan data dari Spreadsheet:', err);
+    });
+
     showToast(`Tautan "${target?.title || ''}" berhasil dihapus!`, 'info');
     return true;
   };
@@ -6738,6 +6649,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Mengubah status aktif tautan: "${target.title}"`
     );
     return updateDataRequest(id, { isActive: !target.isActive });
+  };
+
+  const refreshDataRequestsFromSheet = async (force: boolean = true): Promise<void> => {
+    try {
+      const items = await fetchDataRequestsFromSheet(force);
+      if (items && Array.isArray(items) && items.length > 0) {
+        setDataRequests(items);
+        showToast('Data tautan permintaan data berhasil disinkronkan dari Spreadsheet!', 'success');
+      } else {
+        showToast('Sinkronisasi selesai (tidak ada data baru).', 'info');
+      }
+    } catch (e) {
+      console.warn('Gagal menyinkronkan data_requests dari spreadsheet:', e);
+      showToast('Gagal menyinkronkan data dari Spreadsheet', 'error');
+    }
   };
 
   const updateSocialMediaItem = (item: SocialMediaItem) => {
@@ -6987,6 +6913,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateDataRequest,
         deleteDataRequest,
         toggleDataRequestActive,
+        refreshDataRequestsFromSheet,
         socialMedia,
         updateSocialMediaItem,
         saveSocialMediaSettings,
