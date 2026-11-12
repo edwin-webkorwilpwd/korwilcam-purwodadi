@@ -97,6 +97,126 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+interface SheetNewsArticle {
+  id: string;
+  title: string;
+  slug: string;
+  category?: string;
+  summary?: string;
+  content?: string;
+  author?: string;
+  date?: string;
+  image?: string;
+}
+
+const NEWS_SPREADSHEET_ID = '1GwZdBH5Mzd1Ztzf__R7gBROv8oqH-_ks7tISe3FMy1o';
+const NEWS_SHEET_GID = '0';
+
+let cachedNewsArticles: SheetNewsArticle[] = [];
+let newsCacheTimestamp = 0;
+const NEWS_CACHE_DURATION = 60 * 1000; // 60 detik cache dalam memori serverless
+
+async function fetchNewsFromSpreadsheet(): Promise<SheetNewsArticle[]> {
+  const now = Date.now();
+  if (cachedNewsArticles.length > 0 && (now - newsCacheTimestamp < NEWS_CACHE_DURATION)) {
+    return cachedNewsArticles;
+  }
+
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${NEWS_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${NEWS_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${NEWS_SPREADSHEET_ID}/export?format=csv&gid=${NEWS_SHEET_GID}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'text/csv, text/plain; q=0.9, */*; q=0.8' }
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      const headerRow = rows[0];
+      const headerMap: Record<string, number> = {};
+      for (let i = 0; i < headerRow.length; i++) {
+        const key = String(headerRow[i] || '').toLowerCase().replace(/[\s_-]+/g, '');
+        if (key) headerMap[key] = i;
+      }
+
+      const findIdx = (aliases: string[], fallback: number) => {
+        for (const a of aliases) {
+          const norm = a.toLowerCase().replace(/[\s_-]+/g, '');
+          if (headerMap.hasOwnProperty(norm)) return headerMap[norm];
+        }
+        return fallback;
+      };
+
+      const idIdx = findIdx(['id', 'id_berita'], 0);
+      const titleIdx = findIdx(['title', 'judul'], 1);
+      const slugIdx = findIdx(['slug', 'url'], 2);
+      const catIdx = findIdx(['category', 'kategori'], 3);
+      const sumIdx = findIdx(['summary', 'ringkasan'], 4);
+      const contIdx = findIdx(['content', 'isi', 'konten'], 5);
+      const authIdx = findIdx(['author', 'penulis'], 6);
+      const dateIdx = findIdx(['date', 'tanggal'], 9);
+      const imgIdx = findIdx(['image', 'gambar', 'foto', 'cover', 'thumbnail', 'sampul', 'image_url'], 10);
+
+      const articles: SheetNewsArticle[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const id = (row[idIdx] || '').trim();
+        const title = (row[titleIdx] || '').trim();
+        if (!id && !title) continue;
+        if (id.toLowerCase() === 'id' && title.toLowerCase() === 'title') continue;
+
+        let rawImg = (row[imgIdx] || '').trim();
+        if (!rawImg && row.length > 8) {
+          rawImg = (row[8] || '').trim();
+        }
+
+        const fallbackSlug = title
+          ? title
+              .toLowerCase()
+              .replace(/[^\w\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/--+/g, '-')
+              .replace(/^-+|-+$/g, '')
+          : `news-${r}`;
+
+        articles.push({
+          id: id || `news-${r}`,
+          title: title,
+          slug: (row[slugIdx] || '').trim() || fallbackSlug,
+          category: (row[catIdx] || '').trim(),
+          summary: (row[sumIdx] || '').trim(),
+          content: (row[contIdx] || '').trim(),
+          author: (row[authIdx] || '').trim(),
+          date: (row[dateIdx] || '').trim(),
+          image: rawImg
+        });
+      }
+
+      if (articles.length > 0) {
+        cachedNewsArticles = articles;
+        newsCacheTimestamp = now;
+        return articles;
+      }
+    } catch (e) {
+      // lanjut ke url berikutnya jika timeout / error
+    }
+  }
+
+  return cachedNewsArticles;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -624,21 +744,76 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // IF NOT ANNOUNCEMENT OR NOT FOUND YET -> Check news table
+    // IF NOT ANNOUNCEMENT OR NOT FOUND YET -> Check Google Spreadsheet news first
     if (!article) {
       const candidateKeys = decodeBase36Id(rawParam);
+      const cleanNewsSlug = rawParam
+        .replace(/^berita\//, '')
+        .replace(/^\/berita\//, '')
+        .replace(/^\//, '')
+        .toLowerCase()
+        .trim();
 
-      for (const key of candidateKeys) {
-        const { data } = await supabase
-          .from('news')
-          .select('id, title, slug, summary, content, image, author, date')
-          .or(`id.eq.${key},slug.eq.${key}`)
-          .limit(1)
-          .maybeSingle();
+      const normalizeSlug = (str: string) =>
+        (str || '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .replace(/^-+|-+$/g, '');
 
-        if (data) {
-          article = data;
-          break;
+      try {
+        const sheetNews = await fetchNewsFromSpreadsheet();
+        if (sheetNews && sheetNews.length > 0) {
+          // 1. Exact match on slug, id, or candidate keys
+          const matched = sheetNews.find((item) => {
+            const itemSlugNorm = normalizeSlug(item.slug);
+            const itemTitleNorm = normalizeSlug(item.title);
+            const itemIdNorm = item.id.toLowerCase().trim();
+
+            if (item.slug && (item.slug === rawParam || item.slug.toLowerCase() === cleanNewsSlug || itemSlugNorm === cleanNewsSlug)) return true;
+            if (item.id && (item.id === rawParam || item.id.toLowerCase() === cleanNewsSlug || itemIdNorm === cleanNewsSlug)) return true;
+            if (candidateKeys.includes(item.id) || candidateKeys.includes(item.slug)) return true;
+            if (itemTitleNorm && (itemTitleNorm === cleanNewsSlug || itemTitleNorm === rawParam)) return true;
+            return false;
+          });
+
+          if (matched) {
+            article = matched;
+          } else {
+            // 2. Fuzzy substring match on slug / title
+            const fuzzyMatch = sheetNews.find((item) => {
+              const itemSlugNorm = normalizeSlug(item.slug);
+              const itemTitleNorm = normalizeSlug(item.title);
+              if (!cleanNewsSlug) return false;
+              if (itemSlugNorm && (itemSlugNorm.includes(cleanNewsSlug) || cleanNewsSlug.includes(itemSlugNorm))) return true;
+              if (itemTitleNorm && (itemTitleNorm.includes(cleanNewsSlug) || cleanNewsSlug.includes(itemTitleNorm))) return true;
+              return false;
+            });
+            if (fuzzyMatch) {
+              article = fuzzyMatch;
+            }
+          }
+        }
+      } catch (sheetErr) {
+        console.warn('Error fetching news from spreadsheet in api/share:', sheetErr);
+      }
+
+      // If still not found in Spreadsheet, check legacy Supabase news table
+      if (!article) {
+        for (const key of candidateKeys) {
+          const { data } = await supabase
+            .from('news')
+            .select('id, title, slug, summary, content, image, author, date')
+            .or(`id.eq.${key},slug.eq.${key}`)
+            .limit(1)
+            .maybeSingle();
+
+          if (data) {
+            article = data;
+            break;
+          }
         }
       }
 
@@ -725,7 +900,10 @@ export default async function handler(req: any, res: any) {
     const isAnnouncement = !!article.isAnnouncement;
 
     // Target human redirect URL
-    const targetSlug = article.slug || article.id;
+    const targetSlug = String(article.slug || article.id || '')
+      .replace(/^berita\//, '')
+      .replace(/^\/berita\//, '')
+      .replace(/^\//, '');
     const redirectUrl = isAnnouncement
       ? `${origin}/berita/${encodeURIComponent(targetSlug)}`
       : `${origin}/berita/${encodeURIComponent(targetSlug)}`;
@@ -757,9 +935,14 @@ export default async function handler(req: any, res: any) {
           ogImageUrl = `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
           ogWidth = 640;
           ogHeight = 360;
+        } else if (cleanImg.includes('unsplash.com')) {
+          const baseUnsplash = cleanImg.split('?')[0];
+          ogImageUrl = `${baseUnsplash}?auto=format&fit=crop&q=80&w=640`;
+          ogWidth = 640;
+          ogHeight = 360;
         } else {
-          // Link eksternal non-Drive: salurkan ke api/image agar dikompresi ke JPEG < 200KB
-          ogImageUrl = `${origin}/api/image?id=${encodeURIComponent(article.id)}`;
+          // Link eksternal non-Drive: gunakan langsung URL eksternal
+          ogImageUrl = cleanImg;
           ogWidth = 640;
           ogHeight = 360;
         }

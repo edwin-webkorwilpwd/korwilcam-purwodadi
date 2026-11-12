@@ -6,6 +6,127 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_vwFyP
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentVal = '';
+  let insideQuote = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (insideQuote && nextChar === '"') {
+        currentVal += '"';
+        i++;
+      } else {
+        insideQuote = !insideQuote;
+      }
+    } else if (char === ',' && !insideQuote) {
+      currentRow.push(currentVal.trim());
+      currentVal = '';
+    } else if ((char === '\r' || char === '\n') && !insideQuote) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      currentRow.push(currentVal.trim());
+      if (currentRow.some(val => val.length > 0)) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentVal = '';
+    } else {
+      currentVal += char;
+    }
+  }
+
+  if (currentVal.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentVal.trim());
+    if (currentRow.some(val => val.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+}
+
+const NEWS_SPREADSHEET_ID = '1GwZdBH5Mzd1Ztzf__R7gBROv8oqH-_ks7tISe3FMy1o';
+const NEWS_SHEET_GID = '0';
+
+let cachedNewsArticles: { id: string; slug: string; image: string }[] = [];
+let newsCacheTimestamp = 0;
+const NEWS_CACHE_DURATION = 60 * 1000;
+
+async function fetchNewsImagesFromSpreadsheet(): Promise<{ id: string; slug: string; image: string }[]> {
+  const now = Date.now();
+  if (cachedNewsArticles.length > 0 && (now - newsCacheTimestamp < NEWS_CACHE_DURATION)) {
+    return cachedNewsArticles;
+  }
+
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${NEWS_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${NEWS_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${NEWS_SPREADSHEET_ID}/export?format=csv&gid=${NEWS_SHEET_GID}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      const headerRow = rows[0];
+      const headerMap: Record<string, number> = {};
+      for (let i = 0; i < headerRow.length; i++) {
+        const key = String(headerRow[i] || '').toLowerCase().replace(/[\s_-]+/g, '');
+        if (key) headerMap[key] = i;
+      }
+
+      const findIdx = (aliases: string[], fallback: number) => {
+        for (const a of aliases) {
+          const norm = a.toLowerCase().replace(/[\s_-]+/g, '');
+          if (headerMap.hasOwnProperty(norm)) return headerMap[norm];
+        }
+        return fallback;
+      };
+
+      const idIdx = findIdx(['id', 'id_berita'], 0);
+      const slugIdx = findIdx(['slug', 'url'], 2);
+      const imgIdx = findIdx(['image', 'gambar', 'foto', 'cover', 'thumbnail', 'sampul', 'image_url'], 10);
+
+      const items: { id: string; slug: string; image: string }[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const id = (row[idIdx] || '').trim();
+        const slug = (row[slugIdx] || '').trim();
+        let image = (row[imgIdx] || '').trim();
+        if (!image && row.length > 8) {
+          image = (row[8] || '').trim();
+        }
+        if (image) {
+          items.push({ id, slug, image });
+        }
+      }
+
+      if (items.length > 0) {
+        cachedNewsArticles = items;
+        newsCacheTimestamp = now;
+        return items;
+      }
+    } catch {}
+  }
+
+  return cachedNewsArticles;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -103,7 +224,23 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Jika bukan galeri atau belum ketemu di galeri, periksa tabel news (berita)
+    // Jika bukan galeri atau belum ketemu di galeri, periksa Google Spreadsheet news
+    if (!rawImage) {
+      try {
+        const sheetNews = await fetchNewsImagesFromSpreadsheet();
+        const cleanNorm = cleanId.toLowerCase().trim();
+        const found = sheetNews.find((item) => {
+          const sNorm = item.slug.toLowerCase().trim();
+          const iNorm = item.id.toLowerCase().trim();
+          return iNorm === cleanNorm || sNorm === cleanNorm || sNorm.includes(cleanNorm) || cleanNorm.includes(sNorm);
+        });
+        if (found && found.image) {
+          rawImage = String(found.image).trim();
+        }
+      } catch {}
+    }
+
+    // Jika belum ketemu di Spreadsheet, periksa tabel legacy Supabase news
     if (!rawImage) {
       const { data: article } = await supabase
         .from('news')
