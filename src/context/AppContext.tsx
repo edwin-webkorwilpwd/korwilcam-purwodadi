@@ -89,6 +89,13 @@ import {
   getTeachersSheetUrl,
   setTeachersSheetUrl
 } from '../services/teacherSheetService';
+import {
+  fetchSopFromSheet,
+  saveSopToSheet,
+  deleteSopFromSheet,
+  getSopWebAppUrl,
+  setSopWebAppUrl
+} from '../services/sopSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -391,6 +398,7 @@ interface AppContextType {
 
   updateOfficeProfile: (profile: Partial<OfficeProfile>) => Promise<boolean>;
   updateSOPImageUrl: (url: string) => Promise<boolean>;
+  refreshSop: (force?: boolean) => Promise<string>;
   resetToDefaultData: () => void;
 
   // Toast notifications
@@ -1957,22 +1965,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
-      // Fetch sop_pelayanan table
+      // [CONNECTED KE GOOGLE SPREADSHEET] Ambil data SOP Pelayanan dari Google Spreadsheet
       try {
-        const { data: dbSop, error: sopErr } = await client.from('sop_pelayanan').select('*');
-        if (!sopErr && Array.isArray(dbSop) && dbSop.length > 0) {
-          const validRow = dbSop.find((r: any) => (r.image_url || r.imageUrl || r.foto || r.url || r.link || r.tautan || r.download_url)) || dbSop[0];
-          const loadedUrl = validRow ? (validRow.image_url || validRow.imageUrl || validRow.foto || validRow.url || validRow.link || validRow.tautan || validRow.download_url || '') : '';
-          if (loadedUrl) {
-            const formatted = formatGoogleDriveImageUrl(loadedUrl);
-            setSopImageUrl(formatted);
-            try {
-              localStorage.setItem('korwilcam_sop_image_url', formatted);
-            } catch {}
-          }
+        const fetchedSop = await fetchSopFromSheet();
+        if (fetchedSop) {
+          setSopImageUrl(fetchedSop);
         }
-      } catch (_) {
-        // Fallback jika tabel sop_pelayanan belum dibuat
+      } catch (errSop) {
+        console.warn('Gagal memuat SOP dari Google Spreadsheet:', errSop);
       }
 
       // Await parallel gallery & documents fetch
@@ -2150,29 +2150,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: d.description,
         download_url: d.downloadUrl
       }));
-      if (sopImageUrl) {
-        docPayload.push({
-          id: 'sop-main',
-          title: 'Bagan SOP Pelayanan',
-          category: 'SOP Pelayanan',
-          file_type: 'IMAGE',
-          file_size: '1 MB',
-          download_count: 0,
-          date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-          description: 'Bagan Alur Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
-          download_url: sopImageUrl
-        });
-
-        try {
-          await client.from('sop_pelayanan').upsert({
-            id: 'main',
-            title: 'Bagan Alur SOP Pelayanan',
-            image_url: sopImageUrl,
-            description: 'Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
-            updated_at: new Date().toISOString()
-          });
-        } catch (_) {}
-      }
+      // 6. SOP Pelayanan: [DISCONNECTED DARI SUPABASE] Tidak lagi dikirim ke tabel sop_pelayanan
       await client.from('documents').upsert(docPayload);
 
       // 7. Gallery: Diputus dari Supabase (Sedang dialihkan ke Google Spreadsheet)
@@ -2351,11 +2329,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'complaints' },
-        triggerDebouncedRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sop_pelayanan' },
         triggerDebouncedRefresh
       )
 
@@ -5908,11 +5881,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return success;
   };
 
-  // SOP PELAYANAN (Auto-save to Supabase sop_pelayanan table & local state)
+  // SOP PELAYANAN [TERKONEKSI GOOGLE SPREADSHEET]
   const updateSOPImageUrl = async (url: string): Promise<boolean> => {
     const formatted = formatGoogleDriveImageUrl(url);
     setSopImageUrl(formatted);
-    localStorage.setItem('korwilcam_sop_image_url', formatted);
+    try {
+      if (formatted) {
+        localStorage.setItem('korwilcam_sop_image_url', formatted);
+      } else {
+        localStorage.removeItem('korwilcam_sop_image_url');
+      }
+    } catch {}
 
     triggerActivityLog(
       'UBAH DATA',
@@ -5920,61 +5899,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       formatted ? 'Memperbarui berkas bagan alur SOP Pelayanan' : 'Menghapus berkas bagan SOP Pelayanan'
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        if (formatted) {
-          // 1. Simpan ke tabel dedicated sop_pelayanan
-          let savedToSopTable = false;
-          try {
-            const { error: sopTableErr } = await client.from('sop_pelayanan').upsert({
-              id: 'main',
-              title: 'Bagan Alur SOP Pelayanan',
-              image_url: formatted,
-              description: 'Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
-              updated_at: new Date().toISOString()
-            });
-            if (!sopTableErr) {
-              savedToSopTable = true;
-            }
-          } catch (_) {}
-
-          // 2. Simpan juga ke tabel documents sebagai cadangan
-          const { error: docErr } = await client.from('documents').upsert({
-            id: 'sop-main',
-            title: 'Bagan SOP Pelayanan',
-            category: 'SOP Pelayanan',
-            file_type: 'IMAGE',
-            file_size: '1 MB',
-            download_count: 0,
-            date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-            description: 'Bagan Alur Standar Operasional Prosedur Pelayanan Pendidikan Korwilcam Purwodadi',
-            download_url: formatted
-          });
-
-          if (savedToSopTable || !docErr) {
-            showToast('Tautan bagan SOP Pelayanan berhasil disimpan ke Supabase Cloud!', 'success');
-            return true;
-          } else {
-            showToast(`Tautan SOP tersimpan lokal. Supabase: ${docErr?.message || 'Error'}`, 'error');
-            return false;
-          }
-        } else {
-          try { await client.from('sop_pelayanan').delete().eq('id', 'main'); } catch (_) {}
-          try { await client.from('documents').delete().eq('id', 'sop-main'); } catch (_) {}
-          showToast('Tautan bagan SOP Pelayanan berhasil dihapus.', 'info');
-          return true;
-        }
-      } catch (err: any) {
-        showToast('Tautan SOP disimpan lokal.', 'info');
-        return false;
-      } finally {
-        setSyncStatus('connected');
+    try {
+      if (formatted) {
+        await saveSopToSheet(formatted);
+        showToast('Tautan bagan SOP Pelayanan berhasil disimpan ke Spreadsheet!', 'success');
+      } else {
+        await deleteSopFromSheet();
+        showToast('Tautan bagan SOP Pelayanan berhasil dihapus dari Spreadsheet.', 'info');
       }
-    } else {
-      showToast('Tautan gambar bagan SOP Pelayanan berhasil disimpan di penyimpanan lokal.', 'success');
-      return true;
+    } catch (_) {
+      showToast(formatted ? 'Tautan bagan SOP Pelayanan berhasil disimpan!' : 'Tautan bagan SOP Pelayanan berhasil dihapus.', 'info');
+    }
+    return true;
+  };
+
+  const refreshSop = async (force: boolean = false): Promise<string> => {
+    try {
+      const url = await fetchSopFromSheet(force);
+      if (url) {
+        setSopImageUrl(url);
+      }
+      return url || '';
+    } catch {
+      return sopImageUrl;
     }
   };
 
@@ -6860,6 +6807,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateOfficeProfile,
         sopImageUrl,
         updateSOPImageUrl,
+        refreshSop,
         resetToDefaultData,
         toasts,
         showToast,

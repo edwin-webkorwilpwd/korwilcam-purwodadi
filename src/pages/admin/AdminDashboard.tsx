@@ -328,6 +328,7 @@ export const AdminDashboard: React.FC = () => {
     refreshComplaints,
     sopImageUrl,
     updateSOPImageUrl,
+    refreshSop,
     resetToDefaultData,
     logout,
     setActiveTab,
@@ -1438,6 +1439,7 @@ export const AdminDashboard: React.FC = () => {
   // --- SOP CMS STATE ---
   const [sopInputUrl, setSopInputUrl] = useState(sopImageUrl || '');
   const [isSavingSop, setIsSavingSop] = useState(false);
+  const [isSyncingSop, setIsSyncingSop] = useState(false);
   const [sopPreviewError, setSopPreviewError] = useState(false);
 
   React.useEffect(() => {
@@ -5802,6 +5804,27 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={async () => {
+                      setIsSyncingSop(true);
+                      const url = await refreshSop(true);
+                      if (url) {
+                        setSopInputUrl(url);
+                        showToast('Data SOP berhasil disegarkan dari Google Spreadsheet!', 'success');
+                      } else {
+                        showToast('Data SOP berhasil diperiksa.', 'info');
+                      }
+                      setIsSyncingSop(false);
+                    }}
+                    disabled={isSyncingSop}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200 disabled:opacity-60"
+                    title="Segarkan data bagan SOP langsung dari Google Spreadsheet"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncingSop ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                    <span>{isSyncingSop ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setActiveTab('sop-pelayanan', '/sop-pelayanan')}
                     className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5"
                     title="Buka halaman SOP Pelayanan di website publik"
@@ -5940,7 +5963,7 @@ export const AdminDashboard: React.FC = () => {
                   {sopImageUrl && (
                     <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Tersinkron di Supabase Cloud</span>
+                      <span>Tersimpan di Database</span>
                     </span>
                   )}
                 </div>
