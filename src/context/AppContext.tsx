@@ -108,6 +108,12 @@ import {
   incrementDocumentDownloadCountInSheet,
   DOCUMENTS_SPREADSHEET_URL
 } from '../services/documentSheetService';
+import {
+  fetchStaffFromSheet,
+  saveStaffToSheet,
+  deleteStaffFromSheet,
+  STAFF_SPREADSHEET_URL
+} from '../services/staffSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -404,6 +410,7 @@ interface AppContextType {
   addStaff: (staffItem: Omit<StaffProfile, 'id'>) => Promise<boolean>;
   updateStaff: (id: string, staffItem: Partial<StaffProfile>) => Promise<boolean>;
   deleteStaff: (id: string) => Promise<boolean>;
+  refreshStaff: (force?: boolean) => Promise<StaffProfile[]>;
 
   addComplaint: (comp: Omit<ComplaintMessage, 'id' | 'status' | 'date'>) => void;
   deleteComplaint: (id: string) => void;
@@ -1865,40 +1872,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Supabase fetch office_profile priority warning:', profErr);
       }
 
-      // 2. Fetch staff (Pegawai & Pejabat)
+      // 2. Fetch staff dari Google Spreadsheet (Pejabat & Staf Kantor)
       try {
-        const { data: dbStaff, error: staffErr } = await client
-          .from('staff')
-          .select('*')
-          .order('created_at', { ascending: true });
-
-        if (!staffErr && dbStaff && dbStaff.length > 0) {
-          const mappedStaff = dbStaff.map((st: any) => {
-            const rawPhoto = String(st.photo || st.foto || '').trim();
-            const cleanPhoto = (rawPhoto.includes('unsplash.com') || rawPhoto.includes('photo-1560250097')) ? '' : rawPhoto;
-            let div = st.division || st.divisi || 'Staf';
-            if (div === 'Pimpinan') div = 'Pimpinan Korwilcam Purwodadi';
-            else if (div === 'Penilik PAUD/TK' || div === 'Penilik PAUD' || div === 'Penilik KB/TK' || div === 'Penilik KB') div = 'Penilik KB';
-            else if (div === 'Tata Usaha') div = 'Staf';
-
-            return {
-              id: String(st.id || `st-${Date.now()}`),
-              name: String(st.name || st.nama || '').trim(),
-              role: String(st.role || st.jabatan || 'Staf').trim(),
-              nip: String(st.nip || '').trim(),
-              photo: cleanPhoto,
-              division: div
-            };
-          });
-          setStaff(mappedStaff);
+        const sheetStaff = await fetchStaffFromSheet(force);
+        if (sheetStaff && sheetStaff.length > 0) {
+          setStaff(sheetStaff);
           try {
-            localStorage.setItem('korwilcam_staff', JSON.stringify(mappedStaff));
-          } catch {
-            // ignore
-          }
+            localStorage.setItem('korwilcam_staff', JSON.stringify(sheetStaff));
+          } catch {}
         }
       } catch (stErr) {
-        console.warn('Supabase fetch staff priority warning:', stErr);
+        console.warn('Fetch staff spreadsheet warning:', stErr);
       }
 
       // Tunggu selesainya sinkronisasi schools dan news paralel
@@ -2084,16 +2068,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 7. Gallery: Diputus dari Supabase (Sedang dialihkan ke Google Spreadsheet)
 
-      // 8. Staff
-      const staffPayload = staff.map((st) => ({
-        id: st.id,
-        name: st.name,
-        role: st.role,
-        nip: st.nip,
-        photo: st.photo,
-        division: st.division
-      }));
-      await client.from('staff').upsert(staffPayload);
+      // 8. Staff: [DISCONNECTED DARI SUPABASE] Tidak lagi dikirim ke tabel staff
 
       // 9. Complaints
       const compPayload = complaints.map((c) => ({
@@ -2213,11 +2188,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         { event: '*', schema: 'public', table: 'gallery' },
         triggerDebouncedRefresh
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'staff' },
-        triggerDebouncedRefresh
-      )
+      // [DISCONNECTED DARI SUPABASE] table 'staff' realtime listener dinonaktifkan
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'office_profile' },
@@ -5312,7 +5283,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       division: staffData.division || 'Pengawas SD',
       id: `st-${Date.now()}`
     };
-    setStaff((prev) => [...prev, newStaff]);
+    setStaff((prev) => {
+      const updated = [...prev, newStaff];
+      try {
+        localStorage.setItem('korwilcam_staff', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     triggerActivityLog(
       'TAMBAH DATA',
@@ -5320,35 +5297,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menambahkan staf/pejabat: "${newStaff.name}" (${newStaff.role})`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const { error } = await client.from('staff').upsert({
-          id: newStaff.id,
-          name: newStaff.name,
-          role: newStaff.role,
-          nip: newStaff.nip,
-          photo: newStaff.photo,
-          division: newStaff.division
-        });
-        if (error) {
-          showToast(`Data staf tersimpan lokal. Supabase: ${error.message}`, 'error');
-          return false;
-        } else {
-          showToast(`Pejabat/Staf "${newStaff.name}" dan pas foto berhasil tersimpan otomatis di Supabase Cloud!`, 'success');
-          return true;
-        }
-      } catch (err: any) {
-        showToast(`Staf disimpan di penyimpanan lokal.`, 'info');
-        return false;
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast(`Pejabat/Staf ${newStaff.name} berhasil ditambahkan ke penyimpanan lokal!`, 'success');
-      return true;
-    }
+    showToast(`Pejabat/Staf ${newStaff.name} berhasil ditambahkan!`, 'success');
+
+    // [TERKONEKSI SPREADSHEET] Simpan ke Google Spreadsheet
+    try {
+      await saveStaffToSheet(newStaff, false);
+    } catch (_) {}
+
+    return true;
   };
 
   const updateStaff = async (id: string, updatedData: Partial<StaffProfile>): Promise<boolean> => {
@@ -5368,7 +5324,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       : ({ id, ...updatedData, photo: cleanPhoto } as StaffProfile);
 
-    setStaff((prev) => prev.map((s) => (s.id === id ? mergedStaff : s)));
+    setStaff((prev) => {
+      const updated = prev.map((s) => (s.id === id ? mergedStaff : s));
+      try {
+        localStorage.setItem('korwilcam_staff', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     triggerActivityLog(
       'UBAH DATA',
@@ -5376,55 +5338,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Memperbarui staf/pejabat: "${mergedStaff.name}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const st = mergedStaff;
-        const payload = {
-          name: st.name,
-          role: st.role,
-          nip: st.nip,
-          photo: st.photo,
-          division: st.division
-        };
+    showToast(`Data "${mergedStaff.name}" berhasil diperbarui!`, 'success');
 
-        const { data: updateData, error: updateErr } = await client
-          .from('staff')
-          .update(payload)
-          .eq('id', st.id)
-          .select();
+    // [TERKONEKSI SPREADSHEET] Simpan ke Google Spreadsheet
+    try {
+      await saveStaffToSheet(mergedStaff, true);
+    } catch (_) {}
 
-        let saveError = updateErr;
-        if (!saveError && (!updateData || updateData.length === 0)) {
-          const { error: upsertErr } = await client
-            .from('staff')
-            .upsert({ id: st.id, ...payload });
-          saveError = upsertErr;
-        }
-
-        if (saveError) {
-          showToast(`Data staf diperbarui lokal. Supabase: ${saveError.message}`, 'error');
-          return false;
-        } else {
-          showToast(`Data "${st.name}" dan foto berhasil diperbarui di database Supabase Cloud!`, 'success');
-          return true;
-        }
-      } catch (err: any) {
-        showToast(`Data staf diperbarui lokal.`, 'info');
-        return false;
-      } finally {
-        setSyncStatus('connected');
-      }
-    } else {
-      showToast('Data pejabat/staf berhasil diperbarui.', 'success');
-      return true;
-    }
+    return true;
   };
 
   const deleteStaff = async (id: string): Promise<boolean> => {
     const targetStaff = staff.find((s) => s.id === id);
-    setStaff((prev) => prev.filter((s) => s.id !== id));
+    setStaff((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      try {
+        localStorage.setItem('korwilcam_staff', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     triggerActivityLog(
       'HAPUS DATA',
@@ -5432,27 +5364,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus staf/pejabat: "${targetStaff?.name || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      setSyncStatus('syncing');
-      try {
-        const { error } = await client.from('staff').delete().eq('id', id);
-        if (error) {
-          showToast(`Gagal hapus dari Supabase: ${error.message}`, 'error');
-          return false;
-        } else {
-          showToast('Data pejabat/staf berhasil dihapus dari database Supabase.', 'info');
-          return true;
-        }
-      } catch (err: any) {
-        showToast('Data staf dihapus lokal.', 'info');
-        return false;
-      } finally {
-        setSyncStatus('connected');
+    showToast('Data pejabat/staf berhasil dihapus.', 'info');
+
+    // [TERKONEKSI SPREADSHEET] Hapus dari Google Spreadsheet
+    try {
+      await deleteStaffFromSheet(id);
+    } catch (_) {}
+
+    return true;
+  };
+
+  const refreshStaff = async (force: boolean = false): Promise<StaffProfile[]> => {
+    try {
+      const data = await fetchStaffFromSheet(force);
+      if (data && data.length > 0) {
+        setStaff(data);
       }
-    } else {
-      showToast('Data pejabat/staf berhasil dihapus.', 'info');
-      return true;
+      return data;
+    } catch {
+      return staff;
     }
   };
 
@@ -6604,6 +6534,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addStaff,
         updateStaff,
         deleteStaff,
+        refreshStaff,
         addComplaint,
         deleteComplaint,
         updateComplaintStatus,

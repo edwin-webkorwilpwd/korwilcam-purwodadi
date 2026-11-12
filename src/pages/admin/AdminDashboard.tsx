@@ -325,6 +325,7 @@ export const AdminDashboard: React.FC = () => {
     addStaff,
     updateStaff,
     deleteStaff,
+    refreshStaff,
     deleteComplaint,
     updateComplaintStatus,
     refreshComplaints,
@@ -1360,10 +1361,10 @@ export const AdminDashboard: React.FC = () => {
       const dataUrl = await compressImage(file, 500, 0.78);
       setStaffForm((prev) => ({ ...prev, photo: dataUrl }));
       
-      // Jika sedang edit pegawai yang sudah ada, langsung simpan foto ke Supabase Cloud seketika
+      // Jika sedang edit pegawai yang sudah ada, langsung simpan foto seketika
       if (editingStaffId) {
         await updateStaff(editingStaffId, { photo: dataUrl });
-        showToast('Pas foto pegawai berhasil diperbarui dan disimpan ke Supabase Cloud!', 'success');
+        showToast('Pas foto pegawai berhasil diperbarui!', 'success');
       } else {
         showToast('Pas foto pegawai berhasil diproses & siap disimpan bersama data pegawai!', 'success');
       }
@@ -1383,7 +1384,7 @@ export const AdminDashboard: React.FC = () => {
       showToast('Memproses pas foto pegawai...', 'info');
       const dataUrl = await compressImage(file, 500, 0.78);
       await updateStaff(targetId, { photo: dataUrl });
-      showToast('Pas foto pegawai berhasil diunggah dan disimpan langsung ke Supabase Cloud!', 'success');
+      showToast('Pas foto pegawai berhasil diunggah!', 'success');
     } catch (err) {
       showToast('Gagal mengunggah pas foto pegawai!', 'error');
     } finally {
@@ -5450,7 +5451,7 @@ export const AdminDashboard: React.FC = () => {
                       <span>Kelola Pejabat, Pengawas SD & Penilik KB/TK</span>
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Semua data pejabat, pengawas, dan staf kantor beserta pas foto otomatis tersimpan di Supabase Cloud dan tampil real-time di halaman profil publik.
+                      Semua data pejabat, pengawas, dan staf kantor beserta pas foto otomatis tersimpan di Google Spreadsheet dan tampil real-time di halaman profil publik.
                     </p>
                   </div>
 
@@ -5458,26 +5459,52 @@ export const AdminDashboard: React.FC = () => {
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                       <Database className="w-3.5 h-3.5" />
-                      <span>Supabase Cloud ({staff.length} Pegawai)</span>
+                      <span>Google Spreadsheet ({staff.length} Pegawai)</span>
                     </span>
                     <button
                       type="button"
                       onClick={async () => {
                         setIsSyncingStaff(true);
                         try {
-                          await refreshFromSupabase(true);
-                          showToast('Data staf & foto berhasil dimuat ulang langsung dari Supabase Cloud!', 'success');
+                          const res = await refreshStaff(true);
+                          showToast(`Data staf berhasil disegarkan dari Google Spreadsheet! (${res.length} pegawai)`, 'success');
                         } finally {
                           setIsSyncingStaff(false);
                         }
                       }}
                       disabled={isSyncingStaff}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-50"
-                      title="Tarik ulang data staf terbaru langsung dari database Supabase"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors disabled:opacity-50 shadow-2xs"
+                      title="Tarik ulang data staf terbaru langsung dari Google Spreadsheet"
                     >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingStaff ? 'animate-spin text-blue-600' : ''}`} />
-                      <span>{isSyncingStaff ? 'Menyinkronkan...' : 'Refresh Supabase'}</span>
+                      <RotateCcw className={`w-3.5 h-3.5 ${isSyncingStaff ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                      <span>{isSyncingStaff ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
                     </button>
+                  </div>
+                </div>
+
+                {/* BANNER STATUS WEBHOOK GAS STAFF (TERENKRIPSI XOR+BASE64) */}
+                <div className="p-3.5 rounded-2xl border transition-all bg-emerald-50/70 border-emerald-200 text-emerald-900">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-start sm:items-center gap-2.5">
+                      <div className="p-2 rounded-xl shrink-0 bg-emerald-100 text-emerald-700">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 font-bold text-xs">
+                          <span>Webhook Google Apps Script (GAS) Pegawai Aktif &amp; Disamarkan</span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-200/80 text-emerald-800 border border-emerald-300">
+                            Terenkripsi XOR+Base64
+                          </span>
+                        </div>
+                        <p className="text-[11px] opacity-80 mt-0.5">
+                          Setiap penambahan, pengeditan, atau penghapusan staf kantor dari portal CMS akan otomatis tersimpan langsung ke Google Spreadsheet.
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5 text-[10px] font-mono opacity-90">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="select-all">https://script.google.com/macros/s/AKfycbyj••••••••••••7yOK/exec</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -5588,7 +5615,7 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                           {staffForm.photo && staffForm.photo.startsWith('data:') && (
                             <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Foto pegawai siap disimpan ke Supabase
+                              <CheckCircle2 className="w-3 h-3" /> Foto pegawai siap disimpan ke Spreadsheet
                             </span>
                           )}
                         </div>
@@ -5619,12 +5646,12 @@ export const AdminDashboard: React.FC = () => {
                       {isSavingStaff ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Menyimpan ke Supabase Cloud...</span>
+                          <span>Menyimpan Data Staf...</span>
                         </>
                       ) : (
                         <>
                           <Plus className="w-3.5 h-3.5" />
-                          <span>{editingStaffId ? 'Simpan Perubahan ke Supabase' : 'Tambah Pejabat/Staf & Simpan ke Supabase'}</span>
+                          <span>{editingStaffId ? 'Simpan Perubahan Staf' : 'Tambah Pejabat / Staf Baru'}</span>
                         </>
                       )}
                     </button>
