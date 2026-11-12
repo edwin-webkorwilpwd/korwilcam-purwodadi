@@ -114,6 +114,12 @@ import {
   deleteStaffFromSheet,
   STAFF_SPREADSHEET_URL
 } from '../services/staffSheetService';
+import {
+  fetchServiceCategoriesFromSheet,
+  saveServiceCategoryToSheet,
+  deleteServiceCategoryFromSheet,
+  SERVICE_CATEGORIES_SPREADSHEET_URL
+} from '../services/serviceCategorySheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -1475,22 +1481,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
 
-          // Tarik juga kategori dari tabel Supabase service_categories jika ada
+          // Fetch kategori pelayanan dari Google Spreadsheet Service Categories (ID: 1K5XgCD-pw44m0Yhjpy7YL7TLRoyoRWEv6q6qBTlxhvg)
           try {
-            const { data: dbServiceCats } = await client.from('service_categories').select('*');
-            if (dbServiceCats && Array.isArray(dbServiceCats) && dbServiceCats.length > 0) {
-              const extraCats = dbServiceCats.map((c: any) => c.name || c.kategori || c.title || '').filter(Boolean);
-              if (extraCats.length > 0) {
-                setServiceRequirementCategories((prev) => {
-                  const merged = Array.from(new Set([...prev, ...extraCats]));
-                  try {
-                    localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
-                  } catch {}
-                  return merged;
-                });
-              }
+            const catRes = await fetchServiceCategoriesFromSheet();
+            if (catRes && catRes.categories && catRes.categories.length > 0) {
+              setServiceRequirementCategories((prev) => {
+                const merged = Array.from(new Set([...prev, ...catRes.categories]));
+                try {
+                  localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
             }
-          } catch (_) {}
+          } catch (errCats) {
+            console.warn('Gagal memuat service_categories dari Spreadsheet:', errCats);
+          }
         } catch (errReq) {
           console.warn('Gagal memuat service_requirements dari Spreadsheet:', errReq);
         }
@@ -6051,6 +6056,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('korwilcam_service_categories', JSON.stringify(updatedCategories));
     } catch {}
 
+    // Simpan ke Google Spreadsheet Kategori Pelayanan via GAS WebApp
+    try {
+      await saveServiceCategoryToSheet(trimmed);
+    } catch (errSheet) {
+      console.warn('Gagal simpan kategori pelayanan ke Spreadsheet:', errSheet);
+    }
+
     showToast(`Kategori "${trimmed}" berhasil ditambahkan!`, 'success');
     return true;
   };
@@ -6069,6 +6081,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.setItem('korwilcam_service_categories', JSON.stringify(updatedCategories));
     } catch {}
+
+    // Hapus dari Google Spreadsheet Kategori Pelayanan via GAS WebApp
+    try {
+      await deleteServiceCategoryFromSheet(trimmed);
+    } catch (errSheet) {
+      console.warn('Gagal hapus kategori pelayanan dari Spreadsheet:', errSheet);
+    }
 
     showToast(`Kategori "${trimmed}" telah dihapus.`, 'info');
     return true;
