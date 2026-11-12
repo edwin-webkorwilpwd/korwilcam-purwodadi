@@ -136,6 +136,16 @@ export const GalleryDetailPage: React.FC = () => {
       el.setAttribute('content', val);
     };
 
+    const updateNameMeta = (name: string, val: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('name', name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', val);
+    };
+
     updateMeta('og:title', `${selectedGallery.title} - Dokumentasi Foto Kegiatan`);
     updateMeta('og:description', cleanDescription || `Dokumentasi foto kegiatan ${selectedGallery.title} di lingkungan Korwilcam Purwodadi.`);
     updateMeta('og:url', canonicalShareUrl);
@@ -144,6 +154,13 @@ export const GalleryDetailPage: React.FC = () => {
     updateMeta('og:image:type', 'image/jpeg');
     updateMeta('og:image:width', '640');
     updateMeta('og:image:height', '420');
+    updateMeta('og:type', 'article');
+    updateMeta('og:site_name', 'Portal Resmi Korwilcam Purwodadi');
+
+    updateNameMeta('twitter:card', 'summary_large_image');
+    updateNameMeta('twitter:title', `${selectedGallery.title} - Dokumentasi Foto Kegiatan`);
+    updateNameMeta('twitter:description', cleanDescription || `Dokumentasi foto kegiatan ${selectedGallery.title} di lingkungan Korwilcam Purwodadi.`);
+    updateNameMeta('twitter:image', compressedCoverUrl);
 
     // Preload gambar ke cache memori browser
     if (compressedCoverUrl && compressedCoverUrl.startsWith('http')) {

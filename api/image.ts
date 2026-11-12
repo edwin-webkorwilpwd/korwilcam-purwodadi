@@ -127,6 +127,82 @@ async function fetchNewsImagesFromSpreadsheet(): Promise<{ id: string; slug: str
   return cachedNewsArticles;
 }
 
+const GALLERY_SPREADSHEET_ID = '1FuIEC3zukJKASRAMl6PPUlrv46w4qKa1j9M2AnBR5-A';
+const GALLERY_SHEET_GID = '0';
+
+let cachedGalleryAlbums: { id: string; title: string; image: string }[] = [];
+let galleryCacheTimestamp = 0;
+
+async function fetchGalleryImagesFromSpreadsheet(): Promise<{ id: string; title: string; image: string }[]> {
+  const now = Date.now();
+  if (cachedGalleryAlbums.length > 0 && (now - galleryCacheTimestamp < NEWS_CACHE_DURATION)) {
+    return cachedGalleryAlbums;
+  }
+
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GALLERY_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/export?format=csv&gid=${GALLERY_SHEET_GID}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      const items: { id: string; title: string; image: string }[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const id = (row[0] || '').trim();
+        const title = (row[1] || '').trim();
+        if (!id || !title || id.toLowerCase() === 'id') continue;
+
+        let image = (row[3] || '').trim();
+        const rawDesc = (row[4] || '').trim();
+        const rawImages = (row[7] || '').trim();
+
+        if (!image || image === '#' || image.includes('unsplash.com') || image.includes('/drive/folders')) {
+          if (rawImages) {
+            try {
+              const parsed = JSON.parse(rawImages);
+              if (Array.isArray(parsed) && parsed[0]) image = parsed[0];
+            } catch {}
+          }
+        }
+        if (!image && rawDesc) {
+          const match = rawDesc.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
+          if (match && match[1]) {
+            try {
+              const parsed = JSON.parse(match[1]);
+              if (parsed?.images?.[0]) image = parsed.images[0];
+            } catch {}
+          }
+        }
+
+        if (image) {
+          items.push({ id, title, image });
+        }
+      }
+
+      if (items.length > 0) {
+        cachedGalleryAlbums = items;
+        galleryCacheTimestamp = now;
+        return items;
+      }
+    } catch {}
+  }
+
+  return cachedGalleryAlbums;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -159,13 +235,40 @@ export default async function handler(req: any, res: any) {
     let rawImage = '';
 
     if (isGallery) {
-      // 1. Coba ambil dari tabel gallery berdasarkan ID
-      const { data: galItem } = await supabase
-        .from('gallery')
-        .select('*')
-        .or(`id.eq.${cleanId},id.eq.gal-${cleanId}`)
-        .limit(1)
-        .maybeSingle();
+      // 1. Ambil dari Google Spreadsheet Galeri (Database Utama)
+      try {
+        const sheetGalleries = await fetchGalleryImagesFromSpreadsheet();
+        const cleanNorm = cleanId.toLowerCase().trim();
+        const normalizeSlug = (str: string) =>
+          (str || '')
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/--+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        const found = sheetGalleries.find((g) => {
+          const normTitle = normalizeSlug(g.title);
+          const normId = g.id.toLowerCase().trim();
+          return normId === cleanNorm || normId === `gal-${cleanNorm}` || normTitle === cleanNorm || normTitle.includes(cleanNorm) || cleanNorm.includes(normTitle);
+        });
+
+        if (found && found.image) {
+          rawImage = String(found.image).trim();
+        }
+      } catch (err) {
+        console.warn('Error fetching gallery images from spreadsheet in api/image:', err);
+      }
+
+      // 2. Fallback ambil dari tabel legacy Supabase gallery berdasarkan ID
+      if (!rawImage) {
+        const { data: galItem } = await supabase
+          .from('gallery')
+          .select('*')
+          .or(`id.eq.${cleanId},id.eq.gal-${cleanId}`)
+          .limit(1)
+          .maybeSingle();
 
       if (galItem) {
         if (galItem.image && galItem.image !== '#' && !galItem.image.includes('/drive/folders') && !galItem.image.includes('unsplash.com')) {

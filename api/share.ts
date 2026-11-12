@@ -217,6 +217,131 @@ async function fetchNewsFromSpreadsheet(): Promise<SheetNewsArticle[]> {
   return cachedNewsArticles;
 }
 
+interface SheetGalleryAlbum {
+  id: string;
+  title: string;
+  category?: string;
+  image?: string;
+  description?: string;
+  date?: string;
+  createdAt?: string;
+  images?: string[];
+  driveFolderUrl?: string;
+}
+
+const GALLERY_SPREADSHEET_ID = '1FuIEC3zukJKASRAMl6PPUlrv46w4qKa1j9M2AnBR5-A';
+const GALLERY_SHEET_GID = '0';
+
+let cachedGalleryAlbums: SheetGalleryAlbum[] = [];
+let galleryCacheTimestamp = 0;
+const GALLERY_CACHE_DURATION = 60 * 1000; // 60 detik cache di memory serverless
+
+async function fetchGalleriesFromSpreadsheet(): Promise<SheetGalleryAlbum[]> {
+  const now = Date.now();
+  if (cachedGalleryAlbums.length > 0 && (now - galleryCacheTimestamp < GALLERY_CACHE_DURATION)) {
+    return cachedGalleryAlbums;
+  }
+
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GALLERY_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/export?format=csv&gid=${GALLERY_SHEET_GID}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'text/csv, text/plain; q=0.9, */*; q=0.8' }
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      const albums: SheetGalleryAlbum[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const id = (row[0] || '').trim();
+        const title = (row[1] || '').trim();
+        if (!id || !title || id.toLowerCase() === 'id') continue;
+
+        const category = (row[2] || 'Kegiatan').trim();
+        const coverImage = (row[3] || '').trim();
+        const rawDesc = (row[4] || '').trim();
+        const date = (row[5] || '').trim();
+        const createdAt = (row[6] || '').trim();
+        const imagesRaw = (row[7] || '').trim();
+        const driveFolderUrl = (row[8] || '').trim();
+
+        let imagesList: string[] = [];
+        if (imagesRaw) {
+          if (imagesRaw.startsWith('[') && imagesRaw.endsWith(']')) {
+            try {
+              const parsed = JSON.parse(imagesRaw);
+              if (Array.isArray(parsed)) {
+                imagesList = parsed.filter(i => typeof i === 'string' && i.trim().length > 0 && i !== '#');
+              }
+            } catch {
+              try {
+                const cleaned = imagesRaw.replace(/""/g, '"');
+                const parsed = JSON.parse(cleaned);
+                if (Array.isArray(parsed)) {
+                  imagesList = parsed.filter(i => typeof i === 'string' && i.trim().length > 0 && i !== '#');
+                }
+              } catch {}
+            }
+          }
+          if (imagesList.length === 0) {
+            imagesList = imagesRaw.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0 && s !== '#');
+          }
+        }
+
+        let cleanDescription = rawDesc;
+        const driveMetaMatch = rawDesc.match(/<!--DRIVE_META:([\s\S]*?):DRIVE_META-->/);
+        if (driveMetaMatch && driveMetaMatch[1]) {
+          try {
+            cleanDescription = rawDesc.replace(/<!--DRIVE_META:[\s\S]*?:DRIVE_META-->/g, '').trim();
+            const parsedMeta = JSON.parse(driveMetaMatch[1]);
+            if (parsedMeta && Array.isArray(parsedMeta.images) && parsedMeta.images.length > 0 && imagesList.length === 0) {
+              imagesList = parsedMeta.images;
+            }
+          } catch {}
+        }
+
+        const validCover = (coverImage && !coverImage.includes('unsplash.com')) ? coverImage : (imagesList[0] || '');
+
+        albums.push({
+          id,
+          title,
+          category,
+          image: validCover,
+          description: cleanDescription,
+          date,
+          createdAt,
+          images: imagesList,
+          driveFolderUrl
+        });
+      }
+
+      if (albums.length > 0) {
+        cachedGalleryAlbums = albums;
+        galleryCacheTimestamp = now;
+        return albums;
+      }
+    } catch (e) {
+      // lanjut ke url berikutnya jika timeout / error
+    }
+  }
+
+  return cachedGalleryAlbums;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -443,71 +568,107 @@ export default async function handler(req: any, res: any) {
         .toLowerCase()
         .trim();
 
+      const normalizeSlug = (str: string) =>
+        (str || '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
       let galleryItem: any = null;
 
-      // 1. Fetch from Supabase 'gallery' table
+      // 1. Fetch dari Google Spreadsheet Galeri (Database Aktif Utama)
       try {
-        let dbGalleries: any[] | null = null;
-
-        // Coba query langsung berdasarkan ID (gunakan select('*') agar tidak gagal jika ada kolom opsional)
-        const { data: directItem } = await supabase
-          .from('gallery')
-          .select('*')
-          .or(`id.eq.${cleanSlug},id.eq.gal-${cleanSlug}`)
-          .limit(1)
-          .maybeSingle();
-
-        if (directItem) {
-          galleryItem = directItem;
-        } else {
-          // Query daftar album dari Supabase dengan select('*')
-          const { data: allGal } = await supabase
-            .from('gallery')
-            .select('*')
-            .limit(200);
-
-          if (allGal && allGal.length > 0) {
-            dbGalleries = allGal;
-          }
-        }
-
-        if (!galleryItem && dbGalleries && dbGalleries.length > 0) {
-          const normalizeSlug = (str: string) =>
-            (str || '')
-              .toLowerCase()
-              .trim()
-              .replace(/[^\w\s-]/g, '')
-              .replace(/\s+/g, '-')
-              .replace(/--+/g, '-')
-              .replace(/^-+|-+$/g, '');
-
-          galleryItem = dbGalleries.find((g: any) => {
+        const sheetGalleries = await fetchGalleriesFromSpreadsheet();
+        if (sheetGalleries && sheetGalleries.length > 0) {
+          // A. Exact match by id or slug
+          galleryItem = sheetGalleries.find((g) => {
             if (!g) return false;
-            if (g.id === cleanSlug || g.id === `gal-${cleanSlug}`) return true;
-            if (g.slug && normalizeSlug(g.slug) === cleanSlug) return true;
-            if (g.title) {
-              const s = normalizeSlug(g.title);
-              if (s === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug)) return true;
-            }
+            const normTitle = normalizeSlug(g.title);
+            if (g.id && (g.id.toLowerCase() === cleanSlug || g.id.toLowerCase() === `gal-${cleanSlug}`)) return true;
+            if (normTitle && normTitle === cleanSlug) return true;
             return false;
           });
 
-          // Fallback pencocokan kata (token-based match)
+          // B. Substring match
+          if (!galleryItem) {
+            galleryItem = sheetGalleries.find((g) => {
+              if (!g || !g.title) return false;
+              const normTitle = normalizeSlug(g.title);
+              return cleanSlug.includes(normTitle) || normTitle.includes(cleanSlug);
+            });
+          }
+
+          // C. Word token match
           if (!galleryItem) {
             const slugWords = cleanSlug.split('-').filter(w => w.length > 2);
-            galleryItem = dbGalleries.find((g: any) => {
+            galleryItem = sheetGalleries.find((g) => {
               if (!g || !g.title) return false;
-              const s = normalizeSlug(g.title);
-              const matchCount = slugWords.filter(w => s.includes(w)).length;
+              const normTitle = normalizeSlug(g.title);
+              const matchCount = slugWords.filter(w => normTitle.includes(w)).length;
               return matchCount >= Math.min(3, slugWords.length);
             });
           }
         }
       } catch (err) {
-        console.warn('Error fetching gallery for og:image:', err);
+        console.warn('Error fetching gallery from spreadsheet in api/share:', err);
       }
 
-      // 2. Fallback static initial gallery if not in db
+      // 2. Fallback to Supabase 'gallery' table
+      if (!galleryItem) {
+        try {
+          let dbGalleries: any[] | null = null;
+
+          const { data: directItem } = await supabase
+            .from('gallery')
+            .select('*')
+            .or(`id.eq.${cleanSlug},id.eq.gal-${cleanSlug}`)
+            .limit(1)
+            .maybeSingle();
+
+          if (directItem) {
+            galleryItem = directItem;
+          } else {
+            const { data: allGal } = await supabase
+              .from('gallery')
+              .select('*')
+              .limit(200);
+
+            if (allGal && allGal.length > 0) {
+              dbGalleries = allGal;
+            }
+          }
+
+          if (!galleryItem && dbGalleries && dbGalleries.length > 0) {
+            galleryItem = dbGalleries.find((g: any) => {
+              if (!g) return false;
+              if (g.id === cleanSlug || g.id === `gal-${cleanSlug}`) return true;
+              if (g.slug && normalizeSlug(g.slug) === cleanSlug) return true;
+              if (g.title) {
+                const s = normalizeSlug(g.title);
+                if (s === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug)) return true;
+              }
+              return false;
+            });
+
+            if (!galleryItem) {
+              const slugWords = cleanSlug.split('-').filter(w => w.length > 2);
+              galleryItem = dbGalleries.find((g: any) => {
+                if (!g || !g.title) return false;
+                const s = normalizeSlug(g.title);
+                const matchCount = slugWords.filter(w => s.includes(w)).length;
+                return matchCount >= Math.min(3, slugWords.length);
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Error fetching gallery for og:image from Supabase:', err);
+        }
+      }
+
+      // 3. Fallback static initial gallery if not in db or sheet
       if (!galleryItem) {
         const fallbackGalleries = [
           {
@@ -536,18 +697,12 @@ export default async function handler(req: any, res: any) {
           }
         ];
         galleryItem = fallbackGalleries.find((g) => {
-          const s = g.title
-            .toLowerCase()
-            .trim()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/--+/g, '-')
-            .replace(/^-+|-+$/g, '');
+          const s = normalizeSlug(g.title);
           return s === cleanSlug || g.id === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug);
         });
       }
 
-      // 3. Determine title & description
+      // 4. Determine title & description
       const galleryTitle = galleryItem?.title || cleanSlug
         .split('-')
         .filter(Boolean)
@@ -573,9 +728,10 @@ export default async function handler(req: any, res: any) {
       }
       const galleryDesc = cleanDesc || `Dokumentasi foto kegiatan ${galleryTitle} di lingkungan Korwilcam Purwodadi.`;
 
-      // 4. Determine Cover Image & Apply Compression
-      let rawCover = '';
-      if (galleryItem) {
+      // 5. Determine Cover Image & Apply Compression
+      let rawCover = (query.img || query.cover || query.image || '').toString().trim();
+
+      if (!rawCover && galleryItem) {
         let parsedImages: string[] = [];
         if (Array.isArray(galleryItem.images)) {
           parsedImages = galleryItem.images;
@@ -628,10 +784,15 @@ export default async function handler(req: any, res: any) {
           ogImageUrl = `https://lh3.googleusercontent.com/d/${safeId}=s640`;
           ogWidth = 640;
           ogHeight = 420;
-        } else if (rawCover.startsWith('data:') || rawCover.startsWith('http')) {
-          // B. Base64 atau External Image: Salurkan ke api/image agar dikompresi oleh sharp menjadi JPEG < 150KB
+        } else if (rawCover.startsWith('data:')) {
+          // B. Base64: Salurkan ke api/image agar dikompresi oleh sharp menjadi JPEG < 150KB
           const idParam = galleryItem?.id ? encodeURIComponent(galleryItem.id) : encodeURIComponent(cleanSlug);
           ogImageUrl = `${origin}/api/image?id=${idParam}&type=gallery`;
+          ogWidth = 640;
+          ogHeight = 420;
+        } else if (rawCover.startsWith('http')) {
+          // C. Direct HTTP URL
+          ogImageUrl = rawCover;
           ogWidth = 640;
           ogHeight = 420;
         } else if (rawCover.startsWith('/')) {
