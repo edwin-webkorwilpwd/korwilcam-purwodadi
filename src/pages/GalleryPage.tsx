@@ -79,6 +79,11 @@ export const GalleryPage: React.FC = () => {
     }
   }, [videos]);
 
+  // Selalu sinkronkan data video dan foto terbaru dari Spreadsheet saat membuka galeri
+  useEffect(() => {
+    refreshVideosFromSheet();
+  }, []);
+
   // Mengacak album foto saat data galeri pertama kali dimuat atau diperbarui
   useEffect(() => {
     if (gallery && gallery.length > 0) {
@@ -97,8 +102,11 @@ export const GalleryPage: React.FC = () => {
     if (tab === 'photo' && gallery && gallery.length > 0) {
       setShuffledGallery(shuffleGallery(gallery));
     }
-    if (tab === 'video' && videos && videos.length > 0) {
-      setShuffledVideos(shuffleVideos(videos));
+    if (tab === 'video') {
+      refreshVideosFromSheet();
+      if (videos && videos.length > 0) {
+        setShuffledVideos(shuffleVideos(videos));
+      }
     }
   };
 

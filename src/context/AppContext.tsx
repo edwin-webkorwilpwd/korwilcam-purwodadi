@@ -1569,7 +1569,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 0.19 Fetch gallery videos IMMEDIATELY IN PARALLEL (Google Spreadsheet Video Kegiatan)
       const videosFetchPromise = (async () => {
         try {
-          const live = await fetchVideosFromSheet();
+          const live = await fetchVideosFromSheet(true);
           if (live && live.length > 0) {
             setVideos(live);
           }

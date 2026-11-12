@@ -466,7 +466,7 @@ export default async function handler(req: any, res: any) {
               const rUrl = (r[2] || '').trim();
               const rDesc = (r[5] || '').trim();
               const rSchool = (r[6] || '').trim();
-              if (!rTitle || rTitle.toUpperCase() === 'JUDUL' || rTitle.toUpperCase() === 'TES') continue;
+              if (!rTitle || rTitle.toUpperCase() === 'JUDUL' || rTitle.toUpperCase() === 'JUDUL VIDIO' || rTitle.toUpperCase() === 'JUDUL VIDEO') continue;
 
               const rSlug = (rSchool ? `${rTitle} ${rSchool}` : rTitle)
                 .toLowerCase()

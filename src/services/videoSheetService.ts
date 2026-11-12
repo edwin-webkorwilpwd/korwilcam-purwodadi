@@ -16,9 +16,9 @@ export const VIDEO_SHEET_GID = '1627850125';
 export const VIDEO_CSV_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/export?format=csv&gid=${VIDEO_SHEET_GID}`;
 export const VIDEO_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${VIDEO_SHEET_GID}`;
 export const VIDEO_SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${VIDEO_SPREADSHEET_ID}/edit?gid=${VIDEO_SHEET_GID}#gid=${VIDEO_SHEET_GID}`;
-export const VIDEO_CACHE_KEY = 'korwilcam_video_sheet_cache_v2';
-export const VIDEO_CACHE_TIMESTAMP_KEY = 'korwilcam_video_sheet_last_fetch';
-export const VIDEO_CACHE_TTL_MS = 3 * 60 * 1000; // 3 Menit Smart Cache TTL untuk Anti-Lag & Cegah Rate Limit Google
+export const VIDEO_CACHE_KEY = 'korwilcam_video_sheet_cache_v3';
+export const VIDEO_CACHE_TIMESTAMP_KEY = 'korwilcam_video_sheet_last_fetch_v3';
+export const VIDEO_CACHE_TTL_MS = 30 * 1000; // 30 Detik Smart Cache TTL untuk kecepatan maksimal sekaligus data selalu mutakhir
 
 export const VIDEO_WEBAPP_STORAGE_KEY = 'korwilcam_video_gas_url';
 export const DEFAULT_VIDEO_WEBAPP_URL = 
@@ -192,7 +192,7 @@ export async function submitVideoToSheet(payload: VideoSubmitPayload): Promise<{
  */
 export function getLocalVideoCache(): GalleryVideoItem[] {
   try {
-    const raw = localStorage.getItem(VIDEO_CACHE_KEY) || localStorage.getItem('korwilcam_video_sheet_cache_v1');
+    const raw = localStorage.getItem(VIDEO_CACHE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -242,12 +242,13 @@ export async function fetchVideosFromSheet(forceRefresh = false): Promise<Galler
 
   let csvText = '';
   let lastError: Error | null = null;
+  const cacheBustParam = `&_t=${Date.now()}`;
 
-  // 1. Coba unduh dari endpoint export?format=csv
+  // 1. Coba unduh dari endpoint export?format=csv dengan bypass cache
   try {
-    const res = await fetch(VIDEO_CSV_URL, {
+    const res = await fetch(`${VIDEO_CSV_URL}${cacheBustParam}`, {
       method: 'GET',
-      cache: 'no-cache'
+      cache: 'no-store'
     });
     if (res.ok) {
       const txt = await res.text();
@@ -260,12 +261,12 @@ export async function fetchVideosFromSheet(forceRefresh = false): Promise<Galler
     lastError = err;
   }
 
-  // 2. Jika gagal atau login required, coba endpoint gviz fallback
+  // 2. Jika gagal atau login required, coba endpoint gviz fallback dengan bypass cache
   if (!csvText) {
     try {
-      const res = await fetch(VIDEO_GVIZ_URL, {
+      const res = await fetch(`${VIDEO_GVIZ_URL}${cacheBustParam}`, {
         method: 'GET',
-        cache: 'no-cache'
+        cache: 'no-store'
       });
       if (res.ok) {
         const txt = await res.text();
@@ -313,7 +314,7 @@ export async function fetchVideosFromSheet(forceRefresh = false): Promise<Galler
 
     // Kolom B = index 1 : Judul Vidio
     const title = (row[1] || '').trim();
-    if (!title || title.toUpperCase() === 'TES' || title === '-') continue;
+    if (!title || title.toUpperCase() === 'JUDUL' || title.toUpperCase() === 'JUDUL VIDIO' || title.toUpperCase() === 'JUDUL VIDEO' || title === '-') continue;
 
     // Kolom C = index 2 : Link Vidio (YouTube atau Google Drive)
     const rawVideoUrl = (row[2] || '').trim();
