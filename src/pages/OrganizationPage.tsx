@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Building2, 
@@ -136,11 +136,59 @@ const LeaderAvatarPlaceholder: React.FC = () => (
   </svg>
 );
 
+// Algoritma pengacakan Fisher-Yates untuk mengacak kartu organisasi bagi setiap pengunjung
+const shuffleOrganizations = (list: EducationalOrganization[]): EducationalOrganization[] => {
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 export const OrganizationPage: React.FC = () => {
-  const { organizations, selectedOrganizationSlug, setSelectedOrganizationSlug, setActiveTab } = useApp();
+  const { organizations, selectedOrganizationSlug, setSelectedOrganizationSlug, setActiveTab, activeTab } = useApp();
 
   // Search query for the directory page
   const [searchQuery, setSearchQuery] = useState('');
+
+  // State kartu organisasi yang diacak (shuffled) untuk setiap kunjungan / pembukaan menu
+  const [shuffledOrganizations, setShuffledOrganizations] = useState<EducationalOrganization[]>(() => {
+    return organizations && organizations.length > 0 ? shuffleOrganizations(organizations) : [];
+  });
+
+  const shuffleAllOrganizations = useCallback(() => {
+    if (organizations && organizations.length > 0) {
+      setShuffledOrganizations(shuffleOrganizations(organizations));
+    }
+  }, [organizations]);
+
+  // Acak data organisasi saat data pertama kali dimuat atau diperbarui
+  useEffect(() => {
+    shuffleAllOrganizations();
+  }, [organizations, shuffleAllOrganizations]);
+
+  // Acak data setiap kali tab beralih ke 'organization'
+  useEffect(() => {
+    if (activeTab === 'organization') {
+      shuffleAllOrganizations();
+    }
+  }, [activeTab, shuffleAllOrganizations]);
+
+  // Dengarkan event kustom ketika menu Organisasi diklik kembali oleh pengunjung
+  useEffect(() => {
+    const handleShuffleEvent = () => {
+      shuffleAllOrganizations();
+    };
+
+    window.addEventListener('shuffle-organizations', handleShuffleEvent);
+    window.addEventListener('popstate', handleShuffleEvent);
+
+    return () => {
+      window.removeEventListener('shuffle-organizations', handleShuffleEvent);
+      window.removeEventListener('popstate', handleShuffleEvent);
+    };
+  }, [shuffleAllOrganizations]);
 
   // Selected organization if viewing details
   const currentOrg = useMemo(() => {
@@ -152,19 +200,19 @@ export const OrganizationPage: React.FC = () => {
   const [previewOfficial, setPreviewOfficial] = useState<OrganizationOfficial | null>(null);
   const [previewLeader, setPreviewLeader] = useState<boolean>(false);
 
-  // Filtered organizations for the directory view
+  // Filtered organizations for the directory view (menggunakan daftar yang telah diacak)
   const filteredOrganizations = useMemo(() => {
-    if (!organizations) return [];
-    if (!searchQuery.trim()) return organizations;
+    const baseList = shuffledOrganizations.length > 0 ? shuffledOrganizations : (organizations || []);
+    if (!searchQuery.trim()) return baseList;
     const q = searchQuery.toLowerCase().trim();
-    return organizations.filter((o) => 
+    return baseList.filter((o) => 
       o.name.toLowerCase().includes(q) ||
       o.shortName.toLowerCase().includes(q) ||
       (o.description && o.description.toLowerCase().includes(q)) ||
       (o.leader?.name && o.leader.name.toLowerCase().includes(q)) ||
       (o.address && o.address.toLowerCase().includes(q))
     );
-  }, [organizations, searchQuery]);
+  }, [shuffledOrganizations, organizations, searchQuery]);
 
   // Pagination State (10 organisasi per halaman)
   const itemsPerPage = 10;

@@ -2316,6 +2316,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setActiveTab = (tab: string, customPath?: string) => {
     setActiveTabState(tab);
+    if (tab === 'home') {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('shuffle-home-featured-schools'));
+      }
+    }
+    if (tab === 'organization') {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('shuffle-organizations'));
+      }
+    }
     if (selectedNews) {
       setSelectedNewsState(null);
     }
