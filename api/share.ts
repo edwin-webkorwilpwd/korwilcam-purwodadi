@@ -413,6 +413,7 @@ export default async function handler(req: any, res: any) {
       let videoTitle = '';
       let videoDesc = '';
       let youtubeId = (query.v || '').toString().trim();
+      let driveFileId = (query.drive || '').toString().trim();
       let videoSchool = '';
 
       // 1. Data fallback video
@@ -447,7 +448,7 @@ export default async function handler(req: any, res: any) {
         videoTitle = matchFallback.title;
         videoDesc = matchFallback.description;
         videoSchool = matchFallback.schoolName;
-        if (!youtubeId) youtubeId = matchFallback.youtubeId;
+        if (!youtubeId && !driveFileId) youtubeId = matchFallback.youtubeId;
       }
 
       // 2. Coba fetch Google Spreadsheet untuk data mutakhir
@@ -480,7 +481,16 @@ export default async function handler(req: any, res: any) {
                 videoDesc = rDesc || `Dokumentasi video kegiatan ${rTitle} di lingkungan Korwilcam Purwodadi.`;
                 videoSchool = rSchool;
                 const m = rUrl.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/i);
-                if (m && m[1]) youtubeId = m[1];
+                if (m && m[1]) {
+                  youtubeId = m[1];
+                  driveFileId = '';
+                } else {
+                  const mDrive = rUrl.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/i) || rUrl.match(/[?&]id=([a-zA-Z0-9_-]{15,})/i);
+                  if (mDrive && mDrive[1]) {
+                    driveFileId = mDrive[1];
+                    youtubeId = '';
+                  }
+                }
                 break;
               }
             }
@@ -502,9 +512,12 @@ export default async function handler(req: any, res: any) {
         videoDesc = `Tonton video dokumentasi kegiatan resmi ${videoTitle} di Portal Resmi Korwilcam Purwodadi.`;
       }
 
-      const ogImageUrl = youtubeId
-        ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
-        : `${origin}/logo.png`;
+      let ogImageUrl = `${origin}/logo.png`;
+      if (driveFileId) {
+        ogImageUrl = `https://lh3.googleusercontent.com/d/${driveFileId}=s640`;
+      } else if (youtubeId) {
+        ogImageUrl = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+      }
 
       const redirectUrl = `${origin}/galeri/video/${encodeURIComponent(cleanSlug)}`;
 

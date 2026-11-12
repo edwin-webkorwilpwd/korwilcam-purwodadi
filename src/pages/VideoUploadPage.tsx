@@ -19,7 +19,12 @@ import {
   submitVideoToSheet,
   VideoSubmitPayload 
 } from '../services/videoSheetService';
-import { extractYouTubeId, getYouTubeThumbnail } from '../lib/youtubeHelper';
+import { 
+  extractYouTubeId, 
+  getYouTubeThumbnail, 
+  detectVideoSource,
+  DetectedVideoInfo 
+} from '../lib/youtubeHelper';
 
 const VIDEO_CATEGORIES = [
   'Kegiatan',
@@ -57,16 +62,11 @@ export const VideoUploadPage: React.FC = () => {
     document.title = 'Upload Video Kegiatan Pendidikan - Korwilcam Purwodadi';
   }, []);
 
-  // Ekstrak ID dan thumbnail YouTube jika link valid
-  const detectedYoutubeId = useMemo(() => {
+  // Ekstrak informasi video jika link YouTube atau Google Drive valid
+  const detectedVideo = useMemo<DetectedVideoInfo | null>(() => {
     if (!youtubeUrl.trim()) return null;
-    return extractYouTubeId(youtubeUrl.trim());
+    return detectVideoSource(youtubeUrl.trim());
   }, [youtubeUrl]);
-
-  const youtubeThumbnail = useMemo(() => {
-    if (!detectedYoutubeId) return null;
-    return getYouTubeThumbnail(detectedYoutubeId);
-  }, [detectedYoutubeId]);
 
   // Daftar nama sekolah unik untuk auto-suggest
   const schoolSuggestions = useMemo(() => {
@@ -94,19 +94,19 @@ export const VideoUploadPage: React.FC = () => {
 
     // Validasi Wajib
     if (!title.trim()) {
-      showToast('Harap isi Judul Video!', 'error');
+      showToast('Harap isi Judul Video Kegiatan!', 'error');
       return;
     }
     if (!youtubeUrl.trim()) {
-      showToast('Harap isi Link Video YouTube!', 'error');
+      showToast('Harap isi Tautan Link Video (YouTube atau Google Drive)!', 'error');
       return;
     }
-    if (!detectedYoutubeId) {
-      showToast('Format tautan YouTube tidak valid. Harap periksa kembali tautan Anda.', 'error');
+    if (!detectedVideo) {
+      showToast('Format tautan tidak valid. Masukkan tautan video resmi dari YouTube atau Google Drive.', 'error');
       return;
     }
     if (!schoolName.trim()) {
-      showToast('Harap isi Nama Sekolah / Organisasi!', 'error');
+      showToast('Harap isi Nama Satuan Pendidikan / Lembaga!', 'error');
       return;
     }
 
@@ -120,7 +120,7 @@ export const VideoUploadPage: React.FC = () => {
 
     const payload: VideoSubmitPayload = {
       title: title.trim(),
-      youtubeUrl: youtubeUrl.trim(),
+      youtubeUrl: youtubeUrl.trim(), // Tersimpan di Kolom C Spreadsheet sesuai permintaan
       eventDate: eventDate.trim() || 'November 2026',
       category: effectiveCategory,
       description: description.trim() || `Dokumentasi video kegiatan ${title.trim()} di lingkungan Korwilcam Purwodadi.`,
@@ -218,12 +218,12 @@ export const VideoUploadPage: React.FC = () => {
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-slate-500">Tautan YouTube:</span>
+                <span className="text-slate-500">Tautan Video:</span>
                 <a 
                   href={submittedData.youtubeUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="font-semibold text-red-600 hover:underline truncate max-w-xs"
+                  className="font-semibold text-blue-600 hover:underline truncate max-w-xs"
                 >
                   {submittedData.youtubeUrl}
                 </a>
@@ -255,7 +255,7 @@ export const VideoUploadPage: React.FC = () => {
           /* Formulir Pengisian Data */
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Kartu 1: Informasi Video & YouTube */}
+            {/* Kartu 1: Informasi Video & Tautan (YouTube / Google Drive) */}
             <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-7 shadow-sm space-y-5">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                 <div className="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center font-bold">
@@ -263,10 +263,10 @@ export const VideoUploadPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                    1. Informasi Video & Tautan YouTube
+                    1. Informasi Video & Tautan (YouTube / Google Drive)
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Judul video, tautan YouTube, dan kategori
+                    Judul video kegiatan, tautan YouTube atau Google Drive, dan kategori
                   </p>
                 </div>
               </div>
@@ -288,42 +288,60 @@ export const VideoUploadPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Kolom C: Link Vidio Youtube */}
+                {/* Kolom C: Link Vidio (YouTube atau Google Drive) */}
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Link2 className="w-3.5 h-3.5 text-red-600" />
-                    <span>Tautan Link Video YouTube</span>
-                    <span className="text-red-500">*</span>
+                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Tautan Link Video (YouTube atau Google Drive)</span>
+                      <span className="text-red-500">*</span>
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-400">
+                      Disimpan di Kolom C Spreadsheet
+                    </span>
                   </label>
                   <input
                     type="url"
                     required
                     value={youtubeUrl}
                     onChange={(e) => setYoutubeUrl(e.target.value)}
-                    placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition"
+                    placeholder="Contoh: https://www.youtube.com/watch?v=... atau https://drive.google.com/file/d/.../view"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                   />
 
-                  {/* Pratinjau Thumbnail YouTube Otomatis */}
-                  {youtubeThumbnail && (
+                  {/* Pratinjau Video Terverifikasi (YouTube / Google Drive) */}
+                  {detectedVideo && (
                     <div className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3">
-                      <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-slate-200 shrink-0 shadow-xs">
+                      <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-slate-900 shrink-0 shadow-xs flex items-center justify-center">
                         <img 
-                          src={youtubeThumbnail} 
+                          src={detectedVideo.thumbnailUrl} 
                           alt="Thumbnail Pratinjau" 
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback jika Google Drive thumbnail masih memproses
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
                         />
                         <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
                           <Play className="w-5 h-5 text-white fill-white" />
                         </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Tautan YouTube Terverifikasi</span>
-                        </p>
-                        <p className="text-xs text-slate-600 truncate mt-0.5">
-                          ID Video: <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-700">{detectedYoutubeId}</code>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                            detectedVideo.type === 'youtube' 
+                              ? 'bg-red-600 text-white' 
+                              : 'bg-emerald-600 text-white'
+                          }`}>
+                            {detectedVideo.type === 'youtube' ? 'YouTube' : 'Google Drive'}
+                          </span>
+                          <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Tautan {detectedVideo.type === 'youtube' ? 'YouTube' : 'Google Drive'} Terverifikasi</span>
+                          </p>
+                        </div>
+                        <p className="text-xs text-slate-600 truncate mt-1">
+                          ID: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">{detectedVideo.id}</code>
                         </p>
                       </div>
                     </div>

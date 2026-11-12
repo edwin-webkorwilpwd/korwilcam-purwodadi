@@ -4,6 +4,9 @@ import {
   extractYouTubeId, 
   getYouTubeThumbnail, 
   getYouTubeEmbedUrl, 
+  detectVideoSource,
+  getVideoThumbnail,
+  getVideoEmbedUrl,
   generateVideoSlug 
 } from '../lib/youtubeHelper';
 import { FALLBACK_VIDEOS } from '../data/fallbackVideos';
@@ -24,7 +27,7 @@ export const DEFAULT_VIDEO_WEBAPP_URL =
 
 export interface VideoSubmitPayload {
   title: string;        // Kolom B: Judul Vidio
-  youtubeUrl: string;   // Kolom C: Link Vidio Youtube
+  youtubeUrl: string;   // Kolom C: Link Vidio (YouTube atau Google Drive)
   eventDate: string;    // Kolom D: Tanggal Kegiatan
   category: string;     // Kolom E: Kategori Kegiatan
   description: string;  // Kolom F: Deskripsi Vidio
@@ -66,7 +69,7 @@ export const VIDEO_GOOGLE_APPS_SCRIPT_CODE = `/**
  * PEMETAAN KOLOM:
  * Kolom A (1) : Timestamp (Otomatis)
  * Kolom B (2) : Judul Vidio
- * Kolom C (3) : Link Vidio Youtube
+ * Kolom C (3) : Link Vidio (YouTube atau Google Drive)
  * Kolom D (4) : Tanggal Kegiatan
  * Kolom E (5) : Kategori Kegiatan
  * Kolom F (6) : Deskripsi Vidio
@@ -102,7 +105,7 @@ function doPost(e) {
     const newRow = [
       timestamp,                    // Kolom A: Timestamp
       data.title || '',             // Kolom B: Judul Vidio
-      data.youtubeUrl || '',        // Kolom C: Link Vidio Youtube
+      data.youtubeUrl || '',        // Kolom C: Link Vidio (YouTube / Google Drive)
       data.eventDate || '',         // Kolom D: Tanggal Kegiatan
       data.category || 'Kegiatan',  // Kolom E: Kategori Kegiatan
       data.description || '',       // Kolom F: Deskripsi Vidio
@@ -312,9 +315,34 @@ export async function fetchVideosFromSheet(forceRefresh = false): Promise<Galler
     const title = (row[1] || '').trim();
     if (!title || title.toUpperCase() === 'TES' || title === '-') continue;
 
-    // Kolom C = index 2 : Link Vidio Youtube
-    const rawYoutubeUrl = (row[2] || '').trim();
-    const videoId = extractYouTubeId(rawYoutubeUrl) || 'dQw4w9WgXcQ';
+    // Kolom C = index 2 : Link Vidio (YouTube atau Google Drive)
+    const rawVideoUrl = (row[2] || '').trim();
+    const videoInfo = detectVideoSource(rawVideoUrl);
+
+    let videoSource: 'youtube' | 'drive' = 'youtube';
+    let videoId = 'dQw4w9WgXcQ';
+    let thumbnailUrl = '/gallery/cover-7-agustus-2026.jpg';
+    let embedUrl = '';
+
+    if (videoInfo) {
+      videoSource = videoInfo.type;
+      videoId = videoInfo.id;
+      thumbnailUrl = videoInfo.thumbnailUrl;
+      embedUrl = videoInfo.embedUrl;
+    } else {
+      // Fallback jika tidak terdeteksi spesifik
+      const fallbackYt = extractYouTubeId(rawVideoUrl);
+      if (fallbackYt) {
+        videoSource = 'youtube';
+        videoId = fallbackYt;
+        thumbnailUrl = getYouTubeThumbnail(videoId);
+        embedUrl = getYouTubeEmbedUrl(videoId);
+      } else {
+        videoId = 'dQw4w9WgXcQ';
+        thumbnailUrl = getYouTubeThumbnail(videoId);
+        embedUrl = getYouTubeEmbedUrl(videoId);
+      }
+    }
 
     // Kolom D = index 3 : Tanggal Kegiatan
     const rawDate = (row[3] || '').trim();
@@ -335,15 +363,15 @@ export async function fetchVideosFromSheet(forceRefresh = false): Promise<Galler
 
     const id = `video-${i + 1}`;
     const slug = generateVideoSlug(title, id, schoolName);
-    const thumbnailUrl = getYouTubeThumbnail(videoId);
-    const embedUrl = getYouTubeEmbedUrl(videoId);
 
     items.push({
       id,
       title,
       slug,
-      youtubeUrl: rawYoutubeUrl,
+      youtubeUrl: rawVideoUrl,
       youtubeId: videoId,
+      videoSource,
+      driveFileId: videoSource === 'drive' ? videoId : undefined,
       date,
       category,
       description,

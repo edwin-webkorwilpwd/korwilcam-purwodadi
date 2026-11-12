@@ -120,8 +120,10 @@ export interface GalleryVideoItem {
   id: string;
   title: string;
   slug: string;
-  youtubeUrl: string;
-  youtubeId: string;
+  youtubeUrl: string; // Tautan video asli (bisa YouTube atau Google Drive) di Kolom C
+  youtubeId: string;  // ID video (YouTube ID 11 karakter atau Google Drive File ID)
+  videoSource?: 'youtube' | 'drive';
+  driveFileId?: string;
   date: string;
   category: string;
   description: string;

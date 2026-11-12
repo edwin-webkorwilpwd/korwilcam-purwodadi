@@ -11,7 +11,7 @@ import {
   Minimize2
 } from 'lucide-react';
 import { GalleryVideoItem } from '../types';
-import { getVideoDetailPath, getYouTubeEmbedUrl } from '../lib/youtubeHelper';
+import { getVideoDetailPath, getYouTubeEmbedUrl, getGoogleDriveEmbedUrl } from '../lib/youtubeHelper';
 
 export const VideoDetailPage: React.FC = () => {
   const { 
@@ -96,11 +96,24 @@ export const VideoDetailPage: React.FC = () => {
     setIsDescExpanded(false);
   }, [selectedVideo?.id]);
 
-  // URL Embed YouTube Resmi Bebas Error 153 dengan Referer Domain
+  // URL Embed Resmi: Mendukung Pemutar YouTube Bebas Error 153 & Pemutar Google Drive
   const embedUrl = useMemo(() => {
-    if (!selectedVideo?.youtubeId) return selectedVideo?.embedUrl || '';
-    return getYouTubeEmbedUrl(selectedVideo.youtubeId, true);
-  }, [selectedVideo?.youtubeId, selectedVideo?.embedUrl]);
+    if (!selectedVideo) return '';
+    if (selectedVideo.videoSource === 'drive' || selectedVideo.driveFileId) {
+      const driveId = selectedVideo.driveFileId || selectedVideo.youtubeId;
+      return getGoogleDriveEmbedUrl(driveId);
+    }
+    if (selectedVideo.embedUrl && selectedVideo.embedUrl.includes('drive.google.com')) {
+      return selectedVideo.embedUrl;
+    }
+    if (selectedVideo.youtubeId && selectedVideo.youtubeId.length > 15) {
+      return getGoogleDriveEmbedUrl(selectedVideo.youtubeId);
+    }
+    if (selectedVideo.youtubeId) {
+      return getYouTubeEmbedUrl(selectedVideo.youtubeId, true);
+    }
+    return selectedVideo.embedUrl || '';
+  }, [selectedVideo]);
 
   // URL Kanonikal resmi untuk dibagikan (WhatsApp crawler mewajibkan domain publik https://korwilcampurwodadi.web.id)
   const canonicalUrl = useMemo(() => {
@@ -136,7 +149,14 @@ export const VideoDetailPage: React.FC = () => {
       el.setAttribute('content', val);
     };
 
-    const thumb = selectedVideo.thumbnailUrl || (selectedVideo.youtubeId ? `https://img.youtube.com/vi/${selectedVideo.youtubeId}/hqdefault.jpg` : 'https://korwilcampurwodadi.web.id/logo.png');
+    const isDrive = selectedVideo.videoSource === 'drive' || !!selectedVideo.driveFileId || (selectedVideo.youtubeId && selectedVideo.youtubeId.length > 15);
+    const thumb = selectedVideo.thumbnailUrl || (
+      isDrive
+        ? `https://lh3.googleusercontent.com/d/${selectedVideo.driveFileId || selectedVideo.youtubeId}=s640`
+        : selectedVideo.youtubeId
+        ? `https://img.youtube.com/vi/${selectedVideo.youtubeId}/hqdefault.jpg`
+        : 'https://korwilcampurwodadi.web.id/logo.png'
+    );
     const desc = selectedVideo.description || `Tonton video dokumentasi kegiatan ${selectedVideo.title} di Portal Resmi Korwilcam Purwodadi.`;
 
     updateMeta('og:title', selectedVideo.title);
