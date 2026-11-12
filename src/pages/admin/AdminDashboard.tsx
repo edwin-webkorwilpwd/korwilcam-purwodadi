@@ -308,9 +308,11 @@ export const AdminDashboard: React.FC = () => {
     addAnnouncement,
     updateAnnouncement,
     deleteAnnouncement,
+    refreshAnnouncements,
     addDocument,
     updateDocument,
     deleteDocument,
+    refreshDocuments,
     documentCategories,
     addDocumentCategory,
     addGalleryItem,
@@ -2563,6 +2565,7 @@ export const AdminDashboard: React.FC = () => {
   });
 
   const [annFilterTab, setAnnFilterTab] = useState<'all' | 'mine'>('all');
+  const [isSyncingAnn, setIsSyncingAnn] = useState(false);
 
   // Helper cek kepemilikan surat edaran / pengumuman berdasarkan akun/role login
   const isAnnouncementItemOwner = (item: Announcement) => {
@@ -3015,6 +3018,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // --- PAGINATION LAYANAN UNDUHAN / DOKUMEN CMS (10 per halaman) ---
+  const [isSyncingDoc, setIsSyncingDoc] = useState(false);
   const [docCurrentPage, setDocCurrentPage] = useState(1);
   const docItemsPerPage = 10;
   const totalDocPages = Math.max(1, Math.ceil(documents.length / docItemsPerPage));
@@ -8218,16 +8222,10 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
 
-                      {isSupabaseActive ? (
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 shadow-xs">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>Otomatis Tersimpan ke Supabase Cloud (Tanpa Perlu Ekspor)</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl">
-                          <span>Penyimpanan Lokal Aktif</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 shadow-xs">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Penyimpanan Database Aktif</span>
+                      </div>
                     </div>
                   </form>
 
@@ -8247,33 +8245,55 @@ export const AdminDashboard: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* Filter Tab: Semua vs Milik Saya (Khusus Admin / Super Admin) */}
-                      {isAdminOrSuperAdmin && (
-                        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                          <button
-                            type="button"
-                            onClick={() => setAnnFilterTab('all')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                              annFilterTab === 'all'
-                                ? 'bg-white text-blue-600 shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Semua ({announcements.length})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAnnFilterTab('mine')}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                              annFilterTab === 'mine'
-                                ? 'bg-white text-blue-600 shadow-xs'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Pengumuman Saya ({announcements.filter(isAnnouncementItemOwner).length})
-                          </button>
-                        </div>
-                      )}
+                      {/* Filter Tab: Semua vs Milik Saya (Khusus Admin / Super Admin) & Tombol Segarkan */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setIsSyncingAnn(true);
+                            const res = await refreshAnnouncements(true);
+                            setIsSyncingAnn(false);
+                            if (res && res.length > 0) {
+                              showToast(`Data pengumuman berhasil disegarkan dari Google Spreadsheet! (${res.length} berkas)`, 'success');
+                            } else {
+                              showToast('Pengumuman berhasil diperiksa dari Google Spreadsheet.', 'info');
+                            }
+                          }}
+                          disabled={isSyncingAnn}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                          title="Segarkan data pengumuman langsung dari Google Spreadsheet"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${isSyncingAnn ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                          <span>{isSyncingAnn ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+                        </button>
+
+                        {isAdminOrSuperAdmin && (
+                          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() => setAnnFilterTab('all')}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                annFilterTab === 'all'
+                                  ? 'bg-white text-blue-600 shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Semua ({announcements.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAnnFilterTab('mine')}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                annFilterTab === 'mine'
+                                  ? 'bg-white text-blue-600 shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              Pengumuman Saya ({announcements.filter(isAnnouncementItemOwner).length})
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {displayedAnnouncements.length === 0 ? (
@@ -11070,13 +11090,36 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 5: KELOLA UNDUHAN */}
           {currentSection === 'downloads-cms' && (
             <div className="space-y-8">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                  Kelola Layanan & Unduhan Berkas
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Pusat arsip modul ajar Kurikulum Merdeka, blanko SKP, dan formulir resmi dinas.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    Kelola Layanan & Unduhan Berkas
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Pusat arsip modul ajar Kurikulum Merdeka, blanko SKP, dan formulir resmi dinas. Tersinkronisasi dengan Google Spreadsheet.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsSyncingDoc(true);
+                      const res = await refreshDocuments(true);
+                      setIsSyncingDoc(false);
+                      if (res && res.length > 0) {
+                        showToast(`Data dokumen berhasil disegarkan dari Google Spreadsheet! (${res.length} berkas)`, 'success');
+                      } else {
+                        showToast('Dokumen berhasil diperiksa dari Google Spreadsheet.', 'info');
+                      }
+                    }}
+                    disabled={isSyncingDoc}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                    title="Segarkan data dokumen langsung dari Google Spreadsheet"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncingDoc ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                    <span>{isSyncingDoc ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Form */}
@@ -11260,7 +11303,7 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                         </div>
                         <p className="text-[10px] text-slate-500">
-                          Ketik nama kategori lalu klik tombol <b>V</b> (atau tekan Enter). Kategori akan langsung tersimpan di Supabase Cloud.
+                          Ketik nama kategori lalu klik tombol <b>V</b> (atau tekan Enter). Kategori akan langsung tersimpan di database.
                         </p>
                       </div>
                     )}
@@ -11337,16 +11380,10 @@ export const AdminDashboard: React.FC = () => {
                     )}
                   </div>
 
-                  {isSupabaseActive ? (
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Otomatis Tersimpan ke Supabase Cloud (Tanpa Perlu Ekspor)</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl">
-                      <span>Penyimpanan Lokal Aktif</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 px-3.5 py-2 rounded-xl border border-amber-200 shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span>Penyimpanan Lokal Aktif (Terputus dari Supabase)</span>
+                  </div>
                 </div>
               </form>
 
