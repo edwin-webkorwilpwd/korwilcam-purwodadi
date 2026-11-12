@@ -121,7 +121,6 @@ import {
   getGoogleDriveEmbeddedFolderUrl,
   parseGoogleDriveImageLinks
 } from '../../lib/driveHelper';
-import { VisitorAnalyticsChart } from '../../components/admin/VisitorAnalyticsChart';
 import { MenuSettingsCMS } from '../../components/admin/MenuSettingsCMS';
 import { MaintenanceCMS } from '../../components/admin/MaintenanceCMS';
 import { GalleryCMS } from '../../components/admin/GalleryCMS';
@@ -3846,7 +3845,7 @@ export const AdminDashboard: React.FC = () => {
                     <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                       currentSection === 'overview' ? 'text-blue-100' : 'text-slate-400'
                     }`}>
-                      Statistik & Status Sistem
+                      Pusat Kontrol &amp; Modul CMS
                     </span>
                   </div>
                 </div>
@@ -4803,7 +4802,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Hak Akses Terbatas</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Menu <strong>Ringkasan Dashboard & Analitik Website</strong> hanya dapat diakses oleh akun dengan tingkat wewenang <strong className="text-purple-700">Super Admin</strong>.
+                Menu <strong>Ringkasan Dashboard</strong> hanya dapat diakses oleh akun dengan tingkat wewenang <strong className="text-purple-700">Super Admin</strong>.
               </p>
               <div className="flex justify-center pt-2">
                 <button
@@ -4870,12 +4869,25 @@ export const AdminDashboard: React.FC = () => {
             <>
               {/* TAB 0: OVERVIEW (HANYA UNTUK SUPER ADMIN) */}
               {currentSection === 'overview' && isSuperAdmin && (
-            <div className="space-y-6">
-              {/* Visitor Analytics Chart (Image 2 Three-Row Architecture) */}
-              <VisitorAnalyticsChart onNavigateToSection={(sec) => setCurrentSection(sec as AdminSection)} />
+                <div className="space-y-6">
+                  {/* Banner Ringkasan Dashboard Super Admin */}
+                  <div className="bg-white/80 backdrop-blur-xl border border-white/90 rounded-[28px] p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1.5">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        <LayoutDashboard className="w-3.5 h-3.5" />
+                        <span>Pusat Kendali Portal CMS Korwilcam</span>
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                        Ringkasan Dashboard Super Administrator
+                      </h3>
+                      <p className="text-xs text-slate-500 max-w-2xl leading-relaxed">
+                        Kelola seluruh modul publikasi, direktori sekolah, staf pejabat kantor, warta berita, galeri kegiatan, dokumen unduhan, dan aspirasi masyarakat secara terpusat.
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Compact Quick Access strip to CMS Modules */}
-              <div className="bg-white/65 backdrop-blur-2xl border border-white/80 rounded-[30px] p-6 sm:p-7 shadow-[0_15px_35px_rgba(0,0,0,0.03)] mt-6">
+                  {/* Compact Quick Access strip to CMS Modules */}
+                  <div className="bg-white/65 backdrop-blur-2xl border border-white/80 rounded-[30px] p-6 sm:p-7 shadow-[0_15px_35px_rgba(0,0,0,0.03)]">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div>
                     <h4 className="text-base font-bold text-slate-800">Modul Pengelolaan Konten Website</h4>
