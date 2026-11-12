@@ -3290,44 +3290,7 @@ Pelatihan ini memfasilitasi pendidik dalam merancang modul ajar berdiferensiasi,
   }
 ];
 
-export const initialAnnouncements: Announcement[] = [
-  {
-    id: "ann-01",
-    title: "Surat Edaran: Batas Akhir Sinkronisasi Dapodik Cut-Off Semester Ganjil TA 2026/2027",
-    date: "01 September 2026",
-    urgency: "Mendesak",
-    target: "Semua Satuan",
-    fileSize: "850 KB",
-    summary: "Diberitahukan kepada seluruh Operator Satuan Pendidikan (SD, TK, KB) batas akhir validasi dan sinkronisasi data peserta didik dan PTK adalah 31 Agustus 2026 pukul 23.59 WIB.",
-    author: "Humas Korwilcam Purwodadi",
-    authorId: "usr-superadmin",
-    authorRole: "Super Admin"
-  },
-  {
-    id: "ann-02",
-    title: "Jadwal Pelaksanaan Asesmen Nasional Berbasis Komputer (ANBK) Jenjang SD",
-    date: "25 Agustus 2026",
-    urgency: "Penting",
-    target: "SD",
-    fileSize: "1.2 MB",
-    summary: "Surat pemberitahuan jadwal gladi bersih gelombang 1 & 2 serta jadwal pelaksanaan utama ANBK jenjang SD se-Kecamatan Purwodadi.",
-    author: "Humas Korwilcam Purwodadi",
-    authorId: "usr-superadmin",
-    authorRole: "Super Admin"
-  },
-  {
-    id: "ann-03",
-    title: "Verifikasi Berkas Bantuan Operasional Pendidikan (BOP) KB & Kesetaraan Tahap II",
-    date: "18 Agustus 2026",
-    urgency: "Biasa",
-    target: "TK/KB",
-    fileSize: "620 KB",
-    summary: "Pengumpulan berkas SPJ BOP KB Tahap I dan pengajuan pencairan Tahap II paling lambat diserahkan ke loket pelayanan Korwilcam tanggal 10 September 2026.",
-    author: "Humas Korwilcam Purwodadi",
-    authorId: "usr-admin",
-    authorRole: "Admin"
-  }
-];
+export const initialAnnouncements: Announcement[] = [];
 
 export const initialAgenda: AgendaEvent[] = [
   {
@@ -3362,63 +3325,7 @@ export const initialAgenda: AgendaEvent[] = [
   }
 ];
 
-export const initialDocuments: DocumentDownload[] = [
-  {
-    id: "doc-01",
-    title: "Panduan Pembelajaran dan Asesmen (PPA) Kurikulum Merdeka Edisi Revisi",
-    category: "Kurikulum",
-    fileType: "PDF",
-    fileSize: "4.8 MB",
-    downloadCount: 342,
-    date: "15 Juli 2026",
-    description: "Pedoman resmi pelaksanaan pembelajaran berdiferensiasi dan penyusunan asesmen formatif-sumatif untuk SD dan KB.",
-    downloadUrl: "#"
-  },
-  {
-    id: "doc-02",
-    title: "Format Blanko Usulan Angka Kredit & SKP Guru (Format E-Kinerja BKN)",
-    category: "Blanko GTK",
-    fileType: "XLSX",
-    fileSize: "1.2 MB",
-    downloadCount: 528,
-    date: "02 Agustus 2026",
-    description: "Template Excel resmi untuk penyusunan target dan realisasi SKP tahunan guru SD dan KB/TK.",
-    downloadUrl: "#"
-  },
-  {
-    id: "doc-03",
-    title: "Surat Edaran Kalender Pendidikan Kabupaten Grobogan TA 2026/2027",
-    category: "Surat Edaran",
-    fileType: "PDF",
-    fileSize: "2.1 MB",
-    downloadCount: 890,
-    date: "01 Juli 2026",
-    description: "Jadwal resmi hari efektif sekolah, jeda tengah semester, libur hari besar, dan pekan ujian semester.",
-    downloadUrl: "#"
-  },
-  {
-    id: "doc-04",
-    title: "Juknis dan Pedoman Lomba O2SN dan FLS2N SD Tingkat Kecamatan",
-    category: "Juknis Lomba",
-    fileType: "PDF",
-    fileSize: "3.5 MB",
-    downloadCount: 415,
-    date: "10 Agustus 2026",
-    description: "Kriteria penilaian, syarat peserta, teknis cabang perlombaan, dan jadwal seleksi tingkat kecamatan.",
-    downloadUrl: "#"
-  },
-  {
-    id: "doc-05",
-    title: "Blanko Formulir Permohonan Mutasi / Rekomendasi Siswa Antarsekolah",
-    category: "Blanko GTK",
-    fileType: "DOCX",
-    fileSize: "450 KB",
-    downloadCount: 671,
-    date: "20 Juni 2026",
-    description: "Format surat keterangan pindah sekolah jenjang TK dan SD untuk pengesahan Korwilcam.",
-    downloadUrl: "#"
-  }
-];
+export const initialDocuments: DocumentDownload[] = [];
 
 export const initialGallery: GalleryItem[] = [
   {
@@ -3584,28 +3491,7 @@ export const initialStaff: StaffProfile[] = [
   }
 ];
 
-export const initialComplaints: ComplaintMessage[] = [
-  {
-    id: "comp-01",
-    name: "Drs. Joko Purnomo",
-    phone: "0812-8877-6655",
-    schoolOrOrigin: "SD Negeri 2 Danyang",
-    category: "Konsultasi Layanan",
-    message: "Mohon konfirmasi jadwal validasi berkas pencairan BOSP Tahap II untuk operator sekolah kami.",
-    date: "02 September 2026",
-    status: "Baru"
-  },
-  {
-    id: "comp-02",
-    name: "Ibu Ratna Dewi",
-    phone: "0857-4433-2211",
-    schoolOrOrigin: "Wali Murid TK Pertiwi",
-    category: "Permohonan Informasi",
-    message: "Apakah ada ketentuan zonasi terbaru untuk pendaftaran transisi KB ke SD Negeri tahun ajaran berikutnya?",
-    date: "28 Agustus 2026",
-    status: "Dibaca"
-  }
-];
+export const initialComplaints: ComplaintMessage[] = [];
 
 export const initialOrganizations: EducationalOrganization[] = [
   {

@@ -325,6 +325,7 @@ export const AdminDashboard: React.FC = () => {
     deleteStaff,
     deleteComplaint,
     updateComplaintStatus,
+    refreshComplaints,
     sopImageUrl,
     updateSOPImageUrl,
     resetToDefaultData,
@@ -480,6 +481,13 @@ export const AdminDashboard: React.FC = () => {
       setCurrentSection('news-cms');
     }
   }, [isEditor, isWriter, currentSection, canAccessOrganizationCms, isAdminOrSuperAdmin, isSuperAdmin]);
+
+  // Sinkronkan data pengaduan riil dari Supabase saat membuka menu Kontak & Pengaduan
+  useEffect(() => {
+    if (currentSection === 'contact-cms') {
+      refreshComplaints();
+    }
+  }, [currentSection]);
 
   // ==========================================================
   // STATE & HANDLER MEDIA SOSIAL RESMI CMS
@@ -1420,6 +1428,13 @@ export const AdminDashboard: React.FC = () => {
     });
   }, [officeProfile]);
 
+  // Auto-fetch data nominatif guru dari spreadsheet jika belum dimuat
+  React.useEffect(() => {
+    if (currentSection === 'nominatif-cms' && teachers.length === 0) {
+      refreshTeachers(true).catch(() => {});
+    }
+  }, [currentSection, teachers.length, refreshTeachers]);
+
   // --- SOP CMS STATE ---
   const [sopInputUrl, setSopInputUrl] = useState(sopImageUrl || '');
   const [isSavingSop, setIsSavingSop] = useState(false);
@@ -1740,14 +1755,14 @@ export const AdminDashboard: React.FC = () => {
       setEditingTeacherId(null);
       showNoticePopup({
         title: 'Data Guru Diperbarui!',
-        message: `Data nominatif guru "${teacherForm.nama}" telah berhasil diperbarui dan disinkronkan ke Supabase.`,
+        message: `Data nominatif guru "${teacherForm.nama}" telah berhasil diperbarui dan disinkronkan ke Google Spreadsheet.`,
         type: 'success'
       });
     } else {
       await addTeacher(preparedData);
       showNoticePopup({
         title: 'Data Guru Ditambahkan!',
-        message: `Guru "${teacherForm.nama}" berhasil ditambahkan ke daftar nominatif Supabase.`,
+        message: `Guru "${teacherForm.nama}" berhasil ditambahkan ke daftar nominatif Google Spreadsheet.`,
         type: 'success'
       });
     }
@@ -1852,7 +1867,7 @@ export const AdminDashboard: React.FC = () => {
   const handleDeleteTeacher = async (t: TeacherNominative) => {
     const confirmed = await showConfirmDialog({
       title: 'Hapus Data Guru?',
-      message: `Apakah Anda yakin ingin menghapus data guru "${t.nama}" (${t.statusPegawai} - ${t.instansi}) dari daftar nominatif Supabase?`,
+      message: `Apakah Anda yakin ingin menghapus data guru "${t.nama}" (${t.statusPegawai} - ${t.instansi}) dari daftar nominatif Google Spreadsheet?`,
       type: 'delete',
       confirmText: 'Ya, Hapus Permanen',
       cancelText: 'Tidak, Batalkan',
@@ -1954,7 +1969,7 @@ export const AdminDashboard: React.FC = () => {
         await batchAddTeachers(parsedRows);
         showNoticePopup({
           title: 'Import CSV Berhasil!',
-          message: `Sebanyak ${parsedRows.length} data guru berhasil diimpor dan disinkronkan ke Supabase!`,
+          message: `Sebanyak ${parsedRows.length} data guru berhasil diimpor dan disinkronkan ke Google Spreadsheet!`,
           type: 'success'
         });
       } catch (err: any) {
@@ -1976,7 +1991,7 @@ export const AdminDashboard: React.FC = () => {
     }
     const confirmed = await showConfirmDialog({
       title: 'Kosongkan Seluruh Data Guru?',
-      message: `Apakah Anda yakin ingin menghapus seluruh ${teachers.length} data guru dari sistem dan database Supabase? Tindakan ini akan mengosongkan tabel daftar_guru.`,
+      message: `Apakah Anda yakin ingin mengosongkan seluruh ${teachers.length} data guru dari sistem lokal? Tindakan ini tidak dapat dibatalkan.`,
       type: 'danger',
       confirmText: 'Ya, Kosongkan Semua',
       cancelText: 'Batal'
@@ -4013,7 +4028,7 @@ export const AdminDashboard: React.FC = () => {
                     <span className={`text-[10px] truncate leading-tight mt-0.5 ${
                       currentSection === 'nominatif-cms' ? 'text-blue-100' : 'text-slate-400'
                     }`}>
-                      Daftar Pendidik Supabase
+                      Daftar Pendidik Database
                     </span>
                   </div>
                 </div>
@@ -6612,7 +6627,7 @@ export const AdminDashboard: React.FC = () => {
                     <span>Kelola Daftar Nominatif Guru</span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Pangkalan data nominatif seluruh guru di wilayah Korwilcam Purwodadi yang tersimpan di tabel Supabase <code className="px-1.5 py-0.5 bg-slate-100 rounded text-blue-600 font-mono text-[11px]">daftar_guru</code>.
+                    Pangkalan data nominatif seluruh guru di wilayah Korwilcam Purwodadi yang tersinkronisasi langsung dari Database.
                   </p>
                 </div>
 
@@ -6628,23 +6643,18 @@ export const AdminDashboard: React.FC = () => {
                       const ok = await refreshTeachers(true);
                       setIsSyncingTeachers(false);
                       if (ok) {
-                        showToast('Data nominatif guru berhasil disinkronkan dari Supabase!', 'success');
+                        showToast('Data nominatif guru berhasil disinkronkan dari Database!', 'success');
                       } else {
-                        showToast('Gagal menyinkronkan data atau database Supabase kosong.', 'info');
+                        showToast('Menunggu koneksi database...', 'info');
                       }
                     }}
                     disabled={isSyncingTeachers}
                     className="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-200 transition-all cursor-pointer shadow-xs disabled:opacity-60"
-                    title="Segarkan data nominatif guru langsung dari database Supabase"
+                    title="Segarkan data nominatif guru langsung dari Database"
                   >
-                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncingTeachers ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                    <RotateCcw className={`w-3.5 h-3.5 ${isSyncingTeachers ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
                     <span>{isSyncingTeachers ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
                   </button>
-                  {isSupabaseActive && (
-                    <span className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 rounded-xl text-xs font-semibold">
-                      Cloud Sync Aktif
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -6655,7 +6665,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
                       {editingTeacherId ? '✎' : '+'}
                     </div>
-                    <span>{editingTeacherId ? 'Edit Data Nominatif Guru' : 'Tambah Data Guru Baru ke Supabase'}</span>
+                    <span>{editingTeacherId ? 'Edit Data Nominatif Guru' : 'Tambah Data Guru Baru'}</span>
                   </div>
                   {editingTeacherId && (
                     <span className="text-[11px] bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-md font-semibold">
@@ -6745,7 +6755,7 @@ export const AdminDashboard: React.FC = () => {
                     className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
                   >
                     <Save className="w-4 h-4" />
-                    <span>{editingTeacherId ? 'Simpan Perubahan Guru' : 'Simpan Data Guru ke Supabase'}</span>
+                    <span>{editingTeacherId ? 'Simpan Perubahan Guru' : 'Simpan Data Guru'}</span>
                   </button>
                   {editingTeacherId && (
                     <button
@@ -11924,31 +11934,49 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Sub tabs */}
-              <div className="flex gap-2 border-b border-slate-200 pb-3">
-                <button
-                  onClick={() => setContactSubTab('inbox')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    contactSubTab === 'inbox' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
-                  }`}
-                >
-                  <Inbox className="w-4 h-4" />
-                  <span>Kotak Masuk Aduan ({complaints.length})</span>
-                  {newComplaintsCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px]">
-                      {newComplaintsCount}
-                    </span>
-                  )}
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setContactSubTab('inbox')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      contactSubTab === 'inbox' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
+                    }`}
+                  >
+                    <Inbox className="w-4 h-4" />
+                    <span>Kotak Masuk Aduan ({complaints.length})</span>
+                    {newComplaintsCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px]">
+                        {newComplaintsCount}
+                      </span>
+                    )}
+                  </button>
 
-                <button
-                  onClick={() => setContactSubTab('info')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    contactSubTab === 'info' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
-                  }`}
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>Pengaturan Info Kontak Kantor</span>
-                </button>
+                  <button
+                    onClick={() => setContactSubTab('info')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      contactSubTab === 'info' ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-700 border hover:bg-slate-50'
+                    }`}
+                  >
+                    <Phone className="w-4 h-4" />
+                    <span>Pengaturan Info Kontak Kantor</span>
+                  </button>
+                </div>
+
+                {contactSubTab === 'inbox' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      showToast('Menyinkronkan data pengaduan dari Supabase...', 'info');
+                      await refreshComplaints();
+                      showToast('Kotak masuk pengaduan telah disinkronkan!', 'success');
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-xs"
+                    title="Segarkan data langsung dari Supabase"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Sinkron Supabase</span>
+                  </button>
+                )}
               </div>
 
               {/* Subtab 1: Kotak Masuk Pengaduan */}

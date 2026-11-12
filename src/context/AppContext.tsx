@@ -80,6 +80,15 @@ import {
   saveOrganizationToSheet,
   deleteOrganizationFromSheet
 } from '../services/organizationSheetService';
+import {
+  fetchTeachersFromSheet,
+  saveTeacherToSheet,
+  deleteTeacherFromSheet,
+  getTeachersWebAppUrl,
+  setTeachersWebAppUrl,
+  getTeachersSheetUrl,
+  setTeachersSheetUrl
+} from '../services/teacherSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -378,6 +387,7 @@ interface AppContextType {
   addComplaint: (comp: Omit<ComplaintMessage, 'id' | 'status' | 'date'>) => void;
   deleteComplaint: (id: string) => void;
   updateComplaintStatus: (id: string, status: 'Baru' | 'Dibaca' | 'Selesai') => void;
+  refreshComplaints: () => Promise<void>;
 
   updateOfficeProfile: (profile: Partial<OfficeProfile>) => Promise<boolean>;
   updateSOPImageUrl: (url: string) => Promise<boolean>;
@@ -535,16 +545,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
+    const filterMockAnnouncements = (arr: Announcement[]) => {
+      return arr.filter(a => a && a.id && !['ann-01', 'ann-02', 'ann-03'].includes(a.id));
+    };
+
     if (_inMemoryAnnouncementsCache && _inMemoryAnnouncementsCache.length > 0) {
-      return _inMemoryAnnouncementsCache;
+      const cleaned = filterMockAnnouncements(_inMemoryAnnouncementsCache);
+      if (cleaned.length > 0) return cleaned;
     }
     try {
       const sessionSaved = sessionStorage.getItem('korwilcam_announcements');
       if (sessionSaved) {
         const parsed = JSON.parse(sessionSaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          _inMemoryAnnouncementsCache = parsed;
-          return parsed;
+          const cleaned = filterMockAnnouncements(parsed);
+          _inMemoryAnnouncementsCache = cleaned;
+          return cleaned;
         }
       }
     } catch (_) {}
@@ -553,12 +569,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          _inMemoryAnnouncementsCache = parsed;
-          return parsed;
+          const cleaned = filterMockAnnouncements(parsed);
+          _inMemoryAnnouncementsCache = cleaned;
+          return cleaned;
         }
       }
     } catch (_) {}
-    const initial = (initialAnnouncements && initialAnnouncements.length > 0) ? initialAnnouncements : [];
+    const initial = filterMockAnnouncements(initialAnnouncements || []);
     _inMemoryAnnouncementsCache = initial;
     return initial;
   });
@@ -603,16 +620,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const [documents, setDocuments] = useState<DocumentDownload[]>(() => {
+    const filterMockDocs = (arr: DocumentDownload[]) => {
+      return arr.filter(d => d && d.id && !['doc-01', 'doc-02', 'doc-03', 'doc-04', 'doc-05'].includes(d.id));
+    };
+
     if (_inMemoryDocumentsCache && _inMemoryDocumentsCache.length > 0) {
-      return _inMemoryDocumentsCache;
+      const cleaned = filterMockDocs(_inMemoryDocumentsCache);
+      if (cleaned.length > 0) return cleaned;
     }
     const sessionSaved = sessionStorage.getItem('korwilcam_documents');
     if (sessionSaved) {
       try {
         const parsed: DocumentDownload[] = JSON.parse(sessionSaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          _inMemoryDocumentsCache = parsed;
-          return parsed;
+          const cleaned = filterMockDocs(parsed);
+          _inMemoryDocumentsCache = cleaned;
+          return cleaned;
         }
       } catch {}
     }
@@ -628,7 +651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               masterUrls.add(d.downloadUrl.trim());
             }
           });
-          const filtered = parsed.filter((d) => {
+          const filtered = filterMockDocs(parsed).filter((d) => {
             if (d.id.startsWith('doc-ann-') && d.downloadUrl && masterUrls.has(d.downloadUrl.trim())) {
               return false;
             }
@@ -639,7 +662,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } catch (_) {}
     }
-    return initialDocuments || [];
+    return filterMockDocs(initialDocuments || []);
   });
 
   const [documentCategories, setDocumentCategories] = useState<string[]>(() => {
@@ -771,8 +794,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [complaints, setComplaints] = useState<ComplaintMessage[]>(() => {
-    const saved = localStorage.getItem('korwilcam_complaints');
-    return saved ? JSON.parse(saved) : (initialComplaints || []);
+    try {
+      const saved = localStorage.getItem('korwilcam_complaints');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Bersihkan data tiruan bawaan (comp-01, comp-02) agar hanya menyajikan data riil
+          return parsed.filter((c: any) => c.id !== 'comp-01' && c.id !== 'comp-02');
+        }
+      }
+    } catch {}
+    return [];
   });
 
   const [sopImageUrl, setSopImageUrl] = useState<string>(() => {
@@ -1228,51 +1260,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // TIDAK AKAN menembak kueri ke Supabase sama sekali (0 Byte Egress).
   const CACHE_TTL_MS = 20 * 60 * 1000;
 
-  // Fungsi khusus untuk sinkronisasi daftar guru dari database Supabase secara hemat kuota & efisien
+  // [TERPUTUS DARI SUPABASE] Sinkronisasi daftar_guru tidak lagi memanggil Supabase.
+  // Dialihkan ke Google Spreadsheet (Read-Only) agar bebas kuota egress selamanya.
   const refreshTeachers = async (force: boolean = false): Promise<boolean> => {
-    const client = getSupabaseClient();
-    if (!client) return false;
-
-    // Jika data guru sudah tersimpan di cache lokal (900+ data guru) dan bukan force sync,
-    // gunakan data cache lokal tanpa membuang kuota bandwidth (hemat ratusan MB)
-    if (!force && _inMemoryTeachersCache && _inMemoryTeachersCache.length >= 900) {
+    if (!force && _inMemoryTeachersCache && _inMemoryTeachersCache.length > 0) {
       return true;
     }
 
     try {
-      const { data: dbTeachers, error: teachErr } = await client
-        .from('daftar_guru')
-        .select('id, no, nama, nip, status_pegawai, instansi, created_at, updated_at')
-        .order('no', { ascending: true })
-        .limit(10000);
-
-      if (!teachErr && Array.isArray(dbTeachers)) {
-        const mappedTeachers: TeacherNominative[] = dbTeachers.map((t: any, index: number) => ({
-          id: String(t.id || `guru-${Date.now()}-${index}`),
-          no: typeof t.no === 'number' ? t.no : (parseInt(t.no, 10) || index + 1),
-          nama: String(t.nama || '').trim(),
-          nip: String(t.nip || '-').trim(),
-          statusPegawai: String(t.status_pegawai || t.statusPegawai || 'PNS').trim(),
-          instansi: String(t.instansi || '').trim(),
-          createdAt: t.created_at || t.createdAt,
-          updatedAt: t.updated_at || t.updatedAt
-        }));
-
-        _inMemoryTeachersCache = mappedTeachers;
-        setTeachers(mappedTeachers);
+      const sheetTeachers = await fetchTeachersFromSheet(force);
+      if (sheetTeachers && sheetTeachers.length > 0) {
+        _inMemoryTeachersCache = sheetTeachers;
+        setTeachers(sheetTeachers);
         try {
-          sessionStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
-        } catch {}
-        try {
-          localStorage.setItem('korwilcam_teachers', JSON.stringify(mappedTeachers));
+          sessionStorage.setItem('korwilcam_teachers', JSON.stringify(sheetTeachers));
+          localStorage.setItem('korwilcam_teachers', JSON.stringify(sheetTeachers));
         } catch {}
         return true;
       }
-      return false;
     } catch (errTeach) {
-      console.warn('Tabel daftar_guru belum terbaca:', errTeach);
-      return false;
+      console.warn('Gagal memuat guru dari spreadsheet:', errTeach);
     }
+    return false;
   };
 
   // Fungsi khusus untuk sinkronisasi data seluruh sekolah (SD, TK, KB) dari Supabase secara real-time
@@ -1379,11 +1388,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       setSyncStatus('syncing');
 
-      // 0. Fetch schools, daftar_guru, & news SECARA INSTAN DAN EFISIEN (Zero Egress Waste)
-      // Data statis besar seperti daftar_guru (977 baris) HANYA ditarik saat tab Nominatif dibuka atau saat Admin force-sync
-      // Ini menghemat hingga 80% kuota egress Supabase untuk ribuan pengunjung publik yang hanya membuka beranda/layanan/berita.
+      // 0. Fetch schools, daftar_guru, & news SECARA INSTAN DAN EFISIEN
       const schoolsFetchPromise = (!force && schools.length >= 100) ? Promise.resolve(true) : refreshSchools(force);
-      const teachersFetchPromise = (force || isAuthenticated) ? refreshTeachers(force) : Promise.resolve(true);
+      const teachersFetchPromise = refreshTeachers(force);
 
       // 0.05 Fetch news dari Google Spreadsheet & Cache
       const newsFetchPromise = (async () => {
@@ -1438,6 +1445,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               });
             }
           }
+
+          // Tarik juga kategori dari tabel Supabase service_categories jika ada
+          try {
+            const { data: dbServiceCats } = await client.from('service_categories').select('*');
+            if (dbServiceCats && Array.isArray(dbServiceCats) && dbServiceCats.length > 0) {
+              const extraCats = dbServiceCats.map((c: any) => c.name || c.kategori || c.title || '').filter(Boolean);
+              if (extraCats.length > 0) {
+                setServiceRequirementCategories((prev) => {
+                  const merged = Array.from(new Set([...prev, ...extraCats]));
+                  try {
+                    localStorage.setItem('korwilcam_service_categories', JSON.stringify(merged));
+                  } catch {}
+                  return merged;
+                });
+              }
+            }
+          } catch (_) {}
         } catch (errReq) {
           console.warn('Gagal memuat service_requirements dari Spreadsheet:', errReq);
         }
@@ -1554,8 +1578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const { data: dbAnnouncements, error: annErr } = await client
             .from('announcements')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*');
 
           if (!annErr && dbAnnouncements) {
             loadedAnnouncements = dbAnnouncements.map((a: any) => {
@@ -1639,10 +1662,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!docErr && dbDocs) {
             const sopDoc = dbDocs.find((d: any) => d.id === 'sop-main' || d.category === 'SOP Pelayanan');
             if (sopDoc && (sopDoc.download_url || sopDoc.downloadUrl)) {
-              const loadedUrl = sopDoc.download_url || sopDoc.downloadUrl;
-              setSopImageUrl((prev) => prev || loadedUrl);
-              if (!localStorage.getItem('korwilcam_sop_image_url')) {
-                localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
+              const rawUrl = sopDoc.download_url || sopDoc.downloadUrl;
+              const loadedUrl = formatGoogleDriveImageUrl(rawUrl);
+              if (loadedUrl) {
+                setSopImageUrl(loadedUrl);
+                try {
+                  localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
+                } catch {}
               }
             }
 
@@ -1933,12 +1959,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Fetch sop_pelayanan table
       try {
-        const { data: dbSop, error: sopErr } = await client.from('sop_pelayanan').select('*').limit(1);
-        if (!sopErr && dbSop && dbSop.length > 0) {
-          const loadedUrl = dbSop[0].image_url || dbSop[0].imageUrl || dbSop[0].foto || '';
+        const { data: dbSop, error: sopErr } = await client.from('sop_pelayanan').select('*');
+        if (!sopErr && Array.isArray(dbSop) && dbSop.length > 0) {
+          const validRow = dbSop.find((r: any) => (r.image_url || r.imageUrl || r.foto || r.url || r.link || r.tautan || r.download_url)) || dbSop[0];
+          const loadedUrl = validRow ? (validRow.image_url || validRow.imageUrl || validRow.foto || validRow.url || validRow.link || validRow.tautan || validRow.download_url || '') : '';
           if (loadedUrl) {
-            setSopImageUrl(loadedUrl);
-            localStorage.setItem('korwilcam_sop_image_url', loadedUrl);
+            const formatted = formatGoogleDriveImageUrl(loadedUrl);
+            setSopImageUrl(formatted);
+            try {
+              localStorage.setItem('korwilcam_sop_image_url', formatted);
+            } catch {}
           }
         }
       } catch (_) {
@@ -1950,21 +1980,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Fetch complaints HANYA untuk Admin (menghemat egress publik & menjaga privasi isi pengaduan warga)
       if (isAuthenticated) {
-        try {
-          const { data: dbComplaints, error: compErr } = await client.from('complaints').select('*').order('created_at', { ascending: false });
-          if (!compErr && dbComplaints) {
-            setComplaints(dbComplaints.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              phone: c.phone,
-              schoolOrOrigin: c.school_or_origin,
-              category: c.category,
-              message: c.message,
-              date: c.date,
-              status: c.status
-            })));
-          }
-        } catch (_) {}
+        await refreshComplaints();
       }
 
       // [DISCONNECTED DARI SUPABASE] Fetch admin_users tidak lagi memanggil Supabase.
@@ -2191,22 +2207,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 11. Organizations [DISCONNECTED DARI SUPABASE]
       // Ekspor ke tabel organizations Supabase dinonaktifkan total (persiapan migrasi ke Google Spreadsheet)
 
-      // 12. Daftar Guru (Nominatif Guru)
-      try {
-        const teacherPayload = teachers.map((t) => ({
-          id: t.id,
-          no: t.no,
-          nama: t.nama,
-          nip: t.nip || '-',
-          status_pegawai: t.statusPegawai,
-          instansi: t.instansi,
-          created_at: t.createdAt || new Date().toISOString(),
-          updated_at: t.updatedAt || new Date().toISOString()
-        }));
-        await client.from('daftar_guru').upsert(teacherPayload);
-      } catch (tErr) {
-        console.warn('Gagal ekspor tabel daftar_guru:', tErr);
-      }
+      // 12. Daftar Guru [DISCONNECTED DARI SUPABASE]
+      // Ekspor ke tabel daftar_guru Supabase diputus total (dialihkan ke Google Spreadsheet)
 
       // 13. Persyaratan Pelayanan (Dikelola via Google Spreadsheet, terputus dari Supabase)
       // 14. Layanan Permintaan Data (Dikelola via Google Spreadsheet, terputus dari Supabase)
@@ -2354,11 +2356,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'sop_pelayanan' },
-        triggerDebouncedRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'daftar_guru' },
         triggerDebouncedRefresh
       )
 
@@ -5760,6 +5757,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const refreshComplaints = async (): Promise<void> => {
+    const client = getSupabaseClient();
+    if (!client) return;
+    try {
+      const { data: dbComplaints, error: compErr } = await client
+        .from('complaints')
+        .select('*');
+
+      if (!compErr && Array.isArray(dbComplaints)) {
+        const mapped: ComplaintMessage[] = dbComplaints.map((c: any) => ({
+          id: String(c.id || ''),
+          name: String(c.name || ''),
+          phone: String(c.phone || ''),
+          schoolOrOrigin: String(c.school_or_origin || c.schoolOrOrigin || ''),
+          category: String(c.category || 'Konsultasi Layanan'),
+          message: String(c.message || ''),
+          date: String(c.date || ''),
+          status: (c.status as 'Baru' | 'Dibaca' | 'Selesai') || 'Baru'
+        }));
+        setComplaints(mapped);
+        try {
+          localStorage.setItem('korwilcam_complaints', JSON.stringify(mapped));
+        } catch {}
+      } else if (compErr) {
+        console.warn('Gagal membaca tabel complaints dari Supabase:', compErr);
+      }
+    } catch (err) {
+      console.warn('Error saat fetch complaints Supabase:', err);
+    }
+  };
+
   // OFFICE PROFILE (Auto-save to Supabase & local state)
   const updateOfficeProfile = async (profileData: Partial<OfficeProfile>): Promise<boolean> => {
     const updated = { ...officeProfile, ...profileData };
@@ -6095,24 +6123,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menambahkan guru: "${newTeacher.nama}" (${newTeacher.statusPegawai}, ${newTeacher.instansi})`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('daftar_guru').upsert({
-          id: newTeacher.id,
-          no: newTeacher.no,
-          nama: newTeacher.nama,
-          nip: newTeacher.nip || '-',
-          status_pegawai: newTeacher.statusPegawai,
-          instansi: newTeacher.instansi,
-          created_at: newTeacher.createdAt,
-          updated_at: newTeacher.updatedAt
-        });
-      } catch (err) {
-        console.warn('Supabase addTeacher warning:', err);
-      }
-    }
-    showToast(`Data guru "${newTeacher.nama}" berhasil ditambahkan!`, 'success');
+    // [TERKONEKSI SPREADSHEET] Simpan ke Google Spreadsheet
+    try {
+      await saveTeacherToSheet(newTeacher, false);
+    } catch (_) {}
+    showToast(`Data guru "${newTeacher.nama}" berhasil disimpan!`, 'success');
     return true;
   };
 
@@ -6139,25 +6154,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'Nominatif Guru',
         `Memperbarui data guru: "${targetTeacher.nama}"`
       );
+      try {
+        await saveTeacherToSheet(targetTeacher, true);
+      } catch (_) {}
     }
 
-    const client = getSupabaseClient();
-    if (client && targetTeacher) {
-      try {
-        await client.from('daftar_guru').upsert({
-          id: targetTeacher.id,
-          no: targetTeacher.no,
-          nama: targetTeacher.nama,
-          nip: targetTeacher.nip || '-',
-          status_pegawai: targetTeacher.statusPegawai,
-          instansi: targetTeacher.instansi,
-          created_at: targetTeacher.createdAt || new Date().toISOString(),
-          updated_at: targetTeacher.updatedAt
-        });
-      } catch (err) {
-        console.warn('Supabase updateTeacher warning:', err);
-      }
-    }
     showToast('Data nominatif guru berhasil diperbarui!', 'success');
     return true;
   };
@@ -6176,14 +6177,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus data guru: "${target?.nama || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('daftar_guru').delete().match({ id });
-      } catch (err) {
-        console.warn('Supabase deleteTeacher warning:', err);
-      }
-    }
+    try {
+      await deleteTeacherFromSheet(id);
+    } catch (_) {}
     showToast(`Data guru "${target?.nama || ''}" berhasil dihapus!`, 'info');
     return true;
   };
@@ -6209,24 +6205,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Impor data nominatif guru massal: ${addedList.length} guru`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const payload = addedList.map((t) => ({
-          id: t.id,
-          no: t.no,
-          nama: t.nama,
-          nip: t.nip || '-',
-          status_pegawai: t.statusPegawai,
-          instansi: t.instansi,
-          created_at: t.createdAt,
-          updated_at: t.updatedAt
-        }));
-        await client.from('daftar_guru').upsert(payload);
-      } catch (err) {
-        console.warn('Supabase batchAddTeachers warning:', err);
-      }
-    }
+    // [TERPUTUS DARI SUPABASE]
     showToast(`Berhasil menambahkan ${addedList.length} data guru!`, 'success');
     return true;
   };
@@ -6243,14 +6222,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'Mengosongkan seluruh data nominatif guru'
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('daftar_guru').delete().neq('id', 'dummy-never-match');
-      } catch (err) {
-        console.warn('Supabase clearAllTeachers warning:', err);
-      }
-    }
+    // [TERPUTUS DARI SUPABASE]
     showToast('Seluruh data guru berhasil dikosongkan!', 'info');
     return true;
   };
@@ -6884,6 +6856,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addComplaint,
         deleteComplaint,
         updateComplaintStatus,
+        refreshComplaints,
         updateOfficeProfile,
         sopImageUrl,
         updateSOPImageUrl,

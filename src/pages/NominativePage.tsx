@@ -48,7 +48,7 @@ export const NominativePage: React.FC = () => {
   const { teachers, syncStatus, refreshTeachers } = useApp();
   const isInitialLoading = teachers.length === 0 && syncStatus === 'syncing';
 
-  // Selalu perbarui data dari database Supabase di latar belakang saat halaman nominatif dibuka
+  // Selalu perbarui data dari Google Spreadsheet di latar belakang saat halaman nominatif dibuka
   React.useEffect(() => {
     refreshTeachers(true).catch(() => {});
   }, [refreshTeachers]);
