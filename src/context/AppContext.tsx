@@ -75,6 +75,11 @@ import {
   saveDataRequestToSheet,
   deleteDataRequestFromSheet
 } from '../services/dataRequestSheetService';
+import {
+  fetchOrganizationsFromSheet,
+  saveOrganizationToSheet,
+  deleteOrganizationFromSheet
+} from '../services/organizationSheetService';
 import { generateVideoSlug } from '../lib/youtubeHelper';
 import { resolveNewsCandidates, resolveAnnouncementCandidates } from '../lib/shortLink';
 import { normalizeToGoogleMapsUrl } from '../lib/coordinates';
@@ -1810,48 +1815,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })();
 
-      // 0.4 Fetch organizations IMMEDIATELY IN PARALLEL (Organisasi Mitra & Profesi)
-      // Supaya seluruh data organisasi, sambutan ketua, dan susunan pengurus langsung tampil instan (secepat kilat)
+      // 0.4 Fetch organizations (Organisasi Mitra & Profesi) dari Google Spreadsheet
       const organizationsFetchPromise = (async () => {
         try {
-          const { data: dbOrgs, error: orgsErr } = await client.from('organizations').select('*');
-          if (!orgsErr && dbOrgs && dbOrgs.length > 0) {
-            const mappedOrgs: EducationalOrganization[] = dbOrgs.map((o: any) => ({
-              id: String(o.id || `org-${Date.now()}`),
-              slug: String(o.slug || '').trim(),
-              name: String(o.name || '').trim(),
-              shortName: String(o.short_name || o.shortName || o.name || '').trim(),
-              description: String(o.description || '').trim(),
-              logo: String(o.logo || '').trim(),
-              coverImage: String(o.cover_image || o.coverImage || '').trim(),
-              leader: typeof o.leader === 'object' && o.leader ? o.leader : {
-                name: '',
-                title: '',
-                period: '',
-                photo: '',
-                speechTitle: '',
-                speech: ''
-              },
-              vision: String(o.vision || ''),
-              missions: Array.isArray(o.missions) ? o.missions : [],
-              officials: Array.isArray(o.officials) ? o.officials : [],
-              address: String(o.address || ''),
-              phone: String(o.phone || ''),
-              email: String(o.email || ''),
-              socialMedia: typeof o.social_media === 'object' && o.social_media ? o.social_media : (typeof o.socialMedia === 'object' && o.socialMedia ? o.socialMedia : {}),
-              assignedUsername: o.assigned_username || o.assignedUsername || undefined,
-              updatedAt: o.updated_at || o.updatedAt
-            }));
-            _inMemoryOrganizationsCache = mappedOrgs;
-            setOrganizations(mappedOrgs);
-            try {
-              sessionStorage.setItem('korwilcam_organizations', JSON.stringify(mappedOrgs));
-              localStorage.setItem('korwilcam_organizations', JSON.stringify(mappedOrgs));
-            } catch {}
-            return mappedOrgs;
+          const sheetOrgs = await fetchOrganizationsFromSheet(true);
+          if (sheetOrgs && Array.isArray(sheetOrgs) && sheetOrgs.length > 0) {
+            _inMemoryOrganizationsCache = sheetOrgs;
+            setOrganizations(sheetOrgs);
+            return sheetOrgs;
           }
         } catch (errOrgs) {
-          console.warn('Tabel organizations parallel fetch warning:', errOrgs);
+          console.warn('Gagal memuat organisasi dari spreadsheet:', errOrgs);
         }
         return null;
       })();
@@ -2214,36 +2188,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 10. Admin Users [DISCONNECTED DARI SUPABASE]
       // Data akun pengelola tidak lagi diekspor ke Supabase (telah dialihkan)
 
-      // 11. Organizations
-      try {
-        const orgPayload = organizations.map((o) => ({
-          id: o.id,
-          slug: o.slug,
-          name: o.name,
-          short_name: o.shortName,
-          description: o.description,
-          logo: o.logo || '',
-          cover_image: o.coverImage || '',
-          leader: o.leader,
-          vision: o.vision,
-          missions: o.missions,
-          officials: o.officials,
-          address: o.address || '',
-          phone: o.phone || '',
-          email: o.email || '',
-          social_media: o.socialMedia || {},
-          assigned_username: o.assignedUsername || null,
-          updated_at: o.updatedAt || new Date().toISOString()
-        }));
-        const { error: oErr } = await client.from('organizations').upsert(orgPayload);
-        if (oErr) {
-          // Fallback jika kolom assigned_username belum ada di skema database pengguna
-          const fallbackPayload = orgPayload.map(({ assigned_username, ...rest }) => rest);
-          await client.from('organizations').upsert(fallbackPayload);
-        }
-      } catch (oErr) {
-        console.warn('Gagal ekspor tabel organizations:', oErr);
-      }
+      // 11. Organizations [DISCONNECTED DARI SUPABASE]
+      // Ekspor ke tabel organizations Supabase dinonaktifkan total (persiapan migrasi ke Google Spreadsheet)
 
       // 12. Daftar Guru (Nominatif Guru)
       try {
@@ -2408,11 +2354,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'sop_pelayanan' },
-        triggerDebouncedRefresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'organizations' },
         triggerDebouncedRefresh
       )
       .on(
@@ -6030,38 +5971,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menambahkan organisasi: "${newOrg.name}" (${newOrg.shortName || '-'})`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        const payload: any = {
-          id: newOrg.id,
-          slug: newOrg.slug,
-          name: newOrg.name,
-          short_name: newOrg.shortName,
-          description: newOrg.description,
-          logo: newOrg.logo || '',
-          cover_image: newOrg.coverImage || '',
-          leader: newOrg.leader,
-          vision: newOrg.vision,
-          missions: newOrg.missions,
-          officials: newOrg.officials,
-          address: newOrg.address || '',
-          phone: newOrg.phone || '',
-          email: newOrg.email || '',
-          social_media: newOrg.socialMedia || {},
-          assigned_username: newOrg.assignedUsername || null,
-          updated_at: newOrg.updatedAt
-        };
-        const { error: upsertErr } = await client.from('organizations').upsert(payload);
-        if (upsertErr) {
-          // Retry tanpa assigned_username jika kolom belum ada di Supabase
-          delete payload.assigned_username;
-          await client.from('organizations').upsert(payload);
-        }
-      } catch (err) {
-        console.warn('Supabase organization upsert warning:', err);
-      }
-    }
+    // Simpan ke Google Spreadsheet
+    saveOrganizationToSheet(newOrg, 'create').catch((err) => {
+      console.warn('Gagal menyimpan organisasi ke Spreadsheet:', err);
+    });
+
     showToast(`Organisasi "${newOrg.name}" berhasil ditambahkan!`, 'success');
     return true;
   };
@@ -6091,41 +6005,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'Organisasi',
         `Memperbarui data organisasi: "${targetOrg.name}"`
       );
+
+      // Simpan pembaruan ke Google Spreadsheet
+      saveOrganizationToSheet(targetOrg, 'update').catch((err) => {
+        console.warn('Gagal memperbarui organisasi ke Spreadsheet:', err);
+      });
     }
 
-    const client = getSupabaseClient();
-    if (client && targetOrg) {
-      try {
-        const payload: any = {
-          id: targetOrg.id,
-          slug: targetOrg.slug,
-          name: targetOrg.name,
-          short_name: targetOrg.shortName,
-          description: targetOrg.description,
-          logo: targetOrg.logo || '',
-          cover_image: targetOrg.coverImage || '',
-          leader: targetOrg.leader,
-          vision: targetOrg.vision,
-          missions: targetOrg.missions,
-          officials: targetOrg.officials,
-          address: targetOrg.address || '',
-          phone: targetOrg.phone || '',
-          email: targetOrg.email || '',
-          social_media: targetOrg.socialMedia || {},
-          assigned_username: targetOrg.assignedUsername || null,
-          updated_at: targetOrg.updatedAt
-        };
-        const { error: upsertErr } = await client.from('organizations').upsert(payload);
-        if (upsertErr) {
-          // Retry tanpa assigned_username jika kolom belum ada di Supabase
-          delete payload.assigned_username;
-          await client.from('organizations').upsert(payload);
-        }
-      } catch (err) {
-        console.warn('Supabase organization update warning:', err);
-      }
-    }
-    showToast('Pengaturan organisasi berhasil disimpan dan disinkronkan!', 'success');
+    showToast('Pengaturan organisasi berhasil disimpan!', 'success');
     return true;
   };
 
@@ -6145,14 +6032,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Menghapus organisasi: "${target?.name || id}"`
     );
 
-    const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.from('organizations').delete().eq('id', target?.id || id);
-      } catch (err) {
-        console.warn('Supabase organization delete warning:', err);
-      }
-    }
+    // Hapus dari Google Spreadsheet
+    deleteOrganizationFromSheet(id, target?.slug).catch((err) => {
+      console.warn('Gagal menghapus organisasi dari Spreadsheet:', err);
+    });
+
     showToast(`Organisasi "${target?.name || ''}" berhasil dihapus!`, 'info');
     return true;
   };

@@ -23,6 +23,10 @@ import {
 import {
   DATA_REQUESTS_SPREADSHEET_URL
 } from '../../services/dataRequestSheetService';
+import {
+  ORGANIZATIONS_SPREADSHEET_URL,
+  fetchOrganizationsFromSheet
+} from '../../services/organizationSheetService';
 import { 
   LayoutDashboard, 
   Home,
@@ -427,7 +431,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Hak akses khusus Organisasi:
   // Super Admin & Admin dapat mengakses semua organisasi.
-  // Akun non-admin (misal Penulis) hanya bisa mengakses menu Organisasi jika akunnya (username) ditunjuk pada setidaknya satu organisasi.
+  // Akun non-admin (misal Penulis / Humas) hanya bisa mengakses menu Organisasi jika akunnya (username) ditunjuk pada setidaknya satu organisasi di kolom assigned_username (1 Humas = 1 Organisasi).
   const isUserAssignedToAnyOrg = useMemo(() => {
     if (!currentUser?.username) return false;
     const curUser = currentUser.username.trim().toLowerCase();
@@ -9179,6 +9183,20 @@ export const AdminDashboard: React.FC = () => {
                             </button>
                           )}
                         </div>
+                      )}
+
+                      {/* Hanya Super Admin yang memiliki hak akses melihat lembar kerja spreadsheet */}
+                      {isSuperAdmin && (
+                        <a
+                          href={ORGANIZATIONS_SPREADSHEET_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all shadow-xs"
+                          title="Buka Spreadsheet Database Organisasi"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                          <span className="hidden sm:inline">Spreadsheet</span>
+                        </a>
                       )}
 
                       {isAdminOrSuperAdmin && (
