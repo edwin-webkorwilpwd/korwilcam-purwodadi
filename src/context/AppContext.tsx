@@ -2599,13 +2599,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const live = await fetchVideosFromSheet(true);
       if (live && live.length > 0) {
         setVideos(live);
-        showToast('Data video kegiatan berhasil diperbarui dari Database Korwil!', 'success');
-      } else {
-        showToast('Memuat data video dari cache lokal.', 'info');
       }
     } catch (e) {
       console.warn('Gagal merefresh video dari Database Korwil:', e);
-      showToast('Gagal terhubung ke Database Korwil video.', 'error');
     } finally {
       setIsVideosLoading(false);
     }

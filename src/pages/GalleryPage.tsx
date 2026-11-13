@@ -110,9 +110,9 @@ export const GalleryPage: React.FC = () => {
     }
   };
 
-  // Segarkan data dan acak ulang kartu video
-  const handleRefreshVideos = () => {
-    refreshVideosFromSheet();
+  // Segarkan data dan acak ulang kartu video secara senyap tanpa popup
+  const handleRefreshVideos = async () => {
+    await refreshVideosFromSheet();
     if (videos && videos.length > 0) {
       setShuffledVideos(shuffleVideos(videos));
     }
