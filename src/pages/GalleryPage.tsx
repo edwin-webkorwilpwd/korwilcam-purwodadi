@@ -22,29 +22,13 @@ import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 import { GalleryCard } from '../components/GalleryCard';
 import { VideoGalleryCard } from '../components/VideoGalleryCard';
 
-// Fungsi pengacakan Fisher-Yates untuk mengacak urutan video agar tidak urut
-const shuffleVideos = (videoList: GalleryVideoItem[]): GalleryVideoItem[] => {
-  const arr = [...videoList];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
-// Fungsi pengacakan Fisher-Yates untuk mengacak urutan album foto kegiatan agar selalu tampil acak bagi pengunjung
-const shuffleGallery = (galleryList: GalleryItem[]): GalleryItem[] => {
-  const arr = [...galleryList];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
 export const GalleryPage: React.FC = () => {
   const { 
     gallery, 
+    shuffledGallery,
+    shuffledVideos,
+    reshuffleVideos,
+    reshufflePhotos,
     setSelectedGallery, 
     galleryCategories,
     videos,
@@ -67,55 +51,25 @@ export const GalleryPage: React.FC = () => {
   const VIDEOS_PER_PAGE = 12;
   const videoSectionRef = useRef<HTMLDivElement>(null);
 
-  // State daftar video yang diacak (randomized) per sesi kunjungan pengunjung
-  const [shuffledVideos, setShuffledVideos] = useState<GalleryVideoItem[]>([]);
-  // State daftar album foto yang diacak (randomized) per sesi kunjungan pengunjung
-  const [shuffledGallery, setShuffledGallery] = useState<GalleryItem[]>([]);
-
-  // Mengacak video saat data video pertama kali dimuat atau diperbarui
-  useEffect(() => {
-    if (videos && videos.length > 0) {
-      setShuffledVideos(shuffleVideos(videos));
-    }
-  }, [videos]);
-
   // Selalu sinkronkan data video dan foto terbaru dari Spreadsheet saat membuka galeri
   useEffect(() => {
     refreshVideosFromSheet();
   }, []);
-
-  // Mengacak album foto saat data galeri pertama kali dimuat atau diperbarui
-  useEffect(() => {
-    if (gallery && gallery.length > 0) {
-      setShuffledGallery(shuffleGallery(gallery));
-    }
-  }, [gallery]);
 
   // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
   useEffect(() => {
     setVideoCurrentPage(1);
   }, [videoSearchQuery]);
 
-  // Sinkronisasi query param & acak ulang ketika pengunjung memilih tab foto / video
+  // Sinkronisasi tab foto / video tanpa mengacak ulang kartu
   const handleSwitchTab = (tab: 'photo' | 'video') => {
     setGalleryActiveTab(tab);
-    if (tab === 'photo' && gallery && gallery.length > 0) {
-      setShuffledGallery(shuffleGallery(gallery));
-    }
-    if (tab === 'video') {
-      refreshVideosFromSheet();
-      if (videos && videos.length > 0) {
-        setShuffledVideos(shuffleVideos(videos));
-      }
-    }
   };
 
-  // Segarkan data dan acak ulang kartu video secara senyap tanpa popup
+  // Segarkan data dan acak ulang kartu video secara senyap tanpa popup saat tombol diklik
   const handleRefreshVideos = async () => {
     await refreshVideosFromSheet();
-    if (videos && videos.length > 0) {
-      setShuffledVideos(shuffleVideos(videos));
-    }
+    reshuffleVideos();
   };
 
   // Kategori Foto

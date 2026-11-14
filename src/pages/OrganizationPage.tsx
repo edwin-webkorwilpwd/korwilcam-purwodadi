@@ -136,59 +136,11 @@ const LeaderAvatarPlaceholder: React.FC = () => (
   </svg>
 );
 
-// Algoritma pengacakan Fisher-Yates untuk mengacak kartu organisasi bagi setiap pengunjung
-const shuffleOrganizations = (list: EducationalOrganization[]): EducationalOrganization[] => {
-  const arr = [...list];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
 export const OrganizationPage: React.FC = () => {
-  const { organizations, selectedOrganizationSlug, setSelectedOrganizationSlug, setActiveTab, activeTab } = useApp();
+  const { organizations, shuffledOrganizations, selectedOrganizationSlug, setSelectedOrganizationSlug, setActiveTab, activeTab } = useApp();
 
   // Search query for the directory page
   const [searchQuery, setSearchQuery] = useState('');
-
-  // State kartu organisasi yang diacak (shuffled) untuk setiap kunjungan / pembukaan menu
-  const [shuffledOrganizations, setShuffledOrganizations] = useState<EducationalOrganization[]>(() => {
-    return organizations && organizations.length > 0 ? shuffleOrganizations(organizations) : [];
-  });
-
-  const shuffleAllOrganizations = useCallback(() => {
-    if (organizations && organizations.length > 0) {
-      setShuffledOrganizations(shuffleOrganizations(organizations));
-    }
-  }, [organizations]);
-
-  // Acak data organisasi saat data pertama kali dimuat atau diperbarui
-  useEffect(() => {
-    shuffleAllOrganizations();
-  }, [organizations, shuffleAllOrganizations]);
-
-  // Acak data setiap kali tab beralih ke 'organization'
-  useEffect(() => {
-    if (activeTab === 'organization') {
-      shuffleAllOrganizations();
-    }
-  }, [activeTab, shuffleAllOrganizations]);
-
-  // Dengarkan event kustom ketika menu Organisasi diklik kembali oleh pengunjung
-  useEffect(() => {
-    const handleShuffleEvent = () => {
-      shuffleAllOrganizations();
-    };
-
-    window.addEventListener('shuffle-organizations', handleShuffleEvent);
-    window.addEventListener('popstate', handleShuffleEvent);
-
-    return () => {
-      window.removeEventListener('shuffle-organizations', handleShuffleEvent);
-      window.removeEventListener('popstate', handleShuffleEvent);
-    };
-  }, [shuffleAllOrganizations]);
 
   // Selected organization if viewing details
   const currentOrg = useMemo(() => {

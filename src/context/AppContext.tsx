@@ -279,6 +279,16 @@ interface AppContextType {
   setSelectedAnnouncement: (ann: Announcement | null, customPath?: string) => void;
   selectedSchool: School | null;
   setSelectedSchool: (school: School | null, customPath?: string) => void;
+  // Shuffled items (1x acak stabil per tab browser)
+  shuffledSchools: School[];
+  shuffledHomeSchools: School[];
+  shuffledOrganizations: EducationalOrganization[];
+  shuffledAchievements: Achievement[];
+  shuffledGallery: GalleryItem[];
+  shuffledVideos: GalleryVideoItem[];
+  reshuffleVideos: () => void;
+  reshufflePhotos: () => void;
+  reshuffleAchievements: () => void;
   selectedGallery: GalleryItem | null;
   setSelectedGallery: (gallery: GalleryItem | null) => void;
   galleryActiveTab: 'photo' | 'video';
@@ -495,6 +505,17 @@ let _inMemoryDocumentsCache: DocumentDownload[] | null = null;
 let _inMemoryNewsCache: NewsArticle[] | null = null;
 // In-memory module cache for instant (0ms) organizations display across navigation & visitors
 let _inMemoryOrganizationsCache: EducationalOrganization[] | null = null;
+
+// Algoritma Fisher-Yates untuk mengacak susunan array secara murni (1x per sesi tab browser)
+export const shuffleArray = <T,>(list: T[]): T[] => {
+  if (!list || list.length === 0) return [];
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDbConfigured = getSupabaseConfig().isConfigured;
@@ -1078,6 +1099,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return initialAdminUsers;
     }
   });
+
+  // ==========================================
+  // STATE PENGACAKAN KARTU (1X PER TAB BROWSER)
+  // Menjaga urutan acak tetap stabil selama berada di tab browser yang sama,
+  // dan hanya diacak ulang jika tab browser di-refresh atau dibuka di tab baru.
+  // ==========================================
+  const [shuffledSchools, setShuffledSchools] = useState<School[]>(() => {
+    return schools && schools.length > 0 ? shuffleArray(schools) : [];
+  });
+  const [shuffledHomeSchools, setShuffledHomeSchools] = useState<School[]>(() => {
+    return schools && schools.length > 0 ? shuffleArray(schools).slice(0, 3) : [];
+  });
+  const [shuffledOrganizations, setShuffledOrganizations] = useState<EducationalOrganization[]>(() => {
+    return organizations && organizations.length > 0 ? shuffleArray(organizations) : [];
+  });
+  const [shuffledAchievements, setShuffledAchievements] = useState<Achievement[]>(() => {
+    return achievements && achievements.length > 0 ? shuffleArray(achievements) : [];
+  });
+  const [shuffledGallery, setShuffledGallery] = useState<GalleryItem[]>(() => {
+    return gallery && gallery.length > 0 ? shuffleArray(gallery) : [];
+  });
+  const [shuffledVideos, setShuffledVideos] = useState<GalleryVideoItem[]>(() => {
+    return videos && videos.length > 0 ? shuffleArray(videos) : [];
+  });
+
+  // Sinkronisasi data saat pertama kali dimuat atau ada penambahan item baru tanpa mengacak ulang urutan yang sudah ada
+  useEffect(() => {
+    if (schools && schools.length > 0) {
+      setShuffledSchools((prev) => {
+        if (prev.length === 0) return shuffleArray(schools);
+        const existingIds = new Set(prev.map((s) => s.id));
+        const newItems = schools.filter((s) => !existingIds.has(s.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+      setShuffledHomeSchools((prev) => {
+        if (prev.length === 0) return shuffleArray(schools).slice(0, 3);
+        return prev;
+      });
+    }
+  }, [schools]);
+
+  useEffect(() => {
+    if (organizations && organizations.length > 0) {
+      setShuffledOrganizations((prev) => {
+        if (prev.length === 0) return shuffleArray(organizations);
+        const existingIds = new Set(prev.map((o) => o.id));
+        const newItems = organizations.filter((o) => !existingIds.has(o.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
+  }, [organizations]);
+
+  useEffect(() => {
+    if (achievements && achievements.length > 0) {
+      setShuffledAchievements((prev) => {
+        if (prev.length === 0) return shuffleArray(achievements);
+        const existingIds = new Set(prev.map((a) => a.id));
+        const newItems = achievements.filter((a) => !existingIds.has(a.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
+  }, [achievements]);
+
+  useEffect(() => {
+    if (gallery && gallery.length > 0) {
+      setShuffledGallery((prev) => {
+        if (prev.length === 0) return shuffleArray(gallery);
+        const existingIds = new Set(prev.map((g) => g.id));
+        const newItems = gallery.filter((g) => !existingIds.has(g.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
+  }, [gallery]);
+
+  useEffect(() => {
+    if (videos && videos.length > 0) {
+      setShuffledVideos((prev) => {
+        if (prev.length === 0) return shuffleArray(videos);
+        const existingIds = new Set(prev.map((v) => v.id));
+        const newItems = videos.filter((v) => !existingIds.has(v.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
+  }, [videos]);
+
+  const reshuffleVideos = useCallback(() => {
+    if (videos && videos.length > 0) {
+      setShuffledVideos(shuffleArray(videos));
+    }
+  }, [videos]);
+
+  const reshufflePhotos = useCallback(() => {
+    if (gallery && gallery.length > 0) {
+      setShuffledGallery(shuffleArray(gallery));
+    }
+  }, [gallery]);
+
+  const reshuffleAchievements = useCallback(() => {
+    if (achievements && achievements.length > 0) {
+      setShuffledAchievements(shuffleArray(achievements));
+    }
+  }, [achievements]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -2316,16 +2439,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setActiveTab = (tab: string, customPath?: string) => {
     setActiveTabState(tab);
-    if (tab === 'home') {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('shuffle-home-featured-schools'));
-      }
-    }
-    if (tab === 'organization') {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('shuffle-organizations'));
-      }
-    }
     if (selectedNews) {
       setSelectedNewsState(null);
     }
@@ -4073,6 +4186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `sch-${Date.now()}`
     };
     setSchools((prev) => [newSchool, ...prev]);
+    setShuffledSchools((prev) => [newSchool, ...prev]);
 
     const client = getSupabaseClient();
     if (client) {
@@ -4137,6 +4251,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       : ({ id, ...cleanUpdatedData } as School);
 
     setSchools((prev) => prev.map((s) => (s.id === id ? mergedSchool : s)));
+    setShuffledSchools((prev) => prev.map((s) => (s.id === id ? mergedSchool : s)));
 
     setSelectedSchoolState((curr) => (curr?.id === id ? mergedSchool : curr));
     triggerActivityLog(
@@ -4195,6 +4310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteSchool = async (id: string) => {
     const targetSchool = schools.find((s) => s.id === id);
     setSchools((prev) => prev.filter((s) => s.id !== id));
+    setShuffledSchools((prev) => prev.filter((s) => s.id !== id));
     setSelectedSchoolState((curr) => (curr?.id === id ? null : curr));
 
     triggerActivityLog(
@@ -5678,6 +5794,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = [...organizations, newOrg];
     _inMemoryOrganizationsCache = updated;
     setOrganizations(updated);
+    setShuffledOrganizations((prev) => [...prev, newOrg]);
     try {
       sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
@@ -5711,6 +5828,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     _inMemoryOrganizationsCache = updated;
     setOrganizations(updated);
+    setShuffledOrganizations((prev) => prev.map((o) => (o.id === id || o.slug === id ? { ...o, ...orgData, updatedAt: new Date().toISOString() } : o)));
     try {
       sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
@@ -5739,6 +5857,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = organizations.filter((o) => o.id !== id && o.slug !== id);
     _inMemoryOrganizationsCache = updated;
     setOrganizations(updated);
+    setShuffledOrganizations((prev) => prev.filter((o) => o.id !== id && o.slug !== id));
     try {
       sessionStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
       localStorage.setItem('korwilcam_organizations', JSON.stringify(updated));
@@ -6497,6 +6616,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedAnnouncement,
         selectedSchool,
         setSelectedSchool,
+        shuffledSchools,
+        shuffledHomeSchools,
+        shuffledOrganizations,
+        shuffledAchievements,
+        shuffledGallery,
+        shuffledVideos,
+        reshuffleVideos,
+        reshufflePhotos,
+        reshuffleAchievements,
         selectedGallery,
         setSelectedGallery,
         galleryActiveTab,

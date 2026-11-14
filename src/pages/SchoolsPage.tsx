@@ -21,30 +21,8 @@ import {
 import { School, SchoolLevel, SchoolStatus } from '../types';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
 
-// Fungsi pengacakan Fisher-Yates untuk mengacak kartu sekolah bagi setiap pengunjung
-const shuffleSchools = (list: School[]): School[] => {
-  const arr = [...list];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
 export const SchoolsPage: React.FC = () => {
-  const { schools } = useApp();
-
-  // State kartu sekolah yang diacak (shuffled) untuk setiap kunjungan / pembukaan menu
-  const [shuffledSchools, setShuffledSchools] = useState<School[]>(() => {
-    return schools && schools.length > 0 ? shuffleSchools(schools) : [];
-  });
-
-  // Acak data sekolah saat data sekolah pertama kali dimuat atau diperbarui
-  useEffect(() => {
-    if (schools && schools.length > 0) {
-      setShuffledSchools(shuffleSchools(schools));
-    }
-  }, [schools]);
+  const { schools, shuffledSchools } = useApp();
 
   const getLevelFromHash = (): string => {
     if (typeof window === 'undefined') return 'ALL';
@@ -170,9 +148,6 @@ export const SchoolsPage: React.FC = () => {
     setSelectedAkreditasi('ALL');
     setCurrentPage(1);
     handleSelectLevel('ALL');
-    if (schools && schools.length > 0) {
-      setShuffledSchools(shuffleSchools(schools));
-    }
   };
 
   return (

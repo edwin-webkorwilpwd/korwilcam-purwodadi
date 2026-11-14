@@ -39,19 +39,11 @@ import {
 } from '../lib/achievementHelper';
 import { Achievement, AchievementCategory, AchievementLevel } from '../types';
 
-// Fungsi pengacakan Fisher-Yates untuk mengacak kartu prestasi bagi setiap pengunjung
-const shuffleAchievements = (list: Achievement[]): Achievement[] => {
-  const arr = [...list];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
 export const AchievementsPage: React.FC = () => {
   const { 
     achievements, 
+    shuffledAchievements,
+    reshuffleAchievements,
     selectedAchievementSlug, 
     setSelectedAchievementSlug, 
     refreshAchievements,
@@ -60,16 +52,6 @@ export const AchievementsPage: React.FC = () => {
   } = useApp();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // State kartu prestasi yang diacak (shuffled) untuk setiap kunjungan
-  const [shuffledAchievements, setShuffledAchievements] = useState<Achievement[]>([]);
-
-  // Acak data prestasi setiap kali data prestasi dimuat atau diperbarui
-  useEffect(() => {
-    if (achievements && achievements.length > 0) {
-      setShuffledAchievements(shuffleAchievements(achievements));
-    }
-  }, [achievements]);
 
   // Auto-refresh saat halaman dibuka agar selalu menampilkan data sheet paling mutakhir
   useEffect(() => {
@@ -80,9 +62,7 @@ export const AchievementsPage: React.FC = () => {
     setIsRefreshing(true);
     try {
       await refreshAchievements?.();
-      if (achievements && achievements.length > 0) {
-        setShuffledAchievements(shuffleAchievements(achievements));
-      }
+      reshuffleAchievements?.();
       showToast('Data prestasi berhasil diperbarui langsung dari Database Korwil!', 'success');
     } catch {
       showToast('Gagal memperbarui data prestasi dari Database Korwil', 'error');

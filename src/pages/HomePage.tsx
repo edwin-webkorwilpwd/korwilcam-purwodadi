@@ -18,59 +18,11 @@ import { formatGoogleDriveImageUrl } from '../lib/driveHelper';
 import { formatNewsDate } from '../services/newsSheetService';
 import { School } from '../types';
 
-// Algoritma Fisher-Yates untuk mengacak kartu sekolah pilihan di Beranda bagi setiap pengunjung
-const shuffleSchools = (list: School[]): School[] => {
-  const arr = [...list];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
 export const HomePage: React.FC = () => {
-  const { news, schools, announcements, aulaBookings, setActiveTab, setSelectedAnnouncement, setSelectedNews, activeTab } = useApp();
+  const { news, schools, shuffledHomeSchools, announcements, aulaBookings, setActiveTab, setSelectedAnnouncement, setSelectedNews } = useApp();
 
   const featuredNews = news[0];
   const sideNews = news.slice(1, 6);
-
-  // State 3 kartu sekolah pilihan yang selalu diacak setiap kali pengunjung membuka / mengklik Beranda
-  const [displaySchools, setDisplaySchools] = useState<School[]>(() => {
-    return schools && schools.length > 0 ? shuffleSchools(schools).slice(0, 3) : [];
-  });
-
-  const shuffleFeaturedSchools = useCallback(() => {
-    if (schools && schools.length > 0) {
-      setDisplaySchools(shuffleSchools(schools).slice(0, 3));
-    }
-  }, [schools]);
-
-  // Acak saat data schools pertama kali tersedia atau diperbarui
-  useEffect(() => {
-    shuffleFeaturedSchools();
-  }, [schools, shuffleFeaturedSchools]);
-
-  // Acak setiap kali activeTab beralih kembali ke 'home'
-  useEffect(() => {
-    if (activeTab === 'home') {
-      shuffleFeaturedSchools();
-    }
-  }, [activeTab, shuffleFeaturedSchools]);
-
-  // Dengarkan event kustom ketika menu 'Beranda' diklik kembali oleh pengunjung
-  useEffect(() => {
-    const handleTriggerShuffle = () => {
-      shuffleFeaturedSchools();
-    };
-
-    window.addEventListener('shuffle-home-featured-schools', handleTriggerShuffle);
-    window.addEventListener('popstate', handleTriggerShuffle);
-
-    return () => {
-      window.removeEventListener('shuffle-home-featured-schools', handleTriggerShuffle);
-      window.removeEventListener('popstate', handleTriggerShuffle);
-    };
-  }, [shuffleFeaturedSchools]);
 
   const homeAgenda = (aulaBookings && aulaBookings.length > 0) 
     ? [...aulaBookings].sort(compareAgendaDatesDescending).slice(0, 3) 
@@ -357,7 +309,7 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-          {displaySchools.map((sch) => (
+          {shuffledHomeSchools.map((sch) => (
             <SchoolCard key={sch.id} school={sch} />
           ))}
         </div>
