@@ -8,7 +8,8 @@ import {
   Building2, 
   CheckCircle2,
   Maximize,
-  Minimize2
+  Minimize2,
+  Play
 } from 'lucide-react';
 import { GalleryVideoItem } from '../types';
 import { getVideoDetailPath, getYouTubeEmbedUrl, getGoogleDriveEmbedUrl } from '../lib/youtubeHelper';
@@ -27,6 +28,75 @@ export const VideoDetailPage: React.FC = () => {
   // State & Ref Layar Penuh (Fullscreen) untuk kompatibilitas iPhone Safari & seluruh ponsel
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // State Pemutar Video Native untuk Google Drive & Orientasi Vertikal / Horizontal
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isVertical, setIsVertical] = useState<boolean>(false);
+  const [useIframeFallback, setUseIframeFallback] = useState<boolean>(false);
+
+  // Deteksi Video Google Drive vs YouTube
+  const isDriveVideo = useMemo(() => {
+    if (!selectedVideo) return false;
+    return (
+      selectedVideo.videoSource === 'drive' ||
+      !!selectedVideo.driveFileId ||
+      (selectedVideo.embedUrl && selectedVideo.embedUrl.includes('drive.google.com')) ||
+      (selectedVideo.youtubeId && selectedVideo.youtubeId.length > 15)
+    );
+  }, [selectedVideo]);
+
+  const driveFileId = useMemo(() => {
+    if (!selectedVideo) return '';
+    return selectedVideo.driveFileId || (selectedVideo.youtubeId && selectedVideo.youtubeId.length > 15 ? selectedVideo.youtubeId : '');
+  }, [selectedVideo]);
+
+  // URL Stream Langsung Google Drive untuk pemutar video HTML5
+  const driveStreamUrl = useMemo(() => {
+    if (!driveFileId) return '';
+    return `https://drive.usercontent.google.com/download?id=${driveFileId}&export=download`;
+  }, [driveFileId]);
+
+  // URL Poster / Sampul video beresolusi tinggi
+  const posterUrl = useMemo(() => {
+    if (!selectedVideo) return '/gallery/cover-7-agustus-2026.jpg';
+    if (isDriveVideo && driveFileId) {
+      return `https://lh3.googleusercontent.com/d/${driveFileId}=s1200`;
+    }
+    return selectedVideo.thumbnailUrl || (selectedVideo.youtubeId ? `https://img.youtube.com/vi/${selectedVideo.youtubeId}/maxresdefault.jpg` : '/gallery/cover-7-agustus-2026.jpg');
+  }, [selectedVideo, isDriveVideo, driveFileId]);
+
+  // Deteksi otomatis orientasi vertikal (Shorts / Portrait 9:16) vs horizontal
+  useEffect(() => {
+    if (!selectedVideo) return;
+    setIsPlaying(false);
+    setUseIframeFallback(false);
+    setIsVertical(false);
+
+    // Deteksi jika link adalah YouTube Shorts
+    if (selectedVideo.youtubeUrl?.includes('/shorts/') || selectedVideo.embedUrl?.includes('/shorts/')) {
+      setIsVertical(true);
+    }
+
+    // Deteksi orientasi dari gambar thumbnail/poster
+    const checkUrl = posterUrl || selectedVideo.thumbnailUrl;
+    if (checkUrl) {
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalHeight > img.naturalWidth * 1.05) {
+          setIsVertical(true);
+        }
+      };
+      img.src = checkUrl;
+    }
+  }, [selectedVideo?.id, posterUrl]);
+
+  const handleStartPlay = () => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  };
 
   const handleToggleFullscreen = () => {
     const container = playerContainerRef.current;
@@ -261,30 +331,125 @@ export const VideoDetailPage: React.FC = () => {
           {/* Kolom Kiri: Player Utama & Detail Khas YouTube */}
           <main className="lg:col-span-8 xl:col-span-8 space-y-3">
             
-            {/* 1. Cinema Video Player (Mendukung Layar Penuh di Safari iPhone & Semua HP) */}
+            {/* 1. Cinema Video Player (Mendukung Layar Penuh di Safari iPhone & Semua HP, Responsif Vertikal / Horizontal) */}
             <div 
               ref={playerContainerRef}
               className={
                 isFullscreen 
                   ? "fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center w-screen h-screen p-0 m-0"
+                  : isVertical
+                  ? "relative aspect-[4/5] sm:aspect-video w-full max-h-[75vh] sm:max-h-[600px] rounded-2xl overflow-hidden bg-black shadow-lg border border-black/10 group"
                   : "relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-lg border border-black/10 group"
               }
             >
-              <iframe
-                src={embedUrl}
-                title={selectedVideo.title}
-                className={isFullscreen ? "w-full h-full border-0 max-w-full max-h-full" : "w-full h-full border-0"}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
+              {isDriveVideo && !useIframeFallback ? (
+                /* Pemutar Video Native Khas YouTube Khusus Google Drive (Bebas Bilah Header Drive, Tampil Jernih & Normal di HP) */
+                <div className="relative w-full h-full bg-black flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    src={driveStreamUrl}
+                    poster={posterUrl}
+                    controls={isPlaying}
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-full object-contain bg-black"
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onError={() => {
+                      console.warn('Google Drive direct stream dialihkan ke mode preview iframe');
+                      setUseIframeFallback(true);
+                    }}
+                  >
+                    <source src={driveStreamUrl} type="video/mp4" />
+                    <source src={`https://drive.google.com/uc?export=download&id=${driveFileId}`} type="video/mp4" />
+                  </video>
+
+                  {/* Tampilan Poster & Tombol Putar Khas YouTube (Tampil Normal di HP Sebelum Video Diputar) */}
+                  {!isPlaying && (
+                    <div 
+                      onClick={handleStartPlay}
+                      className="absolute inset-0 z-10 flex flex-col items-center justify-center cursor-pointer group/overlay bg-black/40 hover:bg-black/25 transition-all"
+                      title="Klik untuk memutar video"
+                    >
+                      {/* Latar Belakang Poster Blur untuk Mempercantik Ruang Samping */}
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 pointer-events-none scale-110"
+                        style={{ backgroundImage: `url(${posterUrl})` }}
+                      />
+
+                      {/* Poster Gambar Utama yang Tajam di Tengah */}
+                      <img 
+                        src={posterUrl} 
+                        alt={selectedVideo.title}
+                        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                        }}
+                      />
+
+                      {/* Header Video Overlay Khas YouTube (Judul & Badge di Atas) */}
+                      <div className="absolute top-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between text-white pointer-events-none z-20">
+                        <div className="flex items-center gap-2 min-w-0 pr-4">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-red-600 text-white shrink-0 shadow-xs">
+                            {isVertical ? 'Shorts / Vertikal' : 'Video'}
+                          </span>
+                          <p className="text-xs sm:text-sm font-semibold truncate drop-shadow-md">
+                            {selectedVideo.title}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Tombol Play Besar Ikonik Merah Khas YouTube di Tengah */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartPlay();
+                        }}
+                        className="relative z-20 w-16 h-12 sm:w-20 sm:h-14 bg-red-600 hover:bg-red-700 text-white rounded-2xl flex items-center justify-center shadow-2xl transition-all duration-300 transform group-hover/overlay:scale-110 active:scale-95 cursor-pointer border border-white/20"
+                        title="Putar Video"
+                      >
+                        <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white text-white translate-x-0.5" />
+                      </button>
+
+                      {/* Info Kategori & Sekolah di Pojok Bawah */}
+                      <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 flex items-center gap-2 pointer-events-none">
+                        <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-black/75 text-white/95 backdrop-blur-md shadow-xs">
+                          {selectedVideo.category || 'Kegiatan'}
+                        </span>
+                        {selectedVideo.schoolName && (
+                          <span className="text-[11px] text-white/90 font-medium drop-shadow-md hidden xs:inline">
+                            {selectedVideo.schoolName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Pemutar Iframe YouTube atau Fallback Google Drive (Dengan pemangkasan bilah atas Google Drive jika mode iframe) */
+                <iframe
+                  src={embedUrl}
+                  title={selectedVideo.title}
+                  className={
+                    isFullscreen 
+                      ? "w-full h-full border-0 max-w-full max-h-full" 
+                      : isDriveVideo
+                      ? "w-full h-[calc(100%+48px)] -mt-12 border-0"
+                      : "w-full h-full border-0"
+                  }
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              )}
 
               {/* Tombol Perbesar Layar Penuh Mengambang (Solusi untuk Safari iPhone / Shorts) */}
               {!isFullscreen ? (
                 <button
                   type="button"
                   onClick={handleToggleFullscreen}
-                  className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-10 px-2.5 py-1.5 rounded-lg bg-black/80 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg border border-white/20 active:scale-95 cursor-pointer"
+                  className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-30 px-2.5 py-1.5 rounded-lg bg-black/80 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg border border-white/20 active:scale-95 cursor-pointer"
                   title="Perbesar Layar Penuh (Full Screen)"
                 >
                   <Maximize className="w-3.5 h-3.5" />
