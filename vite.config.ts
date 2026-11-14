@@ -3,6 +3,86 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
 import path from 'node:path'
+import https from 'node:https'
+
+function videoStreamPlugin(): Plugin {
+  return {
+    name: 'video-stream-server',
+    configureServer(server) {
+      server.middlewares.use('/api/video-stream', (req, res) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Accept');
+          res.statusCode = 204;
+          return res.end();
+        }
+
+        const parsed = new URL(req.url || '', 'http://localhost');
+        const fileId = (parsed.searchParams.get('id') || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+
+        if (!fileId || fileId.length < 15) {
+          res.statusCode = 400;
+          return res.end('Invalid id');
+        }
+
+        const range = req.headers['range'] || '';
+        const driveUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download`;
+
+        function fetchFromGoogle(targetUrl: string, redirects = 0) {
+          if (redirects > 5) {
+            res.statusCode = 502;
+            return res.end('Too many redirects');
+          }
+
+          const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+          };
+          if (range) headers['Range'] = range;
+
+          const pReq = https.get(targetUrl, { headers }, (gRes) => {
+            if (gRes.statusCode && gRes.statusCode >= 300 && gRes.statusCode < 400 && gRes.headers.location) {
+              gRes.resume();
+              return fetchFromGoogle(gRes.headers.location, redirects + 1);
+            }
+
+            res.statusCode = gRes.statusCode || 200;
+            res.setHeader('Content-Type', gRes.headers['content-type'] || 'video/mp4');
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Accept');
+
+            if (gRes.headers['content-length']) res.setHeader('Content-Length', gRes.headers['content-length']);
+            if (gRes.headers['content-range']) res.setHeader('Content-Range', gRes.headers['content-range']);
+
+            if (req.method === 'HEAD') {
+              gRes.resume();
+              return res.end();
+            }
+
+            gRes.pipe(res);
+            res.on('close', () => {
+              gRes.destroy();
+              pReq.destroy();
+            });
+          });
+
+          pReq.on('error', () => {
+            if (!res.headersSent) {
+              res.statusCode = 502;
+              res.end('Failed to stream video');
+            }
+          });
+          res.on('close', () => pReq.destroy());
+        }
+
+        fetchFromGoogle(driveUrl);
+      });
+    }
+  };
+}
 
 function supabaseConfigPlugin(): Plugin {
   return {
@@ -51,6 +131,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     supabaseConfigPlugin(),
+    videoStreamPlugin(),
   ],
   server: {
     headers: {

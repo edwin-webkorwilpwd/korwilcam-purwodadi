@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   Maximize,
   Minimize2,
-  Play
+  Play,
+  Pause
 } from 'lucide-react';
 import { GalleryVideoItem } from '../types';
 import { getVideoDetailPath, getYouTubeEmbedUrl, getGoogleDriveEmbedUrl } from '../lib/youtubeHelper';
@@ -37,6 +38,27 @@ export const VideoDetailPage: React.FC = () => {
   const [duration, setDuration] = useState<number>(0);
   const [isVertical, setIsVertical] = useState<boolean>(false);
   const [useIframeFallback, setUseIframeFallback] = useState<boolean>(false);
+  const [showControls, setShowControls] = useState<boolean>(true);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds <= 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const resetControlsTimeout = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3500);
+    }
+  };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -56,10 +78,10 @@ export const VideoDetailPage: React.FC = () => {
     return selectedVideo.driveFileId || (selectedVideo.youtubeId && selectedVideo.youtubeId.length > 15 ? selectedVideo.youtubeId : '');
   }, [selectedVideo]);
 
-  // URL Stream Langsung Google Drive untuk pemutar video HTML5
+  // URL Stream Langsung Google Drive untuk pemutar video HTML5 (Melalui endpoint serverless bebas hambatan CORS & CORP)
   const driveStreamUrl = useMemo(() => {
     if (!driveFileId) return '';
-    return `https://drive.usercontent.google.com/download?id=${driveFileId}&export=download`;
+    return `/api/video-stream?id=${encodeURIComponent(driveFileId)}`;
   }, [driveFileId]);
 
   // URL Poster / Sampul video beresolusi tinggi
@@ -365,10 +387,12 @@ export const VideoDetailPage: React.FC = () => {
               }
             >
               {isDriveVideo && !useIframeFallback ? (
-                /* Pemutar Video Native Khas YouTube Khusus Google Drive (Tampilan 100% Bersih Bebas Tombol Tengah & Bawah) */
+                /* Pemutar Video Native Khas YouTube Khusus Google Drive (Tampilan 100% Bersih Bebas 3 Tombol Tengah di HP) */
                 <div 
                   className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden select-none"
                   onClick={handleTogglePlay}
+                  onMouseMove={resetControlsTimeout}
+                  onTouchStart={resetControlsTimeout}
                 >
                   <video
                     ref={videoRef}
@@ -392,26 +416,35 @@ export const VideoDetailPage: React.FC = () => {
                     onPlay={() => {
                       setIsPlaying(true);
                       setHasStarted(true);
+                      resetControlsTimeout();
                     }}
-                    onPause={() => setIsPlaying(false)}
+                    onPause={() => {
+                      setIsPlaying(false);
+                      setShowControls(true);
+                    }}
                     onEnded={() => {
                       setIsPlaying(false);
                       setHasStarted(false);
                       setCurrentTime(0);
+                      setShowControls(true);
                     }}
                     onError={() => {
-                      console.warn('Google Drive direct stream dialihkan ke mode preview iframe');
-                      setUseIframeFallback(true);
+                      console.warn('Gagal memuat video stream langsung, beralih ke pemutar Google Drive.');
+                      if (hasStarted) {
+                        setUseIframeFallback(true);
+                      }
                     }}
                   >
                     <source src={driveStreamUrl} type="video/mp4" />
-                    <source src={`https://drive.google.com/uc?export=download&id=${driveFileId}`} type="video/mp4" />
                   </video>
 
                   {/* 1. Tampilan Poster & Tombol Putar Awal Khas YouTube (Hanya Tampil Sebelum Pertama Kali Diputar) */}
                   {!hasStarted && (
                     <div 
-                      onClick={handleStartPlay}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartPlay();
+                      }}
                       className="absolute inset-0 z-10 flex flex-col items-center justify-center cursor-pointer group/overlay bg-black/40 hover:bg-black/25 transition-all"
                       title="Klik untuk memutar video"
                     >
@@ -443,7 +476,7 @@ export const VideoDetailPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Tombol Play Besar Ikonik Merah Khas YouTube di Tengah */}
+                      {/* Tombol Play Besar Ikonik Merah Khas YouTube di Tengah (Hanya Tampil Sebelum Video Dimulai) */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -470,38 +503,89 @@ export const VideoDetailPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 2. Ikon Putar Halus di Tengah Hanya Saat Dijeda (Tanpa Tombol Berjejal Lainnya) */}
-                  {hasStarted && !isPlaying && (
-                    <div 
-                      onClick={handleTogglePlay}
-                      className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/25 transition-all backdrop-blur-[1px]"
-                      title="Klik untuk melanjutkan pemutaran"
-                    >
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-2xl transition-transform active:scale-90 border border-white/30">
-                        <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white text-white translate-x-0.5" />
-                      </div>
-                    </div>
-                  )}
+                  {/* 
+                    2. BAGIAN TENGAH LAYAR DIJAGA 100% BERSIH DARI 3 TOMBOL (Play, Mundur 10s, Maju 10s).
+                    TIDAK ADA TOMBOL DI TENGAH LAYAR HP, SEHINGGA KEGIATAN & WAJAH SISWA TERLIHAT JELAS TANPA TERHALANG.
+                  */}
 
-                  {/* 3. Indikator Garis Progres Merah Tipis 2px Khas YouTube di Bagian Bawah (Tanpa Tombol yang Menutupi Layar) */}
-                  {hasStarted && duration > 0 && (
+                  {/* 3. Panel Kontrol Bawah (Play/Pause, Durasi Waktu, Garis Geser Progres & Layar Penuh) */}
+                  {hasStarted && (
                     <div 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (videoRef.current && duration > 0) {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                          videoRef.current.currentTime = pos * duration;
-                        }
-                      }}
-                      className="absolute bottom-0 inset-x-0 h-2 flex items-end cursor-pointer z-20 group/progress"
-                      title="Geser posisi video"
+                      className={`absolute bottom-0 inset-x-0 z-20 px-3 sm:px-4 pb-2.5 pt-8 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col gap-1.5 transition-opacity duration-300 select-none ${
+                        showControls || !isPlaying ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                      }`}
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="w-full h-1 group-hover/progress:h-1.5 bg-white/20 transition-all">
+                      {/* Baris Scrubber Garis Progres Interaktif */}
+                      <div 
+                        className="relative w-full h-4 flex items-center cursor-pointer group/seek"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (videoRef.current && duration > 0) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                            videoRef.current.currentTime = pos * duration;
+                            setCurrentTime(pos * duration);
+                            resetControlsTimeout();
+                          }
+                        }}
+                      >
+                        <div className="w-full h-1 group-hover/seek:h-1.5 bg-white/30 rounded-full overflow-hidden transition-all">
+                          <div 
+                            className="h-full bg-red-600 rounded-full transition-all duration-75"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                        {/* Bulatan Penunjuk Posisi (Thumb) */}
                         <div 
-                          className="h-full bg-red-600 relative transition-all duration-75"
-                          style={{ width: `${progressPercent}%` }}
+                          className="absolute w-3 h-3 bg-red-600 rounded-full shadow-md -translate-x-1/2 pointer-events-none transition-transform group-hover/seek:scale-125"
+                          style={{ left: `${progressPercent}%` }}
                         />
+                      </div>
+
+                      {/* Baris Tombol Kontrol Bawah */}
+                      <div className="flex items-center justify-between text-white">
+                        <div className="flex items-center gap-3">
+                          {/* Tombol Play / Pause di Sudut Kiri Bawah */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTogglePlay();
+                              resetControlsTimeout();
+                            }}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition cursor-pointer"
+                            title={isPlaying ? "Jeda Video" : "Putar Video"}
+                          >
+                            {isPlaying ? (
+                              <Pause className="w-4 h-4 fill-white text-white" />
+                            ) : (
+                              <Play className="w-4 h-4 fill-white text-white translate-x-0.5" />
+                            )}
+                          </button>
+
+                          {/* Indikator Waktu Menit:Detik (Contoh: 0:09 / 0:46) */}
+                          <span className="text-xs font-semibold text-white/95 select-none tracking-tight">
+                            {formatTime(currentTime)} / {formatTime(duration)}
+                          </span>
+                        </div>
+
+                        {/* Tombol Layar Penuh di Sudut Kanan Bawah */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleFullscreen();
+                          }}
+                          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition cursor-pointer"
+                          title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh"}
+                        >
+                          {isFullscreen ? (
+                            <Minimize2 className="w-4 h-4 text-white" />
+                          ) : (
+                            <Maximize className="w-4 h-4 text-white" />
+                          )}
+                        </button>
                       </div>
                     </div>
                   )}
