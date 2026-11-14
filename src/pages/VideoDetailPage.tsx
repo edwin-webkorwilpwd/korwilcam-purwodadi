@@ -32,8 +32,13 @@ export const VideoDetailPage: React.FC = () => {
   // State Pemutar Video Native untuk Google Drive & Orientasi Vertikal / Horizontal
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
   const [isVertical, setIsVertical] = useState<boolean>(false);
   const [useIframeFallback, setUseIframeFallback] = useState<boolean>(false);
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   // Deteksi Video Google Drive vs YouTube
   const isDriveVideo = useMemo(() => {
@@ -70,6 +75,9 @@ export const VideoDetailPage: React.FC = () => {
   useEffect(() => {
     if (!selectedVideo) return;
     setIsPlaying(false);
+    setHasStarted(false);
+    setCurrentTime(0);
+    setDuration(0);
     setUseIframeFallback(false);
     setIsVertical(false);
 
@@ -95,6 +103,20 @@ export const VideoDetailPage: React.FC = () => {
     if (videoRef.current) {
       videoRef.current.play().catch(() => {});
       setIsPlaying(true);
+      setHasStarted(true);
+    }
+  };
+
+  const handleTogglePlay = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+      setHasStarted(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
     }
   };
 
@@ -343,18 +365,40 @@ export const VideoDetailPage: React.FC = () => {
               }
             >
               {isDriveVideo && !useIframeFallback ? (
-                /* Pemutar Video Native Khas YouTube Khusus Google Drive (Bebas Bilah Header Drive, Tampil Jernih & Normal di HP) */
-                <div className="relative w-full h-full bg-black flex items-center justify-center">
+                /* Pemutar Video Native Khas YouTube Khusus Google Drive (Tampilan 100% Bersih Bebas Tombol Tengah & Bawah) */
+                <div 
+                  className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden select-none"
+                  onClick={handleTogglePlay}
+                >
                   <video
                     ref={videoRef}
                     src={driveStreamUrl}
                     poster={posterUrl}
-                    controls={isPlaying}
+                    controls={false}
                     playsInline
                     preload="metadata"
-                    className="w-full h-full object-contain bg-black"
-                    onPlay={() => setIsPlaying(true)}
+                    className="clean-media-player w-full h-full object-contain bg-black cursor-pointer"
+                    onTimeUpdate={() => {
+                      if (videoRef.current) {
+                        setCurrentTime(videoRef.current.currentTime);
+                        setDuration(videoRef.current.duration || 0);
+                      }
+                    }}
+                    onLoadedMetadata={() => {
+                      if (videoRef.current) {
+                        setDuration(videoRef.current.duration || 0);
+                      }
+                    }}
+                    onPlay={() => {
+                      setIsPlaying(true);
+                      setHasStarted(true);
+                    }}
                     onPause={() => setIsPlaying(false)}
+                    onEnded={() => {
+                      setIsPlaying(false);
+                      setHasStarted(false);
+                      setCurrentTime(0);
+                    }}
                     onError={() => {
                       console.warn('Google Drive direct stream dialihkan ke mode preview iframe');
                       setUseIframeFallback(true);
@@ -364,8 +408,8 @@ export const VideoDetailPage: React.FC = () => {
                     <source src={`https://drive.google.com/uc?export=download&id=${driveFileId}`} type="video/mp4" />
                   </video>
 
-                  {/* Tampilan Poster & Tombol Putar Khas YouTube (Tampil Normal di HP Sebelum Video Diputar) */}
-                  {!isPlaying && (
+                  {/* 1. Tampilan Poster & Tombol Putar Awal Khas YouTube (Hanya Tampil Sebelum Pertama Kali Diputar) */}
+                  {!hasStarted && (
                     <div 
                       onClick={handleStartPlay}
                       className="absolute inset-0 z-10 flex flex-col items-center justify-center cursor-pointer group/overlay bg-black/40 hover:bg-black/25 transition-all"
@@ -425,6 +469,42 @@ export const VideoDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* 2. Ikon Putar Halus di Tengah Hanya Saat Dijeda (Tanpa Tombol Berjejal Lainnya) */}
+                  {hasStarted && !isPlaying && (
+                    <div 
+                      onClick={handleTogglePlay}
+                      className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/25 transition-all backdrop-blur-[1px]"
+                      title="Klik untuk melanjutkan pemutaran"
+                    >
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-2xl transition-transform active:scale-90 border border-white/30">
+                        <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white text-white translate-x-0.5" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Indikator Garis Progres Merah Tipis 2px Khas YouTube di Bagian Bawah (Tanpa Tombol yang Menutupi Layar) */}
+                  {hasStarted && duration > 0 && (
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (videoRef.current && duration > 0) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                          videoRef.current.currentTime = pos * duration;
+                        }
+                      }}
+                      className="absolute bottom-0 inset-x-0 h-2 flex items-end cursor-pointer z-20 group/progress"
+                      title="Geser posisi video"
+                    >
+                      <div className="w-full h-1 group-hover/progress:h-1.5 bg-white/20 transition-all">
+                        <div 
+                          className="h-full bg-red-600 relative transition-all duration-75"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Pemutar Iframe YouTube atau Fallback Google Drive (Dengan pemangkasan bilah atas Google Drive jika mode iframe) */
@@ -444,18 +524,8 @@ export const VideoDetailPage: React.FC = () => {
                 />
               )}
 
-              {/* Tombol Perbesar Layar Penuh Mengambang (Solusi untuk Safari iPhone / Shorts) */}
-              {!isFullscreen ? (
-                <button
-                  type="button"
-                  onClick={handleToggleFullscreen}
-                  className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-30 px-2.5 py-1.5 rounded-lg bg-black/80 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg border border-white/20 active:scale-95 cursor-pointer"
-                  title="Perbesar Layar Penuh (Full Screen)"
-                >
-                  <Maximize className="w-3.5 h-3.5" />
-                  <span className="text-[11px] font-bold">Layar Penuh</span>
-                </button>
-              ) : (
+              {/* Tombol Tutup Layar Penuh (Hanya Muncul Saat Pengunjung Berada di Mode Layar Penuh) */}
+              {isFullscreen && (
                 <button
                   type="button"
                   onClick={handleToggleFullscreen}

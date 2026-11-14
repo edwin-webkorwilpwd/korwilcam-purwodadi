@@ -506,6 +506,19 @@
   }
 }
 
+/* Hilangkan tombol bawaan browser pada pemutar video HTML5 agar tampilan 100% bersih */
+video.clean-media-player::-webkit-media-controls,
+video.clean-media-player::-webkit-media-controls-enclosure,
+video.clean-media-player::-webkit-media-controls-panel,
+video.clean-media-player::-webkit-media-controls-overlay-play-button,
+video.clean-media-player::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
 
 
 
