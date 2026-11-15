@@ -405,8 +405,7 @@ export const Navbar: React.FC = () => {
               {isHomeVisible && (
                 <button
                   onClick={() => handleNavClick('home', '/beranda')}
-                  onMouseEnter={closeAllDropdowns}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'home' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                       : 'text-white/90 hover:text-white hover:bg-white/15'
@@ -419,111 +418,107 @@ export const Navbar: React.FC = () => {
               {/* Profil Dropdown */}
               {isProfileVisible && (
                 <div 
-                  className="relative"
-                  onMouseEnter={handleProfileEnter}
-                  onMouseLeave={handleProfileLeave}
+                  className="relative group"
+                  onMouseEnter={() => {
+                    try {
+                      import('../pages/OrganizationPage');
+                      import('../pages/NominativePage');
+                    } catch {}
+                  }}
                 >
                   <button
                     type="button"
-                    onClick={() => setProfileDropdownOpen((prev) => !prev)}
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                       activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization' || activeTab === 'purna-tugas'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Profil</span>
-                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
                   </button>
 
-                  {profileDropdownOpen && (
-                    <div 
-                      className="absolute left-0 top-full pt-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-100"
-                      onMouseEnter={handleProfileEnter}
-                      onMouseLeave={handleProfileLeave}
-                    >
-                      {/* Invisible hover bridge to eliminate gap */}
-                      <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
+                  <div className="absolute left-0 top-full pt-1.5 z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                    {/* Invisible hover bridge to eliminate gap */}
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                      <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
-                        {isItemActive(menuVisibility, 'profile.welcome') && (
-                          <button
-                            onClick={() => handleNavClick('profile', '/profil#sambutan')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Sambutan & Visi Misi</span>
-                          </button>
-                        )}
+                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                      {isItemActive(menuVisibility, 'profile.welcome') && (
+                        <button
+                          onClick={() => handleNavClick('profile', '/profil#sambutan')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Sambutan & Visi Misi</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'profile.structure') && (
-                          <button
-                            onClick={() => handleNavClick('profile', '/profil#struktur')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Struktur Organisasi</span>
-                          </button>
-                        )}
+                      {isItemActive(menuVisibility, 'profile.structure') && (
+                        <button
+                          onClick={() => handleNavClick('profile', '/profil#struktur')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Struktur Organisasi</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'profile.nominative') && (
-                          <button
-                            onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'nominatif'
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Nominatif</span>
-                          </button>
-                        )}
+                      {isItemActive(menuVisibility, 'profile.nominative') && (
+                        <button
+                          onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'nominatif'
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Nominatif</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'profile.organization') && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrganizationSlug(null);
-                              handleNavClick('organization', '/profil#organisasi');
-                            }}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'organization'
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Organisasi</span>
-                          </button>
-                        )}
+                      {isItemActive(menuVisibility, 'profile.organization') && (
+                        <button
+                          onClick={() => {
+                            setSelectedOrganizationSlug(null);
+                            handleNavClick('organization', '/profil#organisasi');
+                          }}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'organization'
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Organisasi</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'profile.purna-tugas') && (
-                          <button
-                            onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'purna-tugas'
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Purna Tugas</span>
-                          </button>
-                        )}
-                      </div>
+                      {isItemActive(menuVisibility, 'profile.purna-tugas') && (
+                        <button
+                          onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'purna-tugas'
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Purna Tugas</span>
+                        </button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
               {isSopVisible && (
                 <button
                   onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
-                  onMouseEnter={closeAllDropdowns}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'sop-pelayanan' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                       : 'text-white/90 hover:text-white hover:bg-white/15'
@@ -536,8 +531,7 @@ export const Navbar: React.FC = () => {
               {isSchoolsVisible && (
                 <button
                   onClick={() => handleNavClick('schools', '/sekolah')}
-                  onMouseEnter={closeAllDropdowns}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap ${
+                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'schools' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                       : 'text-white/90 hover:text-white hover:bg-white/15'
@@ -550,8 +544,7 @@ export const Navbar: React.FC = () => {
               {isKaryakuVisible && (
                 <button
                   onClick={() => handleNavClick('karyaku', '/karyaku')}
-                  onMouseEnter={closeAllDropdowns}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap ${
+                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'karyaku' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                       : 'text-white/90 hover:text-white hover:bg-white/15'
@@ -564,220 +557,211 @@ export const Navbar: React.FC = () => {
               {/* Berita Dropdown */}
               {isNewsVisible && (
                 <div 
-                  className="relative"
-                  onMouseEnter={handleNewsEnter}
-                  onMouseLeave={handleNewsLeave}
+                  className="relative group"
+                  onMouseEnter={() => {
+                    try {
+                      import('../pages/NewsPage');
+                    } catch {}
+                  }}
                 >
                   <button
                     type="button"
-                    onClick={() => setNewsDropdownOpen((prev) => !prev)}
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                       activeTab === 'news' || activeTab === 'achievements'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Berita</span>
-                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${newsDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
                   </button>
 
-                  {newsDropdownOpen && (
-                    <div 
-                      className="absolute left-0 top-full pt-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-100"
-                      onMouseEnter={handleNewsEnter}
-                      onMouseLeave={handleNewsLeave}
-                    >
-                      {/* Invisible hover bridge to eliminate gap */}
-                      <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
+                  <div className="absolute left-0 top-full pt-1.5 z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                    {/* Invisible hover bridge to eliminate gap */}
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                      <div className="bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
-                        {isItemActive(menuVisibility, 'news.latest') && (
-                          <button
-                            onClick={() => handleNavClick('news', '/berita')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda') && !window.location.pathname.includes('/prestasi')))
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Berita Terkini</span>
-                          </button>
-                        )}
+                    <div className="bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                      {isItemActive(menuVisibility, 'news.latest') && (
+                        <button
+                          onClick={() => handleNavClick('news', '/berita')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda') && !window.location.pathname.includes('/prestasi')))
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Berita Terkini</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'news.announcements') && (
-                          <button
-                            onClick={() => handleNavClick('news', '/berita/pengumuman')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Pengumuman & Edaran</span>
-                          </button>
-                        )}
+                      {isItemActive(menuVisibility, 'news.announcements') && (
+                        <button
+                          onClick={() => handleNavClick('news', '/berita/pengumuman')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Pengumuman & Edaran</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'news.agenda') && (
-                          <button
-                            onClick={() => handleNavClick('news', '/berita/agenda')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Agenda Kegiatan</span>
-                          </button>
-                        )}
+                      {isItemActive(menuVisibility, 'news.agenda') && (
+                        <button
+                          onClick={() => handleNavClick('news', '/berita/agenda')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Agenda Kegiatan</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'news.achievements') && (
-                          <button
-                            onClick={() => handleNavClick('achievements', '/berita/prestasi')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'achievements'
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Prestasi Siswa & Guru</span>
-                          </button>
-                        )}
-                      </div>
+                      {isItemActive(menuVisibility, 'news.achievements') && (
+                        <button
+                          onClick={() => handleNavClick('achievements', '/berita/prestasi')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'achievements'
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Prestasi Siswa & Guru</span>
+                        </button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
               {/* Layanan Dropdown */}
               {isServicesVisible && (
                 <div 
-                  className="relative"
-                  onMouseEnter={handleServicesEnter}
-                  onMouseLeave={handleServicesLeave}
+                  className="relative group"
+                  onMouseEnter={() => {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('preload-webviews'));
+                    }
+                  }}
                 >
                   <button
                     type="button"
-                    onClick={() => setServicesDropdownOpen((prev) => !prev)}
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                       activeTab === 'downloads' || activeTab.startsWith('service-')
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Layanan</span>
-                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${servicesDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
                   </button>
 
-                  {servicesDropdownOpen && (
-                    <div 
-                      className="absolute left-0 top-full pt-1.5 max-w-[calc(100vw-24px)] z-50 animate-in fade-in slide-in-from-top-1 duration-100"
-                      onMouseEnter={handleServicesEnter}
-                      onMouseLeave={handleServicesLeave}
-                    >
-                      {/* Invisible hover bridge to eliminate gap */}
-                      <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
+                  <div className="absolute left-0 top-full pt-1.5 max-w-[calc(100vw-24px)] z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                    {/* Invisible hover bridge to eliminate gap */}
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                      <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
-                        {/* 1. Persyaratan Pelayanan */}
-                        {isItemActive(menuVisibility, 'services.requirements') && (
-                          <button
-                            type="button"
-                            onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'service-requirements' 
-                                ? 'bg-white/20 text-white font-bold' 
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Persyaratan Pelayanan</span>
-                          </button>
-                        )}
+                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                      {/* 1. Persyaratan Pelayanan */}
+                      {isItemActive(menuVisibility, 'services.requirements') && (
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'service-requirements' 
+                              ? 'bg-white/20 text-white font-bold' 
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Persyaratan Pelayanan</span>
+                        </button>
+                      )}
 
-                        {/* 1. Unduh Berkas */}
-                        {isItemActive(menuVisibility, 'services.downloads') && (
-                          <button
-                            type="button"
-                            onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'downloads' 
-                                ? 'bg-white/20 text-white font-bold' 
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Unduh Berkas</span>
-                          </button>
-                        )}
+                      {/* 1. Unduh Berkas */}
+                      {isItemActive(menuVisibility, 'services.downloads') && (
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'downloads' 
+                              ? 'bg-white/20 text-white font-bold' 
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Unduh Berkas</span>
+                        </button>
+                      )}
 
-                        {/* 2. Peminjaman Aula */}
-                        {isItemActive(menuVisibility, 'services.aula') && (
-                          <button
-                            type="button"
-                            onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'service-aula' 
-                                ? 'bg-white/20 text-white font-bold' 
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Peminjaman Aula</span>
-                          </button>
-                        )}
+                      {/* 2. Peminjaman Aula */}
+                      {isItemActive(menuVisibility, 'services.aula') && (
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'service-aula' 
+                              ? 'bg-white/20 text-white font-bold' 
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Peminjaman Aula</span>
+                        </button>
+                      )}
 
-                        {/* 3. Surat Cuti */}
-                        {isItemActive(menuVisibility, 'services.cuti') && (
-                          <button
-                            type="button"
-                            onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'service-cuti' 
-                                ? 'bg-white/20 text-white font-bold' 
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Surat Cuti</span>
-                          </button>
-                        )}
+                      {/* 3. Surat Cuti */}
+                      {isItemActive(menuVisibility, 'services.cuti') && (
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'service-cuti' 
+                              ? 'bg-white/20 text-white font-bold' 
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Surat Cuti</span>
+                        </button>
+                      )}
 
-                        {/* 4. Survey Pelayanan */}
-                        {isItemActive(menuVisibility, 'services.survey') && (
-                          <button
-                            type="button"
-                            onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'service-survey' 
-                                ? 'bg-white/20 text-white font-bold' 
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Survey Pelayanan</span>
-                          </button>
-                        )}
+                      {/* 4. Survey Pelayanan */}
+                      {isItemActive(menuVisibility, 'services.survey') && (
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'service-survey' 
+                              ? 'bg-white/20 text-white font-bold' 
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Survey Pelayanan</span>
+                        </button>
+                      )}
 
-                        {/* 5. Permintaan Data */}
-                        {isItemActive(menuVisibility, 'services.data-request') && (
-                          <button
-                            type="button"
-                            onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap ${
-                              activeTab === 'service-permintaan-data' 
-                                ? 'bg-white/20 text-white font-bold' 
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <span>Permintaan Data</span>
-                          </button>
-                        )}
-                      </div>
+                      {/* 5. Permintaan Data */}
+                      {isItemActive(menuVisibility, 'services.data-request') && (
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
+                            activeTab === 'service-permintaan-data' 
+                              ? 'bg-white/20 text-white font-bold' 
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <span>Permintaan Data</span>
+                        </button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
               {isGalleryVisible && (
                 <button
                   onClick={() => handleNavClick('gallery', '/galeri')}
-                  onMouseEnter={closeAllDropdowns}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'gallery' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                       : 'text-white/90 hover:text-white hover:bg-white/15'
@@ -790,63 +774,60 @@ export const Navbar: React.FC = () => {
               {/* Kontak Dropdown (Kontak & Pengaduan, Sos Med) */}
               {isContactVisible && (
                 <div 
-                  className="relative"
-                  onMouseEnter={handleContactEnter}
-                  onMouseLeave={handleContactLeave}
+                  className="relative group"
+                  onMouseEnter={() => {
+                    try {
+                      import('../pages/ContactPage');
+                      import('../pages/SocialMediaPage');
+                    } catch {}
+                  }}
                 >
                   <button
                     type="button"
-                    onClick={() => setContactDropdownOpen((prev) => !prev)}
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                       activeTab === 'contact' || activeTab === 'social-media'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Kontak</span>
-                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${contactDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
                   </button>
 
-                  {contactDropdownOpen && (
-                    <div 
-                      className="absolute right-0 top-full pt-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-100"
-                      onMouseEnter={handleContactEnter}
-                      onMouseLeave={handleContactLeave}
-                    >
-                      {/* Invisible hover bridge to eliminate gap */}
-                      <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
+                  <div className="absolute right-0 top-full pt-1.5 z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                    {/* Invisible hover bridge to eliminate gap */}
+                    <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                      <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md min-w-[190px]">
-                        {isItemActive(menuVisibility, 'contact.office') && (
-                          <button
-                            onClick={() => handleNavClick('contact', '/kontak')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap flex items-center gap-2.5 ${
-                              activeTab === 'contact'
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <Phone className="w-4 h-4 text-blue-300" />
-                            <span>Kontak & Pengaduan</span>
-                          </button>
-                        )}
+                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md min-w-[190px]">
+                      {isItemActive(menuVisibility, 'contact.office') && (
+                        <button
+                          onClick={() => handleNavClick('contact', '/kontak')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap flex items-center gap-2.5 cursor-pointer ${
+                            activeTab === 'contact'
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <Phone className="w-4 h-4 text-blue-300" />
+                          <span>Kontak & Pengaduan</span>
+                        </button>
+                      )}
 
-                        {isItemActive(menuVisibility, 'contact.social') && (
-                          <button
-                            onClick={() => handleNavClick('social-media', '/media-sosial')}
-                            className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap flex items-center gap-2.5 ${
-                              activeTab === 'social-media'
-                                ? 'bg-white/20 text-white font-bold'
-                                : 'text-white hover:bg-white/15'
-                            }`}
-                          >
-                            <Share2 className="w-4 h-4 text-blue-300" />
-                            <span>Sos Med</span>
-                          </button>
-                        )}
-                      </div>
+                      {isItemActive(menuVisibility, 'contact.social') && (
+                        <button
+                          onClick={() => handleNavClick('social-media', '/media-sosial')}
+                          className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap flex items-center gap-2.5 cursor-pointer ${
+                            activeTab === 'social-media'
+                              ? 'bg-white/20 text-white font-bold'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <Share2 className="w-4 h-4 text-blue-300" />
+                          <span>Sos Med</span>
+                        </button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </nav>
