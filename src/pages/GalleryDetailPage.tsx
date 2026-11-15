@@ -336,8 +336,8 @@ export const GalleryDetailPage: React.FC = () => {
             </p>
           )}
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
-            {totalPhotos > 1 && (
+          {totalPhotos > 1 && (
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 onClick={handleDownloadAllPhotos}
                 className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
@@ -345,28 +345,8 @@ export const GalleryDetailPage: React.FC = () => {
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>Unduh Seluruh {totalPhotos} Foto (Batch)</span>
               </button>
-            )}
-
-            {folderUrl && (
-              <a
-                href={getGoogleDriveFolderViewUrl(folderUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
-                title="Buka seluruh isi folder foto di Google Drive"
-              >
-                <FolderOpen className="w-4 h-4 text-amber-300" />
-                <span>Buka Seluruh Foto di Folder Database</span>
-                <ExternalLink className="w-3.5 h-3.5 text-blue-200" />
-              </a>
-            )}
-
-            {totalPhotos > 1 && (
-              <span className="text-xs text-slate-400">
-                Gunakan tombol panah atau klik thumbnail di bawah untuk berpindah antar foto.
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* SECTION 1: SLIDE SHOW FOTO DOKUMENTASI KEGIATAN UTAMA */}
