@@ -10,7 +10,9 @@ import {
   Maximize,
   Minimize2,
   Play,
-  Pause
+  Pause,
+  Search,
+  X
 } from 'lucide-react';
 import { GalleryVideoItem } from '../types';
 import { getVideoDetailPath, getYouTubeEmbedUrl, getGoogleDriveEmbedUrl } from '../lib/youtubeHelper';
@@ -25,6 +27,57 @@ export const VideoDetailPage: React.FC = () => {
   } = useApp();
 
   const [isDescExpanded, setIsDescExpanded] = useState<boolean>(false);
+
+  // State Pencarian Video Khas YouTube di Header
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Filter video berdasarkan kata kunci pencarian (judul, sekolah, kategori, deskripsi)
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q || !videos || videos.length === 0) return [];
+    return videos.filter((v) => {
+      const matchTitle = (v.title || '').toLowerCase().includes(q);
+      const matchSchool = (v.schoolName || '').toLowerCase().includes(q);
+      const matchDesc = (v.description || '').toLowerCase().includes(q);
+      const matchCategory = (v.category || '').toLowerCase().includes(q);
+      const matchAuthor = (v.authorName || '').toLowerCase().includes(q);
+      return matchTitle || matchSchool || matchDesc || matchCategory || matchAuthor;
+    }).slice(0, 8);
+  }, [videos, searchQuery]);
+
+  // Tutup dropdown pencarian saat pengguna mengklik area luar
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Submit pencarian: arahkan ke galeri tab video dengan query pencarian
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    setIsDropdownOpen(false);
+    setSelectedVideo(null);
+    setGalleryActiveTab('video');
+    setActiveTab('gallery', `/galeri?tab=video&q=${encodeURIComponent(q)}`);
+  };
+
+  // Pilih salah satu video dari dropdown hasil pencarian
+  const handleSelectSearchResult = (vid: GalleryVideoItem) => {
+    setSelectedVideo(vid);
+    setIsDropdownOpen(false);
+    setSearchQuery('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // State & Ref Layar Penuh (Fullscreen) untuk kompatibilitas iPhone Safari & seluruh ponsel
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -355,16 +408,131 @@ export const VideoDetailPage: React.FC = () => {
   return (
     <article className="min-h-screen bg-white pb-20 animate-in fade-in duration-200">
       {/* Top Header Navigation */}
-      <div className="bg-white border-b border-slate-200/80 sticky top-16 z-20 shadow-xs">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-start">
-          <button
-            onClick={handleBackToGallery}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition-all group cursor-pointer"
-            title="Kembali ke Galeri Video Kegiatan"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span>Kembali ke Galeri</span>
-          </button>
+      <div className="bg-white border-b border-slate-200/80 sticky top-16 z-30 shadow-xs">
+        <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4">
+          
+          {/* Sisi Kiri: Tombol Kembali ke Galeri */}
+          <div className="flex-1 flex items-center justify-start min-w-0">
+            <button
+              onClick={handleBackToGallery}
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition-all group cursor-pointer shrink-0 shadow-2xs"
+              title="Kembali ke Galeri Video Kegiatan"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform shrink-0" />
+              <span className="hidden sm:inline">Kembali ke Galeri</span>
+              <span className="sm:hidden">Kembali</span>
+            </button>
+          </div>
+
+          {/* Sisi Tengah: Kotak Pencarian Khas YouTube (Ukuran Lebih Panjang & Proporsional) */}
+          <div ref={searchContainerRef} className="relative w-full max-w-[280px] xs:max-w-[340px] sm:max-w-[480px] md:max-w-[560px] lg:max-w-[620px] shrink-0">
+            <form 
+              onSubmit={handleSearchSubmit} 
+              className="relative flex items-center w-full h-9 sm:h-10 md:h-10.5 rounded-full border border-slate-300 bg-white hover:border-slate-400 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all overflow-hidden shadow-2xs"
+            >
+              {/* Bidang Ketik / Input Pencarian */}
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim().length > 0) setIsDropdownOpen(true);
+                }}
+                placeholder="Telusuri"
+                className="w-full h-full pl-4 sm:pl-5 pr-2 text-xs sm:text-sm md:text-[15px] text-slate-800 placeholder-slate-400 bg-transparent outline-hidden"
+              />
+
+              {/* Tombol Clear 'X' Jika Ada Teks */}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="p-1 mr-1.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer rounded-full"
+                  title="Hapus pencarian"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Garis Vertikal Pemisah Khas YouTube */}
+              <div className="h-full border-l border-slate-300 shrink-0" />
+
+              {/* Tombol Cari (Ikon Kaca Pembesar di Kanan) */}
+              <button
+                type="submit"
+                className="h-full px-4 sm:px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="Telusuri"
+              >
+                <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-slate-600 stroke-[2]" />
+              </button>
+            </form>
+
+            {/* Dropdown Hasil Pencarian Interaktif Khas YouTube */}
+            {isDropdownOpen && searchQuery.trim().length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                {searchResults.length > 0 ? (
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                    {searchResults.map((vid) => (
+                      <div
+                        key={vid.id}
+                        onClick={() => handleSelectSearchResult(vid)}
+                        className="p-2 sm:p-2.5 flex items-center gap-2.5 sm:gap-3 hover:bg-slate-50 cursor-pointer transition-colors group"
+                      >
+                        {/* Thumbnail Video */}
+                        <div className="relative w-16 sm:w-20 aspect-video rounded-lg overflow-hidden bg-black shrink-0">
+                          <img
+                            src={vid.thumbnailUrl}
+                            alt={vid.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/gallery/cover-7-agustus-2026.jpg';
+                            }}
+                          />
+                        </div>
+
+                        {/* Judul & Detail Video */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm font-semibold text-slate-800 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                            {vid.title}
+                          </p>
+                          <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                            {vid.schoolName || vid.authorName || 'Humas Korwilcam'} • <span className="text-red-600 font-medium">{vid.category}</span>
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Tombol Lihat Seluruh Hasil di Galeri Video */}
+                    <div 
+                      onClick={() => handleSearchSubmit()}
+                      className="p-2.5 bg-slate-50 hover:bg-slate-100 text-center text-xs font-bold text-blue-600 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Lihat semua hasil "{searchQuery}" di Galeri →</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-xs text-slate-500">
+                      Tidak ada video yang cocok dengan "<strong>{searchQuery}</strong>"
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sisi Kanan: Penyeimbang agar posisi tengah persis berada di tengah halaman */}
+          <div className="flex-1 hidden sm:flex justify-end">
+            {/* Spacer penyeimbang */}
+          </div>
+
         </div>
       </div>
 

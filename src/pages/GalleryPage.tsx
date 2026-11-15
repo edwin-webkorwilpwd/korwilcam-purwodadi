@@ -46,23 +46,46 @@ export const GalleryPage: React.FC = () => {
 
   const [photoSearchQuery, setPhotoSearchQuery] = useState<string>('');
   const [isPhotosLoading, setIsPhotosLoading] = useState<boolean>(false);
-  const [videoSearchQuery, setVideoSearchQuery] = useState<string>('');
+  const [videoSearchQuery, setVideoSearchQuery] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('q') || '';
+    }
+    return '';
+  });
   
   // State Pagination Video (12 video per halaman: 4 kolom x 3 baris)
   const [videoCurrentPage, setVideoCurrentPage] = useState<number>(1);
   const VIDEOS_PER_PAGE = 12;
   const videoSectionRef = useRef<HTMLDivElement>(null);
 
+  // State Pagination Foto (20 kartu foto per halaman)
+  const [photoCurrentPage, setPhotoCurrentPage] = useState<number>(1);
+  const PHOTOS_PER_PAGE = 20;
+  const photoSectionRef = useRef<HTMLDivElement>(null);
+
   // Selalu sinkronkan data video dan foto terbaru dari Spreadsheet saat membuka galeri
   useEffect(() => {
     refreshVideosFromSheet();
     refreshGalleryFromSheet();
-  }, []);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlQ = params.get('q');
+      if (urlQ) {
+        setVideoSearchQuery(urlQ);
+      }
+    }
+  }, [galleryActiveTab]);
 
   // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
   useEffect(() => {
     setVideoCurrentPage(1);
   }, [videoSearchQuery]);
+
+  // Reset pagination ke halaman 1 jika kata kunci pencarian foto berubah
+  useEffect(() => {
+    setPhotoCurrentPage(1);
+  }, [photoSearchQuery]);
 
   // Sinkronisasi tab foto / video tanpa mengacak ulang kartu
   const handleSwitchTab = (tab: 'photo' | 'video') => {
@@ -75,6 +98,7 @@ export const GalleryPage: React.FC = () => {
     try {
       await refreshGalleryFromSheet();
       reshufflePhotos();
+      setPhotoCurrentPage(1);
     } finally {
       setIsPhotosLoading(false);
     }
@@ -84,6 +108,7 @@ export const GalleryPage: React.FC = () => {
   const handleRefreshVideos = async () => {
     await refreshVideosFromSheet();
     reshuffleVideos();
+    setVideoCurrentPage(1);
   };
 
   // Filtered Foto berdasarkan Judul, Kategori, atau Nama Sekolah menggunakan urutan acak (shuffledGallery)
@@ -101,6 +126,43 @@ export const GalleryPage: React.FC = () => {
       return matchTitle || matchCategory || matchDesc || matchAuthor;
     });
   }, [gallery, shuffledGallery, photoSearchQuery]);
+
+  // Total Halaman Foto (20 kartu foto per halaman)
+  const totalPhotoPages = Math.ceil(filteredGallery.length / PHOTOS_PER_PAGE) || 1;
+
+  // Daftar Foto yang Ditampilkan pada Halaman Aktif (Maks 20 foto)
+  const paginatedPhotos = useMemo(() => {
+    const startIndex = (photoCurrentPage - 1) * PHOTOS_PER_PAGE;
+    return filteredGallery.slice(startIndex, startIndex + PHOTOS_PER_PAGE);
+  }, [filteredGallery, photoCurrentPage, PHOTOS_PER_PAGE]);
+
+  // Navigasi Pindah Halaman Foto
+  const handlePhotoPageChange = (page: number) => {
+    if (page < 1 || page > totalPhotoPages || page === photoCurrentPage) return;
+    setPhotoCurrentPage(page);
+    if (photoSectionRef.current) {
+      photoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 380, behavior: 'smooth' });
+    }
+  };
+
+  // Generator Angka Halaman Foto
+  const getPhotoPageNumbers = (): (number | string)[] => {
+    const pages: (number | string)[] = [];
+    if (totalPhotoPages <= 7) {
+      for (let i = 1; i <= totalPhotoPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (photoCurrentPage > 3) pages.push('...');
+      const start = Math.max(2, photoCurrentPage - 1);
+      const end = Math.min(totalPhotoPages - 1, photoCurrentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (photoCurrentPage < totalPhotoPages - 2) pages.push('...');
+      pages.push(totalPhotoPages);
+    }
+    return pages;
+  };
 
   // Filtered Video berdasarkan Judul dan Nama SD (Sekolah) menggunakan urutan acak (shuffledVideos)
   const filteredVideos = useMemo(() => {
@@ -331,16 +393,99 @@ export const GalleryPage: React.FC = () => {
       {/* Main Grid: Menampilkan Foto atau Video */}
       <section className="w-full px-4 sm:px-8 lg:px-12 xl:px-16 -mt-5 sm:-mt-6 relative z-20">
         {activeGalleryType === 'photo' ? (
-          /* 1. Grid Foto Kegiatan */
+          /* 1. Grid Foto Kegiatan (20 kartu per halaman) */
           filteredGallery.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
-              {filteredGallery.map((item) => (
-                <GalleryCard
-                  key={item.id}
-                  item={item}
-                  onClick={handleOpenAlbum}
-                />
-              ))}
+            <div ref={photoSectionRef} className="space-y-8 scroll-mt-24">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+                {paginatedPhotos.map((item) => (
+                  <GalleryCard
+                    key={item.id}
+                    item={item}
+                    onClick={handleOpenAlbum}
+                  />
+                ))}
+              </div>
+
+              {/* Komponen Pagination Foto (20 foto per halaman) */}
+              {filteredGallery.length > 0 && (
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Info Jumlah Foto & Halaman Aktif */}
+                  <div className="text-xs sm:text-sm text-slate-500 order-2 sm:order-1 font-medium">
+                    Menampilkan <span className="font-bold text-slate-800">{(photoCurrentPage - 1) * PHOTOS_PER_PAGE + 1} - {Math.min(photoCurrentPage * PHOTOS_PER_PAGE, filteredGallery.length)}</span> dari <span className="font-bold text-slate-800">{filteredGallery.length}</span> album foto (halaman <span className="font-bold text-blue-600">{photoCurrentPage}</span>/{totalPhotoPages})
+                  </div>
+
+                  {/* Tombol Kontrol Pagination */}
+                  <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                    {/* Halaman Pertama */}
+                    <button
+                      type="button"
+                      onClick={() => handlePhotoPageChange(1)}
+                      disabled={photoCurrentPage === 1}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                      title="Halaman Pertama"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Halaman Sebelumnya */}
+                    <button
+                      type="button"
+                      onClick={() => handlePhotoPageChange(photoCurrentPage - 1)}
+                      disabled={photoCurrentPage === 1}
+                      className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="Halaman Sebelumnya"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">Sebelumnya</span>
+                    </button>
+
+                    {/* Tombol Nomor Halaman */}
+                    {getPhotoPageNumbers().map((p, idx) => (
+                      typeof p === 'number' ? (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handlePhotoPageChange(p)}
+                          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            photoCurrentPage === p
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-extrabold scale-105'
+                              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ) : (
+                        <span key={idx} className="w-6 text-center text-slate-400 font-bold text-xs select-none">
+                          {p}
+                        </span>
+                      )
+                    ))}
+
+                    {/* Halaman Selanjutnya */}
+                    <button
+                      type="button"
+                      onClick={() => handlePhotoPageChange(photoCurrentPage + 1)}
+                      disabled={photoCurrentPage === totalPhotoPages}
+                      className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs font-bold flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="Halaman Selanjutnya"
+                    >
+                      <span className="hidden sm:inline">Selanjutnya</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Halaman Terakhir */}
+                    <button
+                      type="button"
+                      onClick={() => handlePhotoPageChange(totalPhotoPages)}
+                      disabled={photoCurrentPage === totalPhotoPages}
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
+                      title="Halaman Terakhir"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto">
