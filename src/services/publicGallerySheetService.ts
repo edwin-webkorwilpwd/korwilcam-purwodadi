@@ -598,7 +598,7 @@ function doPost(e) {
       var currentList = sheet.getRange(foundRow, 10).getValue();
       var folderLink = driveFolderUrl || (values[foundRow - 1] ? values[foundRow - 1][2] : '');
 
-      if ((!currentCover || !currentList) && folderLink) {
+      if ((!currentCover || !currentList || currentList === '[]' || currentList.toString().trim() === '') && folderLink) {
         var scanned = scanGoogleDriveFolder(folderLink);
         if (scanned.coverImage) {
           sheet.getRange(foundRow, 9).setValue(scanned.coverImage);
@@ -672,6 +672,38 @@ function doGet(e) {
 }
 
 /**
+ * Jalankan fungsi ini sekali di Apps Script untuk mengotorisasi izin
+ * dan otomatis memindai seluruh baris lama di spreadsheet!
+ */
+function pindaiSemuaBaris() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheets()[0];
+  ensureHeaderColumns(sheet);
+  var values = sheet.getDataRange().getValues();
+
+  var updatedCount = 0;
+  for (var i = 1; i < values.length; i++) {
+    var folderUrl = values[i][2]; // Kolom C: Link Folder
+    var currentCover = values[i][8]; // Kolom I: Foto Sampul
+    var currentImages = values[i][9]; // Kolom J: Daftar Foto
+
+    if (folderUrl && (!currentCover || !currentImages || currentImages === '[]' || currentImages.toString().trim() === '')) {
+      var scanned = scanGoogleDriveFolder(folderUrl);
+      if (scanned.coverImage) {
+        sheet.getRange(i + 1, 9).setValue(scanned.coverImage);
+      }
+      if (scanned.images && scanned.images.length > 0) {
+        sheet.getRange(i + 1, 10).setValue(JSON.stringify(scanned.images));
+      }
+      updatedCount++;
+    }
+  }
+
+  Logger.log("Selesai memindai. Total baris diperbarui: " + updatedCount);
+  return "Berhasil memindai " + updatedCount + " baris data.";
+}
+
+/**
  * Memindai isi folder Google Drive untuk mengambil foto-foto kegiatan
  */
 function scanGoogleDriveFolder(folderUrl) {
@@ -680,36 +712,52 @@ function scanGoogleDriveFolder(folderUrl) {
 
   var images = [];
   var coverImage = '';
+  var seen = {};
 
-  // 1. Coba menggunakan DriveApp bawaan Google Apps Script
+  // 1. Ekstrak langsung dari Google Drive Embedded Folderview (Paling akurat & cepat untuk folder publik)
   try {
-    var folder = DriveApp.getFolderById(folderId);
-    var files = folder.getFiles();
-    while (files.hasNext() && images.length < 100) {
-      var file = files.next();
-      var mime = (file.getMimeType() || '').toLowerCase();
-      var name = (file.getName() || '').toLowerCase();
-      if (mime.indexOf('image/') === 0 || name.match(/\\.(jpe?g|png|webp|gif|bmp|heic)$/i)) {
-        var fileId = file.getId();
-        images.push('https://lh3.googleusercontent.com/d/' + fileId);
+    var embedUrl = 'https://drive.google.com/embeddedfolderview?id=' + folderId;
+    var resp = UrlFetchApp.fetch(embedUrl, { muteHttpExceptions: true });
+    var html = resp.getContentText();
+
+    // Pola 1: entry-[ID]
+    var regexEntry = /entry-([a-zA-Z0-9_-]{20,})/g;
+    var match;
+    while ((match = regexEntry.exec(html)) !== null && images.length < 100) {
+      var fid = match[1];
+      if (!seen[fid]) {
+        seen[fid] = true;
+        images.push('https://lh3.googleusercontent.com/d/' + fid);
       }
     }
-  } catch (driveErr) {
-    // 2. Fallback jika folder publik tapi akun DriveApp memerlukan akses pembacaan langsung
-    try {
-      var resp = UrlFetchApp.fetch('https://drive.google.com/drive/folders/' + folderId, { muteHttpExceptions: true });
-      var html = resp.getContentText();
-      var regex = /\\["([a-zA-Z0-9_-]{25,})",\\["image\\//g;
-      var match;
-      var seen = {};
-      while ((match = regex.exec(html)) !== null && images.length < 100) {
-        var fid = match[1];
-        if (!seen[fid]) {
-          seen[fid] = true;
-          images.push('https://lh3.googleusercontent.com/d/' + fid);
+
+    // Pola 2: /file/d/[ID]
+    if (images.length === 0) {
+      var regexFile = /\/file\/d\/([a-zA-Z0-9_-]{20,})/g;
+      while ((match = regexFile.exec(html)) !== null && images.length < 100) {
+        var fid2 = match[1];
+        if (!seen[fid2]) {
+          seen[fid2] = true;
+          images.push('https://lh3.googleusercontent.com/d/' + fid2);
         }
       }
-    } catch (fetchErr) {}
+    }
+  } catch (errEmbed) {}
+
+  // 2. Fallback DriveApp jika folderview belum mengembalikan data
+  if (images.length === 0) {
+    try {
+      var folder = DriveApp.getFolderById(folderId);
+      var files = folder.getFiles();
+      while (files.hasNext() && images.length < 100) {
+        var file = files.next();
+        var fid3 = file.getId();
+        if (!seen[fid3]) {
+          seen[fid3] = true;
+          images.push('https://lh3.googleusercontent.com/d/' + fid3);
+        }
+      }
+    } catch (errDrive) {}
   }
 
   if (images.length > 0) {
@@ -728,7 +776,7 @@ function scanGoogleDriveFolder(folderUrl) {
 function extractDriveFolderId(url) {
   if (!url) return '';
   var str = url.toString().trim();
-  var matchFolder = str.match(/\\/folders\\/([a-zA-Z0-9_-]{15,})/);
+  var matchFolder = str.match(/\/folders\/([a-zA-Z0-9_-]{15,})/);
   if (matchFolder && matchFolder[1]) return matchFolder[1];
   var matchId = str.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
   if (matchId && matchId[1]) return matchId[1];

@@ -469,89 +469,32 @@ export const GalleryDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* SECTION 1.5: KISI GRID SEMUA FOTO DALAM ALBUM (JIKA FOTO > 1) */}
-        {totalPhotos > 1 && (
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Images className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                  Semua Foto dalam Album ({totalPhotos} Foto)
-                </h3>
-              </div>
-              <span className="text-xs text-slate-400 hidden sm:inline">
-                Klik salah satu foto untuk melihat ukuran besar
-              </span>
+        {/* JIKA FOTO BELUM TERSEDIA / SEDANG DIPROSES */}
+        {totalPhotos === 0 && (
+          <div className="bg-slate-950 rounded-3xl p-12 sm:p-16 text-center border border-slate-900 text-white space-y-4 shadow-xl">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/10 flex items-center justify-center text-amber-400">
+              <Images className="w-8 h-8" />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              {albumPhotos.map((photo, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    setActivePhotoIndex(idx);
-                    setIsLightboxOpen(true);
-                  }}
-                  className={`group relative aspect-4/3 rounded-2xl overflow-hidden cursor-pointer bg-slate-100 border transition-all duration-200 ${
-                    activePhotoIndex === idx 
-                      ? 'ring-2 ring-blue-500 border-blue-400 shadow-md' 
-                      : 'border-slate-200/80 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5'
-                  }`}
-                  title={`Klik untuk memperbesar Foto #${idx + 1}`}
+            <h3 className="text-lg sm:text-xl font-bold text-slate-100">
+              Dokumentasi Foto Sedang Disinkronkan
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+              Foto dokumentasi kegiatan dari album ini sedang dalam antrean pemindaian cloud. Anda juga dapat membuka langsung foldernya di Google Drive.
+            </p>
+            {folderUrl && (
+              <div className="pt-2">
+                <a
+                  href={getGoogleDriveFolderViewUrl(folderUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md"
                 >
-                  <img
-                    src={photo}
-                    alt={`${selectedGallery.title} - ${idx + 1}`}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <span className="p-2 rounded-full bg-black/60 text-white backdrop-blur-xs shadow-md">
-                      <Maximize2 className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-black/75 text-white font-mono shadow-xs">
-                    #{idx + 1}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* SECTION 1.6: GOOGLE DRIVE EMBEDDED VIEWER (JIKA BELUM ADA FOTO TERSCAN) */}
-        {totalPhotos === 0 && folderUrl && (
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <FolderOpen className="w-5 h-5 text-amber-500" />
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                    Koleksi Foto Google Drive
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Menampilkan folder dokumentasi langsung dari Google Drive
-                  </p>
-                </div>
+                  <FolderOpen className="w-4 h-4 text-amber-300" />
+                  <span>Buka di Google Drive</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-blue-200" />
+                </a>
               </div>
-              <a
-                href={getGoogleDriveFolderViewUrl(folderUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors"
-              >
-                <FolderOpen className="w-4 h-4 text-amber-300" />
-                <span>Buka di Google Drive</span>
-                <ExternalLink className="w-3.5 h-3.5 text-blue-200 ml-1" />
-              </a>
-            </div>
-            <div className="w-full h-[520px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
-              <iframe
-                src={getGoogleDriveEmbeddedFolderUrl(folderUrl)}
-                title={selectedGallery.title}
-                className="w-full h-full border-0"
-                allow="autoplay"
-              />
-            </div>
+            )}
           </div>
         )}
 

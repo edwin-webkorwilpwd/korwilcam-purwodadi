@@ -72,7 +72,7 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30 pointer-events-none" />
           </>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#1b56ce] via-[#163fa8] to-[#0f172a] p-3.5 flex flex-col justify-between relative group-hover:scale-105 transition-transform duration-700">
+          <div className="w-full h-full bg-gradient-to-br from-[#1b56ce] via-[#163fa8] to-[#0f172a] p-4 flex flex-col justify-between relative group-hover:scale-105 transition-transform duration-700">
             <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-blue-400/20 blur-xl pointer-events-none" />
             <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-amber-400/15 blur-xl pointer-events-none" />
             
@@ -80,16 +80,13 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({
               <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xs">
                 <Folder className="w-4 h-4 text-amber-300 fill-amber-300/30" />
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-white/20 text-white border border-white/30 backdrop-blur-md flex items-center gap-1">
-                <span>Database Cloud</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-white/20 text-white border border-white/30 backdrop-blur-md">
+                Folder Cloud
               </span>
             </div>
 
-            <div className="relative z-10 space-y-0.5">
-              <span className="text-[9px] font-extrabold uppercase tracking-wider text-blue-200">Album Foto Cloud</span>
-              <p className="text-xs font-bold text-white line-clamp-2 leading-snug drop-shadow-xs">
-                {item.title}
-              </p>
+            <div className="relative z-10 pb-6">
+              <span className="text-[10px] font-bold text-blue-200">Dokumentasi Foto Google Drive</span>
             </div>
           </div>
         )}
