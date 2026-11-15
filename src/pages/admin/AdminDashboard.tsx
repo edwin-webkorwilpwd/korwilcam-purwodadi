@@ -124,6 +124,7 @@ import {
 import { MenuSettingsCMS } from '../../components/admin/MenuSettingsCMS';
 import { MaintenanceCMS } from '../../components/admin/MaintenanceCMS';
 import { GalleryCMS } from '../../components/admin/GalleryCMS';
+import { PublicGalleryCMS } from '../../components/admin/PublicGalleryCMS';
 import { 
   getSupabaseConfig, 
   getSupabaseClient,
@@ -389,7 +390,8 @@ export const AdminDashboard: React.FC = () => {
     addAchievement,
     updateAchievement,
     deleteAchievement,
-    refreshAdminUsersFromSheet
+    refreshAdminUsersFromSheet,
+    publicGallerySubmissions
   } = useApp();
 
   type AdminSection = 
@@ -406,6 +408,7 @@ export const AdminDashboard: React.FC = () => {
     | 'downloads-cms' 
     | 'data-request-cms'
     | 'gallery-cms' 
+    | 'public-gallery-cms'
     | 'contact-cms' 
     | 'social-media-cms'
     | 'broadcast-cms'
@@ -427,6 +430,11 @@ export const AdminDashboard: React.FC = () => {
     currentUser?.role === 'Super Admin' ? 'overview' : 'news-cms'
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Hitung jumlah pengajuan foto publik yang masih Pending
+  const pendingPublicCount = useMemo(() => {
+    return (publicGallerySubmissions || []).filter((s) => s.status === 'Pending').length;
+  }, [publicGallerySubmissions]);
 
   const navigateToSection = (section: AdminSection) => {
     setCurrentSection(section);
@@ -4311,6 +4319,50 @@ export const AdminDashboard: React.FC = () => {
               }`}>
                 {isSuperAdmin ? `${gallery.length} Album` : `${gallery.filter(isGalleryItemOwner).length} Album`}
               </span>
+            </button>
+          )}
+
+          {/* 6.5. Galeri Publik (Khusus Super Admin & Admin) */}
+          {isAdminOrSuperAdmin && (
+            <button
+              type="button"
+              onClick={() => navigateToSection('public-gallery-cms')}
+              className={`w-full text-left flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
+                currentSection === 'public-gallery-cms'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                  currentSection === 'public-gallery-cms' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-600'
+                }`}>
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className={`text-xs font-bold truncate leading-tight ${
+                    currentSection === 'public-gallery-cms' ? 'text-white' : 'text-slate-800'
+                  }`}>
+                    Galeri Publik
+                  </span>
+                  <span className={`text-[10px] truncate leading-tight mt-0.5 ${
+                    currentSection === 'public-gallery-cms' ? 'text-blue-100' : 'text-slate-400'
+                  }`}>
+                    Moderasi Foto Pengunjung
+                  </span>
+                </div>
+              </div>
+              {pendingPublicCount > 0 ? (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ml-1.5 bg-amber-500 text-white animate-pulse">
+                  {pendingPublicCount} Baru
+                </span>
+              ) : (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-1.5 ${
+                  currentSection === 'public-gallery-cms' ? 'bg-white/20 text-white' : 'bg-slate-100/80 text-slate-600'
+                }`}>
+                  {publicGallerySubmissions.length}
+                </span>
+              )}
             </button>
           )}
 
@@ -12018,6 +12070,11 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 6: KELOLA GALERI */}
           {currentSection === 'gallery-cms' && (
             <GalleryCMS />
+          )}
+
+          {/* TAB 6.5: GALERI PUBLIK (MODERASI FOTO PENGUNJUNG) */}
+          {currentSection === 'public-gallery-cms' && isAdminOrSuperAdmin && (
+            <PublicGalleryCMS />
           )}
 
           {/* TAB 7: KELOLA KONTAK & ADUAN */}

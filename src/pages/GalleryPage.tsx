@@ -34,6 +34,7 @@ export const GalleryPage: React.FC = () => {
     videos,
     setSelectedVideo,
     refreshVideosFromSheet,
+    refreshGalleryFromSheet,
     isVideosLoading,
     galleryActiveTab,
     setGalleryActiveTab,
@@ -43,7 +44,8 @@ export const GalleryPage: React.FC = () => {
   // State tab utama galeri: bersumber dari AppContext (sinkron saat kembali dari detail video)
   const activeGalleryType = galleryActiveTab;
 
-  const [selectedPhotoCategory, setSelectedPhotoCategory] = useState<string>('ALL');
+  const [photoSearchQuery, setPhotoSearchQuery] = useState<string>('');
+  const [isPhotosLoading, setIsPhotosLoading] = useState<boolean>(false);
   const [videoSearchQuery, setVideoSearchQuery] = useState<string>('');
   
   // State Pagination Video (12 video per halaman: 4 kolom x 3 baris)
@@ -54,6 +56,7 @@ export const GalleryPage: React.FC = () => {
   // Selalu sinkronkan data video dan foto terbaru dari Spreadsheet saat membuka galeri
   useEffect(() => {
     refreshVideosFromSheet();
+    refreshGalleryFromSheet();
   }, []);
 
   // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
@@ -66,30 +69,38 @@ export const GalleryPage: React.FC = () => {
     setGalleryActiveTab(tab);
   };
 
+  // Segarkan data dan acak ulang kartu foto secara senyap tanpa popup saat tombol diklik
+  const handleRefreshPhotos = async () => {
+    setIsPhotosLoading(true);
+    try {
+      await refreshGalleryFromSheet();
+      reshufflePhotos();
+    } finally {
+      setIsPhotosLoading(false);
+    }
+  };
+
   // Segarkan data dan acak ulang kartu video secara senyap tanpa popup saat tombol diklik
   const handleRefreshVideos = async () => {
     await refreshVideosFromSheet();
     reshuffleVideos();
   };
 
-  // Kategori Foto
-  const photoCategories = useMemo(() => {
-    const list = [{ id: 'ALL', label: 'Semua Dokumentasi' }];
-    galleryCategories.forEach((cat) => {
-      const label = cat === 'Upacara' ? 'Upacara & Seremonial' : cat;
-      list.push({ id: cat, label });
-    });
-    return list;
-  }, [galleryCategories]);
-
-  // Filtered Foto menggunakan urutan acak (shuffledGallery) agar setiap pengunjung mendapat tampilan acak
+  // Filtered Foto berdasarkan Judul, Kategori, atau Nama Sekolah menggunakan urutan acak (shuffledGallery)
   const filteredGallery = useMemo(() => {
     const baseList = shuffledGallery.length > 0 ? shuffledGallery : gallery;
-    if (selectedPhotoCategory === 'ALL') {
+    const q = photoSearchQuery.trim().toLowerCase();
+    if (!q) {
       return baseList;
     }
-    return baseList.filter((item) => item.category === selectedPhotoCategory);
-  }, [gallery, shuffledGallery, selectedPhotoCategory]);
+    return baseList.filter((item) => {
+      const matchTitle = (item.title || '').toLowerCase().includes(q);
+      const matchCategory = (item.category || '').toLowerCase().includes(q);
+      const matchDesc = (item.description || '').toLowerCase().includes(q);
+      const matchAuthor = (item.authorName || '').toLowerCase().includes(q);
+      return matchTitle || matchCategory || matchDesc || matchAuthor;
+    });
+  }, [gallery, shuffledGallery, photoSearchQuery]);
 
   // Filtered Video berdasarkan Judul dan Nama SD (Sekolah) menggunakan urutan acak (shuffledVideos)
   const filteredVideos = useMemo(() => {
@@ -170,12 +181,12 @@ export const GalleryPage: React.FC = () => {
           <div className="w-12 h-1 bg-amber-400 rounded-full mx-auto shadow-xs" />
 
           {/* Toggle Tab Utama: Foto Dokumentasi vs Video Kegiatan */}
-          <div className="pt-0.5 sm:pt-1 flex justify-center">
+          <div className="pt-0.5 sm:pt-1 flex items-center justify-center">
             <div className="inline-flex p-1.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 shadow-inner">
               <button
                 type="button"
                 onClick={() => handleSwitchTab('photo')}
-                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
                   activeGalleryType === 'photo'
                     ? 'bg-white text-blue-700 shadow-md scale-102 ring-2 ring-white/50'
                     : 'text-white/85 hover:text-white hover:bg-white/10'
@@ -193,7 +204,7 @@ export const GalleryPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleSwitchTab('video')}
-                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
                   activeGalleryType === 'video'
                     ? 'bg-red-600 text-white shadow-md scale-102 ring-2 ring-red-400/50'
                     : 'text-white/85 hover:text-white hover:bg-white/10'
@@ -210,22 +221,57 @@ export const GalleryPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Sub-Kategori Filter & Aksi Tambahan */}
+          {/* Sub-Bar Kontrol: Pencarian, Segarkan Data, dan Tombol Upload */}
           <div className="pt-1 sm:pt-1.5 flex flex-wrap items-center justify-center gap-2">
             {activeGalleryType === 'photo' ? (
-              photoCategories.map((cat) => (
+              <div className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2.5 px-2">
+                {/* Search Bar Input: Cari Judul Foto dan Nama SD */}
+                <div className="relative flex-1 w-full flex items-center bg-white rounded-full border border-white/70 shadow-lg shadow-blue-950/20 p-1 sm:p-1.5 focus-within:ring-2 focus-within:ring-white transition-all">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0 ml-0.5">
+                    <Search className="w-4 h-4 text-white stroke-[2.5]" />
+                  </div>
+                  <input
+                    type="text"
+                    value={photoSearchQuery}
+                    onChange={(e) => setPhotoSearchQuery(e.target.value)}
+                    placeholder="Cari foto berdasarkan judul atau nama SD..."
+                    className="flex-1 min-w-0 px-3 py-1 sm:py-1.5 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm font-semibold outline-none"
+                  />
+                  {photoSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoSearchQuery('')}
+                      className="p-1 mr-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0 cursor-pointer"
+                      title="Hapus kata kunci pencarian"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Tombol Segarkan Data Foto dari Database & Acak Ulang */}
                 <button
-                  key={cat.id}
-                  onClick={() => setSelectedPhotoCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    selectedPhotoCategory === cat.id
-                      ? 'bg-white text-[#1b56ce] shadow-md ring-2 ring-white/50'
-                      : 'bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm'
-                  }`}
+                  type="button"
+                  onClick={handleRefreshPhotos}
+                  disabled={isPhotosLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-md border border-white/60 transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                  title="Segarkan data foto dari Database & acak ulang"
                 >
-                  {cat.label}
+                  <RefreshCw className={`w-3.5 h-3.5 ${isPhotosLoading ? 'animate-spin' : ''}`} />
+                  <span>Segarkan Data</span>
                 </button>
-              ))
+
+                {/* Tombol Upload Foto Kegiatan Baru */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('photo-upload', '/galeri/unggah-foto')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md border border-blue-500/40 transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                  title="Unggah Dokumentasi Foto Kegiatan Baru"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Upload Foto</span>
+                </button>
+              </div>
             ) : (
               <div className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2.5 px-2">
                 {/* Search Bar Input: Cari Judul Video dan Nama SD */}
@@ -300,11 +346,22 @@ export const GalleryPage: React.FC = () => {
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs max-w-lg mx-auto">
               <Images className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <h3 className="text-base font-bold text-slate-800">
-                Tidak Ada Dokumentasi Foto
+                {photoSearchQuery ? 'Foto Tidak Ditemukan' : 'Tidak Ada Dokumentasi Foto'}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Belum ada album foto untuk kategori ini.
+                {photoSearchQuery 
+                  ? `Tidak ada dokumentasi foto yang cocok dengan kata kunci "${photoSearchQuery}".` 
+                  : 'Belum ada album foto dalam galeri.'}
               </p>
+              {photoSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoSearchQuery('')}
+                  className="mt-3 px-4 py-2 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Reset Pencarian
+                </button>
+              )}
             </div>
           )
         ) : (

@@ -52,6 +52,13 @@ import {
   setGalleryWebAppUrl 
 } from '../services/gallerySheetService';
 import {
+  PublicGallerySubmission,
+  fetchPublicGallerySubmissions,
+  convertPublicSubmissionsToGalleryItems,
+  updatePublicPhotoStatusInSheet,
+  getLocalPublicGalleryCache
+} from '../services/publicGallerySheetService';
+import {
   fetchAdminUsersFromSheet,
   saveAdminUserToSheet,
   updateAdminUserInSheet,
@@ -295,6 +302,9 @@ interface AppContextType {
   setGalleryActiveTab: (tab: 'photo' | 'video') => void;
   refreshGalleryFromSheet: () => Promise<void>;
   isGalleryLoading: boolean;
+  publicGallerySubmissions: PublicGallerySubmission[];
+  refreshPublicGalleryFromSheet: (forceRefresh?: boolean) => Promise<PublicGallerySubmission[]>;
+  updatePublicGalleryStatus: (submission: PublicGallerySubmission, newStatus: 'Disetujui' | 'Ditolak') => Promise<boolean>;
   selectedVideo: GalleryVideoItem | null;
   setSelectedVideo: (video: GalleryVideoItem | null, customPath?: string) => void;
   videos: GalleryVideoItem[];
@@ -804,6 +814,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch {}
     return ['Kegiatan Belajar', 'Lomba & Prestasi', 'Rakor & Pelatihan', 'Upacara'];
+  });
+
+  // State Pengajuan Foto Galeri Publik (Dari Pengunjung / Sekolah)
+  const [publicGallerySubmissions, setPublicGallerySubmissions] = useState<PublicGallerySubmission[]>(() => {
+    return getLocalPublicGalleryCache();
   });
 
   const [officeProfile, setOfficeProfile] = useState<OfficeProfile>(() => {
@@ -1702,14 +1717,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })();
 
 
-      // 0.2 Fetch photo gallery IMMEDIATELY IN PARALLEL (Google Spreadsheet Live)
+      // 0.2 Fetch photo gallery (CMS & Publik) IMMEDIATELY IN PARALLEL (Google Spreadsheet Live)
       const galleryFetchPromise = (async () => {
         try {
-          const live = await fetchGalleryFromSheet();
-          if (live && live.length > 0) {
-            setGallery(live);
-            _inMemoryGalleryCache = live;
-            try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(live)); } catch {}
+          const [liveCms, publicSubs] = await Promise.all([
+            fetchGalleryFromSheet(),
+            fetchPublicGallerySubmissions()
+          ]);
+          if (publicSubs && publicSubs.length > 0) {
+            setPublicGallerySubmissions(publicSubs);
+          }
+          const approvedPublic = convertPublicSubmissionsToGalleryItems(publicSubs || []);
+          const combined = [...(liveCms || []), ...approvedPublic];
+          if (combined && combined.length > 0) {
+            setGallery(combined);
+            _inMemoryGalleryCache = combined;
+            try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(combined)); } catch {}
           }
         } catch (e) {
           console.warn('Gagal memuat live galeri foto dari spreadsheet saat aplikasi dibuka:', e);
@@ -2431,6 +2454,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'service-permintaan-data': { path: '/layanan/permintaan-data', title: 'Layanan Permintaan Data - Korwilcam Purwodadi' },
     'gallery': { path: '/galeri', title: 'Galeri Kegiatan & Dokumentasi - Korwilcam Purwodadi' },
     'video-upload': { path: '/galeri/video/upload', title: 'Upload Video Kegiatan - Korwilcam Purwodadi' },
+    'photo-upload': { path: '/galeri/unggah-foto', title: 'Upload Foto Kegiatan - Korwilcam Purwodadi' },
     'contact': { path: '/kontak', title: 'Kontak & Layanan Pengaduan - Korwilcam Purwodadi' },
     'social-media': { path: '/media-sosial', title: 'Media Sosial Resmi - Korwilcam Purwodadi' },
     'admin-login': { path: '/angmin/lugin', title: 'Login Panel Admin - Korwilcam Purwodadi' },
@@ -2720,21 +2744,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const refreshPublicGalleryFromSheet = async (forceRefresh = true): Promise<PublicGallerySubmission[]> => {
+    try {
+      const live = await fetchPublicGallerySubmissions(forceRefresh);
+      if (live) {
+        setPublicGallerySubmissions(live);
+        return live;
+      }
+    } catch (e) {
+      console.warn('Gagal memuat galeri publik dari Spreadsheet:', e);
+    }
+    return publicGallerySubmissions;
+  };
+
+  const updatePublicGalleryStatus = async (
+    submission: PublicGallerySubmission, 
+    newStatus: 'Disetujui' | 'Ditolak'
+  ): Promise<boolean> => {
+    try {
+      const res = await updatePublicPhotoStatusInSheet(submission, newStatus);
+      if (res.success) {
+        setPublicGallerySubmissions((prev) =>
+          prev.map((s) => (s.id === submission.id ? { ...s, status: newStatus } : s))
+        );
+        // Segarkan data gabungan galeri utama
+        const approvedPublic = convertPublicSubmissionsToGalleryItems(
+          publicGallerySubmissions.map((s) => (s.id === submission.id ? { ...s, status: newStatus } : s))
+        );
+        const currentCms = _inMemoryGalleryCache?.filter((g) => !g.id.startsWith('public-gal-')) || [];
+        const combined = [...currentCms, ...approvedPublic];
+        setGallery(combined);
+        _inMemoryGalleryCache = combined;
+        try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(combined)); } catch {}
+        return true;
+      }
+    } catch (e) {
+      console.warn('Gagal memperbarui status galeri publik:', e);
+    }
+    return false;
+  };
+
   const refreshGalleryFromSheet = async (): Promise<void> => {
     setIsGalleryLoading(true);
     try {
-      const live = await fetchGalleryFromSheet(true);
-      if (live && live.length > 0) {
-        setGallery(live);
-        _inMemoryGalleryCache = live;
-        try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(live)); } catch {}
-        showToast('Data galeri kegiatan berhasil disinkronkan dari Google Spreadsheet!', 'success');
-      } else {
-        showToast('Memuat data galeri foto dari cache lokal.', 'info');
+      const [liveCms, publicSubs] = await Promise.all([
+        fetchGalleryFromSheet(true),
+        fetchPublicGallerySubmissions(true)
+      ]);
+      if (publicSubs && publicSubs.length > 0) {
+        setPublicGallerySubmissions(publicSubs);
+      }
+      const approvedPublic = convertPublicSubmissionsToGalleryItems(publicSubs || []);
+      const combined = [...(liveCms || []), ...approvedPublic];
+      if (combined && combined.length > 0) {
+        setGallery(combined);
+        _inMemoryGalleryCache = combined;
+        try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(combined)); } catch {}
       }
     } catch (e) {
       console.warn('Gagal merefresh galeri foto dari Spreadsheet:', e);
-      showToast('Gagal terhubung ke Google Spreadsheet galeri.', 'error');
     } finally {
       setIsGalleryLoading(false);
     }
@@ -3103,6 +3171,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           document.title = `${found.title} - Korwilcam Purwodadi`;
           return;
         }
+      }
+
+      // 4a0. Support /galeri/unggah-foto, /galeri/upload-foto, /unggah-foto
+      if (rawPath === '/galeri/unggah-foto' || rawPath === '/galeri/upload-foto' || rawPath === '/unggah-foto' || rawPath === '/galeri/unggah') {
+        setActiveTabState('photo-upload');
+        setSelectedVideoState(null);
+        setSelectedGalleryState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        setSelectedOrganizationSlugState(null);
+        document.title = TAB_ROUTES['photo-upload']?.title || 'Upload Foto Kegiatan - Korwilcam Purwodadi';
+        return;
       }
 
       // 4a. Support /galeri/video/upload
@@ -3650,6 +3733,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setActiveTabState('downloads');
           document.title = TAB_ROUTES['downloads'].title;
         }
+      } else if (rawPath === '/galeri/unggah-foto' || rawPath === '/galeri/upload-foto' || rawPath === '/unggah-foto' || rawPath === '/galeri/unggah') {
+        setActiveTabState('photo-upload');
+        setSelectedOrganizationSlugState(null);
+        setSelectedNewsState(null);
+        setSelectedAnnouncementState(null);
+        setSelectedGalleryState(null);
+        setSelectedVideoState(null);
+        setSelectedDocumentState(null);
+        setSelectedSchoolState(null);
+        setSelectedServiceRequirementState(null);
+        document.title = TAB_ROUTES['photo-upload']?.title || 'Upload Foto Kegiatan - Korwilcam Purwodadi';
       } else if (rawPath === '/galeri/video/upload' || rawPath === '/video/upload' || rawPath === '/galeri/upload-video') {
         setActiveTabState('video-upload');
         setSelectedOrganizationSlugState(null);
@@ -6631,6 +6725,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setGalleryActiveTab,
         refreshGalleryFromSheet,
         isGalleryLoading,
+        publicGallerySubmissions,
+        refreshPublicGalleryFromSheet,
+        updatePublicGalleryStatus,
         selectedVideo,
         setSelectedVideo,
         videos,
