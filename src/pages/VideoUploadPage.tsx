@@ -290,15 +290,10 @@ export const VideoUploadPage: React.FC = () => {
 
                 {/* Kolom C: Link Vidio (YouTube atau Google Drive) */}
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Link2 className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Tautan Link Video (YouTube atau Google Drive)</span>
-                      <span className="text-red-500">*</span>
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-400">
-                      Disimpan di Kolom C Spreadsheet
-                    </span>
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Tautan Link Video (YouTube atau Google Drive)</span>
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="url"
