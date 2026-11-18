@@ -63,14 +63,16 @@ export const DocumentDetailPage: React.FC = () => {
 
   const handleDownloadClick = async () => {
     setIsDownloading(true);
-    showToast(`Memulai proses pengunduhan: ${selectedDocument.title}`, 'success');
+    showToast(`Memulai proses pengunduhan: ${selectedDocument.title}`, 'info');
     try {
-      triggerDocumentDownload(selectedDocument);
+      await triggerDocumentDownload(selectedDocument);
       await incrementDocumentDownloadCount(selectedDocument.id);
+      showToast(`Berkas "${selectedDocument.title}" berhasil diunduh!`, 'success');
     } catch (err) {
       console.error('Download error:', err);
+      showToast('Gagal mengunduh berkas. Silakan coba kembali.', 'error');
     } finally {
-      setTimeout(() => setIsDownloading(false), 1200);
+      setIsDownloading(false);
     }
   };
 
