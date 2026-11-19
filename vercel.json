@@ -131,6 +131,17 @@
       "destination": "/api/share?slug=:slug*&type=achievement"
     },
     {
+      "source": "/karyaku/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*&type=karyaku"
+    },
+    {
       "source": "/berita/:slug*",
       "has": [
         {

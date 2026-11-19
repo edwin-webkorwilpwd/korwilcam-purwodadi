@@ -521,6 +521,11 @@ export default async function handler(req: any, res: any) {
       rawParam.startsWith('pres-') ||
       rawParam.startsWith('prestasi-');
 
+    const isExplicitKaryaku =
+      query.type === 'karyaku' ||
+      rawParam.startsWith('karyaku/') ||
+      rawParam === 'karyaku';
+
     // IF VIDEO REQUEST -> Kembalikan Open Graph khusus video kegiatan lengkap dengan thumbnail YouTube
     if (isExplicitVideo) {
       const cleanSlug = rawParam
@@ -690,6 +695,7 @@ export default async function handler(req: any, res: any) {
       res.statusCode = 200;
       return res.end(html);
     }
+
 
     // IF GALLERY REQUEST -> Kembalikan Open Graph khusus album foto kegiatan dengan gambar sampul terkompresi < 300KB
     if (isExplicitGallery) {
@@ -987,6 +993,7 @@ export default async function handler(req: any, res: any) {
       return res.end(html);
     }
 
+
     // IF ACHIEVEMENT REQUEST -> Kembalikan Open Graph foto siswa 1:1 persegi teroptimasi non-HD
     if (isExplicitAchievement) {
       const cleanSlug = rawParam
@@ -1130,6 +1137,93 @@ export default async function handler(req: any, res: any) {
     <h2 style="font-size: 18px; margin-bottom: 8px; color: #0f172a;">${escapeHtml(achTitle)}</h2>
     <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">${escapeHtml(achDesc)}</p>
     <a href="${redirectUrl}" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">Lihat Detail Prestasi</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+      res.statusCode = 200;
+      return res.end(html);
+    }
+
+    // IF KARYAKU REQUEST -> Kembalikan Open Graph khusus buku atau penulis di menu Karyaku (Pustaka Digital)
+    if (isExplicitKaryaku) {
+      const cleanParam = rawParam
+        .replace(/^karyaku\//, '')
+        .replace(/^\//, '')
+        .trim();
+
+      let karyakuTitle = 'Pustaka Digital Karyaku - Korwilcam Purwodadi';
+      let karyakuDesc = 'Koleksi buku digital, karya tulis siswa dan guru di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi. Baca Flipbook 3D interaktif secara online.';
+      let redirectUrl = `${origin}/karyaku`;
+      let ogImageUrl = `${origin}/logo.png`;
+      let ogWidth = 640;
+      let ogHeight = 360;
+
+      if (cleanParam) {
+        const parts = cleanParam.split('/').filter(Boolean);
+        if (parts.length === 1) {
+          const authorUser = decodeURIComponent(parts[0]);
+          const authorReadable = authorUser.charAt(0).toUpperCase() + authorUser.slice(1);
+          karyakuTitle = `Koleksi Buku: ${authorReadable} - Karyaku Korwilcam Purwodadi`;
+          karyakuDesc = `Jelajahi seluruh karya buku dan tulisan digital oleh ${authorReadable} di Pustaka Digital Korwilcam Purwodadi.`;
+          redirectUrl = `${origin}/karyaku/${encodeURIComponent(authorUser)}`;
+        } else if (parts.length >= 2) {
+          const authorUser = decodeURIComponent(parts[0]);
+          const bookSlug = decodeURIComponent(parts.slice(1).join('-'));
+          const formattedBookTitle = bookSlug
+            .split('-')
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+
+          karyakuTitle = `${formattedBookTitle} - Karyaku Penulis: ${authorUser}`;
+          karyakuDesc = `Baca buku digital "${formattedBookTitle}" karya ${authorUser} dalam format 3D Flipbook interaktif di Pustaka Digital Korwilcam Purwodadi.`;
+          redirectUrl = `${origin}/karyaku/${encodeURIComponent(authorUser)}/${encodeURIComponent(bookSlug)}`;
+        }
+      }
+
+      const html = `<!DOCTYPE html>
+<html lang="id" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(karyakuTitle)}</title>
+  <meta name="description" content="${escapeHtml(karyakuDesc)}">
+
+  <!-- Open Graph / Facebook / WhatsApp -->
+  <meta property="og:type" content="book">
+  <meta property="og:site_name" content="Karyaku - Korwilcam Purwodadi">
+  <meta property="og:title" content="${escapeHtml(karyakuTitle)}">
+  <meta property="og:description" content="${escapeHtml(karyakuDesc)}">
+  <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="${ogWidth}">
+  <meta property="og:image:height" content="${ogHeight}">
+  <meta property="og:image:alt" content="${escapeHtml(karyakuTitle)}">
+  <meta property="og:url" content="${escapeHtml(currentUrl)}">
+  <link rel="canonical" href="${escapeHtml(redirectUrl)}">
+  <link rel="image_src" href="${escapeHtml(ogImageUrl)}">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(karyakuTitle)}">
+  <meta name="twitter:description" content="${escapeHtml(karyakuDesc)}">
+  <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}">
+
+  <!-- Instant Redirect for Humans -->
+  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+  <script>
+    window.location.replace(${JSON.stringify(redirectUrl)});
+  </script>
+</head>
+<body style="font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px;">
+  <div style="max-width: 500px; text-align: center; background: #1e293b; padding: 32px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid #334155;">
+    <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 8px; color: #38bdf8;">${escapeHtml(karyakuTitle)}</h2>
+    <p style="font-size: 14px; color: #94a3b8; margin-bottom: 24px; line-height: 1.5;">${escapeHtml(karyakuDesc)}</p>
+    <a href="${redirectUrl}" style="display: inline-block; padding: 12px 24px; background: #0284c7; color: white; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);">Buka Buku Sekarang</a>
   </div>
 </body>
 </html>`;

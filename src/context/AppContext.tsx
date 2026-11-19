@@ -2534,6 +2534,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (prevHash !== newHash) {
         window.dispatchEvent(new Event('hashchange'));
       }
+      if (tab === 'karyaku') {
+        window.dispatchEvent(new CustomEvent('karyaku-route-change', { detail: { path: targetPath } }));
+      }
+    } else if (tab === 'karyaku') {
+      window.dispatchEvent(new CustomEvent('karyaku-route-change', { detail: { path: targetPath } }));
     }
     document.title = targetTitle;
 
