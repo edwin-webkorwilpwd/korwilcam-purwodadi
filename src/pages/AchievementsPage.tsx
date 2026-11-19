@@ -31,7 +31,7 @@ import {
   Upload
 } from 'lucide-react';
 import { CurvedHeaderArch } from '../components/CurvedHeaderArch';
-import { formatGoogleDriveImageUrl, isGoogleDriveUrl, getGoogleDriveViewUrl } from '../lib/driveHelper';
+import { formatGoogleDriveImageUrl, isGoogleDriveUrl, getGoogleDriveViewUrl, extractGoogleDriveId } from '../lib/driveHelper';
 import { 
   getAchievementSlug, 
   getAchievementShareUrl, 
@@ -92,6 +92,62 @@ export const AchievementsPage: React.FC = () => {
       setSelectedAchievement(null);
     }
   }, [selectedAchievementSlug, achievements]);
+
+  // Perbarui tag Open Graph dinamis saat modal detail prestasi dibuka
+  useEffect(() => {
+    if (selectedAchievement) {
+      const prevTitle = document.title;
+      document.title = `${selectedAchievement.recipientName} - Prestasi ${selectedAchievement.rank} ${selectedAchievement.title}`;
+
+      const updateMeta = (prop: string, val: string) => {
+        let el = document.querySelector(`meta[property="${prop}"]`);
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute('property', prop);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', val);
+      };
+
+      const updateNameMeta = (name: string, val: string) => {
+        let el = document.querySelector(`meta[name="${name}"]`);
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute('name', name);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', val);
+      };
+
+      const shareUrl = getAchievementShareUrl(selectedAchievement);
+      const driveId = extractGoogleDriveId(selectedAchievement.photoUrl || '');
+      // Format 1:1 persegi (Square) ukuran 400x400 non-HD (~30KB)
+      const imageUrl = driveId 
+        ? `https://lh3.googleusercontent.com/d/${driveId}=w400-h400-c`
+        : (selectedAchievement.photoUrl || '');
+
+      updateMeta('og:type', 'article');
+      updateMeta('og:site_name', 'Portal Resmi Korwilcam Purwodadi');
+      updateMeta('og:title', `🏆 ${selectedAchievement.recipientName} - ${selectedAchievement.rank} (${selectedAchievement.schoolName})`);
+      updateMeta('og:description', `Juara ${selectedAchievement.rank} tingkat ${selectedAchievement.level} dalam ajang ${selectedAchievement.title} (${selectedAchievement.year}). Satuan Pendidikan: ${selectedAchievement.schoolName}.`);
+      updateMeta('og:url', shareUrl);
+
+      if (imageUrl) {
+        updateMeta('og:image', imageUrl);
+        updateMeta('og:image:secure_url', imageUrl);
+        updateMeta('og:image:type', 'image/jpeg');
+        updateMeta('og:image:width', '400');
+        updateMeta('og:image:height', '400');
+        updateMeta('og:image:alt', `Foto Prestasi ${selectedAchievement.recipientName}`);
+        updateNameMeta('twitter:card', 'summary');
+        updateNameMeta('twitter:image', imageUrl);
+      }
+
+      return () => {
+        document.title = prevTitle;
+      };
+    }
+  }, [selectedAchievement]);
 
   const handleCardClick = (item: Achievement) => {
     const slug = getAchievementSlug(item);

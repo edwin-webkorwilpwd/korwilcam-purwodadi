@@ -109,6 +109,28 @@
       "destination": "/api/share?slug=:slug*&type=gallery"
     },
     {
+      "source": "/berita/prestasi/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*&type=achievement"
+    },
+    {
+      "source": "/prestasi/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|discordbot|slurp|bot|crawl|spider).*"
+        }
+      ],
+      "destination": "/api/share?slug=:slug*&type=achievement"
+    },
+    {
       "source": "/berita/:slug*",
       "has": [
         {

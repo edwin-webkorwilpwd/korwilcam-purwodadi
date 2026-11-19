@@ -203,6 +203,72 @@ async function fetchGalleryImagesFromSpreadsheet(): Promise<{ id: string; title:
   return cachedGalleryAlbums;
 }
 
+const PRESTASI_SPREADSHEET_ID = '1-p4oGqZW4G1QEU0F3DDVcn7mO9mx03iltdNp_KumA9Q';
+const PRESTASI_SHEET_GID = '723592882';
+
+let cachedPrestasiImages: { id: string; slug: string; recipientName: string; photoUrl: string }[] = [];
+let prestasiImageCacheTimestamp = 0;
+
+async function fetchAchievementImagesFromSpreadsheet(): Promise<{ id: string; slug: string; recipientName: string; photoUrl: string }[]> {
+  const now = Date.now();
+  if (cachedPrestasiImages.length > 0 && (now - prestasiImageCacheTimestamp < NEWS_CACHE_DURATION)) {
+    return cachedPrestasiImages;
+  }
+
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${PRESTASI_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${PRESTASI_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${PRESTASI_SPREADSHEET_ID}/export?format=csv&gid=${PRESTASI_SHEET_GID}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      const items: { id: string; slug: string; recipientName: string; photoUrl: string }[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const title = (row[1] || '').trim();
+        const recipientName = (row[5] || '').trim();
+        const photoUrl = (row[9] || '').trim();
+        if (!recipientName || !title || !photoUrl) continue;
+
+        const slug = [recipientName, title].join(' ')
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
+        items.push({
+          id: `prestasi-sheet-${r}`,
+          slug,
+          recipientName,
+          photoUrl
+        });
+      }
+
+      if (items.length > 0) {
+        cachedPrestasiImages = items;
+        prestasiImageCacheTimestamp = now;
+        return items;
+      }
+    } catch {}
+  }
+
+  return cachedPrestasiImages;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -232,9 +298,34 @@ export default async function handler(req: any, res: any) {
     }
 
     const isGallery = (req.query?.type || '').toString().toLowerCase() === 'gallery' || cleanId.startsWith('gal-');
+    const isAchievement = 
+      (req.query?.type || '').toString().toLowerCase() === 'achievement' ||
+      cleanId.startsWith('pres-') ||
+      cleanId.startsWith('prestasi-');
+
     let rawImage = '';
 
-    if (isGallery) {
+    if (isAchievement) {
+      const driveQuery = (req.query?.drive || '').toString().trim();
+      if (driveQuery && /^[a-zA-Z0-9_-]{15,}$/.test(driveQuery)) {
+        rawImage = `https://drive.google.com/file/d/${driveQuery}/view`;
+      }
+      if (!rawImage) {
+        try {
+          const sheetAchievements = await fetchAchievementImagesFromSpreadsheet();
+          const cleanNorm = cleanId.toLowerCase().trim();
+          const found = sheetAchievements.find((item) => {
+            const sNorm = item.slug.toLowerCase().trim();
+            const iNorm = item.id.toLowerCase().trim();
+            const rNorm = item.recipientName.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+            return iNorm === cleanNorm || sNorm === cleanNorm || sNorm.includes(cleanNorm) || cleanNorm.includes(sNorm) || rNorm === cleanNorm;
+          });
+          if (found && found.photoUrl) {
+            rawImage = String(found.photoUrl).trim();
+          }
+        } catch {}
+      }
+    } else if (isGallery) {
       // 1. Ambil dari Google Spreadsheet Galeri (Database Utama)
       try {
         const sheetGalleries = await fetchGalleryImagesFromSpreadsheet();
@@ -362,16 +453,33 @@ export default async function handler(req: any, res: any) {
       return res.end('Image not found');
     }
 
-    // 1. Google Drive: fetch dan sajikan langsung buffer gambar terkompresi s640 (200 OK)
+    // 1. Google Drive: fetch dan sajikan langsung buffer gambar terkompresi (200 OK)
     const driveMatch = rawImage.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/) || rawImage.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{15,})/) || rawImage.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
     if (driveMatch && driveMatch[1]) {
       const cleanDriveId = driveMatch[1].replace(/=.*$/, '');
-      const cdnUrl = `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
+      const cdnUrl = isAchievement
+        ? `https://lh3.googleusercontent.com/d/${cleanDriveId}=w400-h400-c`
+        : `https://lh3.googleusercontent.com/d/${cleanDriveId}=s640`;
       try {
         const driveRes = await fetch(cdnUrl, { signal: AbortSignal.timeout(3500) });
         if (driveRes.ok) {
           const arrBuf = await driveRes.arrayBuffer();
           const buf = Buffer.from(arrBuf);
+
+          if (isAchievement) {
+            try {
+              const squareBuf = await sharp(buf)
+                .resize(400, 400, { fit: 'cover' })
+                .jpeg({ quality: 80, mozjpeg: true })
+                .toBuffer();
+              res.setHeader('Content-Type', 'image/jpeg');
+              res.setHeader('Content-Length', squareBuf.length);
+              res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
+              res.statusCode = 200;
+              return res.end(squareBuf);
+            } catch {}
+          }
+
           res.setHeader('Content-Type', 'image/jpeg');
           res.setHeader('Content-Length', buf.length);
           res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
@@ -383,15 +491,18 @@ export default async function handler(req: any, res: any) {
       return res.end();
     }
 
-    // 2. Base64 Data URI: kompresi dengan sharp ke JPEG resolusi 640px (< 150KB)
+    // 2. Base64 Data URI: kompresi dengan sharp ke JPEG (1:1 400x400 untuk prestasi, < 60KB)
     if (rawImage.startsWith('data:')) {
       const matches = rawImage.match(/^data:([^;]+);base64,(.+)$/);
       const base64Data = matches ? matches[2] : rawImage;
       const inputBuffer = Buffer.from(base64Data, 'base64');
 
       try {
+        const targetWidth = isAchievement ? 400 : 640;
+        const targetHeight = isAchievement ? 400 : 640;
+        const targetFit = isAchievement ? 'cover' : 'inside';
         const compressedBuffer = await sharp(inputBuffer)
-          .resize({ width: 640, height: 640, fit: 'inside', withoutEnlargement: true })
+          .resize({ width: targetWidth, height: targetHeight, fit: targetFit, withoutEnlargement: false })
           .jpeg({ quality: 80, mozjpeg: true })
           .toBuffer();
 
@@ -409,15 +520,18 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // 3. Web URL Biasa (Non-Drive): fetch dan kompresi agar di bawah batas 300KB WhatsApp
+    // 3. Web URL Biasa (Non-Drive): fetch dan kompresi agar di bawah batas 300KB WhatsApp (1:1 untuk prestasi)
     if (rawImage.startsWith('http')) {
       try {
         const response = await fetch(rawImage);
         if (response.ok) {
           const arrayBuf = await response.arrayBuffer();
           const inputBuf = Buffer.from(arrayBuf);
+          const targetWidth = isAchievement ? 400 : 640;
+          const targetHeight = isAchievement ? 400 : 640;
+          const targetFit = isAchievement ? 'cover' : 'inside';
           const compressed = await sharp(inputBuf)
-            .resize({ width: 640, height: 640, fit: 'inside', withoutEnlargement: true })
+            .resize({ width: targetWidth, height: targetHeight, fit: targetFit, withoutEnlargement: false })
             .jpeg({ quality: 80, mozjpeg: true })
             .toBuffer();
 

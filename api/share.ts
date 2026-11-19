@@ -342,6 +342,118 @@ async function fetchGalleriesFromSpreadsheet(): Promise<SheetGalleryAlbum[]> {
   return cachedGalleryAlbums;
 }
 
+interface SheetAchievement {
+  id: string;
+  slug: string;
+  title: string;
+  recipientName: string;
+  schoolName: string;
+  rank: string;
+  level: string;
+  year: number | string;
+  mentorName?: string;
+  eventDate?: string;
+  photoUrl?: string;
+  description?: string;
+}
+
+const PRESTASI_SPREADSHEET_ID = '1-p4oGqZW4G1QEU0F3DDVcn7mO9mx03iltdNp_KumA9Q';
+const PRESTASI_SHEET_GID = '723592882';
+
+let cachedPrestasiItems: SheetAchievement[] = [];
+let prestasiCacheTimestamp = 0;
+const PRESTASI_CACHE_DURATION = 60 * 1000;
+
+async function fetchAchievementsFromSpreadsheet(): Promise<SheetAchievement[]> {
+  const now = Date.now();
+  if (cachedPrestasiItems.length > 0 && now - prestasiCacheTimestamp < PRESTASI_CACHE_DURATION) {
+    return cachedPrestasiItems;
+  }
+
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${PRESTASI_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${PRESTASI_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${PRESTASI_SPREADSHEET_ID}/export?format=csv&gid=${PRESTASI_SHEET_GID}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      let headerRowIdx = rows.findIndex((row) =>
+        row.some((col) => col && (
+          col.trim().toUpperCase().includes('NAMA') || 
+          col.trim().toUpperCase().includes('LOMBA') ||
+          col.trim().toUpperCase().includes('TIMESTAMP')
+        ))
+      );
+      if (headerRowIdx === -1) headerRowIdx = 0;
+
+      const items: SheetAchievement[] = [];
+      for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length === 0) continue;
+
+        const title = (row[1] || '').trim();
+        const level = (row[2] || '').trim();
+        const rank = (row[3] || '').trim();
+        const year = (row[4] || '').trim();
+        const recipientName = (row[5] || '').trim();
+        const schoolName = (row[6] || '').trim();
+        const mentorName = (row[7] || '').trim();
+        const eventDate = (row[8] || '').trim();
+        const photoUrl = (row[9] || '').trim();
+        const description = (row[10] || '').trim();
+
+        if (!recipientName || !title) continue;
+        if (title.toLowerCase() === 'tes' && recipientName.toLowerCase() === 'tes') continue;
+        if (recipientName.toLowerCase().includes('nama lengkap')) continue;
+
+        const slugParts = [recipientName, title].filter(Boolean).join(' ');
+        const slug = slugParts
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
+        items.push({
+          id: `prestasi-sheet-${r}`,
+          slug,
+          title,
+          recipientName,
+          schoolName,
+          rank,
+          level,
+          year: parseInt(year, 10) || 2026,
+          mentorName,
+          eventDate,
+          photoUrl,
+          description
+        });
+      }
+
+      if (items.length > 0) {
+        cachedPrestasiItems = items;
+        prestasiCacheTimestamp = now;
+        return items;
+      }
+    } catch (e) {}
+  }
+
+  return cachedPrestasiItems;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -400,6 +512,14 @@ export default async function handler(req: any, res: any) {
         rawParam.startsWith('gal-') ||
         rawParam.includes('/galeri/')
       ));
+
+    const isExplicitAchievement =
+      query.type === 'achievement' ||
+      rawParam.startsWith('prestasi/') ||
+      rawParam.startsWith('berita/prestasi/') ||
+      rawParam.includes('/prestasi/') ||
+      rawParam.startsWith('pres-') ||
+      rawParam.startsWith('prestasi-');
 
     // IF VIDEO REQUEST -> Kembalikan Open Graph khusus video kegiatan lengkap dengan thumbnail YouTube
     if (isExplicitVideo) {
@@ -857,6 +977,159 @@ export default async function handler(req: any, res: any) {
     <h2 style="font-size: 18px; margin-bottom: 12px; color: #0f172a;">${escapeHtml(galleryTitle)}</h2>
     <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">Sedang mengalihkan ke dokumentasi foto kegiatan...</p>
     <a href="${redirectUrl}" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">Buka Album Sekarang</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+      res.statusCode = 200;
+      return res.end(html);
+    }
+
+    // IF ACHIEVEMENT REQUEST -> Kembalikan Open Graph foto siswa 1:1 persegi teroptimasi non-HD
+    if (isExplicitAchievement) {
+      const cleanSlug = rawParam
+        .replace(/^(?:berita\/)?prestasi\//, '')
+        .replace(/^\//, '')
+        .toLowerCase()
+        .trim();
+
+      let ach: SheetAchievement | null = null;
+
+      try {
+        const sheetList = await fetchAchievementsFromSpreadsheet();
+        if (sheetList && sheetList.length > 0) {
+          ach = sheetList.find((a) => {
+            const s = a.slug.toLowerCase().trim();
+            const i = a.id.toLowerCase().trim();
+            const r = a.recipientName.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+            return s === cleanSlug || i === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug) || r === cleanSlug;
+          }) || null;
+        }
+      } catch {}
+
+      if (!ach) {
+        const fallbackList: SheetAchievement[] = [
+          {
+            id: 'prestasi-fallback-adam-naufal',
+            title: 'Lomba FTBI Cabang Ndagel Ijen',
+            recipientName: 'Adam Naufal Ezio',
+            rank: 'Juara 2',
+            level: 'Kabupaten',
+            schoolName: 'SDN 6 Kuripan',
+            year: 2026,
+            mentorName: 'Tina Yoga Septriani, S.Pd',
+            eventDate: '23 September 2026',
+            photoUrl: 'https://drive.google.com/file/d/19i39etKo0GQq_-JJPEPcvKCbsPJ15qDD/view?usp=drive_link',
+            slug: 'adam-naufal-ezio-lomba-ftbi-cabang-ndagel-ijen',
+            description: 'Juara 2 Lomba Komedi Tunggal (Ndagel Ijen) pada Festival Tunas Bahasa Ibu (FTBI) Jenjang SD Tingkat Kabupaten Grobogan Tahun 2026.'
+          },
+          {
+            id: 'prestasi-fallback-shakila',
+            title: 'LOMBA KARAWITAN DISPORA DI AULA DINKES',
+            recipientName: 'SHAKILA ALIFA HIBATILLAH',
+            rank: 'Harapan 2',
+            level: 'Kabupaten',
+            schoolName: 'SD NEGERI 2 GEMBAK',
+            year: 2026,
+            eventDate: '23 Oktober 2026',
+            photoUrl: 'https://drive.google.com/file/d/1_9vA0j6y0hM0iC_Nq3vJ7rD1gZt5bX2/view?usp=drive_link',
+            slug: 'shakila-alifa-hibatillah-lomba-karawitan-dispora-di-aula-dinkes',
+            description: 'Penghargaan Harapan 2 Lomba Karawitan Dispora di Aula Dinkes tingkat Kabupaten Grobogan.'
+          },
+          {
+            id: 'prestasi-fallback-devira',
+            title: 'LOMBA KARAWITAN DISPORA DI AULA DINKES',
+            recipientName: 'DEVIRA AISAH',
+            rank: 'Harapan 2',
+            level: 'Kabupaten',
+            schoolName: 'SDN 2 NGEMBAK',
+            year: 2026,
+            eventDate: '23 Oktober 2026',
+            photoUrl: 'https://drive.google.com/file/d/1_9vA0j6y0hM0iC_Nq3vJ7rD1gZt5bX2/view?usp=drive_link',
+            slug: 'devira-aisah-lomba-karawitan-dispora-di-aula-dinkes',
+            description: 'Penghargaan Harapan 2 Lomba Karawitan Dispora di Aula Dinkes tingkat Kabupaten Grobogan.'
+          }
+        ];
+
+        ach = fallbackList.find(a => 
+          a.slug === cleanSlug || cleanSlug.includes(a.slug) || a.slug.includes(cleanSlug) ||
+          cleanSlug.includes(a.recipientName.toLowerCase().replace(/\s+/g, '-'))
+        ) || null;
+      }
+
+      const achRecipient = ach?.recipientName || 'Siswa Berprestasi';
+      const achRank = ach?.rank || 'Juara';
+      const achTitle = ach ? `🏆 ${achRecipient} - ${achRank} (${ach.schoolName})` : 'Prestasi Siswa Korwilcam Purwodadi';
+      const achDesc = ach 
+        ? `${ach.rank} Tingkat ${ach.level} • Ajang: ${ach.title} (${ach.year}) • Asal: ${ach.schoolName}. ${ach.description || ''}`
+        : 'Dokumentasi prestasi membanggakan siswa & guru di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi.';
+
+      // Extract Drive ID untuk thumbnail 1:1 persegi (Square) ukuran 400x400 non-HD (~30KB)
+      let ogImageUrl = `${origin}/assets/logo.png`;
+      let ogWidth = 400;
+      let ogHeight = 400;
+
+      const rawPhoto = (ach?.photoUrl || '').trim();
+      const mDrive = rawPhoto.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{15,})/i) || 
+                     rawPhoto.match(/[?&]id=([a-zA-Z0-9_-]{15,})/i) ||
+                     rawPhoto.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]{15,})/i);
+
+      if (mDrive && mDrive[1]) {
+        // Parameter =w400-h400-c memotong dan mengompres foto siswa menjadi 1:1 persegi (Square) ukuran 400x400 non-HD (~30KB)
+        ogImageUrl = `https://lh3.googleusercontent.com/d/${mDrive[1]}=w400-h400-c`;
+      } else if (rawPhoto.startsWith('http')) {
+        ogImageUrl = rawPhoto;
+      } else if (rawPhoto.startsWith('data:')) {
+        ogImageUrl = `${origin}/api/image?id=${encodeURIComponent(cleanSlug)}&type=achievement`;
+      }
+
+      const redirectUrl = `${origin}/berita/prestasi/${encodeURIComponent(cleanSlug)}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="id" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(achTitle)} - Portal Resmi Korwilcam Purwodadi</title>
+  <meta name="description" content="${escapeHtml(achDesc)}">
+
+  <!-- Open Graph / Facebook / WhatsApp (Foto Siswa 1:1 Persegi, Resolusi Teroptimasi Non-HD Cepat) -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Portal Resmi Korwilcam Purwodadi">
+  <meta property="og:title" content="${escapeHtml(achTitle)}">
+  <meta property="og:description" content="${escapeHtml(achDesc)}">
+  <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="${ogWidth}">
+  <meta property="og:image:height" content="${ogHeight}">
+  <meta property="og:image:alt" content="Foto Prestasi ${escapeHtml(achRecipient)}">
+  <meta property="og:url" content="${escapeHtml(redirectUrl)}">
+  <link rel="canonical" href="${escapeHtml(redirectUrl)}">
+  <link rel="image_src" href="${escapeHtml(ogImageUrl)}">
+
+  <!-- Twitter Card (Summary 1:1 Persegi) -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeHtml(achTitle)}">
+  <meta name="twitter:description" content="${escapeHtml(achDesc)}">
+  <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}">
+
+  <!-- Instant Redirect for Humans -->
+  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+  <script>
+    window.location.replace(${JSON.stringify(redirectUrl)});
+  </script>
+</head>
+<body style="font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px;">
+  <div style="max-width: 500px; text-align: center; background: white; padding: 32px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);">
+    <div style="width: 120px; height: 120px; margin: 0 auto 16px; border-radius: 16px; overflow: hidden; background: #f1f5f9; border: 2px solid #e2e8f0;">
+      <img src="${escapeHtml(ogImageUrl)}" alt="${escapeHtml(achRecipient)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">
+    </div>
+    <h2 style="font-size: 18px; margin-bottom: 8px; color: #0f172a;">${escapeHtml(achTitle)}</h2>
+    <p style="font-size: 14px; color: #64748b; margin-bottom: 24px;">${escapeHtml(achDesc)}</p>
+    <a href="${redirectUrl}" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px;">Lihat Detail Prestasi</a>
   </div>
 </body>
 </html>`;
