@@ -2,7 +2,6 @@ import React from 'react';
 import { Announcement } from '../types';
 import { 
   Megaphone, 
-  Calendar, 
   Download, 
   ExternalLink, 
   ChevronRight,
@@ -324,19 +323,13 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
             </span>
           </div>
 
-          {/* Date & Author */}
-          <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium pt-0.5">
-            <div className="flex items-center gap-1 shrink-0">
-              <Calendar className="w-3 h-3 text-blue-500" />
-              <span>{announcement.date}</span>
+          {/* Author jika tersedia */}
+          {announcement.author && (
+            <div className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold truncate pt-0.5" title={announcement.author}>
+              <User className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+              <span className="truncate">{announcement.author}</span>
             </div>
-            {announcement.author && (
-              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold truncate max-w-[110px]" title={announcement.author}>
-                <User className="w-2.5 h-2.5 text-blue-600 shrink-0" />
-                <span className="truncate">{announcement.author}</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* 2. Middle Row: Graphic Illustration + Title & Summary */}

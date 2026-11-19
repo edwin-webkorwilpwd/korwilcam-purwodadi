@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   ArrowLeft, 
-  Calendar, 
   Tag, 
   Check, 
   Copy, 
@@ -19,6 +18,17 @@ import {
 } from 'lucide-react';
 import { getAnnouncementShortUrl } from '../lib/shortLink';
 import { downloadAnnouncementJpeg, shareAnnouncementWhatsApp } from '../lib/announcementCanvas';
+
+const formatFormalDate = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+  } catch {}
+  return dateStr;
+};
 
 export const AnnouncementDetailPage: React.FC = () => {
   const { 
@@ -281,10 +291,6 @@ export const AnnouncementDetailPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:items-end gap-1.5 text-xs text-slate-500 font-medium">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <span>Diterbitkan: <strong className="text-slate-800">{selectedAnnouncement.date}</strong></span>
-              </div>
               <div className="flex items-center gap-1.5 text-slate-600">
                 <User className="w-4 h-4 text-blue-600" />
                 <span>Penulis: <strong className="text-slate-900 font-bold">{selectedAnnouncement.author || 'Humas Korwilcam Purwodadi'}</strong></span>
@@ -425,7 +431,7 @@ export const AnnouncementDetailPage: React.FC = () => {
             </div>
 
             <div className="text-right space-y-1 sm:min-w-[220px]">
-              <p>Purwodadi, {selectedAnnouncement.date}</p>
+              <p>Purwodadi, {formatFormalDate(selectedAnnouncement.date)}</p>
               <p className="font-bold text-slate-900">Koordinator Wilayah Kecamatan</p>
               <p className="font-bold text-slate-900">Bidang Pendidikan Purwodadi</p>
               <div className="h-14"></div>
@@ -468,11 +474,10 @@ export const AnnouncementDetailPage: React.FC = () => {
                   className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
                 >
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700">
                         {item.target}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono">{item.date}</span>
                     </div>
                     <h4 className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
                       {item.title}
