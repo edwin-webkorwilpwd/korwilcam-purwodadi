@@ -8,8 +8,6 @@ import {
   FileSpreadsheet, 
   ChevronRight, 
   HardDriveDownload, 
-  Clock,
-  Calendar,
   RotateCcw,
   ArrowRight,
   X
@@ -267,12 +265,6 @@ export const DownloadsPage: React.FC = () => {
                         <span>{doc.fileType}</span>
                         <span className="text-blue-300">•</span>
                         <span>{doc.fileSize}</span>
-                      </span>
-
-                      {/* Date Badge */}
-                      <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-slate-500 font-medium">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{doc.date}</span>
                       </span>
                     </div>
 

@@ -3,7 +3,6 @@ import { useApp } from '../context/AppContext';
 import { 
   ArrowLeft, 
   Download, 
-  Clock, 
   HardDriveDownload, 
   FileText, 
   FileSpreadsheet, 
@@ -149,10 +148,6 @@ export const DocumentDetailPage: React.FC = () => {
             </span>
             <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-white/15 text-slate-200 border border-white/10">
               {selectedDocument.fileType} • {selectedDocument.fileSize}
-            </span>
-            <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/10 text-slate-300 flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-blue-400" />
-              <span>Rilis: {selectedDocument.date}</span>
             </span>
             <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 ml-auto sm:ml-0">
               <HardDriveDownload className="w-3.5 h-3.5 text-emerald-400" />
