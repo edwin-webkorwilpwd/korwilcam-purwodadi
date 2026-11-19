@@ -45,6 +45,10 @@ export function resolveDefaultPublicGalleryWebAppUrl(): string {
 
 export const DEFAULT_PUBLIC_GALLERY_WEBAPP_URL = resolveDefaultPublicGalleryWebAppUrl();
 
+if (typeof window !== 'undefined') {
+  (window as any).__PUBLIC_GALLERY_GAS_URL = DEFAULT_PUBLIC_GALLERY_WEBAPP_URL;
+}
+
 /**
  * Menyamarkan URL GAS untuk tampilan antarmuka (UI Masking)
  * Melindungi dari intipan layar / inspeksi visual
@@ -476,6 +480,31 @@ export async function rescanPublicPhotoFolderInSheet(
 }
 
 /**
+ * Sinkronisasi pembaruan folder Google Drive ke Google Spreadsheet secara background (tanpa memblokir antarmuka)
+ */
+export async function syncPublicFolderToSheetInBackground(
+  folderUrl: string, 
+  livePhotos?: string[]
+): Promise<void> {
+  const gasUrl = getPublicGalleryWebAppUrl();
+  if (!gasUrl || !folderUrl) return;
+
+  try {
+    const bodyData = {
+      action: 'rescan',
+      driveFolderUrl: folderUrl,
+      images: livePhotos
+    };
+
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(bodyData)
+    });
+  } catch {}
+}
+
+/**
  * =========================================================================
  * KODE RESMI GOOGLE APPS SCRIPT (GAS) - DATABASE GALERI PUBLIK (OPSI B)
  * =========================================================================
@@ -584,7 +613,7 @@ function doPost(e) {
       }
 
       var values = sheet.getDataRange().getValues();
-      var foundRow = findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTitle);
+      var foundRow = findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTitle, driveFolderUrl);
 
       if (foundRow === -1) {
         return createJsonResponse({ status: 'error', message: 'Data baris dokumentasi tidak ditemukan di spreadsheet.' });
@@ -624,7 +653,7 @@ function doPost(e) {
       var driveFolderUrl = (data.driveFolderUrl || '').trim();
 
       var values = sheet.getDataRange().getValues();
-      var foundRow = findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTitle);
+      var foundRow = findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTitle, driveFolderUrl);
 
       var folderLink = driveFolderUrl;
       if (!folderLink && foundRow !== -1 && values[foundRow - 1]) {
@@ -665,10 +694,25 @@ function doGet(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheets()[0];
 
-    // Trigger pemindaian langsung via browser URL: ?action=pindai_semua
-    if (e && e.parameter && e.parameter.action === 'pindai_semua') {
-      var msg = pindaiSemuaBaris();
-      return createJsonResponse({ status: 'success', message: msg });
+    // 1. Live get folder photos: ?action=getfolder&folderId=...
+    if (e && e.parameter) {
+      var action = (e.parameter.action || '').toLowerCase();
+      if (action === 'getfolder' || action === 'folder_photos' || action === 'scan') {
+        var fid = e.parameter.folderId || e.parameter.id || e.parameter.folderUrl || '';
+        var scanned = scanGoogleDriveFolder(fid);
+        return createJsonResponse({
+          status: 'success',
+          totalPhotos: scanned.images.length,
+          coverImage: scanned.coverImage,
+          images: scanned.images
+        });
+      }
+
+      // Trigger pemindaian langsung via browser URL: ?action=pindai_semua
+      if (action === 'pindai_semua') {
+        var msg = pindaiSemuaBaris();
+        return createJsonResponse({ status: 'success', message: msg });
+      }
     }
 
     var values = sheet.getDataRange().getValues();
@@ -818,9 +862,11 @@ function ensureHeaderColumns(sheet) {
 }
 
 /**
- * Mencari nomor baris data berdasarkan rowIndex, timestamp, atau judul
+ * Mencari nomor baris data berdasarkan rowIndex, timestamp, judul, atau link folder Google Drive
  */
-function findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTitle) {
+function findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTitle, driveFolderUrl) {
+  var targetFolderId = extractDriveFolderId(driveFolderUrl);
+
   if (targetRowIndex && targetRowIndex > 1 && targetRowIndex <= values.length) {
     var row = values[targetRowIndex - 1];
     if (targetTitle && row[1] && row[1].toString().trim() === targetTitle) {
@@ -829,11 +875,18 @@ function findTargetRow(sheet, values, targetRowIndex, targetTimestamp, targetTit
     if (targetTimestamp && row[0] && row[0].toString().trim() === targetTimestamp) {
       return targetRowIndex;
     }
+    if (targetFolderId && row[2] && extractDriveFolderId(row[2]) === targetFolderId) {
+      return targetRowIndex;
+    }
   }
 
   for (var i = 1; i < values.length; i++) {
     var rTimestamp = values[i][0] ? values[i][0].toString().trim() : '';
     var rTitle = values[i][1] ? values[i][1].toString().trim() : '';
+    var rFolder = values[i][2] ? values[i][2].toString().trim() : '';
+    if (targetFolderId && rFolder && extractDriveFolderId(rFolder) === targetFolderId) {
+      return i + 1;
+    }
     if (targetTimestamp && rTimestamp === targetTimestamp) {
       return i + 1;
     }

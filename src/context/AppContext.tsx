@@ -430,6 +430,7 @@ interface AppContextType {
 
   addGalleryItem: (item: Omit<GalleryItem, 'id'>) => void;
   updateGalleryItem: (id: string, item: Partial<GalleryItem>) => void;
+  updateGalleryPhotosSilently?: (id: string, images: string[]) => void;
   deleteGalleryItem: (id: string) => void;
   addGalleryCategory: (categoryName: string) => Promise<boolean>;
 
@@ -3243,11 +3244,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const slug = decodeURIComponent(rawPath.replace(/^\/galeri\//, ''));
         setActiveTabState('gallery');
         if (gallery.length > 0) {
-          const found = gallery.find((g) => 
+          let found = gallery.find((g) => 
             g.id === slug || 
             (g.slug && g.slug === slug) ||
             getGallerySlug(g) === slug
           );
+
+          if (!found) {
+            const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+            const slugTokens = cleanSlug.split(/\s+/).filter((t) => t.length >= 2);
+            if (slugTokens.length >= 1) {
+              let bestScore = 0;
+              let bestItem: GalleryItem | null = null;
+              for (const g of gallery) {
+                const titleTokens = (g.title || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter((t) => t.length >= 2);
+                const matches = slugTokens.filter((t) => titleTokens.includes(t)).length;
+                if (matches >= 2 || (slugTokens.includes('pgri') && titleTokens.includes('pgri'))) {
+                  if (matches > bestScore) {
+                    bestScore = matches;
+                    bestItem = g;
+                  }
+                }
+              }
+              found = bestItem || undefined;
+            }
+          }
+
           if (found) {
             const rawImages = (Array.isArray(found.images) ? found.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#');
             const meta = extractGalleryMetadata(found.description || '');
@@ -3276,11 +3298,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Query param fallback ?galeri=slug
       const queryGaleri = searchParams.get('galeri');
       if (queryGaleri && gallery.length > 0) {
-        const found = gallery.find((g) => 
+        let found = gallery.find((g) => 
           g.id === queryGaleri || 
           (g.slug && g.slug === queryGaleri) ||
           getGallerySlug(g) === queryGaleri
         );
+
+        if (!found) {
+          const cleanQuery = queryGaleri.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+          const qTokens = cleanQuery.split(/\s+/).filter((t) => t.length >= 2);
+          if (qTokens.length >= 1) {
+            let bestScore = 0;
+            let bestItem: GalleryItem | null = null;
+            for (const g of gallery) {
+              const titleTokens = (g.title || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter((t) => t.length >= 2);
+              const matches = qTokens.filter((t) => titleTokens.includes(t)).length;
+              if (matches >= 2 || (qTokens.includes('pgri') && titleTokens.includes('pgri'))) {
+                if (matches > bestScore) {
+                  bestScore = matches;
+                  bestItem = g;
+                }
+              }
+            }
+            found = bestItem || undefined;
+          }
+        }
         if (found) {
           const rawImages = (Array.isArray(found.images) ? found.images : []).filter((img) => typeof img === 'string' && img.trim().length > 0 && img !== '#');
           const meta = extractGalleryMetadata(found.description || '');
@@ -5450,6 +5492,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const updateGalleryPhotosSilently = (id: string, images: string[]) => {
+    if (!images || images.length === 0) return;
+    const cover = images[0];
+    setGallery((prev) => {
+      const next = prev.map((item) => {
+        if (item.id === id) {
+          return { ...item, images, image: cover || item.image };
+        }
+        return item;
+      });
+      _inMemoryGalleryCache = next;
+      try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setSelectedGalleryState((curr) => {
+      if (curr && curr.id === id) {
+        return { ...curr, images, image: cover || curr.image };
+      }
+      return curr;
+    });
+  };
+
   const deleteGalleryItem = async (id: string) => {
     const targetItem = gallery.find((g) => g.id === id);
     setGallery((prev) => {
@@ -6788,6 +6852,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteAgenda,
         addGalleryItem,
         updateGalleryItem,
+        updateGalleryPhotosSilently,
         deleteGalleryItem,
         galleryCategories,
         addGalleryCategory,

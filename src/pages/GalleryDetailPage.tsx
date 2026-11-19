@@ -24,8 +24,10 @@ import {
   formatGoogleDriveImageUrl,
   getGoogleDriveFolderViewUrl,
   getGoogleDriveEmbeddedFolderUrl,
-  extractGalleryMetadata
+  extractGalleryMetadata,
+  fetchLiveGoogleDriveFolderPhotos
 } from '../lib/driveHelper';
+import { syncPublicFolderToSheetInBackground } from '../services/publicGallerySheetService';
 import { initialGallery } from '../data/initialData';
 
 export const GalleryDetailPage: React.FC = () => {
@@ -34,12 +36,14 @@ export const GalleryDetailPage: React.FC = () => {
     setSelectedGallery, 
     gallery, 
     setActiveTab, 
-    showToast 
+    showToast,
+    updateGalleryPhotosSilently
   } = useApp();
 
   const [activePhotoIndex, setActivePhotoIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [livePhotos, setLivePhotos] = useState<string[] | null>(null);
 
   // Scroll to top when gallery detail opens
   useEffect(() => {
@@ -60,8 +64,8 @@ export const GalleryDetailPage: React.FC = () => {
     return selectedGallery.driveFolderUrl || meta.driveFolderUrl || (isGoogleDriveFolderUrl(selectedGallery.image) ? selectedGallery.image : '');
   }, [selectedGallery, meta]);
 
-  // Seluruh daftar foto dokumentasi untuk Slide Show (sinkronisasi multi-tier agar tidak terpotong di HP)
-  const albumPhotos = useMemo(() => {
+  // Daftar foto dasar dari database/snapshot awal
+  const baseAlbumPhotos = useMemo(() => {
     if (!selectedGallery) return [];
 
     // Cari item yang sesuai di array gallery context jika ada data yang lebih segar
@@ -91,6 +95,48 @@ export const GalleryDetailPage: React.FC = () => {
 
     return list.map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
   }, [selectedGallery, meta, gallery]);
+
+  // Seluruh daftar foto dokumentasi untuk Slide Show (memprioritaskan pemindaian live real-time dari Google Drive)
+  const albumPhotos = useMemo(() => {
+    if (livePhotos && livePhotos.length > 0) {
+      return livePhotos.map((img) => (isGoogleDriveUrl(img) ? formatGoogleDriveImageUrl(img) : img));
+    }
+    return baseAlbumPhotos;
+  }, [livePhotos, baseAlbumPhotos]);
+
+  // Otomatis memindai dan mendeteksi penambahan atau penghapusan foto secara live di folder Google Drive
+  useEffect(() => {
+    if (!folderUrl) {
+      setLivePhotos(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    fetchLiveGoogleDriveFolderPhotos(folderUrl)
+      .then((scannedPhotos) => {
+        if (!isMounted) return;
+        if (scannedPhotos && scannedPhotos.length > 0) {
+          setLivePhotos(scannedPhotos);
+
+          // Jika jumlah foto bertambah atau berkurang dibandingkan snapshot awal, perbarui AppContext & Spreadsheet
+          if (scannedPhotos.length !== baseAlbumPhotos.length || JSON.stringify(scannedPhotos) !== JSON.stringify(baseAlbumPhotos)) {
+            if (selectedGallery?.id) {
+              updateGalleryPhotosSilently?.(selectedGallery.id, scannedPhotos);
+            }
+            // Kirim sinyal sinkronisasi di background ke Spreadsheet agar tersimpan permanen
+            syncPublicFolderToSheetInBackground(folderUrl, scannedPhotos).catch(() => {});
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Gagal memindai live folder foto Google Drive:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [folderUrl, selectedGallery?.id, baseAlbumPhotos.length]);
 
   const totalPhotos = albumPhotos.length;
   const currentPhoto = albumPhotos[activePhotoIndex] || albumPhotos[0] || '';

@@ -374,27 +374,117 @@ export function extractGalleryMetadata(description: string): {
 }
 
 /**
- * Mengambil daftar foto dari Google Drive API v3 (jika API Key tersedia)
+ * Mengambil daftar foto secara live dan dinamis langsung dari folder Google Drive
+ * Menggunakan pendekatan multi-tier yang sangat andal:
+ * 1. Cache Session (TTL 30 detik untuk menghindari overload & mempercepat navigasi)
+ * 2. Internal Endpoint /api/drive-folder (Super cepat, aman, tanpa masalah CORS)
+ * 3. Fallback Google Apps Script Webhook (Direct Cloud scanning)
+ * 4. Fallback CORS Proxy ke embeddedfolderview
  */
-export async function fetchGoogleDriveFolderPhotos(folderId: string, apiKey?: string): Promise<string[]> {
+export async function fetchLiveGoogleDriveFolderPhotos(folderUrlOrId: string): Promise<string[]> {
+  const folderId = extractGoogleDriveFolderId(folderUrlOrId) || (folderUrlOrId && !folderUrlOrId.includes('/') ? folderUrlOrId.trim() : null);
   if (!folderId) return [];
-  const key = apiKey || (import.meta as any).env?.VITE_GOOGLE_DRIVE_API_KEY;
-  if (!key) return [];
+
+  const cacheKey = `korwilcam_live_photos_${folderId}`;
+  const cacheTimeKey = `${cacheKey}_time`;
+  const CACHE_TTL_MS = 30 * 1000; // 30 detik TTL
 
   try {
-    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and (mimeType contains 'image/' or mimeType = 'application/vnd.google-apps.photo')`);
-    const fields = encodeURIComponent('files(id, name, mimeType)');
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&key=${key}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (data.files && Array.isArray(data.files)) {
-      return data.files.map((file: any) => `https://lh3.googleusercontent.com/d/${file.id}`);
+    const cachedTime = sessionStorage.getItem(cacheTimeKey);
+    const cachedData = sessionStorage.getItem(cacheKey);
+    if (cachedTime && cachedData) {
+      const age = Date.now() - parseInt(cachedTime, 10);
+      if (age < CACHE_TTL_MS) {
+        const parsed = JSON.parse(cachedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
     }
-  } catch (err) {
-    console.warn('Gagal memuat Google Drive API:', err);
-  }
+  } catch {}
+
+  const seenIds = new Set<string>();
+  const images: string[] = [];
+
+  const saveToCache = (imgs: string[]) => {
+    try {
+      if (imgs.length > 0) {
+        sessionStorage.setItem(cacheKey, JSON.stringify(imgs));
+        sessionStorage.setItem(cacheTimeKey, String(Date.now()));
+      }
+    } catch {}
+  };
+
+  // TIER 1: Panggil /api/drive-folder (Internal serverless / Vite dev middleware)
+  try {
+    const res = await fetch(`/api/drive-folder?folderId=${encodeURIComponent(folderId)}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.images) && data.images.length > 0) {
+        saveToCache(data.images);
+        return data.images;
+      }
+    }
+  } catch {}
+
+  // TIER 2: Panggil Google Apps Script Webhook Galeri Publik jika tersedia
+  try {
+    const gasUrl = (typeof window !== 'undefined' && (window as any).__PUBLIC_GALLERY_GAS_URL) 
+      || 'https://script.google.com/macros/s/AKfycbyyjBgEhMhbcHT3wEyAc1bQ-hmazdQBZGf-5B9FHsNzKVkMdsTG4Bgaap7ENN0e7TCY/exec';
+    
+    if (gasUrl) {
+      const gasRes = await fetch(`${gasUrl}?action=getfolder&folderId=${encodeURIComponent(folderId)}`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      if (gasRes.ok) {
+        const gasData = await gasRes.json();
+        if (gasData && Array.isArray(gasData.images) && gasData.images.length > 0) {
+          saveToCache(gasData.images);
+          return gasData.images;
+        }
+      }
+    }
+  } catch {}
+
+  // TIER 3: CORS Proxy ke https://drive.google.com/embeddedfolderview
+  try {
+    const targetEmbed = `https://drive.google.com/embeddedfolderview?id=${folderId}`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetEmbed)}`;
+    const proxyRes = await fetch(proxyUrl);
+    if (proxyRes.ok) {
+      const html = await proxyRes.text();
+      const regexEntry = /entry-([a-zA-Z0-9_-]{20,})/g;
+      let m: RegExpExecArray | null;
+      while ((m = regexEntry.exec(html)) !== null) {
+        const fid = m[1];
+        if (!seenIds.has(fid)) {
+          seenIds.add(fid);
+          images.push(`https://lh3.googleusercontent.com/d/${fid}`);
+        }
+      }
+      const regexFile = /\/file\/d\/([a-zA-Z0-9_-]{20,})/g;
+      while ((m = regexFile.exec(html)) !== null) {
+        const fid = m[1];
+        if (!seenIds.has(fid)) {
+          seenIds.add(fid);
+          images.push(`https://lh3.googleusercontent.com/d/${fid}`);
+        }
+      }
+
+      if (images.length > 0) {
+        saveToCache(images);
+        return images;
+      }
+    }
+  } catch {}
+
   return [];
 }
+
 
 

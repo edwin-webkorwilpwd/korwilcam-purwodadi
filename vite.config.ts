@@ -269,6 +269,98 @@ function supabaseConfigPlugin(): Plugin {
   };
 }
 
+function driveFolderPlugin(): Plugin {
+  return {
+    name: 'drive-folder-server',
+    configureServer(server) {
+      server.middlewares.use('/api/drive-folder', (req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          return res.end();
+        }
+
+        const parsed = new URL(req.url || '', 'http://localhost');
+        const rawParam = parsed.searchParams.get('folderId') || 
+                         parsed.searchParams.get('folderUrl') || 
+                         parsed.searchParams.get('url') || 
+                         parsed.searchParams.get('id') || '';
+
+        const str = String(rawParam).trim();
+        let folderId = '';
+        if (/^[a-zA-Z0-9_-]{15,}$/.test(str) && !str.includes('/') && !str.includes('=')) {
+          folderId = str;
+        } else {
+          const matchFolder = str.match(/\/folders\/([a-zA-Z0-9_-]{15,})/);
+          if (matchFolder && matchFolder[1]) folderId = matchFolder[1];
+          else {
+            const matchId = str.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+            if (matchId && matchId[1]) folderId = matchId[1];
+          }
+        }
+
+        if (!folderId) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(JSON.stringify({ success: false, message: 'Parameter folderId tidak valid' }));
+        }
+
+        const embedUrl = `https://drive.google.com/embeddedfolderview?id=${folderId}`;
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        };
+
+        https.get(embedUrl, { headers }, (gRes) => {
+          let body = '';
+          gRes.on('data', chunk => body += chunk);
+          gRes.on('end', () => {
+            const seenIds = new Set<string>();
+            const images: string[] = [];
+
+            const regexEntry = /entry-([a-zA-Z0-9_-]{20,})/g;
+            let m: RegExpExecArray | null;
+            while ((m = regexEntry.exec(body)) !== null) {
+              const fid = m[1];
+              if (!seenIds.has(fid)) {
+                seenIds.add(fid);
+                images.push(`https://lh3.googleusercontent.com/d/${fid}`);
+              }
+            }
+
+            const regexFile = /\/file\/d\/([a-zA-Z0-9_-]{20,})/g;
+            while ((m = regexFile.exec(body)) !== null) {
+              const fid = m[1];
+              if (!seenIds.has(fid)) {
+                seenIds.add(fid);
+                images.push(`https://lh3.googleusercontent.com/d/${fid}`);
+              }
+            }
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=30');
+            return res.end(JSON.stringify({
+              success: true,
+              folderId,
+              totalPhotos: images.length,
+              coverImage: images[0] || '',
+              images
+            }));
+          });
+        }).on('error', (err) => {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(JSON.stringify({ success: false, error: err.message }));
+        });
+      });
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -277,6 +369,7 @@ export default defineConfig({
     supabaseConfigPlugin(),
     videoStreamPlugin(),
     documentDownloadPlugin(),
+    driveFolderPlugin(),
   ],
   server: {
     headers: {

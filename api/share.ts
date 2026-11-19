@@ -1044,19 +1044,20 @@ export default async function handler(req: any, res: any) {
             });
 
             if (!galleryItem) {
-              const slugWords = cleanSlug.split('-').filter(w => w.length > 2);
-              if (slugWords.length >= 2) {
+              const slugWords = cleanSlug.split('-').filter(w => w.length >= 2);
+              if (slugWords.length >= 1) {
                 let bestItem: any = null;
                 let bestScore = 0;
                 for (const g of dbGalleries) {
                   if (!g || !g.title) continue;
                   const s = normalizeSlug(g.title);
-                  const titleWords = s.split('-').filter(w => w.length > 2);
+                  const titleWords = s.split('-').filter(w => w.length >= 2);
                   const matchCount = slugWords.filter(w => titleWords.includes(w)).length;
-                  const score = matchCount / Math.max(slugWords.length, titleWords.length);
-                  if (matchCount >= 2 && score >= 0.7 && score > bestScore) {
-                    bestScore = score;
-                    bestItem = g;
+                  if (matchCount >= 2 || (slugWords.includes('pgri') && titleWords.includes('pgri'))) {
+                    if (matchCount > bestScore) {
+                      bestScore = matchCount;
+                      bestItem = g;
+                    }
                   }
                 }
                 galleryItem = bestItem;
