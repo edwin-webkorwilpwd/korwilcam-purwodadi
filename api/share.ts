@@ -231,6 +231,8 @@ interface SheetGalleryAlbum {
 
 const GALLERY_SPREADSHEET_ID = '1FuIEC3zukJKASRAMl6PPUlrv46w4qKa1j9M2AnBR5-A';
 const GALLERY_SHEET_GID = '0';
+const PUBLIC_GALLERY_SPREADSHEET_ID = '11cTU4NQt3aq9SpCc9hWbdvIOSg4gYRqGKR22WyI1n9g';
+const PUBLIC_GALLERY_SHEET_GID = '0';
 
 let cachedGalleryAlbums: SheetGalleryAlbum[] = [];
 let galleryCacheTimestamp = 0;
@@ -242,6 +244,9 @@ async function fetchGalleriesFromSpreadsheet(): Promise<SheetGalleryAlbum[]> {
     return cachedGalleryAlbums;
   }
 
+  const allAlbums: SheetGalleryAlbum[] = [];
+
+  // 1. Fetch Galeri Internal / CMS
   const urls = [
     `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GALLERY_SHEET_GID}`,
     `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/export?format=csv&gid=${GALLERY_SHEET_GID}`
@@ -264,7 +269,6 @@ async function fetchGalleriesFromSpreadsheet(): Promise<SheetGalleryAlbum[]> {
       const rows = parseCSV(csv);
       if (!rows || rows.length <= 1) continue;
 
-      const albums: SheetGalleryAlbum[] = [];
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
         const id = (row[0] || '').trim();
@@ -316,7 +320,7 @@ async function fetchGalleriesFromSpreadsheet(): Promise<SheetGalleryAlbum[]> {
 
         const validCover = (coverImage && !coverImage.includes('unsplash.com')) ? coverImage : (imagesList[0] || '');
 
-        albums.push({
+        allAlbums.push({
           id,
           title,
           category,
@@ -329,14 +333,94 @@ async function fetchGalleriesFromSpreadsheet(): Promise<SheetGalleryAlbum[]> {
         });
       }
 
-      if (albums.length > 0) {
-        cachedGalleryAlbums = albums;
-        galleryCacheTimestamp = now;
-        return albums;
-      }
+      if (allAlbums.length > 0) break;
     } catch (e) {
       // lanjut ke url berikutnya jika timeout / error
     }
+  }
+
+  // 2. Fetch Galeri Publik (Upload untuk Publik)
+  const pubUrls = [
+    `https://docs.google.com/spreadsheets/d/${PUBLIC_GALLERY_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${PUBLIC_GALLERY_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${PUBLIC_GALLERY_SPREADSHEET_ID}/export?format=csv&gid=${PUBLIC_GALLERY_SHEET_GID}`
+  ];
+
+  for (const url of pubUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'text/csv, text/plain; q=0.9, */*; q=0.8' }
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length < 2) continue;
+
+        const timestamp = (row[0] || '').trim();
+        const title = (row[1] || '').trim();
+        if (!title || title.toUpperCase() === 'JUDUL' || title === '-') continue;
+
+        const driveFolderUrl = (row[2] || '').trim();
+        const eventDate = (row[3] || '').trim();
+        const category = (row[4] || 'Kegiatan').trim();
+        const description = (row[5] || '').trim();
+        const schoolName = (row[6] || '').trim();
+        const rawStatus = (row[7] || '').trim().toLowerCase();
+        const coverImage = (row[8] || '').trim();
+        const rawImages = (row[9] || '').trim();
+
+        // Hanya sertakan yang statusnya Disetujui (atau tanpa status)
+        if (rawStatus && rawStatus !== 'disetujui' && rawStatus !== 'approved' && rawStatus !== 'aktif' && rawStatus !== 'setuju') {
+          continue;
+        }
+
+        let imagesList: string[] = [];
+        if (rawImages) {
+          try {
+            const parsed = JSON.parse(rawImages);
+            if (Array.isArray(parsed)) {
+              imagesList = parsed.filter(u => typeof u === 'string' && u.startsWith('http'));
+            }
+          } catch {
+            imagesList = rawImages.split(',').map(u => u.trim()).filter(u => u.startsWith('http'));
+          }
+        }
+
+        let validCover = coverImage && coverImage.startsWith('http') ? coverImage : (imagesList[0] || '');
+        if (validCover && !imagesList.includes(validCover)) {
+          imagesList = [validCover, ...imagesList];
+        }
+
+        allAlbums.push({
+          id: `public-gal-${r}-${timestamp.replace(/[^0-9]/g, '')}`,
+          title,
+          category,
+          image: validCover,
+          description: description || `Dokumentasi foto kegiatan ${title} dari ${schoolName || 'Kontributor Publik'}.`,
+          date: eventDate || timestamp,
+          createdAt: timestamp,
+          images: imagesList,
+          driveFolderUrl
+        });
+      }
+
+      break;
+    } catch (e) {}
+  }
+
+  if (allAlbums.length > 0) {
+    cachedGalleryAlbums = allAlbums;
+    galleryCacheTimestamp = now;
   }
 
   return cachedGalleryAlbums;
@@ -874,7 +958,7 @@ export default async function handler(req: any, res: any) {
 
       let galleryItem: any = null;
 
-      // 1. Fetch dari Google Spreadsheet Galeri (Database Aktif Utama)
+      // 1. Fetch dari Google Spreadsheet Galeri (Database Aktif Utama & Galeri Publik)
       try {
         const sheetGalleries = await fetchGalleriesFromSpreadsheet();
         if (sheetGalleries && sheetGalleries.length > 0) {
@@ -882,29 +966,40 @@ export default async function handler(req: any, res: any) {
           galleryItem = sheetGalleries.find((g) => {
             if (!g) return false;
             const normTitle = normalizeSlug(g.title);
-            if (g.id && (g.id.toLowerCase() === cleanSlug || g.id.toLowerCase() === `gal-${cleanSlug}`)) return true;
             if (normTitle && normTitle === cleanSlug) return true;
+            if (g.id && (g.id.toLowerCase() === cleanSlug || g.id.toLowerCase() === `gal-${cleanSlug}` || g.id.toLowerCase() === `public-gal-${cleanSlug}`)) return true;
             return false;
           });
 
-          // B. Substring match
+          // B. Substring match (Hanya jika awal atau akhir sama persis)
           if (!galleryItem) {
             galleryItem = sheetGalleries.find((g) => {
               if (!g || !g.title) return false;
               const normTitle = normalizeSlug(g.title);
-              return cleanSlug.includes(normTitle) || normTitle.includes(cleanSlug);
+              if (normTitle.length < 5 || cleanSlug.length < 5) return false;
+              return cleanSlug === normTitle || cleanSlug.startsWith(normTitle) || normTitle.startsWith(cleanSlug);
             });
           }
 
-          // C. Word token match
+          // C. Word token match (Perbandingan rasio kata akurat agar tidak tertukar album)
           if (!galleryItem) {
             const slugWords = cleanSlug.split('-').filter(w => w.length > 2);
-            galleryItem = sheetGalleries.find((g) => {
-              if (!g || !g.title) return false;
-              const normTitle = normalizeSlug(g.title);
-              const matchCount = slugWords.filter(w => normTitle.includes(w)).length;
-              return matchCount >= Math.min(3, slugWords.length);
-            });
+            if (slugWords.length >= 2) {
+              let bestItem: any = null;
+              let bestScore = 0;
+              for (const g of sheetGalleries) {
+                if (!g || !g.title) continue;
+                const normTitle = normalizeSlug(g.title);
+                const titleWords = normTitle.split('-').filter(w => w.length > 2);
+                const matchCount = slugWords.filter(w => titleWords.includes(w)).length;
+                const score = matchCount / Math.max(slugWords.length, titleWords.length);
+                if (matchCount >= 2 && score >= 0.7 && score > bestScore) {
+                  bestScore = score;
+                  bestItem = g;
+                }
+              }
+              galleryItem = bestItem;
+            }
           }
         }
       } catch (err) {
@@ -943,19 +1038,29 @@ export default async function handler(req: any, res: any) {
               if (g.slug && normalizeSlug(g.slug) === cleanSlug) return true;
               if (g.title) {
                 const s = normalizeSlug(g.title);
-                if (s === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug)) return true;
+                if (s === cleanSlug) return true;
               }
               return false;
             });
 
             if (!galleryItem) {
               const slugWords = cleanSlug.split('-').filter(w => w.length > 2);
-              galleryItem = dbGalleries.find((g: any) => {
-                if (!g || !g.title) return false;
-                const s = normalizeSlug(g.title);
-                const matchCount = slugWords.filter(w => s.includes(w)).length;
-                return matchCount >= Math.min(3, slugWords.length);
-              });
+              if (slugWords.length >= 2) {
+                let bestItem: any = null;
+                let bestScore = 0;
+                for (const g of dbGalleries) {
+                  if (!g || !g.title) continue;
+                  const s = normalizeSlug(g.title);
+                  const titleWords = s.split('-').filter(w => w.length > 2);
+                  const matchCount = slugWords.filter(w => titleWords.includes(w)).length;
+                  const score = matchCount / Math.max(slugWords.length, titleWords.length);
+                  if (matchCount >= 2 && score >= 0.7 && score > bestScore) {
+                    bestScore = score;
+                    bestItem = g;
+                  }
+                }
+                galleryItem = bestItem;
+              }
             }
           }
         } catch (err) {
@@ -993,7 +1098,7 @@ export default async function handler(req: any, res: any) {
         ];
         galleryItem = fallbackGalleries.find((g) => {
           const s = normalizeSlug(g.title);
-          return s === cleanSlug || g.id === cleanSlug || cleanSlug.includes(s) || s.includes(cleanSlug);
+          return s === cleanSlug || g.id === cleanSlug;
         });
       }
 

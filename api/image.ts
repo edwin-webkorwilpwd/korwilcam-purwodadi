@@ -129,6 +129,8 @@ async function fetchNewsImagesFromSpreadsheet(): Promise<{ id: string; slug: str
 
 const GALLERY_SPREADSHEET_ID = '1FuIEC3zukJKASRAMl6PPUlrv46w4qKa1j9M2AnBR5-A';
 const GALLERY_SHEET_GID = '0';
+const PUBLIC_GALLERY_SPREADSHEET_ID = '11cTU4NQt3aq9SpCc9hWbdvIOSg4gYRqGKR22WyI1n9g';
+const PUBLIC_GALLERY_SHEET_GID = '0';
 
 let cachedGalleryAlbums: { id: string; title: string; image: string }[] = [];
 let galleryCacheTimestamp = 0;
@@ -139,6 +141,9 @@ async function fetchGalleryImagesFromSpreadsheet(): Promise<{ id: string; title:
     return cachedGalleryAlbums;
   }
 
+  const allItems: { id: string; title: string; image: string }[] = [];
+
+  // 1. Galeri Internal / CMS
   const urls = [
     `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GALLERY_SHEET_GID}`,
     `https://docs.google.com/spreadsheets/d/${GALLERY_SPREADSHEET_ID}/export?format=csv&gid=${GALLERY_SHEET_GID}`
@@ -158,7 +163,6 @@ async function fetchGalleryImagesFromSpreadsheet(): Promise<{ id: string; title:
       const rows = parseCSV(csv);
       if (!rows || rows.length <= 1) continue;
 
-      const items: { id: string; title: string; image: string }[] = [];
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
         const id = (row[0] || '').trim();
@@ -188,16 +192,77 @@ async function fetchGalleryImagesFromSpreadsheet(): Promise<{ id: string; title:
         }
 
         if (image) {
-          items.push({ id, title, image });
+          allItems.push({ id, title, image });
         }
       }
 
-      if (items.length > 0) {
-        cachedGalleryAlbums = items;
-        galleryCacheTimestamp = now;
-        return items;
-      }
+      if (allItems.length > 0) break;
     } catch {}
+  }
+
+  // 2. Galeri Publik (Upload untuk Publik)
+  const pubUrls = [
+    `https://docs.google.com/spreadsheets/d/${PUBLIC_GALLERY_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${PUBLIC_GALLERY_SHEET_GID}`,
+    `https://docs.google.com/spreadsheets/d/${PUBLIC_GALLERY_SPREADSHEET_ID}/export?format=csv&gid=${PUBLIC_GALLERY_SHEET_GID}`
+  ];
+
+  for (const url of pubUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const csv = await res.text();
+      if (!csv || csv.includes('<!DOCTYPE html>') || csv.length < 50) continue;
+
+      const rows = parseCSV(csv);
+      if (!rows || rows.length <= 1) continue;
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length < 2) continue;
+
+        const timestamp = (row[0] || '').trim();
+        const title = (row[1] || '').trim();
+        if (!title || title.toUpperCase() === 'JUDUL' || title === '-') continue;
+
+        const rawStatus = (row[7] || '').trim().toLowerCase();
+        if (rawStatus && rawStatus !== 'disetujui' && rawStatus !== 'approved' && rawStatus !== 'aktif' && rawStatus !== 'setuju') {
+          continue;
+        }
+
+        const coverImage = (row[8] || '').trim();
+        const rawImages = (row[9] || '').trim();
+
+        let image = coverImage && coverImage.startsWith('http') ? coverImage : '';
+        if (!image && rawImages) {
+          try {
+            const parsed = JSON.parse(rawImages);
+            if (Array.isArray(parsed) && parsed[0]) image = parsed[0];
+          } catch {
+            const splitted = rawImages.split(',').map(u => u.trim());
+            if (splitted[0] && splitted[0].startsWith('http')) image = splitted[0];
+          }
+        }
+
+        if (image) {
+          allItems.push({
+            id: `public-gal-${r}-${timestamp.replace(/[^0-9]/g, '')}`,
+            title,
+            image
+          });
+        }
+      }
+
+      break;
+    } catch {}
+  }
+
+  if (allItems.length > 0) {
+    cachedGalleryAlbums = allItems;
+    galleryCacheTimestamp = now;
   }
 
   return cachedGalleryAlbums;
