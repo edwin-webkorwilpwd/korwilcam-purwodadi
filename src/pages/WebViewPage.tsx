@@ -21,6 +21,24 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isKaryaku = url.includes('pustakapwd.blogspot.com') || title.toLowerCase().includes('karyaku');
   const pollTimerRef = useRef<any>(null);
+  const gasWindowRef = useRef<WindowProxy | null>(null);
+
+  // Menghitung URL iframe awal lengkap dengan parameter deep-link jika dibuka via direct link
+  const getInitialIframeUrl = () => {
+    if (!isKaryaku || typeof window === 'undefined') return url;
+    if (!window.location.pathname.startsWith('/karyaku')) return url;
+    const routeInfo = parseKaryakuPath(window.location.pathname);
+    const sep = url.includes('?') ? '&' : '?';
+    if (routeInfo.view === 'reader' && (routeInfo.bookTitleSlug || routeInfo.username)) {
+      return `${url}${sep}view=reader&book=${encodeURIComponent(routeInfo.bookTitleSlug || '')}&user=${encodeURIComponent(routeInfo.username || '')}`;
+    }
+    if (routeInfo.view === 'author' && routeInfo.username) {
+      return `${url}${sep}view=author&user=${encodeURIComponent(routeInfo.username)}`;
+    }
+    return url;
+  };
+
+  const [iframeSrc] = useState<string>(() => getInitialIframeUrl());
 
   // Jika URL ini sudah pernah selesai dimuat dalam sesi tab browser ini, jangan tampilkan loading lagi
   const [isLoading, setIsLoading] = useState<boolean>(() => !loadedUrlsSession.has(url));
@@ -44,12 +62,22 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
 
       const sendReaderMessage = () => {
         attempts++;
+        const payload = {
+          type: 'KARYAKU_OPEN_READER',
+          username: routeInfo.username,
+          bookTitle: routeInfo.bookTitleSlug
+        };
+
+        // Kirim ke window utama iframe
         if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({
-            type: 'KARYAKU_OPEN_READER',
-            username: routeInfo.username,
-            bookTitle: routeInfo.bookTitleSlug
-          }, '*');
+          iframeRef.current.contentWindow.postMessage(payload, '*');
+        }
+
+        // Kirim langsung ke window Google Apps Script jika referensi sudah tertangkap
+        if (gasWindowRef.current && gasWindowRef.current !== iframeRef.current?.contentWindow) {
+          try {
+            gasWindowRef.current.postMessage(payload, '*');
+          } catch (e) {}
         }
 
         if (attempts >= maxAttempts) {
@@ -69,11 +97,19 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
 
       const sendAuthorMessage = () => {
         attempts++;
+        const payload = {
+          type: 'KARYAKU_OPEN_AUTHOR',
+          username: routeInfo.username
+        };
+
         if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({
-            type: 'KARYAKU_OPEN_AUTHOR',
-            username: routeInfo.username
-          }, '*');
+          iframeRef.current.contentWindow.postMessage(payload, '*');
+        }
+
+        if (gasWindowRef.current && gasWindowRef.current !== iframeRef.current?.contentWindow) {
+          try {
+            gasWindowRef.current.postMessage(payload, '*');
+          } catch (e) {}
         }
 
         if (attempts >= maxAttempts) {
@@ -88,10 +124,14 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
       sendAuthorMessage();
       pollTimerRef.current = setInterval(sendAuthorMessage, 300);
     } else if (routeInfo.view === 'catalog') {
+      const payload = { type: 'KARYAKU_OPEN_CATALOG' };
       if (iframeRef.current?.contentWindow) {
-        iframeRef.current.contentWindow.postMessage({
-          type: 'KARYAKU_OPEN_CATALOG'
-        }, '*');
+        iframeRef.current.contentWindow.postMessage(payload, '*');
+      }
+      if (gasWindowRef.current && gasWindowRef.current !== iframeRef.current?.contentWindow) {
+        try {
+          gasWindowRef.current.postMessage(payload, '*');
+        } catch (e) {}
       }
     }
   }, [isKaryaku]);
@@ -112,12 +152,24 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
     return () => clearTimeout(timer);
   }, [url]);
 
-  // Dengarkan pesan konfirmasi (ACK) dari e-reader iframe Karyaku
+  // Dengarkan pesan konfirmasi (ACK) dan handshake dari e-reader iframe Karyaku
   useEffect(() => {
     if (!isKaryaku) return;
 
     const handleKaryakuResponse = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return;
+
+      // Simpan referensi window pengirim (Google Apps Script frame) untuk komunikasi langsung dua arah
+      if (event.source) {
+        gasWindowRef.current = event.source as WindowProxy;
+      }
+
+      // Handshake: Jika iframe GAS baru selesai memuat dan siap menerima perintah navigasi
+      if (event.data.type === 'KARYAKU_READY' || event.data.type === 'KARYAKU_CLIENT_READY') {
+        syncKaryakuView();
+        return;
+      }
+
       if (event.data.type === 'KARYAKU_NAVIGATE') {
         const routeInfo = parseKaryakuPath(window.location.pathname);
         // Jika reader atau author berhasil dibuka di dalam iframe, segera stop interval polling
@@ -139,7 +191,7 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
     return () => {
       window.removeEventListener('message', handleKaryakuResponse);
     };
-  }, [isKaryaku]);
+  }, [isKaryaku, syncKaryakuView]);
 
   // Dengarkan event navigasi URL (popstate, hashchange, dan karyaku-route-change)
   useEffect(() => {
@@ -152,6 +204,11 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
     window.addEventListener('popstate', handleNavigationChange);
     window.addEventListener('hashchange', handleNavigationChange);
     window.addEventListener('karyaku-route-change', handleNavigationChange);
+
+    // Jalankan sinkronisasi awal saat komponen dimount jika rute adalah deep-link
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/karyaku')) {
+      syncKaryakuView();
+    }
 
     return () => {
       window.removeEventListener('popstate', handleNavigationChange);
@@ -195,7 +252,7 @@ export const WebViewPage: React.FC<WebViewPageProps> = ({
       <div className="w-full h-full flex-1 relative overflow-hidden bg-white">
         <iframe
           ref={iframeRef}
-          src={url}
+          src={iframeSrc}
           title={title}
           onLoad={handleIframeLoad}
           style={
