@@ -454,6 +454,162 @@ async function fetchAchievementsFromSpreadsheet(): Promise<SheetAchievement[]> {
   return cachedPrestasiItems;
 }
 
+interface KaryakuBook {
+  id: string;
+  title: string;
+  author: string;
+  category?: string;
+  year?: number;
+  cover?: string;
+  description?: string;
+  driveFileId?: string;
+  cleanFileId?: string;
+  totalPages?: number;
+  rating?: number;
+  readCount?: number;
+  uploadedBy?: string;
+}
+
+const DEFAULT_KARYAKU_BOOKS: KaryakuBook[] = [
+  {
+    id: "BK-002",
+    title: "Introvert Yang Berubah",
+    author: "Edwin Tito Nur Kuncoro, S.Pd",
+    category: "Novel & Cerpen",
+    year: 2026,
+    cover: "https://drive.google.com/file/d/1DsrSanEmkme4-DQtMR6lXLDd1cgZQZL2/view?usp=drive_link",
+    description: "Cerita fiksi tentang orang introvert yang berubah menjadi Extrovert",
+    uploadedBy: "edwintitonk"
+  },
+  {
+    id: "BK-003",
+    title: "Gadget Tepat, Anak Seht",
+    author: "Narto, S.Pd.,M.Pd",
+    category: "Pendidikan & Parenting",
+    year: 2026,
+    cover: "https://drive.google.com/file/d/1ONReXVpMNPwKCk7xptB2BR9ho6t-B6ad/view?usp=drive_link",
+    description: "Panduan untuk orang tua dalam membimbing anak menggunakan gadget secara bijak",
+    uploadedBy: "narto1967"
+  },
+  {
+    id: "BK-004",
+    title: "Asal Usul Bleduk Kuwu",
+    author: "Narto, S.Pd.,M.Pd",
+    category: "Cerita Rakyat",
+    year: 2026,
+    cover: "https://drive.google.com/file/d/1tmq2BLwdTFIWF9-8TfGHGH0ZHLZka2HY/view?usp=drive_link",
+    description: "Cerita rakyat asal usul Bleduk Kuwu Kabupaten Grobogan",
+    uploadedBy: "narto1967"
+  }
+];
+
+let cachedKaryakuBooks: KaryakuBook[] = [...DEFAULT_KARYAKU_BOOKS];
+let karyakuCacheTimestamp = 0;
+const KARYAKU_CACHE_DURATION = 60 * 1000;
+const KARYAKU_GAS_URL = 'https://script.google.com/macros/s/AKfycbyuxqcidVzOP_Om8gMr2LvHOhm7czDOPYgEOV-Xv0JIYpcsB0nrVYHFKf5VWlSMvkyk3w/exec';
+
+function extractKaryakuBooksFromHtml(html: string): KaryakuBook[] {
+  if (!html) return [];
+
+  const directMatch = html.match(/<script id=["']initial-books-data["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (directMatch && directMatch[1].trim()) {
+    try {
+      const parsed = JSON.parse(directMatch[1].trim());
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {}
+  }
+
+  const token = 'initial-books-data';
+  const idx = html.indexOf(token);
+  if (idx === -1) return [];
+
+  const hexStart = html.indexOf('\\x5b', idx);
+  if (hexStart === -1) return [];
+
+  const hexEndScript = html.indexOf('\\x3c\\\/script\\x3e', hexStart);
+  const raw = html.slice(hexStart, hexEndScript !== -1 ? hexEndScript : hexStart + 100000);
+
+  let str = raw
+    .replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\u([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+
+  str = str.replace(/\\\\"/g, '"').replace(/\\"/g, '"').replace(/\\\//g, '/');
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let jsonEnd = -1;
+
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (c === '\\') {
+      escape = true;
+      continue;
+    }
+    if (c === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (c === '[') depth++;
+      else if (c === ']') {
+        depth--;
+        if (depth === 0) {
+          jsonEnd = i;
+          break;
+        }
+      }
+    }
+  }
+
+  if (jsonEnd !== -1) {
+    try {
+      const parsed = JSON.parse(str.slice(0, jsonEnd + 1));
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+
+  return [];
+}
+
+async function fetchKaryakuBooks(): Promise<KaryakuBook[]> {
+  const now = Date.now();
+  if (cachedKaryakuBooks.length > 0 && (now - karyakuCacheTimestamp < KARYAKU_CACHE_DURATION)) {
+    return cachedKaryakuBooks;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch(KARYAKU_GAS_URL, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const html = await res.text();
+      const books = extractKaryakuBooksFromHtml(html);
+      if (books && books.length > 0) {
+        cachedKaryakuBooks = books;
+        karyakuCacheTimestamp = now;
+        return books;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching Karyaku books:', err);
+  }
+
+  return cachedKaryakuBooks;
+}
+
 const ipRequests = new Map<string, { count: number; resetTime: number }>();
 function checkRateLimit(req: any, max = 60, windowMs = 60000): boolean {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -1154,12 +1310,23 @@ export default async function handler(req: any, res: any) {
         .replace(/^\//, '')
         .trim();
 
+      const allBooks = await fetchKaryakuBooks();
+
+      const slugify = (t: string) =>
+        (t || '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/--+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
       let karyakuTitle = 'Pustaka Digital Karyaku - Korwilcam Purwodadi';
       let karyakuDesc = 'Koleksi buku digital, karya tulis siswa dan guru di lingkungan Korwilcam Bidang Pendidikan Kecamatan Purwodadi. Baca Flipbook 3D interaktif secara online.';
       let redirectUrl = `${origin}/karyaku`;
       let ogImageUrl = `${origin}/logo.png`;
-      let ogWidth = 640;
-      let ogHeight = 360;
+      let ogWidth = 600;
+      let ogHeight = 600;
 
       if (cleanParam) {
         const parts = cleanParam.split('/').filter(Boolean);
@@ -1169,6 +1336,23 @@ export default async function handler(req: any, res: any) {
           karyakuTitle = `Koleksi Buku: ${authorReadable} - Karyaku Korwilcam Purwodadi`;
           karyakuDesc = `Jelajahi seluruh karya buku dan tulisan digital oleh ${authorReadable} di Pustaka Digital Korwilcam Purwodadi.`;
           redirectUrl = `${origin}/karyaku/${encodeURIComponent(authorUser)}`;
+
+          // Cari buku pertama oleh penulis ini untuk gambar sampul
+          const targetAuthorSlug = slugify(authorUser);
+          const authorBook = allBooks.find(b => {
+            const bUser = slugify(b.uploadedBy || '');
+            const bAuth = slugify(b.author || '');
+            return bUser === targetAuthorSlug || bAuth.includes(targetAuthorSlug) || targetAuthorSlug.includes(bUser);
+          });
+
+          if (authorBook && authorBook.cover) {
+            const mDrive = authorBook.cover.match(/\/d\/([a-zA-Z0-9_-]+)/) || authorBook.cover.match(/id=([a-zA-Z0-9_-]+)/);
+            if (mDrive) {
+              ogImageUrl = `https://lh3.googleusercontent.com/d/${mDrive[1]}=s500`;
+            } else if (authorBook.cover.startsWith('http')) {
+              ogImageUrl = authorBook.cover;
+            }
+          }
         } else if (parts.length >= 2) {
           const authorUser = decodeURIComponent(parts[0]);
           const bookSlug = decodeURIComponent(parts.slice(1).join('-'));
@@ -1178,8 +1362,49 @@ export default async function handler(req: any, res: any) {
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
             .join(' ');
 
-          karyakuTitle = `${formattedBookTitle} - Karyaku Penulis: ${authorUser}`;
-          karyakuDesc = `Baca buku digital "${formattedBookTitle}" karya ${authorUser} dalam format 3D Flipbook interaktif di Pustaka Digital Korwilcam Purwodadi.`;
+          const targetBookSlug = slugify(bookSlug);
+          const targetAuthorSlug = slugify(authorUser);
+
+          // Cari buku yang cocok berdasarkan slug judul dan penulis
+          const matchedBook = allBooks.find(b => {
+            const bTitleSlug = slugify(b.title || '');
+            const bUserSlug = slugify(b.uploadedBy || '');
+            const bAuthorSlug = slugify(b.author || '');
+
+            const titleMatches = bTitleSlug === targetBookSlug || bTitleSlug.includes(targetBookSlug) || targetBookSlug.includes(bTitleSlug);
+            if (!titleMatches) return false;
+
+            if (targetAuthorSlug) {
+              return bUserSlug === targetAuthorSlug || bAuthorSlug.includes(targetAuthorSlug) || targetAuthorSlug.includes(bUserSlug);
+            }
+            return true;
+          }) || allBooks.find(b => {
+            const bTitleSlug = slugify(b.title || '');
+            return bTitleSlug === targetBookSlug || bTitleSlug.includes(targetBookSlug) || targetBookSlug.includes(bTitleSlug);
+          });
+
+          if (matchedBook) {
+            const bookRealTitle = matchedBook.title || formattedBookTitle;
+            const bookRealAuthor = matchedBook.author || authorUser;
+            karyakuTitle = `${bookRealTitle} - Karyaku Penulis: ${bookRealAuthor}`;
+            karyakuDesc = matchedBook.description
+              ? `${matchedBook.description}. Baca selengkapnya dalam format 3D Flipbook interaktif di Pustaka Digital Korwilcam Purwodadi.`
+              : `Baca buku digital "${bookRealTitle}" karya ${bookRealAuthor} dalam format 3D Flipbook interaktif di Pustaka Digital Korwilcam Purwodadi.`;
+
+            if (matchedBook.cover) {
+              const mDrive = matchedBook.cover.match(/\/d\/([a-zA-Z0-9_-]+)/) || matchedBook.cover.match(/id=([a-zA-Z0-9_-]+)/);
+              if (mDrive) {
+                // Resolusi s500 (~300KB) agar cepat terunduh oleh bot WhatsApp dan tampil jernih
+                ogImageUrl = `https://lh3.googleusercontent.com/d/${mDrive[1]}=s500`;
+              } else if (matchedBook.cover.startsWith('http')) {
+                ogImageUrl = matchedBook.cover;
+              }
+            }
+          } else {
+            karyakuTitle = `${formattedBookTitle} - Karyaku Penulis: ${authorUser}`;
+            karyakuDesc = `Baca buku digital "${formattedBookTitle}" karya ${authorUser} dalam format 3D Flipbook interaktif di Pustaka Digital Korwilcam Purwodadi.`;
+          }
+
           redirectUrl = `${origin}/karyaku/${encodeURIComponent(authorUser)}/${encodeURIComponent(bookSlug)}`;
         }
       }
@@ -1199,7 +1424,7 @@ export default async function handler(req: any, res: any) {
   <meta property="og:description" content="${escapeHtml(karyakuDesc)}">
   <meta property="og:image" content="${escapeHtml(ogImageUrl)}">
   <meta property="og:image:secure_url" content="${escapeHtml(ogImageUrl)}">
-  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="${ogWidth}">
   <meta property="og:image:height" content="${ogHeight}">
   <meta property="og:image:alt" content="${escapeHtml(karyakuTitle)}">
