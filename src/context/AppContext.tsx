@@ -2481,6 +2481,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selectedSchool) {
       setSelectedSchoolState(null);
     }
+    if (selectedVideo) {
+      if (!customPath?.startsWith('/galeri/video/')) {
+        setSelectedVideoState(null);
+      }
+    }
     if (tab !== 'organization' || customPath === '/organisasi' || customPath === '/profil#organisasi' || !customPath?.startsWith('/organisasi/')) {
       setSelectedOrganizationSlugState(null);
     }

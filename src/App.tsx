@@ -263,7 +263,7 @@ const MainContent: React.FC = () => {
                 <NewsDetailPage />
               ) : selectedAnnouncement ? (
                 <AnnouncementDetailPage />
-              ) : selectedVideo ? (
+              ) : selectedVideo && activeTab === 'gallery' ? (
                 <VideoDetailPage />
               ) : selectedGallery ? (
                 <GalleryDetailPage />
