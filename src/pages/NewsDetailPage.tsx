@@ -590,10 +590,10 @@ export const NewsDetailPage: React.FC = () => {
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-xs text-slate-500 font-medium text-center sm:text-left">
                       {showAllPages ? (
-                        <span>Menampilkan <strong>seluruh artikel</strong> ({paginationData.totalWords} kata)</span>
+                        <span>Menampilkan <strong>seluruh artikel</strong></span>
                       ) : (
                         <span>
-                          Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari <strong>{paginationData.totalPages}</strong> (Total {paginationData.totalWords} kata)
+                          Halaman <strong className="text-blue-600 font-bold">{currentPage}</strong> dari <strong>{paginationData.totalPages}</strong>
                         </span>
                       )}
                     </div>
