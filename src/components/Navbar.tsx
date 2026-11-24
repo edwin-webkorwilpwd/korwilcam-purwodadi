@@ -91,9 +91,12 @@ export const Navbar: React.FC = () => {
   const profileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contactTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastTouchTimeRef = useRef<number>(0);
 
-  const closeAllDropdowns = () => {
+  // Ref tracking if the dropdown was opened via deliberate touch tap (so mouseleave won't close it)
+  const isTouchOpenRef = useRef<boolean>(false);
+  const lastToggleTimeRef = useRef<number>(0);
+
+  const clearAllTimeouts = () => {
     if (servicesTimeoutRef.current) {
       clearTimeout(servicesTimeoutRef.current);
       servicesTimeoutRef.current = null;
@@ -110,6 +113,11 @@ export const Navbar: React.FC = () => {
       clearTimeout(contactTimeoutRef.current);
       contactTimeoutRef.current = null;
     }
+  };
+
+  const closeAllDropdowns = () => {
+    clearAllTimeouts();
+    isTouchOpenRef.current = false;
     setProfileDropdownOpen(false);
     setServicesDropdownOpen(false);
     setNewsDropdownOpen(false);
@@ -118,27 +126,21 @@ export const Navbar: React.FC = () => {
 
   const toggleDropdown = (
     menu: 'profile' | 'services' | 'news' | 'contact',
-    e?: React.MouseEvent | React.TouchEvent
+    e?: React.SyntheticEvent
   ) => {
     if (e) {
       e.stopPropagation();
     }
-    if (servicesTimeoutRef.current) {
-      clearTimeout(servicesTimeoutRef.current);
-      servicesTimeoutRef.current = null;
+    const now = Date.now();
+    // Debounce duplicate events within 350ms (e.g. touchEnd followed by click)
+    if (now - lastToggleTimeRef.current < 350) {
+      return;
     }
-    if (profileTimeoutRef.current) {
-      clearTimeout(profileTimeoutRef.current);
-      profileTimeoutRef.current = null;
-    }
-    if (newsTimeoutRef.current) {
-      clearTimeout(newsTimeoutRef.current);
-      newsTimeoutRef.current = null;
-    }
-    if (contactTimeoutRef.current) {
-      clearTimeout(contactTimeoutRef.current);
-      contactTimeoutRef.current = null;
-    }
+    lastToggleTimeRef.current = now;
+
+    // Menandai menu dibuka oleh tap layar sentuh agar tidak tertutup otomatis oleh phantom mouseleave
+    isTouchOpenRef.current = true;
+    clearAllTimeouts();
 
     if (menu === 'profile') {
       const next = !profileDropdownOpen;
@@ -188,31 +190,14 @@ export const Navbar: React.FC = () => {
   };
 
   const handleHeaderLeave = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    handleProfileLeave();
-    handleServicesLeave();
-    handleNewsLeave();
-    handleContactLeave();
+    // Jika dropdown dibuka oleh sentuhan jari di tablet, jangan tutup karena mouse leave
+    if (isTouchOpenRef.current) return;
+    closeAllDropdowns();
   };
 
   const handleServicesEnter = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (servicesTimeoutRef.current) {
-      clearTimeout(servicesTimeoutRef.current);
-      servicesTimeoutRef.current = null;
-    }
-    if (profileTimeoutRef.current) {
-      clearTimeout(profileTimeoutRef.current);
-      profileTimeoutRef.current = null;
-    }
-    if (newsTimeoutRef.current) {
-      clearTimeout(newsTimeoutRef.current);
-      newsTimeoutRef.current = null;
-    }
-    if (contactTimeoutRef.current) {
-      clearTimeout(contactTimeoutRef.current);
-      contactTimeoutRef.current = null;
-    }
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     setProfileDropdownOpen(false);
     setNewsDropdownOpen(false);
     setContactDropdownOpen(false);
@@ -223,31 +208,16 @@ export const Navbar: React.FC = () => {
   };
 
   const handleServicesLeave = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     servicesTimeoutRef.current = setTimeout(() => {
       setServicesDropdownOpen(false);
     }, 250);
   };
 
   const handleProfileEnter = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (profileTimeoutRef.current) {
-      clearTimeout(profileTimeoutRef.current);
-      profileTimeoutRef.current = null;
-    }
-    if (servicesTimeoutRef.current) {
-      clearTimeout(servicesTimeoutRef.current);
-      servicesTimeoutRef.current = null;
-    }
-    if (newsTimeoutRef.current) {
-      clearTimeout(newsTimeoutRef.current);
-      newsTimeoutRef.current = null;
-    }
-    if (contactTimeoutRef.current) {
-      clearTimeout(contactTimeoutRef.current);
-      contactTimeoutRef.current = null;
-    }
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     setServicesDropdownOpen(false);
     setNewsDropdownOpen(false);
     setContactDropdownOpen(false);
@@ -259,31 +229,16 @@ export const Navbar: React.FC = () => {
   };
 
   const handleProfileLeave = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     profileTimeoutRef.current = setTimeout(() => {
       setProfileDropdownOpen(false);
     }, 250);
   };
 
   const handleNewsEnter = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (newsTimeoutRef.current) {
-      clearTimeout(newsTimeoutRef.current);
-      newsTimeoutRef.current = null;
-    }
-    if (profileTimeoutRef.current) {
-      clearTimeout(profileTimeoutRef.current);
-      profileTimeoutRef.current = null;
-    }
-    if (servicesTimeoutRef.current) {
-      clearTimeout(servicesTimeoutRef.current);
-      servicesTimeoutRef.current = null;
-    }
-    if (contactTimeoutRef.current) {
-      clearTimeout(contactTimeoutRef.current);
-      contactTimeoutRef.current = null;
-    }
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     setProfileDropdownOpen(false);
     setServicesDropdownOpen(false);
     setContactDropdownOpen(false);
@@ -294,31 +249,16 @@ export const Navbar: React.FC = () => {
   };
 
   const handleNewsLeave = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     newsTimeoutRef.current = setTimeout(() => {
       setNewsDropdownOpen(false);
     }, 250);
   };
 
   const handleContactEnter = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (contactTimeoutRef.current) {
-      clearTimeout(contactTimeoutRef.current);
-      contactTimeoutRef.current = null;
-    }
-    if (profileTimeoutRef.current) {
-      clearTimeout(profileTimeoutRef.current);
-      profileTimeoutRef.current = null;
-    }
-    if (servicesTimeoutRef.current) {
-      clearTimeout(servicesTimeoutRef.current);
-      servicesTimeoutRef.current = null;
-    }
-    if (newsTimeoutRef.current) {
-      clearTimeout(newsTimeoutRef.current);
-      newsTimeoutRef.current = null;
-    }
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     setProfileDropdownOpen(false);
     setServicesDropdownOpen(false);
     setNewsDropdownOpen(false);
@@ -330,11 +270,17 @@ export const Navbar: React.FC = () => {
   };
 
   const handleContactLeave = () => {
-    if (Date.now() - lastTouchTimeRef.current < 600) return;
-    if (contactTimeoutRef.current) clearTimeout(contactTimeoutRef.current);
+    if (isTouchOpenRef.current) return;
+    clearAllTimeouts();
     contactTimeoutRef.current = setTimeout(() => {
       setContactDropdownOpen(false);
     }, 250);
+  };
+
+  const handleDirectHover = () => {
+    if (!isTouchOpenRef.current) {
+      closeAllDropdowns();
+    }
   };
 
   // Top 10 Berita & Informasi Terbaru
@@ -368,10 +314,7 @@ export const Navbar: React.FC = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
-      if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
-      if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
-      if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
-      if (contactTimeoutRef.current) clearTimeout(contactTimeoutRef.current);
+      clearAllTimeouts();
     };
   }, []);
 
@@ -383,17 +326,10 @@ export const Navbar: React.FC = () => {
   };
 
   const handleNavClick = (tab: string, path?: string) => {
-    if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
-    if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
-    if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
-    if (contactTimeoutRef.current) clearTimeout(contactTimeoutRef.current);
+    closeAllDropdowns();
     setActiveTab(tab, path);
     setMobileMenuOpen(false);
     setMobileOpenSection(null);
-    setProfileDropdownOpen(false);
-    setServicesDropdownOpen(false);
-    setNewsDropdownOpen(false);
-    setContactDropdownOpen(false);
 
     // Immediate event dispatching for sub-tab and hash synchronization
     if (path && path.includes('#')) {
@@ -475,7 +411,7 @@ export const Navbar: React.FC = () => {
             {/* Logo and Brand */}
             <div 
               onClick={() => handleNavClick('home', '/beranda')}
-              onMouseEnter={closeAllDropdowns}
+              onMouseEnter={handleDirectHover}
               className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group select-none shrink-0"
             >
               <div className="h-8 sm:h-9 w-auto flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
@@ -500,7 +436,7 @@ export const Navbar: React.FC = () => {
               {isHomeVisible && (
                 <button
                   onClick={() => handleNavClick('home', '/beranda')}
-                  onMouseEnter={closeAllDropdowns}
+                  onMouseEnter={handleDirectHover}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'home' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -521,7 +457,7 @@ export const Navbar: React.FC = () => {
                   <button
                     type="button"
                     onClick={(e) => toggleDropdown('profile', e)}
-                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    onTouchEnd={(e) => toggleDropdown('profile', e)}
                     aria-expanded={profileDropdownOpen}
                     aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
@@ -532,14 +468,14 @@ export const Navbar: React.FC = () => {
                   >
                     <span>Profil</span>
                     <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
-                      profileDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                      profileDropdownOpen ? 'rotate-180' : ''
                     }`} />
                   </button>
 
                   <div className={`absolute left-0 top-full pt-1.5 z-50 transition-all duration-150 ease-out ${
                     profileDropdownOpen
                       ? 'opacity-100 visible pointer-events-auto translate-y-0'
-                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1'
                   }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
@@ -620,7 +556,7 @@ export const Navbar: React.FC = () => {
               {isSopVisible && (
                 <button
                   onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
-                  onMouseEnter={closeAllDropdowns}
+                  onMouseEnter={handleDirectHover}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'sop-pelayanan' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -634,7 +570,7 @@ export const Navbar: React.FC = () => {
               {isSchoolsVisible && (
                 <button
                   onClick={() => handleNavClick('schools', '/sekolah')}
-                  onMouseEnter={closeAllDropdowns}
+                  onMouseEnter={handleDirectHover}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'schools' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -648,7 +584,7 @@ export const Navbar: React.FC = () => {
               {isKaryakuVisible && (
                 <button
                   onClick={() => handleNavClick('karyaku', '/karyaku')}
-                  onMouseEnter={closeAllDropdowns}
+                  onMouseEnter={handleDirectHover}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'karyaku' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -669,7 +605,7 @@ export const Navbar: React.FC = () => {
                   <button
                     type="button"
                     onClick={(e) => toggleDropdown('news', e)}
-                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    onTouchEnd={(e) => toggleDropdown('news', e)}
                     aria-expanded={newsDropdownOpen}
                     aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
@@ -680,14 +616,14 @@ export const Navbar: React.FC = () => {
                   >
                     <span>Berita</span>
                     <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
-                      newsDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                      newsDropdownOpen ? 'rotate-180' : ''
                     }`} />
                   </button>
 
                   <div className={`absolute left-0 top-full pt-1.5 z-50 transition-all duration-150 ease-out ${
                     newsDropdownOpen
                       ? 'opacity-100 visible pointer-events-auto translate-y-0'
-                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1'
                   }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
@@ -759,7 +695,7 @@ export const Navbar: React.FC = () => {
                   <button
                     type="button"
                     onClick={(e) => toggleDropdown('services', e)}
-                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    onTouchEnd={(e) => toggleDropdown('services', e)}
                     aria-expanded={servicesDropdownOpen}
                     aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
@@ -770,14 +706,14 @@ export const Navbar: React.FC = () => {
                   >
                     <span>Layanan</span>
                     <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
-                      servicesDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                      servicesDropdownOpen ? 'rotate-180' : ''
                     }`} />
                   </button>
 
                   <div className={`absolute left-0 top-full pt-1.5 max-w-[calc(100vw-24px)] z-50 transition-all duration-150 ease-out ${
                     servicesDropdownOpen
                       ? 'opacity-100 visible pointer-events-auto translate-y-0'
-                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1'
                   }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
@@ -880,7 +816,7 @@ export const Navbar: React.FC = () => {
               {isGalleryVisible && (
                 <button
                   onClick={() => handleNavClick('gallery', '/galeri')}
-                  onMouseEnter={closeAllDropdowns}
+                  onMouseEnter={handleDirectHover}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'gallery' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -901,7 +837,7 @@ export const Navbar: React.FC = () => {
                   <button
                     type="button"
                     onClick={(e) => toggleDropdown('contact', e)}
-                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    onTouchEnd={(e) => toggleDropdown('contact', e)}
                     aria-expanded={contactDropdownOpen}
                     aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
@@ -912,14 +848,14 @@ export const Navbar: React.FC = () => {
                   >
                     <span>Kontak</span>
                     <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
-                      contactDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                      contactDropdownOpen ? 'rotate-180' : ''
                     }`} />
                   </button>
 
                   <div className={`absolute right-0 top-full pt-1.5 z-50 transition-all duration-150 ease-out ${
                     contactDropdownOpen
                       ? 'opacity-100 visible pointer-events-auto translate-y-0'
-                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1'
                   }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
