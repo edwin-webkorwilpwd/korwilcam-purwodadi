@@ -91,6 +91,7 @@ export const Navbar: React.FC = () => {
   const profileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contactTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTouchTimeRef = useRef<number>(0);
 
   const closeAllDropdowns = () => {
     if (servicesTimeoutRef.current) {
@@ -115,7 +116,79 @@ export const Navbar: React.FC = () => {
     setContactDropdownOpen(false);
   };
 
+  const toggleDropdown = (
+    menu: 'profile' | 'services' | 'news' | 'contact',
+    e?: React.MouseEvent | React.TouchEvent
+  ) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (servicesTimeoutRef.current) {
+      clearTimeout(servicesTimeoutRef.current);
+      servicesTimeoutRef.current = null;
+    }
+    if (profileTimeoutRef.current) {
+      clearTimeout(profileTimeoutRef.current);
+      profileTimeoutRef.current = null;
+    }
+    if (newsTimeoutRef.current) {
+      clearTimeout(newsTimeoutRef.current);
+      newsTimeoutRef.current = null;
+    }
+    if (contactTimeoutRef.current) {
+      clearTimeout(contactTimeoutRef.current);
+      contactTimeoutRef.current = null;
+    }
+
+    if (menu === 'profile') {
+      const next = !profileDropdownOpen;
+      setProfileDropdownOpen(next);
+      setServicesDropdownOpen(false);
+      setNewsDropdownOpen(false);
+      setContactDropdownOpen(false);
+      if (next) {
+        try {
+          import('../pages/OrganizationPage');
+          import('../pages/NominativePage');
+        } catch {}
+      }
+    } else if (menu === 'services') {
+      const next = !servicesDropdownOpen;
+      setServicesDropdownOpen(next);
+      setProfileDropdownOpen(false);
+      setNewsDropdownOpen(false);
+      setContactDropdownOpen(false);
+      if (next && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('preload-webviews'));
+      }
+    } else if (menu === 'news') {
+      const next = !newsDropdownOpen;
+      setNewsDropdownOpen(next);
+      setProfileDropdownOpen(false);
+      setServicesDropdownOpen(false);
+      setContactDropdownOpen(false);
+      if (next) {
+        try {
+          import('../pages/NewsPage');
+        } catch {}
+      }
+    } else if (menu === 'contact') {
+      const next = !contactDropdownOpen;
+      setContactDropdownOpen(next);
+      setProfileDropdownOpen(false);
+      setServicesDropdownOpen(false);
+      setNewsDropdownOpen(false);
+      if (next) {
+        try {
+          import('../pages/ContactPage');
+          import('../pages/SocialMediaPage');
+        } catch {}
+      }
+    }
+  };
+
   const handleHeaderLeave = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     handleProfileLeave();
     handleServicesLeave();
     handleNewsLeave();
@@ -123,6 +196,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleServicesEnter = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (servicesTimeoutRef.current) {
       clearTimeout(servicesTimeoutRef.current);
       servicesTimeoutRef.current = null;
@@ -135,8 +209,13 @@ export const Navbar: React.FC = () => {
       clearTimeout(newsTimeoutRef.current);
       newsTimeoutRef.current = null;
     }
+    if (contactTimeoutRef.current) {
+      clearTimeout(contactTimeoutRef.current);
+      contactTimeoutRef.current = null;
+    }
     setProfileDropdownOpen(false);
     setNewsDropdownOpen(false);
+    setContactDropdownOpen(false);
     setServicesDropdownOpen(true);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('preload-webviews'));
@@ -144,6 +223,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleServicesLeave = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
     servicesTimeoutRef.current = setTimeout(() => {
       setServicesDropdownOpen(false);
@@ -151,6 +231,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleProfileEnter = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (profileTimeoutRef.current) {
       clearTimeout(profileTimeoutRef.current);
       profileTimeoutRef.current = null;
@@ -163,8 +244,13 @@ export const Navbar: React.FC = () => {
       clearTimeout(newsTimeoutRef.current);
       newsTimeoutRef.current = null;
     }
+    if (contactTimeoutRef.current) {
+      clearTimeout(contactTimeoutRef.current);
+      contactTimeoutRef.current = null;
+    }
     setServicesDropdownOpen(false);
     setNewsDropdownOpen(false);
+    setContactDropdownOpen(false);
     setProfileDropdownOpen(true);
     try {
       import('../pages/OrganizationPage');
@@ -173,6 +259,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleProfileLeave = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
     profileTimeoutRef.current = setTimeout(() => {
       setProfileDropdownOpen(false);
@@ -180,6 +267,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleNewsEnter = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (newsTimeoutRef.current) {
       clearTimeout(newsTimeoutRef.current);
       newsTimeoutRef.current = null;
@@ -192,8 +280,13 @@ export const Navbar: React.FC = () => {
       clearTimeout(servicesTimeoutRef.current);
       servicesTimeoutRef.current = null;
     }
+    if (contactTimeoutRef.current) {
+      clearTimeout(contactTimeoutRef.current);
+      contactTimeoutRef.current = null;
+    }
     setProfileDropdownOpen(false);
     setServicesDropdownOpen(false);
+    setContactDropdownOpen(false);
     setNewsDropdownOpen(true);
     try {
       import('../pages/NewsPage');
@@ -201,6 +294,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleNewsLeave = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
     newsTimeoutRef.current = setTimeout(() => {
       setNewsDropdownOpen(false);
@@ -208,6 +302,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleContactEnter = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (contactTimeoutRef.current) {
       clearTimeout(contactTimeoutRef.current);
       contactTimeoutRef.current = null;
@@ -235,6 +330,7 @@ export const Navbar: React.FC = () => {
   };
 
   const handleContactLeave = () => {
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     if (contactTimeoutRef.current) clearTimeout(contactTimeoutRef.current);
     contactTimeoutRef.current = setTimeout(() => {
       setContactDropdownOpen(false);
@@ -262,17 +358,16 @@ export const Navbar: React.FC = () => {
   const navbarRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (navbarRef.current && !navbarRef.current.contains(event.target as Node)) {
-        setProfileDropdownOpen(false);
-        setServicesDropdownOpen(false);
-        setNewsDropdownOpen(false);
-        setContactDropdownOpen(false);
+        closeAllDropdowns();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
       if (servicesTimeoutRef.current) clearTimeout(servicesTimeoutRef.current);
       if (profileTimeoutRef.current) clearTimeout(profileTimeoutRef.current);
       if (newsTimeoutRef.current) clearTimeout(newsTimeoutRef.current);
@@ -405,6 +500,7 @@ export const Navbar: React.FC = () => {
               {isHomeVisible && (
                 <button
                   onClick={() => handleNavClick('home', '/beranda')}
+                  onMouseEnter={closeAllDropdowns}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'home' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -419,26 +515,32 @@ export const Navbar: React.FC = () => {
               {isProfileVisible && (
                 <div 
                   className="relative group"
-                  onMouseEnter={() => {
-                    try {
-                      import('../pages/OrganizationPage');
-                      import('../pages/NominativePage');
-                    } catch {}
-                  }}
+                  onMouseEnter={handleProfileEnter}
+                  onMouseLeave={handleProfileLeave}
                 >
                   <button
                     type="button"
+                    onClick={(e) => toggleDropdown('profile', e)}
+                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    aria-expanded={profileDropdownOpen}
+                    aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                      activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization' || activeTab === 'purna-tugas'
+                      profileDropdownOpen || activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization' || activeTab === 'purna-tugas'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Profil</span>
-                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
+                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
+                      profileDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                    }`} />
                   </button>
 
-                  <div className="absolute left-0 top-full pt-1.5 z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                  <div className={`absolute left-0 top-full pt-1.5 z-50 transition-all duration-150 ease-out ${
+                    profileDropdownOpen
+                      ? 'opacity-100 visible pointer-events-auto translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                  }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
@@ -518,6 +620,7 @@ export const Navbar: React.FC = () => {
               {isSopVisible && (
                 <button
                   onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
+                  onMouseEnter={closeAllDropdowns}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'sop-pelayanan' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -531,6 +634,7 @@ export const Navbar: React.FC = () => {
               {isSchoolsVisible && (
                 <button
                   onClick={() => handleNavClick('schools', '/sekolah')}
+                  onMouseEnter={closeAllDropdowns}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'schools' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -544,6 +648,7 @@ export const Navbar: React.FC = () => {
               {isKaryakuVisible && (
                 <button
                   onClick={() => handleNavClick('karyaku', '/karyaku')}
+                  onMouseEnter={closeAllDropdowns}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'karyaku' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -558,25 +663,32 @@ export const Navbar: React.FC = () => {
               {isNewsVisible && (
                 <div 
                   className="relative group"
-                  onMouseEnter={() => {
-                    try {
-                      import('../pages/NewsPage');
-                    } catch {}
-                  }}
+                  onMouseEnter={handleNewsEnter}
+                  onMouseLeave={handleNewsLeave}
                 >
                   <button
                     type="button"
+                    onClick={(e) => toggleDropdown('news', e)}
+                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    aria-expanded={newsDropdownOpen}
+                    aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                      activeTab === 'news' || activeTab === 'achievements'
+                      newsDropdownOpen || activeTab === 'news' || activeTab === 'achievements'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Berita</span>
-                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
+                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
+                      newsDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                    }`} />
                   </button>
 
-                  <div className="absolute left-0 top-full pt-1.5 z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                  <div className={`absolute left-0 top-full pt-1.5 z-50 transition-all duration-150 ease-out ${
+                    newsDropdownOpen
+                      ? 'opacity-100 visible pointer-events-auto translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                  }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
@@ -641,25 +753,32 @@ export const Navbar: React.FC = () => {
               {isServicesVisible && (
                 <div 
                   className="relative group"
-                  onMouseEnter={() => {
-                    if (typeof window !== 'undefined') {
-                      window.dispatchEvent(new CustomEvent('preload-webviews'));
-                    }
-                  }}
+                  onMouseEnter={handleServicesEnter}
+                  onMouseLeave={handleServicesLeave}
                 >
                   <button
                     type="button"
+                    onClick={(e) => toggleDropdown('services', e)}
+                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    aria-expanded={servicesDropdownOpen}
+                    aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                      activeTab === 'downloads' || activeTab.startsWith('service-')
+                      servicesDropdownOpen || activeTab === 'downloads' || activeTab.startsWith('service-')
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Layanan</span>
-                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
+                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
+                      servicesDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                    }`} />
                   </button>
 
-                  <div className="absolute left-0 top-full pt-1.5 max-w-[calc(100vw-24px)] z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                  <div className={`absolute left-0 top-full pt-1.5 max-w-[calc(100vw-24px)] z-50 transition-all duration-150 ease-out ${
+                    servicesDropdownOpen
+                      ? 'opacity-100 visible pointer-events-auto translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                  }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
@@ -761,6 +880,7 @@ export const Navbar: React.FC = () => {
               {isGalleryVisible && (
                 <button
                   onClick={() => handleNavClick('gallery', '/galeri')}
+                  onMouseEnter={closeAllDropdowns}
                   className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'gallery' 
                       ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
@@ -775,26 +895,32 @@ export const Navbar: React.FC = () => {
               {isContactVisible && (
                 <div 
                   className="relative group"
-                  onMouseEnter={() => {
-                    try {
-                      import('../pages/ContactPage');
-                      import('../pages/SocialMediaPage');
-                    } catch {}
-                  }}
+                  onMouseEnter={handleContactEnter}
+                  onMouseLeave={handleContactLeave}
                 >
                   <button
                     type="button"
+                    onClick={(e) => toggleDropdown('contact', e)}
+                    onTouchStart={() => { lastTouchTimeRef.current = Date.now(); }}
+                    aria-expanded={contactDropdownOpen}
+                    aria-haspopup="true"
                     className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                      activeTab === 'contact' || activeTab === 'social-media'
+                      contactDropdownOpen || activeTab === 'contact' || activeTab === 'social-media'
                         ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
                         : 'text-white/90 hover:text-white hover:bg-white/15'
                     }`}
                   >
                     <span>Kontak</span>
-                    <ChevronDown className="w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 group-hover:rotate-180" />
+                    <ChevronDown className={`w-3.5 h-3.5 xl:w-4 xl:h-4 transition-transform duration-200 ${
+                      contactDropdownOpen ? 'rotate-180' : 'group-hover:rotate-180'
+                    }`} />
                   </button>
 
-                  <div className="absolute right-0 top-full pt-1.5 z-50 opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-150 ease-out">
+                  <div className={`absolute right-0 top-full pt-1.5 z-50 transition-all duration-150 ease-out ${
+                    contactDropdownOpen
+                      ? 'opacity-100 visible pointer-events-auto translate-y-0'
+                      : 'opacity-0 invisible pointer-events-none -translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                  }`}>
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
