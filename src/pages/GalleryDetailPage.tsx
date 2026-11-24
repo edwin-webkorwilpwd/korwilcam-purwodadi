@@ -13,7 +13,8 @@ import {
   Check, 
   ExternalLink,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { GalleryItem } from '../types';
 import { getGallerySlug } from '../lib/galleryHelper';
@@ -25,7 +26,8 @@ import {
   getGoogleDriveFolderViewUrl,
   getGoogleDriveEmbeddedFolderUrl,
   extractGalleryMetadata,
-  fetchLiveGoogleDriveFolderPhotos
+  fetchLiveGoogleDriveFolderPhotos,
+  extractGoogleDriveId
 } from '../lib/driveHelper';
 import { syncPublicFolderToSheetInBackground } from '../services/publicGallerySheetService';
 import { initialGallery } from '../data/initialData';
@@ -44,6 +46,7 @@ export const GalleryDetailPage: React.FC = () => {
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [livePhotos, setLivePhotos] = useState<string[] | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   // Scroll to top when gallery detail opens
   useEffect(() => {
@@ -293,24 +296,122 @@ export const GalleryDetailPage: React.FC = () => {
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  const handleDownloadPhoto = (photoUrl: string, index: number) => {
-    const link = document.createElement('a');
-    link.href = photoUrl;
-    const cleanTitle = selectedGallery.title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/--+/g, '-');
-    link.download = `${cleanTitle}-foto-${index + 1}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast(`Mengunduh foto ${index + 1}...`, 'info');
-  };
+  const handleDownloadPhoto = async (photoUrl: string, index: number) => {
+    if (!photoUrl || isDownloading) return;
 
-  const handleDownloadAllPhotos = () => {
-    albumPhotos.forEach((photoUrl, idx) => {
-      setTimeout(() => {
-        handleDownloadPhoto(photoUrl, idx);
-      }, idx * 350);
-    });
-    showToast(`Memulai unduhan seluruh ${totalPhotos} foto dalam album...`, 'info');
+    const cleanTitle = (selectedGallery.title || 'foto-galeri')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/--+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const filename = `${cleanTitle}-foto-${index + 1}.jpg`;
+
+    setIsDownloading(true);
+    showToast(`Memulai pengunduhan foto ${index + 1}...`, 'info');
+
+    // TIER 1: Fetch langsung sebagai Blob (CORS Google lh3 mendukung Access-Control-Allow-Origin: *)
+    // Menggunakan blob: URL menjamin browser mengeksekusi download otomatis tanpa pernah membuka tab baru
+    try {
+      const res = await fetch(photoUrl, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.style.display = 'none';
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+        showToast(`Foto ${index + 1} berhasil diunduh!`, 'success');
+        setIsDownloading(false);
+        return;
+      }
+    } catch (blobErr) {
+      console.warn('Gagal unduh langsung via blob, mencoba endpoint proxy:', blobErr);
+    }
+
+    // TIER 2: Gunakan endpoint Same-Origin Proxy (/api/download-document)
+    const driveId = extractGoogleDriveId(photoUrl);
+    if (driveId) {
+      try {
+        const proxyUrl = `/api/download-document?id=${encodeURIComponent(driveId)}&filename=${encodeURIComponent(filename)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.style.display = 'none';
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+          showToast(`Foto ${index + 1} berhasil diunduh!`, 'success');
+          setIsDownloading(false);
+          return;
+        }
+      } catch (proxyErr) {
+        console.warn('Gagal unduh via proxy internal:', proxyErr);
+      }
+    }
+
+    // TIER 3: Fallback hidden iframe Google Drive direct attachment download
+    if (driveId) {
+      try {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(driveId)}&export=download`;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          try { document.body.removeChild(iframe); } catch {}
+        }, 6000);
+        showToast(`Mengunduh foto ${index + 1}...`, 'success');
+        setIsDownloading(false);
+        return;
+      } catch (iframeErr) {
+        console.warn('Gagal unduh via hidden iframe:', iframeErr);
+      }
+    }
+
+    // TIER 4: Fallback terakhir canvas toBlob jika foto sudah ter-render di browser
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((b) => {
+            if (b) {
+              const bUrl = URL.createObjectURL(b);
+              const a = document.createElement('a');
+              a.style.display = 'none';
+              a.href = bUrl;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(bUrl), 1500);
+              showToast(`Foto ${index + 1} berhasil diunduh!`, 'success');
+            }
+          }, 'image/jpeg', 0.95);
+        }
+      };
+      img.src = photoUrl;
+    } catch {}
+
+    setIsDownloading(false);
   };
 
   // Other albums for recommendations (diacak secara dinamis)
@@ -381,18 +482,6 @@ export const GalleryDetailPage: React.FC = () => {
               {cleanDescription}
             </p>
           )}
-
-          {totalPhotos > 1 && (
-            <div className="pt-2 flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleDownloadAllPhotos}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
-              >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>Unduh Seluruh {totalPhotos} Foto (Batch)</span>
-              </button>
-            </div>
-          )}
         </div>
 
         {/* SECTION 1: SLIDE SHOW FOTO DOKUMENTASI KEGIATAN UTAMA */}
@@ -434,11 +523,21 @@ export const GalleryDetailPage: React.FC = () => {
 
                 <button
                   onClick={() => handleDownloadPhoto(currentPhoto, activePhotoIndex)}
-                  className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all hover:scale-105"
+                  disabled={isDownloading}
+                  className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Unduh foto yang sedang ditampilkan"
                 >
-                  <Download className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden sm:inline">Unduh Foto</span>
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                      <span className="hidden sm:inline">Mengunduh...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 text-emerald-400" />
+                      <span className="hidden sm:inline">Unduh Foto</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -584,11 +683,21 @@ export const GalleryDetailPage: React.FC = () => {
             <div className="flex items-center gap-3 shrink-0">
               <button
                 onClick={() => handleDownloadPhoto(currentPhoto, activePhotoIndex)}
-                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                disabled={isDownloading}
+                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Unduh foto ini"
               >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span className="hidden sm:inline">Unduh</span>
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                    <span className="hidden sm:inline">Mengunduh...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 text-emerald-400" />
+                    <span className="hidden sm:inline">Unduh</span>
+                  </>
+                )}
               </button>
 
               <button

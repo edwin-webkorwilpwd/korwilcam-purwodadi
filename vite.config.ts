@@ -133,6 +133,10 @@ function documentDownloadPlugin(): Plugin {
         const cleanFilename = (rawFilename || 'Dokumen_Korwilcam_Purwodadi.pdf').replace(/[/\\?%*:|"<>]/g, ' ').trim();
         const ext = cleanFilename.split('.').pop()?.toLowerCase() || 'pdf';
         const mimeTypes: Record<string, string> = {
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+          webp: 'image/webp',
           pdf: 'application/pdf',
           docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           doc: 'application/msword',
