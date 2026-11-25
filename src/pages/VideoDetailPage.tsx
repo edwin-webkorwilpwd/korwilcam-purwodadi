@@ -66,6 +66,7 @@ export const VideoDetailPage: React.FC = () => {
     const q = searchQuery.trim();
     if (!q) return;
     setIsDropdownOpen(false);
+    try { sessionStorage.setItem('korwilcam_video_search_query', q); } catch {}
     setSelectedVideo(null);
     setGalleryActiveTab('video');
     setActiveTab('gallery', `/galeri?tab=video&q=${encodeURIComponent(q)}`);
@@ -252,9 +253,23 @@ export const VideoDetailPage: React.FC = () => {
   }, [isFullscreen]);
 
   const handleBackToGallery = () => {
-    setSelectedVideo(null);
-    setGalleryActiveTab('video');
-    setActiveTab('gallery', '/galeri?tab=video');
+    const savedQuery = typeof window !== 'undefined' ? sessionStorage.getItem('korwilcam_video_search_query') : '';
+    const targetPath = savedQuery && savedQuery.trim()
+      ? `/galeri?tab=video&q=${encodeURIComponent(savedQuery.trim())}`
+      : '/galeri?tab=video';
+
+    if (
+      typeof window !== 'undefined' &&
+      window.history.length > 1 &&
+      (window.history.state?.fromGallery || sessionStorage.getItem('korwilcam_from_gallery_video') === 'true')
+    ) {
+      sessionStorage.removeItem('korwilcam_from_gallery_video');
+      window.history.back();
+    } else {
+      setSelectedVideo(null);
+      setGalleryActiveTab('video');
+      setActiveTab('gallery', targetPath);
+    }
   };
 
   // Scroll to top when video detail opens

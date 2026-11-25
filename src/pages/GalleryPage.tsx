@@ -44,12 +44,28 @@ export const GalleryPage: React.FC = () => {
   // State tab utama galeri: bersumber dari AppContext (sinkron saat kembali dari detail video)
   const activeGalleryType = galleryActiveTab;
 
-  const [photoSearchQuery, setPhotoSearchQuery] = useState<string>('');
+  const [photoSearchQuery, setPhotoSearchQuery] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlPq = params.get('pq');
+      if (urlPq && urlPq.trim()) return urlPq.trim();
+      try {
+        const saved = sessionStorage.getItem('korwilcam_photo_search_query');
+        if (saved && saved.trim()) return saved.trim();
+      } catch {}
+    }
+    return '';
+  });
   const [isPhotosLoading, setIsPhotosLoading] = useState<boolean>(false);
   const [videoSearchQuery, setVideoSearchQuery] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      return params.get('q') || '';
+      const urlQ = params.get('q');
+      if (urlQ && urlQ.trim()) return urlQ.trim();
+      try {
+        const saved = sessionStorage.getItem('korwilcam_video_search_query');
+        if (saved && saved.trim()) return saved.trim();
+      } catch {}
     }
     return '';
   });
@@ -71,11 +87,76 @@ export const GalleryPage: React.FC = () => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlQ = params.get('q');
-      if (urlQ) {
-        setVideoSearchQuery(urlQ);
+      if (urlQ && urlQ.trim()) {
+        setVideoSearchQuery(urlQ.trim());
+        try { sessionStorage.setItem('korwilcam_video_search_query', urlQ.trim()); } catch {}
+      } else if (galleryActiveTab === 'video') {
+        try {
+          const saved = sessionStorage.getItem('korwilcam_video_search_query');
+          if (saved && saved.trim()) {
+            setVideoSearchQuery(saved.trim());
+            const url = new URL(window.location.href);
+            if (url.searchParams.get('q') !== saved.trim()) {
+              url.searchParams.set('tab', 'video');
+              url.searchParams.set('q', saved.trim());
+              window.history.replaceState({ ...window.history.state, path: url.pathname + url.search }, '', url.toString());
+            }
+          }
+        } catch {}
+      }
+
+      const urlPq = params.get('pq');
+      if (urlPq && urlPq.trim()) {
+        setPhotoSearchQuery(urlPq.trim());
+        try { sessionStorage.setItem('korwilcam_photo_search_query', urlPq.trim()); } catch {}
       }
     }
   }, [galleryActiveTab]);
+
+  // Sinkronkan videoSearchQuery ke URL parameter & sessionStorage secara realtime
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const trimmed = videoSearchQuery.trim();
+      const url = new URL(window.location.href);
+      if (trimmed) {
+        sessionStorage.setItem('korwilcam_video_search_query', trimmed);
+        if (activeGalleryType === 'video' && url.searchParams.get('q') !== trimmed) {
+          url.searchParams.set('tab', 'video');
+          url.searchParams.set('q', trimmed);
+          window.history.replaceState({ ...window.history.state, path: url.pathname + url.search }, '', url.toString());
+        }
+      } else {
+        sessionStorage.removeItem('korwilcam_video_search_query');
+        if (url.searchParams.has('q')) {
+          url.searchParams.delete('q');
+          window.history.replaceState({ ...window.history.state, path: url.pathname + url.search }, '', url.toString());
+        }
+      }
+    } catch {}
+  }, [videoSearchQuery, activeGalleryType]);
+
+  // Sinkronkan photoSearchQuery ke URL parameter & sessionStorage secara realtime
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const trimmed = photoSearchQuery.trim();
+      const url = new URL(window.location.href);
+      if (trimmed) {
+        sessionStorage.setItem('korwilcam_photo_search_query', trimmed);
+        if (activeGalleryType === 'photo' && url.searchParams.get('pq') !== trimmed) {
+          url.searchParams.set('pq', trimmed);
+          window.history.replaceState({ ...window.history.state, path: url.pathname + url.search }, '', url.toString());
+        }
+      } else {
+        sessionStorage.removeItem('korwilcam_photo_search_query');
+        if (url.searchParams.has('pq')) {
+          url.searchParams.delete('pq');
+          window.history.replaceState({ ...window.history.state, path: url.pathname + url.search }, '', url.toString());
+        }
+      }
+    } catch {}
+  }, [photoSearchQuery, activeGalleryType]);
 
   // Reset pagination ke halaman 1 jika kata kunci pencarian video berubah
   useEffect(() => {
@@ -90,6 +171,29 @@ export const GalleryPage: React.FC = () => {
   // Sinkronisasi tab foto / video tanpa mengacak ulang kartu
   const handleSwitchTab = (tab: 'photo' | 'video') => {
     setGalleryActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        if (tab === 'video') {
+          url.searchParams.set('tab', 'video');
+          url.searchParams.delete('pq');
+          const savedVideoQ = sessionStorage.getItem('korwilcam_video_search_query');
+          if (savedVideoQ && savedVideoQ.trim()) {
+            url.searchParams.set('q', savedVideoQ.trim());
+            setVideoSearchQuery(savedVideoQ.trim());
+          }
+        } else {
+          url.searchParams.delete('tab');
+          url.searchParams.delete('q');
+          const savedPhotoQ = sessionStorage.getItem('korwilcam_photo_search_query');
+          if (savedPhotoQ && savedPhotoQ.trim()) {
+            url.searchParams.set('pq', savedPhotoQ.trim());
+            setPhotoSearchQuery(savedPhotoQ.trim());
+          }
+        }
+        window.history.replaceState({ ...window.history.state, path: url.pathname + url.search }, '', url.toString());
+      } catch {}
+    }
   };
 
   // Segarkan data dan acak ulang kartu foto secara senyap tanpa popup saat tombol diklik
@@ -219,11 +323,27 @@ export const GalleryPage: React.FC = () => {
 
   const handleOpenAlbum = (item: GalleryItem, e: React.MouseEvent) => {
     e.preventDefault();
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('korwilcam_from_gallery_photo', 'true');
+        if (photoSearchQuery.trim()) {
+          sessionStorage.setItem('korwilcam_photo_search_query', photoSearchQuery.trim());
+        }
+      } catch {}
+    }
     setSelectedGallery(item);
   };
 
   const handleOpenVideo = (item: GalleryVideoItem, e: React.MouseEvent) => {
     e.preventDefault();
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('korwilcam_from_gallery_video', 'true');
+        if (videoSearchQuery.trim()) {
+          sessionStorage.setItem('korwilcam_video_search_query', videoSearchQuery.trim());
+        }
+      } catch {}
+    }
     setSelectedVideo(item);
   };
 

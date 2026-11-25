@@ -433,8 +433,22 @@ export const GalleryDetailPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           <button
             onClick={() => {
-              setSelectedGallery(null);
-              setActiveTab('gallery', '/galeri');
+              const savedPhotoQ = typeof window !== 'undefined' ? sessionStorage.getItem('korwilcam_photo_search_query') : '';
+              const targetPath = savedPhotoQ && savedPhotoQ.trim()
+                ? `/galeri?pq=${encodeURIComponent(savedPhotoQ.trim())}`
+                : '/galeri';
+
+              if (
+                typeof window !== 'undefined' &&
+                window.history.length > 1 &&
+                (window.history.state?.fromGalleryPhoto || sessionStorage.getItem('korwilcam_from_gallery_photo') === 'true')
+              ) {
+                sessionStorage.removeItem('korwilcam_from_gallery_photo');
+                window.history.back();
+              } else {
+                setSelectedGallery(null);
+                setActiveTab('gallery', targetPath);
+              }
             }}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all group"
           >

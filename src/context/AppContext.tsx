@@ -2723,7 +2723,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const slug = video.slug || generateVideoSlug(video.title, video.id, video.schoolName);
       const newPath = customPath || `/galeri/video/${encodeURIComponent(slug)}`;
       if (typeof window !== 'undefined' && window.location.pathname !== newPath) {
-        window.history.pushState({ videoSlug: slug, path: newPath }, '', newPath);
+        window.history.pushState({ videoSlug: slug, path: newPath, fromGallery: true }, '', newPath);
       }
       document.title = `${video.title} - Video Kegiatan Korwilcam Purwodadi`;
       if (typeof window !== 'undefined') {
@@ -2734,7 +2734,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         sessionStorage.setItem('korwilcam_gallery_tab', 'video');
       } catch {}
-      const returnPath = '/galeri?tab=video';
+      const savedQuery = typeof window !== 'undefined' ? sessionStorage.getItem('korwilcam_video_search_query') : '';
+      const returnPath = savedQuery && savedQuery.trim()
+        ? `/galeri?tab=video&q=${encodeURIComponent(savedQuery.trim())}`
+        : '/galeri?tab=video';
       if (typeof window !== 'undefined') {
         if (window.location.pathname.startsWith('/galeri/video/') || window.location.pathname === '/galeri') {
           window.history.pushState({ tab: 'gallery', galleryTab: 'video', path: returnPath }, '', returnPath);
@@ -3843,6 +3846,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } else if (params.get('tab') === 'photo') {
             setGalleryActiveTabState('photo');
             try { sessionStorage.setItem('korwilcam_gallery_tab', 'photo'); } catch {}
+          }
+          const qParam = params.get('q');
+          if (qParam && qParam.trim()) {
+            try { sessionStorage.setItem('korwilcam_video_search_query', qParam.trim()); } catch {}
           }
         }
         document.title = TAB_ROUTES['gallery'].title;
