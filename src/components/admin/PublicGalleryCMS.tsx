@@ -100,7 +100,7 @@ export const PublicGalleryCMS: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (item: PublicGallerySubmission, newStatus: 'Disetujui' | 'Ditolak') => {
+  const handleUpdateStatus = async (item: PublicGallerySubmission, newStatus: 'Pending' | 'Disetujui' | 'Ditolak') => {
     setUpdatingId(item.id);
     try {
       const success = await updatePublicGalleryStatus(item, newStatus);
@@ -108,7 +108,9 @@ export const PublicGalleryCMS: React.FC = () => {
         showToast(
           newStatus === 'Disetujui' 
             ? `Dokumentasi "${item.title}" disetujui dan kini tampil di website!`
-            : `Dokumentasi "${item.title}" ditolak.`,
+            : newStatus === 'Ditolak'
+            ? `Dokumentasi "${item.title}" ditolak.`
+            : `Dokumentasi "${item.title}" dikembalikan ke status Perlu Disetujui.`,
           'success'
         );
       } else {
@@ -534,7 +536,7 @@ export const PublicGalleryCMS: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Tombol Aksi Moderasi (Setujui / Tolak) */}
+                {/* Tombol Aksi Moderasi (Setujui / Tolak / Kembalikan ke Pending) */}
                 <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
                   {item.status !== 'Disetujui' && (
                     <button
@@ -559,6 +561,19 @@ export const PublicGalleryCMS: React.FC = () => {
                     >
                       <XCircle className="w-3.5 h-3.5 text-rose-600" />
                       <span>{isUpdating ? 'Menyimpan...' : 'Tolak'}</span>
+                    </button>
+                  )}
+
+                  {item.status !== 'Pending' && (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateStatus(item, 'Pending')}
+                      disabled={isUpdating}
+                      className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 active:scale-95 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                      title="Kembalikan status ke Perlu Disetujui"
+                    >
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="hidden sm:inline text-[11px]">Pending</span>
                     </button>
                   )}
                 </div>

@@ -11,6 +11,7 @@ export const PUBLIC_GALLERY_SPREADSHEET_URL = `https://docs.google.com/spreadshe
 export const PUBLIC_GALLERY_CACHE_KEY = 'korwilcam_public_gallery_cache_v1';
 export const PUBLIC_GALLERY_CACHE_TIMESTAMP_KEY = 'korwilcam_public_gallery_last_fetch_v1';
 export const PUBLIC_GALLERY_CACHE_TTL_MS = 60 * 1000; // 1 Menit Cache TTL
+export const PUBLIC_GALLERY_OVERRIDES_KEY = 'korwilcam_public_gallery_overrides_v1';
 
 export const PUBLIC_GALLERY_WEBAPP_STORAGE_KEY = 'korwilcam_public_gallery_gas_url';
 
@@ -114,13 +115,101 @@ export function setPublicGalleryWebAppUrl(url: string): void {
   } catch {}
 }
 
+export interface PublicGalleryStatusOverride {
+  status: 'Pending' | 'Disetujui' | 'Ditolak';
+  updatedAt: number;
+  driveFolderUrl?: string;
+  title?: string;
+  timestamp?: string;
+  rowIndex?: number;
+}
+
+/**
+ * Mengambil daftar override status persetujuan yang tersimpan di localStorage
+ */
+export function getPublicGalleryStatusOverrides(): Record<string, PublicGalleryStatusOverride> {
+  try {
+    const raw = localStorage.getItem(PUBLIC_GALLERY_OVERRIDES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    }
+  } catch {}
+  return {};
+}
+
+/**
+ * Menyimpan override status persetujuan ke localStorage secara permanen
+ * Mencegah delay cache Google Sheets CDN mengembalikan status ke 'Pending'
+ */
+export function savePublicGalleryStatusOverride(
+  submission: { id?: string; driveFolderUrl?: string; title?: string; timestamp?: string; rowIndex?: number },
+  newStatus: 'Pending' | 'Disetujui' | 'Ditolak'
+): void {
+  try {
+    const overrides = getPublicGalleryStatusOverrides();
+    const entry: PublicGalleryStatusOverride = {
+      status: newStatus,
+      updatedAt: Date.now(),
+      driveFolderUrl: submission.driveFolderUrl,
+      title: submission.title,
+      timestamp: submission.timestamp,
+      rowIndex: submission.rowIndex
+    };
+
+    if (submission.id) {
+      overrides[submission.id] = entry;
+    }
+    const folderId = extractGoogleDriveFolderId(submission.driveFolderUrl || '');
+    if (folderId) {
+      overrides[`folder_${folderId}`] = entry;
+    }
+    if (submission.timestamp && submission.title) {
+      overrides[`ts_${submission.timestamp}_${submission.title}`] = entry;
+    }
+
+    localStorage.setItem(PUBLIC_GALLERY_OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch {}
+}
+
+/**
+ * Mencari apakah ada override status tersimpan untuk item pengajuan tertentu
+ */
+export function findStatusOverride(
+  item: { id?: string; driveFolderUrl?: string; timestamp?: string; title?: string }
+): PublicGalleryStatusOverride | null {
+  try {
+    const overrides = getPublicGalleryStatusOverrides();
+    if (item.id && overrides[item.id]) {
+      return overrides[item.id];
+    }
+    const folderId = extractGoogleDriveFolderId(item.driveFolderUrl || '');
+    if (folderId && overrides[`folder_${folderId}`]) {
+      return overrides[`folder_${folderId}`];
+    }
+    if (item.timestamp && item.title && overrides[`ts_${item.timestamp}_${item.title}`]) {
+      return overrides[`ts_${item.timestamp}_${item.title}`];
+    }
+  } catch {}
+  return null;
+}
+
 export function getLocalPublicGalleryCache(): PublicGallerySubmission[] {
   try {
     const raw = localStorage.getItem(PUBLIC_GALLERY_CACHE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        // Terapkan override status agar selalu sinkron seketika
+        return parsed.map((item) => {
+          const override = findStatusOverride(item);
+          if (override && override.status) {
+            return { ...item, status: override.status };
+          }
+          return item;
+        });
       }
     }
   } catch {}
@@ -241,7 +330,7 @@ export async function fetchPublicGallerySubmissions(forceRefresh = false): Promi
       images = [coverImage, ...images];
     }
 
-    items.push({
+    const subItem: PublicGallerySubmission = {
       id: `pub-sub-${i}-${timestamp.replace(/[^0-9]/g, '')}`,
       rowIndex: i + 1, // 1-based row index in spreadsheet
       timestamp,
@@ -254,7 +343,15 @@ export async function fetchPublicGallerySubmissions(forceRefresh = false): Promi
       status,
       coverImage: coverImage.startsWith('http') ? coverImage : undefined,
       images: images.length > 0 ? images : undefined
-    });
+    };
+
+    // Sinkronkan dengan override status lokal agar data tidak tertimpa cache edge Google Sheets
+    const override = findStatusOverride(subItem);
+    if (override && override.status) {
+      subItem.status = override.status;
+    }
+
+    items.push(subItem);
   }
 
   // Urutkan pengajuan terbaru di posisi paling atas
@@ -365,11 +462,11 @@ export async function submitPublicPhotoToSheet(payload: PublicGallerySubmitPaylo
 }
 
 /**
- * Memperbarui status persetujuan foto di Spreadsheet melalui Webhook GAS (Disetujui / Ditolak)
+ * Memperbarui status persetujuan foto di Spreadsheet melalui Webhook GAS (Disetujui / Ditolak / Pending)
  */
 export async function updatePublicPhotoStatusInSheet(
   submission: PublicGallerySubmission, 
-  newStatus: 'Disetujui' | 'Ditolak'
+  newStatus: 'Pending' | 'Disetujui' | 'Ditolak'
 ): Promise<{ success: boolean; message: string }> {
   const gasUrl = getPublicGalleryWebAppUrl();
 

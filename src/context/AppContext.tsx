@@ -56,7 +56,9 @@ import {
   fetchPublicGallerySubmissions,
   convertPublicSubmissionsToGalleryItems,
   updatePublicPhotoStatusInSheet,
-  getLocalPublicGalleryCache
+  getLocalPublicGalleryCache,
+  setLocalPublicGalleryCache,
+  savePublicGalleryStatusOverride
 } from '../services/publicGallerySheetService';
 import {
   fetchAdminUsersFromSheet,
@@ -134,7 +136,8 @@ import { getGallerySlug, compareGalleryItemsDescending, sortGalleryDescending } 
 import { 
   formatGoogleDriveImageUrl, 
   isGoogleDriveUrl, 
-  isGoogleDriveFolderUrl, 
+  isGoogleDriveFolderUrl,
+  extractGoogleDriveFolderId, 
   embedGalleryMetadata, 
   extractGalleryMetadata, 
   parseGoogleDriveImageLinks,
@@ -304,7 +307,7 @@ interface AppContextType {
   isGalleryLoading: boolean;
   publicGallerySubmissions: PublicGallerySubmission[];
   refreshPublicGalleryFromSheet: (forceRefresh?: boolean) => Promise<PublicGallerySubmission[]>;
-  updatePublicGalleryStatus: (submission: PublicGallerySubmission, newStatus: 'Disetujui' | 'Ditolak') => Promise<boolean>;
+  updatePublicGalleryStatus: (submission: PublicGallerySubmission, newStatus: 'Pending' | 'Disetujui' | 'Ditolak') => Promise<boolean>;
   selectedVideo: GalleryVideoItem | null;
   setSelectedVideo: (video: GalleryVideoItem | null, customPath?: string) => void;
   videos: GalleryVideoItem[];
@@ -2770,29 +2773,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updatePublicGalleryStatus = async (
     submission: PublicGallerySubmission, 
-    newStatus: 'Disetujui' | 'Ditolak'
+    newStatus: 'Pending' | 'Disetujui' | 'Ditolak'
   ): Promise<boolean> => {
     try {
-      const res = await updatePublicPhotoStatusInSheet(submission, newStatus);
-      if (res.success) {
-        setPublicGallerySubmissions((prev) =>
-          prev.map((s) => (s.id === submission.id ? { ...s, status: newStatus } : s))
-        );
-        // Segarkan data gabungan galeri utama
-        const approvedPublic = convertPublicSubmissionsToGalleryItems(
-          publicGallerySubmissions.map((s) => (s.id === submission.id ? { ...s, status: newStatus } : s))
-        );
+      // 1. Simpan override status ke localStorage secara permanen (melindungi dari delay cache Google Sheets)
+      savePublicGalleryStatusOverride(submission, newStatus);
+
+      // 2. Optimistic Update instan: langsung pindahkan tab dan perbarui counter seketika
+      const targetFolderId = extractGoogleDriveFolderId(submission.driveFolderUrl);
+      
+      setPublicGallerySubmissions((prev) => {
+        const updated = prev.map((s) => {
+          const sFolderId = extractGoogleDriveFolderId(s.driveFolderUrl);
+          const isMatch = s.id === submission.id || (targetFolderId && sFolderId && targetFolderId === sFolderId);
+          return isMatch ? { ...s, status: newStatus } : s;
+        });
+
+        // Simpan langsung ke cache lokal agar tidak hilang saat reload atau sync
+        setLocalPublicGalleryCache(updated);
+
+        // Segarkan data gabungan galeri utama secara instan
+        const approvedPublic = convertPublicSubmissionsToGalleryItems(updated);
         const currentCms = _inMemoryGalleryCache?.filter((g) => !g.id.startsWith('public-gal-')) || [];
         const combined = [...currentCms, ...approvedPublic];
         setGallery(combined);
         _inMemoryGalleryCache = combined;
         try { sessionStorage.setItem('korwilcam_gallery', JSON.stringify(combined)); } catch {}
-        return true;
+
+        return updated;
+      });
+
+      // 3. Kirim pembaruan ke Google Spreadsheet via Webhook GAS di latar belakang
+      try {
+        const res = await updatePublicPhotoStatusInSheet(submission, newStatus);
+        if (!res.success) {
+          console.warn('Respons status dari GAS Google Spreadsheet:', res.message);
+        }
+      } catch (errGas) {
+        console.warn('Gagal sinkron status ke GAS (status lokal tetap tersimpan aman):', errGas);
       }
+
+      return true;
     } catch (e) {
       console.warn('Gagal memperbarui status galeri publik:', e);
+      return false;
     }
-    return false;
   };
 
   const refreshGalleryFromSheet = async (): Promise<void> => {
