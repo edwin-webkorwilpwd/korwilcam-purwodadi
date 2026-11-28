@@ -343,7 +343,7 @@ export const Navbar: React.FC = () => {
   const currentNews = topTenNews[currentTickerIndex];
 
   return (
-    <header ref={navbarRef} onMouseLeave={handleHeaderLeave} className="sticky top-0 z-40 w-full shadow-lg bg-[#163fa8]">
+    <header ref={navbarRef} onMouseLeave={handleHeaderLeave} className="sticky top-0 z-40 w-full shadow-sm bg-transparent">
       {/* Top Notification & Contact Bar */}
       <div className="bg-[#143794] text-blue-100 text-[11px] py-1.5 border-b border-white/15 select-none">
         <div className="w-full px-2 sm:px-3 flex flex-col md:flex-row justify-between items-center gap-2">
@@ -403,8 +403,8 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Navbar - Vibrant Cendikia Blue Gradient */}
-      <div className="bg-gradient-to-r from-[#1b56ce] via-[#2467ea] to-[#109de8] text-white border-b border-white/20 shadow-xl">
+      {/* Main Navbar - Putih Kaca (Frosted White Glass) */}
+      <div className="bg-white/85 backdrop-blur-md text-slate-800 border-b border-slate-200/70 shadow-sm">
         <div className="w-full px-2 sm:px-3">
           <div className="flex items-center justify-between h-12 sm:h-[50px] py-1 gap-2 xl:gap-4">
             
@@ -418,29 +418,29 @@ export const Navbar: React.FC = () => {
                 <img 
                   src="/logo.png" 
                   alt="Logo Kabupaten Grobogan" 
-                  className="h-8 sm:h-9 w-auto object-contain drop-shadow-md"
+                  className="h-8 sm:h-9 w-auto object-contain drop-shadow-sm"
                 />
               </div>
               <div className="flex flex-col justify-center">
-                <span className="font-extrabold text-xs sm:text-[14px] tracking-tight text-white leading-tight group-hover:text-blue-100 transition-colors whitespace-nowrap">
+                <span className="font-extrabold text-xs sm:text-[14px] tracking-tight text-[#0f295c] leading-tight group-hover:text-[#1b56ce] transition-colors whitespace-nowrap">
                   KORWILCAM PURWODADI
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-blue-100 font-medium leading-tight whitespace-nowrap">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-medium leading-tight whitespace-nowrap">
                   Dinas Pendidikan Kabupaten Grobogan
                 </span>
               </div>
             </div>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 font-semibold text-[14px] xl:text-[15.5px] text-white shrink-0">
+            <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 font-semibold text-[14px] xl:text-[15.5px] text-slate-700 shrink-0">
               {isHomeVisible && (
                 <button
                   onClick={() => handleNavClick('home', '/beranda')}
                   onMouseEnter={handleDirectHover}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'home' 
-                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                      : 'text-white/90 hover:text-white hover:bg-white/15'
+                      ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                      : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                   }`}
                 >
                   Beranda
@@ -460,10 +460,10 @@ export const Navbar: React.FC = () => {
                     onTouchEnd={(e) => toggleDropdown('profile', e)}
                     aria-expanded={profileDropdownOpen}
                     aria-haspopup="true"
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                    className={`flex items-center gap-1 px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                       profileDropdownOpen || activeTab === 'profile' || activeTab === 'nominatif' || activeTab === 'organization' || activeTab === 'purna-tugas'
-                        ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                        : 'text-white/90 hover:text-white hover:bg-white/15'
+                        ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                        : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                     }`}
                   >
                     <span>Profil</span>
@@ -480,14 +480,14 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                    <div className="relative bg-white/95 rounded-xl shadow-xl border border-slate-200/80 p-1.5 space-y-1 backdrop-blur-md">
                       {isItemActive(menuVisibility, 'profile.welcome') && (
                         <button
                           onClick={() => handleNavClick('profile', '/profil#sambutan')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash !== '#struktur')
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Sambutan & Visi Misi</span>
@@ -499,8 +499,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('profile', '/profil#struktur')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'profile' && (typeof window !== 'undefined' && window.location.hash === '#struktur')
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Struktur Organisasi</span>
@@ -512,8 +512,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('nominatif', '/profil#nominatif')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'nominatif'
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Nominatif</span>
@@ -528,8 +528,8 @@ export const Navbar: React.FC = () => {
                           }}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'organization'
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Organisasi</span>
@@ -541,8 +541,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('purna-tugas', '/profil#purna-tugas')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'purna-tugas'
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Purna Tugas</span>
@@ -557,10 +557,10 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => handleNavClick('sop-pelayanan', '/sop-pelayanan')}
                   onMouseEnter={handleDirectHover}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'sop-pelayanan' 
-                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                      : 'text-white/90 hover:text-white hover:bg-white/15'
+                      ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                      : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                   }`}
                 >
                   SOP
@@ -571,10 +571,10 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => handleNavClick('schools', '/sekolah')}
                   onMouseEnter={handleDirectHover}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 xl:px-3.5 py-1 rounded-full transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'schools' 
-                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                      : 'text-white/90 hover:text-white hover:bg-white/15'
+                      ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                      : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                   }`}
                 >
                   <span>Sekolah</span>
@@ -585,10 +585,10 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => handleNavClick('karyaku', '/karyaku')}
                   onMouseEnter={handleDirectHover}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all relative whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 xl:px-3.5 py-1 rounded-full transition-all relative whitespace-nowrap cursor-pointer ${
                     activeTab === 'karyaku' 
-                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                      : 'text-white/90 hover:text-white hover:bg-white/15'
+                      ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                      : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                   }`}
                 >
                   <span>Karyaku</span>
@@ -608,10 +608,10 @@ export const Navbar: React.FC = () => {
                     onTouchEnd={(e) => toggleDropdown('news', e)}
                     aria-expanded={newsDropdownOpen}
                     aria-haspopup="true"
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                    className={`flex items-center gap-1 px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                       newsDropdownOpen || activeTab === 'news' || activeTab === 'achievements'
-                        ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                        : 'text-white/90 hover:text-white hover:bg-white/15'
+                        ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                        : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                     }`}
                   >
                     <span>Berita</span>
@@ -628,14 +628,14 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                    <div className="bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                    <div className="bg-white/95 rounded-xl shadow-xl border border-slate-200/80 p-1.5 space-y-1 backdrop-blur-md">
                       {isItemActive(menuVisibility, 'news.latest') && (
                         <button
                           onClick={() => handleNavClick('news', '/berita')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'news' && (typeof window === 'undefined' || (!window.location.pathname.includes('/pengumuman') && !window.location.pathname.includes('/agenda') && !window.location.pathname.includes('/prestasi')))
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Berita Terkini</span>
@@ -647,8 +647,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('news', '/berita/pengumuman')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/pengumuman')
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Pengumuman & Edaran</span>
@@ -660,8 +660,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('news', '/berita/agenda')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'news' && typeof window !== 'undefined' && window.location.pathname.includes('/agenda')
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Agenda Kegiatan</span>
@@ -673,8 +673,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('achievements', '/berita/prestasi')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'achievements'
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Prestasi Siswa & Guru</span>
@@ -698,10 +698,10 @@ export const Navbar: React.FC = () => {
                     onTouchEnd={(e) => toggleDropdown('services', e)}
                     aria-expanded={servicesDropdownOpen}
                     aria-haspopup="true"
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                    className={`flex items-center gap-1 px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                       servicesDropdownOpen || activeTab === 'downloads' || activeTab.startsWith('service-')
-                        ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                        : 'text-white/90 hover:text-white hover:bg-white/15'
+                        ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                        : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                     }`}
                   >
                     <span>Layanan</span>
@@ -718,7 +718,7 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md">
+                    <div className="relative bg-white/95 rounded-xl shadow-xl border border-slate-200/80 p-1.5 space-y-1 backdrop-blur-md">
                       {/* 1. Persyaratan Pelayanan */}
                       {isItemActive(menuVisibility, 'services.requirements') && (
                         <button
@@ -726,8 +726,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('service-requirements', '/layanan/persyaratan-pelayanan')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'service-requirements' 
-                              ? 'bg-white/20 text-white font-bold' 
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold' 
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Persyaratan Pelayanan</span>
@@ -741,8 +741,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('downloads', '/layanan/unduh-berkas')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'downloads' 
-                              ? 'bg-white/20 text-white font-bold' 
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold' 
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Unduh Berkas</span>
@@ -756,8 +756,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('service-aula', '/layanan/peminjaman-aula')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'service-aula' 
-                              ? 'bg-white/20 text-white font-bold' 
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold' 
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Peminjaman Aula</span>
@@ -771,8 +771,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('service-cuti', '/layanan/surat-cuti')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'service-cuti' 
-                              ? 'bg-white/20 text-white font-bold' 
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold' 
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Surat Cuti</span>
@@ -786,8 +786,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('service-survey', '/layanan/survey-pelayanan')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'service-survey' 
-                              ? 'bg-white/20 text-white font-bold' 
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold' 
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Survey Pelayanan</span>
@@ -801,8 +801,8 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('service-permintaan-data', dataRequestPath)}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap cursor-pointer ${
                             activeTab === 'service-permintaan-data' 
-                              ? 'bg-white/20 text-white font-bold' 
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold' 
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
                           <span>Permintaan Data</span>
@@ -817,10 +817,10 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => handleNavClick('gallery', '/galeri')}
                   onMouseEnter={handleDirectHover}
-                  className={`px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'gallery' 
-                      ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                      : 'text-white/90 hover:text-white hover:bg-white/15'
+                      ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                      : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                   }`}
                 >
                   Galeri
@@ -840,10 +840,10 @@ export const Navbar: React.FC = () => {
                     onTouchEnd={(e) => toggleDropdown('contact', e)}
                     aria-expanded={contactDropdownOpen}
                     aria-haspopup="true"
-                    className={`flex items-center gap-1 px-2 xl:px-3 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                    className={`flex items-center gap-1 px-2.5 xl:px-3.5 py-1 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                       contactDropdownOpen || activeTab === 'contact' || activeTab === 'social-media'
-                        ? 'bg-white text-[#1b56ce] font-bold shadow-md shadow-blue-900/20' 
-                        : 'text-white/90 hover:text-white hover:bg-white/15'
+                        ? 'bg-gradient-to-r from-[#1b56ce] to-[#2467ea] text-white font-bold shadow-md shadow-blue-600/25' 
+                        : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80'
                     }`}
                   >
                     <span>Kontak</span>
@@ -860,17 +860,17 @@ export const Navbar: React.FC = () => {
                     {/* Invisible hover bridge to eliminate gap */}
                     <div className="absolute -top-3 inset-x-0 h-5 bg-transparent" />
 
-                    <div className="relative bg-[#163fa8] rounded-xl shadow-2xl border border-white/20 p-1.5 space-y-1 backdrop-blur-md min-w-[190px]">
+                    <div className="relative bg-white/95 rounded-xl shadow-xl border border-slate-200/80 p-1.5 space-y-1 backdrop-blur-md min-w-[190px]">
                       {isItemActive(menuVisibility, 'contact.office') && (
                         <button
                           onClick={() => handleNavClick('contact', '/kontak')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap flex items-center gap-2.5 cursor-pointer ${
                             activeTab === 'contact'
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
-                          <Phone className="w-4 h-4 text-blue-300" />
+                          <Phone className="w-4 h-4 text-[#1b56ce]" />
                           <span>Kontak & Pengaduan</span>
                         </button>
                       )}
@@ -880,11 +880,11 @@ export const Navbar: React.FC = () => {
                           onClick={() => handleNavClick('social-media', '/media-sosial')}
                           className={`w-full text-left px-3.5 py-2 text-[14px] rounded-lg transition-colors font-semibold whitespace-nowrap flex items-center gap-2.5 cursor-pointer ${
                             activeTab === 'social-media'
-                              ? 'bg-white/20 text-white font-bold'
-                              : 'text-white hover:bg-white/15'
+                              ? 'bg-blue-50 text-[#1b56ce] font-bold'
+                              : 'text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/70'
                           }`}
                         >
-                          <Share2 className="w-4 h-4 text-blue-300" />
+                          <Share2 className="w-4 h-4 text-[#1b56ce]" />
                           <span>Sos Med</span>
                         </button>
                       )}
@@ -898,7 +898,7 @@ export const Navbar: React.FC = () => {
             <div className="flex lg:hidden items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-1 rounded-lg text-white hover:bg-white/10 focus:outline-none"
+                className="p-1.5 rounded-lg text-slate-700 hover:text-[#1b56ce] hover:bg-blue-50/80 focus:outline-none transition-colors"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
