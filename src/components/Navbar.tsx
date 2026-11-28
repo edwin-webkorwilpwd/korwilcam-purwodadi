@@ -3,17 +3,13 @@ import { useApp } from '../context/AppContext';
 import { 
   GraduationCap, 
   Phone, 
-  Mail, 
-  Clock, 
   Menu, 
   X, 
   ShieldCheck, 
-  BellRing, 
   BookOpen,
   FileCheck,
   Image as ImageIcon, 
   ChevronDown,
-  ArrowRight,
   Share2,
   Briefcase,
   Home
@@ -25,12 +21,10 @@ export const Navbar: React.FC = () => {
   const { 
     activeTab, 
     setActiveTab, 
-    officeProfile, 
     news, 
     schools,
     announcements,
     aulaBookings,
-    setSelectedNews, 
     setSelectedAnnouncement,
     isAuthenticated,
     organizations,
@@ -283,23 +277,6 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  // Top 10 Berita & Informasi Terbaru
-  const topTenNews = useMemo(() => {
-    return (news || []).slice(0, 10);
-  }, [news]);
-
-  const [currentTickerIndex, setCurrentTickerIndex] = useState(0);
-  const [isTickerHovered, setIsTickerHovered] = useState(false);
-
-  // Auto rotate ticker setiap 4.5 detik
-  useEffect(() => {
-    if (topTenNews.length <= 1 || isTickerHovered) return;
-    const timer = setInterval(() => {
-      setCurrentTickerIndex((prev) => (prev + 1) % topTenNews.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [topTenNews.length, isTickerHovered]);
-
   // Clean up timeouts on unmount and click outside detection
   const navbarRef = useRef<HTMLElement | null>(null);
 
@@ -318,13 +295,6 @@ export const Navbar: React.FC = () => {
     };
   }, []);
 
-  const handleTickerClick = () => {
-    const currentItem = topTenNews[currentTickerIndex];
-    if (currentItem) {
-      setSelectedNews(currentItem);
-    }
-  };
-
   const handleNavClick = (tab: string, path?: string) => {
     closeAllDropdowns();
     setActiveTab(tab, path);
@@ -340,69 +310,8 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const currentNews = topTenNews[currentTickerIndex];
-
   return (
     <header ref={navbarRef} onMouseLeave={handleHeaderLeave} className="sticky top-0 z-40 w-full shadow-sm bg-transparent">
-      {/* Top Notification & Contact Bar */}
-      <div className="bg-[#143794] text-blue-100 text-[11px] py-1.5 border-b border-white/15 select-none">
-        <div className="w-full px-2 sm:px-3 flex flex-col md:flex-row justify-between items-center gap-2">
-          
-          {/* Announcement ticker: 10 Berita & Informasi Terbaru */}
-          <div 
-            className="flex items-center gap-2.5 overflow-hidden w-full md:w-auto min-w-0"
-            onMouseEnter={() => setIsTickerHovered(true)}
-            onMouseLeave={() => setIsTickerHovered(false)}
-          >
-            {/* Badge Info Terkini */}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white text-[#163fa8] font-bold shrink-0 uppercase text-[10px] tracking-wider shadow-sm">
-              <BellRing className="w-3 h-3 animate-pulse text-[#163fa8]" />
-              <span>Info Terkini</span>
-            </span>
-
-            {/* Judul Berita Interaktif & Dapat Diklik Langsung di Sebelahnya */}
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              {currentNews ? (
-                <button
-                  type="button"
-                  key={currentNews.id}
-                  onClick={handleTickerClick}
-                  className="text-left truncate text-blue-100 hover:text-white font-medium text-xs transition-all flex items-center gap-2 group max-w-full"
-                  title={`Klik untuk membaca selengkapnya: "${currentNews.title}"`}
-                >
-                  <span className="truncate group-hover:underline">
-                    {currentNews.title}
-                  </span>
-                  <span className="hidden xl:inline-flex items-center text-[10px] font-semibold text-blue-200 group-hover:translate-x-0.5 transition-transform shrink-0">
-                    Baca <ArrowRight className="w-3 h-3 ml-0.5" />
-                  </span>
-                </button>
-              ) : (
-                <p className="truncate text-blue-200">
-                  Selamat datang di Portal Resmi Kantor Korwilcam Purwodadi
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Quick info contacts */}
-          <div className="hidden lg:flex items-center gap-5 text-blue-100 shrink-0">
-            <div className="flex items-center gap-1.5 hover:text-white transition-colors">
-              <Phone className="w-3.5 h-3.5 text-sky-300" />
-              <span>{officeProfile.phone}</span>
-            </div>
-            <div className="flex items-center gap-1.5 hover:text-white transition-colors">
-              <Mail className="w-3.5 h-3.5 text-sky-300" />
-              <span>{officeProfile.email}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-blue-200" title={officeProfile.workingHours}>
-              <Clock className="w-3.5 h-3.5 text-sky-300 shrink-0" />
-              <span className="truncate max-w-[360px] 2xl:max-w-none">{officeProfile.workingHours || 'Senin - Kamis: 07.30 - 14.30 WIB | Jumat: 07.30 - 13.00 WIB'}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Navbar - Putih Kaca (Frosted White Glass) */}
       <div className="bg-white/85 backdrop-blur-md text-slate-800 border-b border-slate-200/70 shadow-sm">
         <div className="w-full px-2 sm:px-3">
