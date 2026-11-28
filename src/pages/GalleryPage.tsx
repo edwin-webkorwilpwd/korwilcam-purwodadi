@@ -376,11 +376,6 @@ export const GalleryPage: React.FC = () => {
               >
                 <Camera className="w-4 h-4" />
                 <span>Foto Kegiatan</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  activeGalleryType === 'photo' ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white'
-                }`}>
-                  {gallery.length}
-                </span>
               </button>
 
               <button
@@ -394,11 +389,6 @@ export const GalleryPage: React.FC = () => {
               >
                 <Video className="w-4 h-4" />
                 <span>Video Kegiatan</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  activeGalleryType === 'video' ? 'bg-white text-red-600' : 'bg-white/20 text-white'
-                }`}>
-                  {videos.length}
-                </span>
               </button>
             </div>
           </div>
